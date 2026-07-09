@@ -9,7 +9,14 @@ const app = createApp(appEnv)
 export default {
   fetch: (request: Request) => app.handle(request),
   scheduled: async () => {
-    const purged = await purgeExpired(appEnv, Date.now())
-    console.log(JSON.stringify({ event: 'purge', purged, at: new Date().toISOString() }))
+    try {
+      const purged = await purgeExpired(appEnv, Date.now())
+      console.log(JSON.stringify({ event: 'purge', purged, at: new Date().toISOString() }))
+    } catch (error) {
+      console.error(
+        JSON.stringify({ event: 'purge_error', error: String(error), at: new Date().toISOString() }),
+      )
+      throw error
+    }
   },
 }
