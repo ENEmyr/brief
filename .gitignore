@@ -17,12 +17,6 @@ docs/vertical-slices-pattern.md
 docs/superpowers/
 CLAUDE.local.md
 .claude/security/
-
-# OpenWolf volatile local state (knowledge files ARE tracked)
-.wolf/designqc-captures/
-.wolf/hooks/_session.json
-.wolf/token-ledger.json
-.wolf/cron-state.json
-.wolf/suggestions.json
-.wolf/designqc-report.json
+.claude/rules/openwolf.md
+.wolf/
 .superpowers/
