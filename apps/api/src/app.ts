@@ -4,6 +4,7 @@ import { cors } from '@elysiajs/cors'
 import type { AppEnv } from './env'
 import { sessionFeature } from './features/session'
 import { saveFeature } from './features/save'
+import { stateFeature } from './features/state'
 
 export function createApp(env: AppEnv) {
   return new Elysia({ adapter: CloudflareAdapter })
@@ -28,5 +29,6 @@ export function createApp(env: AppEnv) {
     .get('/health', () => ({ ok: true }))
     .use(sessionFeature(env))
     .use(saveFeature(env))
+    .use(stateFeature(env))
     .compile()
 }
