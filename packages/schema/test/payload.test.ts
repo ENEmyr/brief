@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { payloadSchema, MAX_PAYLOAD_BYTES, blockSchema, sectionSchema, decisionSchema, metaSchema, BLOCK_TYPES, BIGO_CURVES, type Block, type Decision, type Payload, type Section } from '../src'
+import { payloadSchema, MAX_PAYLOAD_BYTES, blockSchema, sectionSchema, decisionSchema, metaSchema, BLOCK_TYPES, BIGO_CURVES, type Block, type Decision, type Payload } from '../src'
 
 const minimal: Payload = {
   meta: { title: 'PR 42 review' },
