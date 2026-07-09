@@ -64,7 +64,7 @@ export async function getSession(
     await env.KV.delete(cacheKey)
     return null
   }
-  const expiresAt = now + touchWindow(row.saved)
+  const expiresAt = Math.max(row.expiresAt, now + touchWindow(row.saved))
   await db(env.DB).update(sessions).set({ lastOpenedAt: now, expiresAt }).where(eq(sessions.id, id))
   const fresh: SessionRow = { ...row, lastOpenedAt: now, expiresAt }
   await env.KV.put(cacheKey, JSON.stringify(fresh), { expirationTtl: 3600 })

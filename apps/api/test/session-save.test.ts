@@ -70,4 +70,35 @@ describe('PUT /api/session/:id/save', () => {
     const res = await put('absent-absent-x', { mode: 'plain' })
     expect(res.status).toBe(404)
   })
+
+  it('plain save after encrypt does not clobber ciphertext, encParams, or the encrypted flag', async () => {
+    const id = await createOne()
+    const encryptRes = await put(id, {
+      mode: 'encrypt',
+      ciphertext: 'c2VjcmV0',
+      encParams: { salt: 'AAAA', iv: 'BBBB', iterations: 600000 },
+    })
+    expect(encryptRes.status).toBe(200)
+
+    const res = await put(id, { mode: 'plain' })
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as { encrypted: boolean }
+    expect(json.encrypted).toBe(true)
+
+    const row = await appEnv.DB.prepare('SELECT payload, encrypted, enc_params FROM sessions WHERE id = ?')
+      .bind(id).first()
+    expect(row?.payload).toBe('c2VjcmV0')
+    expect(row?.encrypted).toBe(1)
+    expect(row?.enc_params).toBe(JSON.stringify({ salt: 'AAAA', iv: 'BBBB', iterations: 600000 }))
+  })
+
+  it('rejects an oversize ciphertext with 413', async () => {
+    const id = await createOne()
+    const res = await put(id, {
+      mode: 'encrypt',
+      ciphertext: 'A'.repeat(2_000_000),
+      encParams: { salt: 'AAAA', iv: 'BBBB', iterations: 600000 },
+    })
+    expect(res.status).toBe(413)
+  })
 })
