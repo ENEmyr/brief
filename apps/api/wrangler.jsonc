@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "brief-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-05",
+  "d1_databases": [
+    { "binding": "DB", "database_name": "brief-local", "database_id": "local-placeholder", "migrations_dir": "drizzle" }
+  ],
+  "kv_namespaces": [{ "binding": "KV", "id": "local-placeholder" }],
+  "triggers": { "crons": ["0 3 * * *"] },
+  "vars": { "PUBLIC_WEB_ORIGIN": "http://localhost:3000" },
+  "observability": { "enabled": true },
+  "env": {
+    "preview": {
+      "name": "brief-api-preview",
+      "d1_databases": [
+        { "binding": "DB", "database_name": "brief-preview", "database_id": "PREVIEW_D1_ID", "migrations_dir": "drizzle" }
+      ],
+      "kv_namespaces": [{ "binding": "KV", "id": "PREVIEW_KV_ID" }],
+      "triggers": { "crons": ["0 3 * * *"] },
+      "vars": { "PUBLIC_WEB_ORIGIN": "https://brief-web.pages.dev" },
+      "unsafe": { "bindings": [{ "name": "RATE_LIMITER", "type": "ratelimit", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }] }
+    },
+    "production": {
+      "name": "brief-api-production",
+      "routes": [{ "pattern": "brief-api.algoryth.me", "custom_domain": true }],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "brief-production", "database_id": "PRODUCTION_D1_ID", "migrations_dir": "drizzle" }
+      ],
+      "kv_namespaces": [{ "binding": "KV", "id": "PRODUCTION_KV_ID" }],
+      "triggers": { "crons": ["0 3 * * *"] },
+      "vars": { "PUBLIC_WEB_ORIGIN": "https://brief.algoryth.me" },
+      "unsafe": { "bindings": [{ "name": "RATE_LIMITER", "type": "ratelimit", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } }] }
+    }
+  }
+}
