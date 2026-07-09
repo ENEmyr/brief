@@ -26,11 +26,16 @@ describe('POST /api/session', () => {
     const res = await post(validBody)
     expect(res.status).toBe(201)
     const json = (await res.json()) as { id: string; url: string }
-    expect(json.id).toHaveLength(14)
+    expect(json.id).toMatch(/^[0-9a-zA-Z]{14}$/)
     expect(json.url).toContain(`/s/${json.id}`)
-    const row = await appEnv.DB.prepare('SELECT id, saved, encrypted, expires_at, last_opened_at FROM sessions WHERE id = ?')
+    const row = await appEnv.DB.prepare(
+      'SELECT id, saved, encrypted, enc_params, title, expires_at, last_opened_at FROM sessions WHERE id = ?',
+    )
       .bind(json.id).first()
     expect(row?.saved).toBe(0)
+    expect(row?.encrypted).toBe(0)
+    expect(row?.enc_params).toBeNull()
+    expect(row?.title).toBe('T')
     expect(Number(row?.expires_at)).toBe(Number(row?.last_opened_at) + 7 * 24 * 60 * 60 * 1000)
   })
 
@@ -46,6 +51,18 @@ describe('POST /api/session', () => {
     const section = big.payload.sections[0]
     if (section) {
       section.blocks = [{ type: 'p', text: 'a'.repeat(1_900_001) }]
+    }
+    const res = await post(big)
+    expect(res.status).toBe(413)
+  })
+
+  it('rejects multibyte payloads with 413 based on byte size, not char length', async () => {
+    // 'ก' is a 3-byte UTF-8 Thai character. 700,000 chars = 2.1MB UTF-8, well
+    // under the 1.9M UTF-16-code-unit char length but over the byte cap.
+    const big = structuredClone(validBody)
+    const section = big.payload.sections[0]
+    if (section) {
+      section.blocks = [{ type: 'p', text: 'ก'.repeat(700_000) }]
     }
     const res = await post(big)
     expect(res.status).toBe(413)

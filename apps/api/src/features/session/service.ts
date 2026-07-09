@@ -1,6 +1,5 @@
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
 import { customAlphabet } from 'nanoid'
-import type { Payload } from '@brief/schema'
 import { sessions } from '../../db/schema'
 import { DAY_MS } from '../../shared/time'
 
@@ -14,12 +13,12 @@ export function db(d1: D1Database): DrizzleD1Database {
   return drizzle(d1)
 }
 
-export async function createSession(d1: D1Database, payload: Payload, now: number): Promise<{ id: string }> {
+export async function createSession(d1: D1Database, payloadStr: string, title: string, now: number): Promise<{ id: string }> {
   const id = newId()
   await db(d1).insert(sessions).values({
     id,
-    payload: JSON.stringify(payload),
-    title: payload.meta.title,
+    payload: payloadStr,
+    title,
     saved: false,
     encrypted: false,
     encParams: null,

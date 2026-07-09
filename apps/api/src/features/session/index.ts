@@ -15,7 +15,8 @@ export function sessionFeature(env: AppEnv) {
       }
     }
     const raw = await request.text()
-    if (raw.length > MAX_PAYLOAD_BYTES + 65_536) {
+    const rawBytes = new TextEncoder().encode(raw).byteLength
+    if (rawBytes > MAX_PAYLOAD_BYTES + 65_536) {
       set.status = 413
       return { error: `Payload exceeds ${MAX_PAYLOAD_BYTES} bytes.` }
     }
@@ -32,11 +33,12 @@ export function sessionFeature(env: AppEnv) {
       return { error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).slice(0, 10).join('; ') }
     }
     const payloadStr = JSON.stringify(parsed.data.payload)
-    if (payloadStr.length > MAX_PAYLOAD_BYTES) {
+    const payloadBytes = new TextEncoder().encode(payloadStr).byteLength
+    if (payloadBytes > MAX_PAYLOAD_BYTES) {
       set.status = 413
       return { error: `Payload exceeds ${MAX_PAYLOAD_BYTES} bytes.` }
     }
-    const { id } = await createSession(env.DB, parsed.data.payload, Date.now())
+    const { id } = await createSession(env.DB, payloadStr, parsed.data.payload.meta.title, Date.now())
     set.status = 201
     return { id, url: `${env.PUBLIC_WEB_ORIGIN}/s/${id}` }
   })
