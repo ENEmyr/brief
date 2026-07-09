@@ -1,0 +1,28 @@
+node_modules/
+dist/
+out/
+.next/
+.open-next/
+.turbo/
+.wrangler/
+coverage/
+.env
+.env.*
+.dev.vars
+*.tsbuildinfo
+
+# local-only working material, never pushed to the public repo
+docs/PRD.md
+docs/vertical-slices-pattern.md
+docs/superpowers/
+CLAUDE.local.md
+.claude/security/
+
+# OpenWolf volatile local state (knowledge files ARE tracked)
+.wolf/designqc-captures/
+.wolf/hooks/_session.json
+.wolf/token-ledger.json
+.wolf/cron-state.json
+.wolf/suggestions.json
+.wolf/designqc-report.json
+.superpowers/
