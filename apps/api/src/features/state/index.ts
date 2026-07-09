@@ -6,7 +6,8 @@ import { db } from '../session/service'
 import { stateBody } from './model'
 import { DAY_MS } from '../../shared/time'
 
-const MAX_STATE_BODY_BYTES = 300_000
+// 262_144-char zod cap can be ~3 bytes/char for Thai/CJK plaintext, plus JSON envelope
+const MAX_STATE_BODY_BYTES = 800_000
 
 export function stateFeature(env: AppEnv) {
   return new Elysia({ name: 'state' })
