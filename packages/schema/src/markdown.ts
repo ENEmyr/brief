@@ -6,18 +6,15 @@ const mmId = (s: string) => s.replace(/[^a-zA-Z0-9_]/g, '_')
  * Sanitize interpolated text before it lands inside a mermaid statement.
  * Newlines always collapse to a space (mermaid statements are single-line).
  * `extra` strips characters that would break the specific syntax the text
- * is being dropped into (bracket labels, pipe-delimited edge labels, quoted
- * strings).
+ * is being dropped into (pipe-delimited edge labels, quoted strings).
  */
 interface MmTextOptions {
-  brackets?: boolean
   pipe?: boolean
   quote?: boolean
 }
 
 function mmText(s: string, extra?: MmTextOptions): string {
   let out = s.replace(/\r\n|\r|\n/g, ' ')
-  if (extra?.brackets) out = out.replace(/\[/g, '(').replace(/\]/g, ')')
   if (extra?.pipe) out = out.replace(/\|/g, '')
   if (extra?.quote) out = out.replace(/"/g, '')
   return out
@@ -41,10 +38,13 @@ function stateToMermaid(b: Extract<Block, { type: 'state' }>): string {
 }
 
 function layersToMermaid(b: Extract<Block, { type: 'layers' }>): string {
+  // Flowchart labels are always emitted in quoted form (id["label"]): inside
+  // quotes, brackets, parens and pipes are all legal, so label text passes
+  // through verbatim. Inner double quotes are stripped by mmText.
   const lines = ['flowchart TD']
   for (const layer of b.layers) {
-    lines.push(`  subgraph ${mmId(layer.id)}[${mmText(layer.label, { brackets: true })}]`)
-    for (const n of layer.nodes) lines.push(`    ${mmId(n.id)}[${mmText(n.label, { brackets: true })}]`)
+    lines.push(`  subgraph ${mmId(layer.id)}["${mmText(layer.label, { quote: true })}"]`)
+    for (const n of layer.nodes) lines.push(`    ${mmId(n.id)}["${mmText(n.label, { quote: true })}"]`)
     lines.push('  end')
     for (const e of layer.edges) lines.push(`  ${mmId(e.from)} --> ${e.label ? `|${mmText(e.label, { pipe: true })}|` : ''}${mmId(e.to)}`)
   }
@@ -55,7 +55,9 @@ function erdToMermaid(b: Extract<Block, { type: 'erd' }>): string {
   const lines = ['erDiagram']
   for (const t of b.tables) {
     lines.push(`  ${mmId(t.name)} {`)
-    for (const c of t.columns) lines.push(`    ${c.type.replace(/\s/g, '_')} ${mmText(c.name)}${c.pk ? ' PK' : c.fk ? ' FK' : ''}`)
+    // Attribute type and name must both be single ATTRIBUTE_WORDs: a quote,
+    // space or other punctuation in either breaks erDiagram parsing.
+    for (const c of t.columns) lines.push(`    ${mmId(c.type)} ${mmId(c.name)}${c.pk ? ' PK' : c.fk ? ' FK' : ''}`)
     lines.push('  }')
   }
   for (const t of b.tables)

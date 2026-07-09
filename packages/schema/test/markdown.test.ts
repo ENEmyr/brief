@@ -182,7 +182,7 @@ describe('injection hardening', () => {
     expect(arrowLines[0]).toContain('GET /session injected line')
   })
 
-  it('produces balanced brackets when a layers node label contains a closing bracket', () => {
+  it('emits quoted flowchart labels so brackets in a layers node label stay verbatim', () => {
     const md = payloadToMarkdown(
       {
         meta: { title: 'Layers test' },
@@ -192,7 +192,7 @@ describe('injection hardening', () => {
             type: 'layers',
             layers: [{
               id: 'l1', label: 'Layer 1',
-              nodes: [{ id: 'n1', label: 'Node[1]' }],
+              nodes: [{ id: 'n1', label: 'Node [1]' }],
               edges: [],
             }],
           }],
@@ -201,7 +201,33 @@ describe('injection hardening', () => {
       },
       { url: 'https://example.test' },
     )
-    expect(md).toContain('Node(1)')
-    expect(md).not.toContain('Node[1]')
+    expect(md).toContain('n1["Node [1]"]')
+    expect(md).toContain('subgraph l1["Layer 1"]')
+  })
+
+  it('sanitizes erd column names containing spaces or quotes into a single attribute word', () => {
+    const md = payloadToMarkdown(
+      {
+        meta: { title: 'Erd test' },
+        sections: [{
+          id: 's1', no: 1, title: 'Erd',
+          blocks: [{
+            type: 'erd',
+            tables: [{
+              name: 'users',
+              columns: [{ name: 'display "name', type: 'varchar(255)' }],
+            }],
+          }],
+        }],
+        decisions: [],
+      },
+      { url: 'https://example.test' },
+    )
+    const attrLine = md.split('\n').find((l) => l.includes('display'))
+    expect(attrLine).toBeDefined()
+    // The attribute must be a single ATTRIBUTE_WORD: no quote, no space
+    // inside the sanitized name.
+    expect(attrLine).toContain('display__name')
+    expect(attrLine).not.toContain('"')
   })
 })
