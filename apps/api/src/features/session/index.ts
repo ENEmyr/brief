@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 import type { AppEnv } from '../../env'
-import { MAX_PAYLOAD_BYTES } from '@brief/schema'
+import { MAX_PAYLOAD_BYTES, payloadSchema, payloadToMarkdown } from '@brief/schema'
 import { createSessionBody } from './model'
 import { createSession, getSession } from './service'
 
@@ -60,5 +60,19 @@ export function sessionFeature(env: AppEnv) {
         lastOpenedAt: row.lastOpenedAt,
         expiresAt: row.expiresAt,
       }
+    })
+    .get('/api/session/:id/raw', async ({ params, set }) => {
+      const row = await getSession(env, params.id, Date.now())
+      if (!row) {
+        set.status = 404
+        return { error: 'Session not found or expired.' }
+      }
+      if (row.encrypted) {
+        set.status = 403
+        return { error: 'This session is protected. Content is end-to-end encrypted and only readable in the browser with the password.' }
+      }
+      const payload = payloadSchema.parse(JSON.parse(row.payload))
+      set.headers['content-type'] = 'text/markdown; charset=utf-8'
+      return payloadToMarkdown(payload, { url: `${env.PUBLIC_WEB_ORIGIN}/s/${row.id}` })
     })
 }
