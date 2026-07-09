@@ -19,6 +19,7 @@
         "drizzle-orm": "^0.44.0",
         "elysia": "^1.4.0",
         "nanoid": "^5.1.0",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
         "@brief/config": "workspace:*",
@@ -30,7 +31,6 @@
         "typescript-eslint": "^8.30.0",
         "vitest": "^3.1.0",
         "wrangler": "^4.20.0",
-        "zod": "^4.4.3",
       },
     },
     "packages/config": {
