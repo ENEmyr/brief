@@ -16,7 +16,7 @@ docs/PRD.md
 docs/vertical-slices-pattern.md
 docs/superpowers/
 CLAUDE.local.md
-.claude/security/
+**/.claude/security/
 .claude/rules/openwolf.md
 .wolf/
 .superpowers/
