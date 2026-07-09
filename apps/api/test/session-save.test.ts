@@ -101,4 +101,33 @@ describe('PUT /api/session/:id/save', () => {
     })
     expect(res.status).toBe(413)
   })
+
+  it('rejects a multi-byte ciphertext over the byte cap with 413 even when char count passes zod', async () => {
+    const id = await createOne()
+    // 700k chars (under the 1,950,000 char zod cap) but 2.1MB UTF-8 (over the byte cap):
+    // must fall through zod and hit the saveSession byte-length gate.
+    const res = await put(id, {
+      mode: 'encrypt',
+      ciphertext: 'ก'.repeat(700_000),
+      encParams: { salt: 'AAAA', iv: 'BBBB', iterations: 600000 },
+    })
+    expect(res.status).toBe(413)
+  })
+
+  it('cache-hit GET after a concurrent save does not shrink the 90 day expiry', async () => {
+    const id = await createOne()
+    // GET populates KV with a saved:false row (7d window).
+    await app().handle(new Request(`http://localhost/api/session/${id}`))
+    // Simulate a concurrent PUT /save landing in D1 while KV still holds the stale row.
+    const savedExpiry = Date.now() + 90 * 86400000
+    await appEnv.DB.prepare('UPDATE sessions SET saved = 1, expires_at = ? WHERE id = ?')
+      .bind(savedExpiry, id).run()
+    // Second GET is a KV cache hit with stale saved:false; the bump must not shrink D1.
+    const res = await app().handle(new Request(`http://localhost/api/session/${id}`))
+    expect(res.status).toBe(200)
+    const json = (await res.json()) as { expiresAt: number }
+    expect(json.expiresAt).toBeGreaterThanOrEqual(savedExpiry)
+    const row = await appEnv.DB.prepare('SELECT expires_at FROM sessions WHERE id = ?').bind(id).first()
+    expect(row?.expires_at as number).toBeGreaterThanOrEqual(savedExpiry)
+  })
 })

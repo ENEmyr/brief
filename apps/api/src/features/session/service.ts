@@ -1,5 +1,5 @@
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { customAlphabet } from 'nanoid'
 import { sessions } from '../../db/schema'
 import { DAY_MS } from '../../shared/time'
@@ -64,8 +64,17 @@ export async function getSession(
     await env.KV.delete(cacheKey)
     return null
   }
-  const expiresAt = Math.max(row.expiresAt, now + touchWindow(row.saved))
-  await db(env.DB).update(sessions).set({ lastOpenedAt: now, expiresAt }).where(eq(sessions.id, id))
+  // Sliding-window bump. On a KV cache hit both row.saved and row.expiresAt can be stale
+  // (e.g. a concurrent PUT /save already wrote a 90d expiry to D1), so the MAX must be
+  // computed by D1 against the live row, not in JS against the cached copy. RETURNING
+  // hands back the value D1 actually kept so the response and KV never understate it.
+  const candidate = now + touchWindow(row.saved)
+  const bumped = await db(env.DB)
+    .update(sessions)
+    .set({ lastOpenedAt: now, expiresAt: sql`MAX(expires_at, ${candidate})` })
+    .where(eq(sessions.id, id))
+    .returning({ expiresAt: sessions.expiresAt })
+  const expiresAt = bumped[0]?.expiresAt ?? candidate
   const fresh: SessionRow = { ...row, lastOpenedAt: now, expiresAt }
   await env.KV.put(cacheKey, JSON.stringify(fresh), { expirationTtl: 3600 })
   return fresh
