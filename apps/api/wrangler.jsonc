@@ -14,9 +14,9 @@
     "preview": {
       "name": "brief-api-preview",
       "d1_databases": [
-        { "binding": "DB", "database_name": "brief-preview", "database_id": "PREVIEW_D1_ID", "migrations_dir": "drizzle" }
+        { "binding": "DB", "database_name": "brief-preview", "database_id": "941ae773-b547-423a-9961-458bf3872a64", "migrations_dir": "drizzle" }
       ],
-      "kv_namespaces": [{ "binding": "KV", "id": "PREVIEW_KV_ID" }],
+      "kv_namespaces": [{ "binding": "KV", "id": "322bec5f8a1a40dda4242541f6266121" }],
       "triggers": { "crons": ["0 3 * * *"] },
       "vars": { "PUBLIC_WEB_ORIGIN": "https://brief-web.pages.dev" },
       "unsafe": { "bindings": [{ "name": "RATE_LIMITER", "type": "ratelimit", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }] }
@@ -25,9 +25,9 @@
       "name": "brief-api-production",
       "routes": [{ "pattern": "brief-api.algoryth.me", "custom_domain": true }],
       "d1_databases": [
-        { "binding": "DB", "database_name": "brief-production", "database_id": "PRODUCTION_D1_ID", "migrations_dir": "drizzle" }
+        { "binding": "DB", "database_name": "brief-production", "database_id": "d8ebff23-1abf-4fed-b29c-19b9debfa442", "migrations_dir": "drizzle" }
       ],
-      "kv_namespaces": [{ "binding": "KV", "id": "PRODUCTION_KV_ID" }],
+      "kv_namespaces": [{ "binding": "KV", "id": "52c882335de14abcaf44a2b024e1b539" }],
       "triggers": { "crons": ["0 3 * * *"] },
       "vars": { "PUBLIC_WEB_ORIGIN": "https://brief.algoryth.me" },
       "unsafe": { "bindings": [{ "name": "RATE_LIMITER", "type": "ratelimit", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } }] }
