@@ -10,7 +10,7 @@ Reviewing agent-built work needs structured documents, not a wall of chat. Hand-
 
 ## Quick start for agents
 
-Install the skill (canonical path once the skill package ships):
+Install the skill:
 
 ```bash
 npx skills add ENEmyr/brief
