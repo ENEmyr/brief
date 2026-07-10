@@ -176,6 +176,8 @@ export const metaSchema = z.object({
   version: label.optional(),
   repo: z.string().optional(),
   readTime: label.optional(),
+  docId: z.string().optional(),
+  subtitle: z.string().optional(),
 })
 
 export const payloadSchema = z.object({

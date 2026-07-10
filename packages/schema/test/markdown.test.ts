@@ -61,6 +61,26 @@ describe('payloadToMarkdown', () => {
     expect(md).toContain('Cache TTL?')
     expect(md).toContain('- [ ] `short` 1 hour')
   })
+
+  it('renders docId in meta table when present', () => {
+    const withDocId = structuredClone(payload)
+    withDocId.meta.docId = 'DOC-018 · RATE-LIMIT'
+    const md = payloadToMarkdown(withDocId, { url: 'https://brief.algoryth.me/s/abc' })
+    expect(md).toContain('| doc | DOC-018 · RATE-LIMIT |')
+  })
+
+  it('renders subtitle paragraph after H1 when present', () => {
+    const withSubtitle = structuredClone(payload)
+    withSubtitle.meta.subtitle = 'How to choose'
+    const md = payloadToMarkdown(withSubtitle, { url: 'https://brief.algoryth.me/s/abc' })
+    // Subtitle should appear after the title (H1) and before sections
+    const titleIdx = md.indexOf('# Cache design')
+    const subtitleIdx = md.indexOf('How to choose')
+    const firstSectionIdx = md.indexOf('## 1. Flow')
+    expect(titleIdx).toBeGreaterThanOrEqual(0)
+    expect(subtitleIdx).toBeGreaterThan(titleIdx)
+    expect(firstSectionIdx).toBeGreaterThan(subtitleIdx)
+  })
 })
 
 describe('mermaid block keywords', () => {

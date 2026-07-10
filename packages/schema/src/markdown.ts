@@ -136,13 +136,22 @@ export function payloadToMarkdown(payload: Payload, opts: { url: string }): stri
     `<!--\nThis file is the complete machine-readable source of the Brief session at\n${opts.url}\nAgents: read this file directly. Do not scrape the HTML page.\nBlock semantics: mermaid fences are diagrams, $$ fences are LaTeX math,\ncode fences carry the original language tag, github alerts are callouts.\n-->`,
   )
   parts.push(`# ${payload.meta.title}`)
+  if (payload.meta.subtitle) {
+    parts.push(payload.meta.subtitle)
+  }
   const metaBits = [
     payload.meta.author && `author: ${payload.meta.author}`,
     payload.meta.version && `version: ${payload.meta.version}`,
     payload.meta.repo && `repo: ${payload.meta.repo}`,
     payload.meta.date && `date: ${payload.meta.date}`,
   ].filter(Boolean)
-  if (metaBits.length) parts.push(metaBits.join(' | '))
+  const metaRows: string[][] = []
+  if (payload.meta.author) metaRows.push(['author', payload.meta.author])
+  if (payload.meta.version) metaRows.push(['version', payload.meta.version])
+  if (payload.meta.repo) metaRows.push(['repo', payload.meta.repo])
+  if (payload.meta.date) metaRows.push(['date', payload.meta.date])
+  if (payload.meta.docId) metaRows.push(['doc', payload.meta.docId])
+  if (metaRows.length) parts.push(table(['field', 'value'], metaRows))
   for (const s of payload.sections) {
     parts.push(`## ${s.no}. ${s.title}`)
     for (const b of s.blocks) parts.push(blockToMarkdown(b))
