@@ -95,27 +95,51 @@ export async function getECharts(): Promise<typeof import('echarts/core')> {
   return echartsPromise
 }
 
+// Lazy singleton for the plot3d block's echarts-gl extension: registers
+// GL-only chart/component types (scatter3D, surface, grid3D, ...) onto the
+// SAME shared echarts/core instance getECharts() resolves, via a plain
+// side-effect `import('echarts-gl')` — the module has no named exports (see
+// src/types/echarts-gl.d.ts). echarts-gl is ~1MB, so it must stay in its own
+// async chunk, loaded only when a plot3d block actually mounts; chaining off
+// getECharts() (rather than importing echarts/core again) keeps both
+// singletons registering onto one shared module instance.
+let echartsGLPromise: Promise<typeof import('echarts/core')> | null = null
+
+export async function getEChartsGL(): Promise<typeof import('echarts/core')> {
+  echartsGLPromise ??= getECharts().then(async (ec) => {
+    await import('echarts-gl')
+    return ec
+  })
+  return echartsGLPromise
+}
+
 export interface UseEChartResult {
   containerRef: RefObject<HTMLDivElement | null>
   chartRef: RefObject<EChartsType | null>
 }
 
 /**
- * Creates/owns one echarts instance on a ref'd div: mounts it once
- * `getECharts()` resolves (guarded by a cancelled flag — see
- * MermaidBlock/CodePre for the same pattern elsewhere in this feature),
+ * Creates/owns one echarts instance on a ref'd div: mounts it once the
+ * `loader` (defaults to `getECharts`) resolves (guarded by a cancelled flag —
+ * see MermaidBlock/CodePre for the same pattern elsewhere in this feature),
  * calls `setOption` whenever `deps` changes, resizes via ResizeObserver, and
  * disposes on unmount. Callers MUST include `theme` in `deps` to re-theme —
  * `buildOption` is a plain closure the hook re-invokes on every deps change,
- * it does not diff the palette itself.
+ * it does not diff the palette itself. Plot3d passes `getEChartsGL` as
+ * `loader` so its GL series/components are registered before `setOption`
+ * runs; every other chart block relies on the default.
  */
-export function useEChart(buildOption: () => EChartsOption, deps: unknown[]): UseEChartResult {
+export function useEChart(
+  buildOption: () => EChartsOption,
+  deps: unknown[],
+  loader: () => Promise<typeof import('echarts/core')> = getECharts,
+): UseEChartResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<EChartsType | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    getECharts().then((echarts) => {
+    loader().then((echarts) => {
       if (cancelled || !containerRef.current) return
       chartRef.current ??= echarts.init(containerRef.current)
       chartRef.current.setOption(buildOption(), true)

@@ -116,11 +116,14 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('inner')).toBeInTheDocument()
   })
 
-  it('falls back to JSON for not-yet-implemented types', () => {
-    // 'mermaid'/'math' (task 6) and 'bigo'/'heatmap'/'histogram'/'scatter'
-    // (task 7) all got real components — 'plot3d' is the only widget type
-    // still unimplemented (see BlockRenderer's WIDGET_TYPES comment).
-    r({ type: 'plot3d', marker: 'PLOT3D_MARKER' } as unknown as Block)
-    expect(screen.getByText(/PLOT3D_MARKER/)).toBeInTheDocument()
+  it('falls back to JSON for a truly unknown type', () => {
+    // Every real block type in the schema — including 'plot3d' (task 8), the
+    // last one — now has a real component, so BlockRenderer's default branch
+    // is only ever reached by a genuinely unrecognized type (forward compat
+    // with a future schema addition, or a legacy payload). `as never` bypasses
+    // the discriminated union so this test can still construct one.
+    r({ type: 'mystery', marker: 'MYSTERY_MARKER' } as never)
+    expect(screen.getByText('mystery')).toBeInTheDocument()
+    expect(screen.getByText(/MYSTERY_MARKER/)).toBeInTheDocument()
   })
 })
