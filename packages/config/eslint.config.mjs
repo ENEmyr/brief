@@ -1,10 +1,11 @@
 import js from '@eslint/js'
+import { defineConfig } from 'eslint/config'
 import tseslint from 'typescript-eslint'
 import boundaries from 'eslint-plugin-boundaries'
 
-export const baseConfig = tseslint.config(
+export const baseConfig = defineConfig(
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  tseslint.configs.recommended,
   { ignores: ['dist/**', 'out/**', '.next/**', '.wrangler/**', 'drizzle/**'] },
 )
 
@@ -20,6 +21,9 @@ export function boundariesConfig() {
         { type: 'shared', pattern: 'src/shared/**' },
         { type: 'app', pattern: 'src/*' },
       ],
+      'import/resolver': {
+        typescript: true,
+      },
     },
     rules: {
       'boundaries/element-types': [
@@ -38,7 +42,15 @@ export function boundariesConfig() {
       ],
       'boundaries/entry-point': [
         'error',
-        { default: 'disallow', rules: [{ target: ['feature'], allow: ['index.ts', 'index.tsx'] }] },
+        {
+          default: 'disallow',
+          rules: [
+            // shared/ and the app root (app.ts, env.ts, index.ts, db/schema.ts) have no
+            // designated entry file; any of their files may be imported directly.
+            { target: ['shared', 'app'], allow: ['**'] },
+            { target: ['feature'], allow: ['index.ts', 'index.tsx'] },
+          ],
+        },
       ],
     },
   }

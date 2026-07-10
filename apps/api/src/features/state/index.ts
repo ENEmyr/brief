@@ -2,7 +2,7 @@ import { Elysia } from 'elysia'
 import { eq } from 'drizzle-orm'
 import type { AppEnv } from '../../env'
 import { sessions } from '../../db/schema'
-import { db } from '../session/service'
+import { db } from '../../shared/db'
 import { stateBody } from './model'
 import { DAY_MS } from '../../shared/time'
 

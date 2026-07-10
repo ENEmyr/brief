@@ -1,18 +1,10 @@
-import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1'
 import { eq, sql } from 'drizzle-orm'
 import { customAlphabet } from 'nanoid'
 import { sessions } from '../../db/schema'
-import { DAY_MS } from '../../shared/time'
-
-export const UNSAVED_TTL_MS = 7 * DAY_MS
-export const SAVED_TTL_MS = 90 * DAY_MS
+import { db, UNSAVED_TTL_MS, touchWindow } from '../../shared/db'
 
 const alphabet = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const newId = customAlphabet(alphabet, 14)
-
-export function db(d1: D1Database): DrizzleD1Database {
-  return drizzle(d1)
-}
 
 export async function createSession(d1: D1Database, payloadStr: string, title: string, now: number): Promise<{ id: string }> {
   const id = newId()
@@ -28,10 +20,6 @@ export async function createSession(d1: D1Database, payloadStr: string, title: s
     expiresAt: now + UNSAVED_TTL_MS,
   })
   return { id }
-}
-
-export function touchWindow(saved: boolean): number {
-  return saved ? SAVED_TTL_MS : UNSAVED_TTL_MS
 }
 
 export interface SessionRow {

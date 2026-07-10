@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { sessions } from '../../db/schema'
-import { db, SAVED_TTL_MS } from '../session/service'
+import { db, SAVED_TTL_MS } from '../../shared/db'
 import type { SaveBody } from './model'
 
 // Keep in sync with the zod ciphertext cap in ./model.ts. D1's row/value size ceiling is
