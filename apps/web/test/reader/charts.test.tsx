@@ -143,19 +143,29 @@ describe('Heatmap option builder', () => {
     )
   })
 
-  it('sets visualMap min to the data min when negative values are present', () => {
+  it('sets visualMap min/max to the true data min/max when negative values are present', () => {
     const option = buildHeatmapOption(block, palette)
     const visualMap = option.visualMap as unknown as { min: number; max: number }
     expect(visualMap.min).toBe(-2)
     expect(visualMap.max).toBe(8)
   })
 
-  it('sets visualMap min to 0 when all values are non-negative', () => {
-    const allPositive = { ...block, values: [[1, 5], [2, 8]] }
-    const option = buildHeatmapOption(allPositive, palette)
+  it('uses the TRUE data min for all-positive datasets (no clamp to 0)', () => {
+    // Datasets like 50..100 need the gradient's full contrast range —
+    // anchoring min at 0 would waste half of it below the data.
+    const highRange = { ...block, values: [[50, 75], [60, 100]] }
+    const option = buildHeatmapOption(highRange, palette)
     const visualMap = option.visualMap as unknown as { min: number; max: number }
-    expect(visualMap.min).toBe(0)
-    expect(visualMap.max).toBe(8)
+    expect(visualMap.min).toBe(50)
+    expect(visualMap.max).toBe(100)
+  })
+
+  it('widens a degenerate all-equal dataset to max+1 so the visualMap range stays valid', () => {
+    const flat = { ...block, values: [[5, 5], [5, 5]] }
+    const option = buildHeatmapOption(flat, palette)
+    const visualMap = option.visualMap as unknown as { min: number; max: number }
+    expect(visualMap.min).toBe(5)
+    expect(visualMap.max).toBe(6)
   })
 
   it('uses the line2 -> mauve gradient', () => {

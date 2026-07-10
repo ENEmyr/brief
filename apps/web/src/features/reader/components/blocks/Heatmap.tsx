@@ -14,10 +14,13 @@ const LABEL_COLUMN_LIMIT = 12
 
 export function buildHeatmapOption(block: HeatmapBlockType, palette: Palette): EChartsOption {
   const flatValues = block.values.flat()
-  const dataMin = Math.min(...flatValues)
+  // True data min/max (not clamped to 0): for datasets like 50..100 the
+  // gradient's full contrast range matters more than a zero anchor, and
+  // ECharts' own visualMap default is the data min. Degenerate all-equal
+  // datasets get max+1 so the visualMap range never collapses to zero width.
+  const min = Math.min(...flatValues)
   const dataMax = Math.max(...flatValues)
-  const min = dataMin >= 0 ? 0 : dataMin
-  const max = dataMax
+  const max = dataMax === min ? dataMax + 1 : dataMax
   const showLabel = block.xLabels.length < LABEL_COLUMN_LIMIT
 
   const data: [number, number, number][] = []
