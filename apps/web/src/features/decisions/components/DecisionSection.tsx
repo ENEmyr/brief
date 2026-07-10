@@ -105,7 +105,7 @@ export function DecisionSection({
             aria-valuemin={0}
             aria-valuemax={total}
             aria-valuenow={done}
-            className="h-full rounded-full bg-mauve transition-[width]"
+            className="h-full rounded-full bg-mauve transition-[width] duration-300"
             style={{ width: `${(done / total) * 100}%` }}
           />
         </div>
@@ -114,7 +114,7 @@ export function DecisionSection({
         >
           Answered {done}/{total}
         </span>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {decisions.map((d, i) => {
             const answered = isAnswered(d, dsel)
             const active = i === index

@@ -54,4 +54,32 @@ describe('session state sync', () => {
     )
     expect(res.status).toBe(404)
   })
+
+  it('403s PUT for an encrypted session (bug-250: state must not resurrect after encrypt purge)', async () => {
+    const id = await createOne()
+    const encryptRes = await app().handle(
+      new Request(`http://localhost/api/session/${id}/save`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'encrypt',
+          ciphertext: 'c2VjcmV0',
+          encParams: { salt: 'AAAA', iv: 'BBBB', iterations: 600000 },
+        }),
+      }),
+    )
+    expect(encryptRes.status).toBe(200)
+
+    const res = await app().handle(
+      new Request(`http://localhost/api/session/${id}/state`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ state: '{"highlights":["plaintext"]}' }),
+      }),
+    )
+    expect(res.status).toBe(403)
+    const json = (await res.json()) as { error: string }
+    expect(json.error).toBe('Session is protected.')
+    expect(await appEnv.KV.get(`state:${id}`)).toBeNull()
+  })
 })

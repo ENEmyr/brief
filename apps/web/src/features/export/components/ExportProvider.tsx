@@ -1,7 +1,7 @@
 'use client'
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Payload } from '@brief/schema'
-import { useReaderState } from '@/features/reader-state'
+import { useReaderStateStore } from '@/features/reader-state'
 import { copyText } from '../lib/copy'
 import { downloadMarkdown as downloadMarkdownFile } from '../lib/download'
 import { Toast } from './Toast'
@@ -38,8 +38,13 @@ export function useExport(): ExportContextValue {
  * Owns every export-related side effect for one reader session: the copy
  * chain's toast/fallback-modal outcome, the share dialog, and the markdown
  * download. Must render inside ReaderStateProvider -- it reads highlights
- * and decision answers via useReaderState() to build the export markdown at
- * download time, always current with no prop-drilled state.
+ * and decision answers via a store handle (useReaderStateStore) to build
+ * the export markdown at download time, always current with no prop-drilled
+ * state. Deliberately does NOT subscribe to the store during render
+ * (useReaderState()) -- that would re-render this provider, and everything
+ * that reads its (memoized) context value, on every highlight/decision
+ * mutation in the whole reader even though downloadMarkdown only needs the
+ * state at the moment it is actually invoked.
  */
 export function ExportProvider({
   sessionId,
@@ -50,7 +55,7 @@ export function ExportProvider({
   payload: Payload
   children: React.ReactNode
 }) {
-  const state = useReaderState()
+  const store = useReaderStateStore()
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [fallbackText, setFallbackText] = useState<string | null>(null)
@@ -82,10 +87,13 @@ export function ExportProvider({
   const share = useCallback(() => setShareOpen(true), [])
 
   const downloadMarkdown = useCallback(() => {
-    downloadMarkdownFile(payload, state, sessionId, window.location.origin)
-  }, [payload, state, sessionId])
+    downloadMarkdownFile(payload, store.getState(), sessionId, window.location.origin)
+  }, [payload, store, sessionId])
 
-  const value: ExportContextValue = { copy, share, downloadMarkdown, toast }
+  const value = useMemo<ExportContextValue>(
+    () => ({ copy, share, downloadMarkdown, toast }),
+    [copy, share, downloadMarkdown, toast],
+  )
 
   return (
     <ExportContext.Provider value={value}>

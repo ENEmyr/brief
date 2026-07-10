@@ -125,11 +125,27 @@ export function SaveModal({
     }
 
     setBusy(true)
-    const { ciphertext, encParams } = await encryptPayload(plaintext, password)
+    let encrypted: Awaited<ReturnType<typeof encryptPayload>>
+    try {
+      encrypted = await encryptPayload(plaintext, password)
+    } catch {
+      // WebCrypto can throw (unsupported browser/context, key derivation
+      // failure) before anything is ever sent -- surface it the same way a
+      // failed PUT does instead of leaving the modal silently stuck busy.
+      if (!cancelledRef.current) {
+        setError('Save failed')
+        setBusy(false)
+      }
+      return
+    }
     // Cancelled while PBKDF2 was still running: nothing has been sent yet,
     // so the whole operation can be abandoned with no server side effect.
     if (cancelledRef.current) return
-    const result = await saveSession(sessionId, { mode: 'encrypt', ciphertext, encParams })
+    const result = await saveSession(sessionId, {
+      mode: 'encrypt',
+      ciphertext: encrypted.ciphertext,
+      encParams: encrypted.encParams,
+    })
     settleSave(result, 'encrypt')
   }
 

@@ -1,10 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Payload } from '@brief/schema'
 import { Toc } from '@/features/toc'
 import type { TocSection } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
-import { ReaderStateProvider } from '@/features/reader-state'
+import { ReaderStateProvider, useReaderStateStore } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
 import { DecisionSection } from '@/features/decisions'
@@ -90,6 +90,21 @@ function SessionReady({
   const saved = savedOverride || data.saved
   const savedLabel = protectedSession ? 'protected' : saved ? 'saved' : undefined
 
+  // bug-250: an in-view encrypt save purges the server's plaintext state:<id>
+  // KV blob (this ReaderStateProvider was mounted with persist=true, since
+  // the session was NOT protected on load). Once that save lands, the store
+  // must stop persisting/syncing for good -- otherwise the very next
+  // highlight/note mutation PUTs plaintext right back to the unauthenticated
+  // state endpoint the server just purged. The store stays in memory
+  // (annotations already on screen are untouched); only future persistence
+  // is disabled.
+  const [encryptedNow, setEncryptedNow] = useState(false)
+  const readerStateStore = useReaderStateStore()
+
+  useEffect(() => {
+    if (encryptedNow) readerStateStore.stopPersistence()
+  }, [encryptedNow, readerStateStore])
+
   useEffect(() => {
     setTocCollapsed(readStoredTocCollapsed())
   }, [])
@@ -119,6 +134,12 @@ function SessionReady({
       return next
     })
   }
+
+  // Stable identities for the modal/popover dismiss handlers passed as props
+  // to SaveModal/NotePopover/AskPopover (review finding).
+  const closeSaveModal = useCallback(() => setSaveModalOpen(false), [])
+  const closeNotePopover = useCallback(() => setNotePopId(null), [])
+  const closeAskPopover = useCallback(() => setAskPopId(null), [])
 
   const sections = data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))
   const hasDecisions = data.payload.decisions.length > 0
@@ -170,14 +191,14 @@ function SessionReady({
         </DiagramViewerProvider>
       </main>
       <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} copyText={copy} />
-      {notePopId && <NotePopover id={notePopId} onClose={() => setNotePopId(null)} />}
+      {notePopId && <NotePopover id={notePopId} onClose={closeNotePopover} />}
       {askPopId && (
         <AskPopover
           id={askPopId}
           sections={data.payload.sections}
           sessionId={data.id}
           docTitle={data.payload.meta.title}
-          onClose={() => setAskPopId(null)}
+          onClose={closeAskPopover}
           copyText={copy}
         />
       )}
@@ -185,12 +206,18 @@ function SessionReady({
         <SaveModal
           sessionId={data.id}
           payload={data.payload}
-          onClose={() => setSaveModalOpen(false)}
-          onSaved={() => setSavedOverride(true)}
+          onClose={closeSaveModal}
+          onSaved={(mode) => {
+            setSavedOverride(true)
+            if (mode === 'encrypt') setEncryptedNow(true)
+          }}
           // A save the user cancelled mid-flight can still commit server-side
           // (the PUT cannot be recalled). No toast/modal feedback in that
           // case, but the chip must still reflect server truth.
-          onBackgroundSaveSettled={() => setSavedOverride(true)}
+          onBackgroundSaveSettled={(mode) => {
+            setSavedOverride(true)
+            if (mode === 'encrypt') setEncryptedNow(true)
+          }}
         />
       )}
     </div>
