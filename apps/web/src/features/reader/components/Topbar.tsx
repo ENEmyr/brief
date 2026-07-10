@@ -33,7 +33,9 @@ export function Topbar({
         <div className="flex items-center gap-2">
           {repo && (
             <span className="hidden items-center gap-1 rounded-lg border border-line bg-elev px-2.5 py-[5px] font-mono text-[11.5px] font-medium text-sub min-[880px]:inline-flex">
-              <span className="text-faint">⎇</span>
+              <span aria-hidden="true" className="text-faint">
+                ⎇
+              </span>
               {repo}
             </span>
           )}
@@ -51,7 +53,7 @@ export function Topbar({
             type="button"
             onClick={() => window.print()}
             aria-label="Print / PDF"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-elev px-2.5 py-[5px] text-[11.5px] font-medium text-sub"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-elev px-2.5 py-[5px] text-[11.5px] font-medium text-sub"
           >
             <span className="text-[13px] text-mauve">⎙</span>
             <span className="hidden min-[880px]:inline">Print / PDF</span>

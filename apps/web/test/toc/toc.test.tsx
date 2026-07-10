@@ -135,8 +135,13 @@ describe('toc (collapsed to numbers)', () => {
   })
 
   it('clears hover state when the toggle is clicked', () => {
+    // onToggleCollapsed is a mock, so `collapsed` never actually flips here —
+    // this stays on the collapsed-to-numbers view throughout. The point is to
+    // exercise handleToggleCollapsed's own `setHovered(false)` call, not a
+    // parent-driven prop change (see the rerender-based version this replaced,
+    // which could never fail because it re-rendered with collapsed={false}).
     const onToggleCollapsed = vi.fn()
-    const { container, rerender } = renderToc({ collapsed: true, onToggleCollapsed })
+    const { container } = renderToc({ collapsed: true, onToggleCollapsed })
     const hoverZone = container.querySelector('nav > div') as Element
 
     fireEvent.mouseEnter(hoverZone)
@@ -145,18 +150,10 @@ describe('toc (collapsed to numbers)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Expand contents' }))
     expect(onToggleCollapsed).toHaveBeenCalledTimes(1)
 
-    // Parent flips `collapsed` to false in response; re-render to simulate it
-    // and confirm the stale hover state didn't leak into the expanded view.
-    rerender(
-      <Toc
-        sections={sections}
-        collapsed={false}
-        onToggleCollapsed={onToggleCollapsed}
-        drawerOpen={false}
-        onCloseDrawer={vi.fn()}
-      />,
-    )
-    expect(screen.getByRole('button', { name: /01 Introduction/ })).toBeInTheDocument()
+    // Still collapsed (the prop never changed) — but hover state must have
+    // been cleared by the click handler, so titles are hidden again.
+    expect(screen.queryByText('Introduction')).not.toBeInTheDocument()
+    expect(screen.queryByText('Getting Started')).not.toBeInTheDocument()
   })
 })
 

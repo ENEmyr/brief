@@ -10,7 +10,10 @@ export function MetaHeader({ meta }: { meta: Meta }) {
   if (meta.author) {
     items.push(
       <span key="author" className="inline-flex items-center">
-        <span className="mr-[7px] inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-mauve text-[11px] font-semibold text-white">
+        <span
+          aria-hidden="true"
+          className="mr-[7px] inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-mauve text-[11px] font-semibold text-white"
+        >
           {meta.author.charAt(0)}
         </span>
         <span className="font-semibold text-text">{meta.author}</span>
@@ -37,7 +40,8 @@ export function MetaHeader({ meta }: { meta: Meta }) {
         rel="noopener noreferrer"
         className="font-mono text-blue no-underline"
       >
-        ⎇ {meta.repo}
+        <span aria-hidden="true">⎇ </span>
+        {meta.repo}
       </a>,
     )
   }
