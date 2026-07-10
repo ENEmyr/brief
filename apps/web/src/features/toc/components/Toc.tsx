@@ -181,14 +181,14 @@ export function Toc({ sections }: { sections: TocSection[] }) {
   }
 
   return (
-    <nav aria-label="Table of contents">
+    <nav aria-label="Table of contents" className="print:hidden">
       {/* Mobile hamburger */}
       <button
         ref={hamburgerButtonRef}
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Open table of contents"
-        className="fixed left-3 top-1.5 z-20 flex h-11 w-11 items-center justify-center rounded-lg text-subtext0 hover:bg-surface0 hover:text-text lg:hidden"
+        className="fixed left-3 top-1.5 z-20 flex h-11 w-11 items-center justify-center rounded-lg text-subtext0 hover:bg-surface0 hover:text-text lg:hidden print:hidden"
       >
         <HamburgerIcon />
       </button>
