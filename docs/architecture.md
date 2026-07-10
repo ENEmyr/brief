@@ -72,7 +72,7 @@ After an encrypt save the server also rejects any further `PUT /api/session/:id/
 
 ## Monorepo layout
 
-The repository is a Bun and Turborepo monorepo. `apps/web` is the Next.js reader UI, built as a static export. `apps/api` is the Elysia Worker with the D1 schema, migrations, and the session, save, state, and purge features. `packages/schema` is the Zod payload schema and the markdown export, shared by both apps so the API validates exactly what the UI renders. `packages/config` holds shared tooling configuration. `e2e` contains the end-to-end tests that exercise the deployed pair.
+The repository is a Bun and Turborepo monorepo. `apps/web` is the Next.js reader UI, built as a static export. `apps/api` is the Elysia Worker with the D1 schema, migrations, and the session, save, state, and purge features. `packages/schema` is the Zod payload schema and the markdown export, shared by both apps so the API validates exactly what the UI renders. `packages/config` holds shared tooling configuration. `e2e` contains the Playwright tests that run the web and API pair together against local wrangler dev servers.
 
 ## Frontend serving details
 

@@ -18,7 +18,7 @@ Author in this order. The payload is immutable once published, so the verificati
 2. Structure the material into sections and choose block types. Each section is a numbered top-level division with an id, a title, and an ordered list of blocks. Prefer the specific block over prose: a comparison belongs in a `compare` block, numbers belong in `stat` or `table` blocks, and flows belong in `seq` or `state` blocks.
 3. Formulate the decisions. Each decision is a question with at least two options; add `why` context, a comparison table (`cmp`), or a diagram (`dia`) when the choice is not obvious from the document alone.
 4. Validate against the schema in `packages/schema/src/payload.ts` (the `payloadSchema` Zod export). The API rejects invalid payloads with a 400 listing the failing paths, but validating locally gives faster and fuller feedback.
-5. POST the payload and deliver the returned `url` to the human. Keep the `id`; the agent can later re-read the document, including the reader's context, from `/api/session/<id>/raw`.
+5. POST the payload and deliver the returned `url` to the human. Keep the `id`; the agent can later re-read the published document as markdown from `/api/session/<id>/raw`. The raw export contains only the payload, not the reader's annotations or answers; those come back to the agent through the reply prompt the reader copies out of the page.
 
 ## Block types
 

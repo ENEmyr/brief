@@ -170,7 +170,7 @@ Response, `200` (both modes):
 { "saved": true, "encrypted": true, "expiresAt": 1774828800000 }
 ```
 
-For a plain save, `encrypted` reflects the session's existing state. An encrypt save additionally replaces the stored payload with the ciphertext, blanks the stored title, records `encParams`, and purges the KV payload cache and any plaintext reader state for the session.
+For a plain save, `encrypted` reflects the session's existing state. Both modes invalidate the KV payload cache. An encrypt save additionally replaces the stored payload with the ciphertext, blanks the stored title, records `encParams`, and purges any plaintext reader state for the session.
 
 Errors:
 
