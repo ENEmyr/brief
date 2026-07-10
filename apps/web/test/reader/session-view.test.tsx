@@ -245,8 +245,12 @@ describe('SessionPage / SessionView', () => {
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Save this doc' })).not.toBeInTheDocument(),
     )
-    // The encrypt save must scrub the localStorage entry immediately.
-    expect(window.localStorage.getItem('idocs:abc12345678901')).toBeNull()
+    // The encrypt save must scrub the localStorage entry. stopPersistence
+    // runs in a passive effect after the save settles (SessionView's
+    // encryptedNow effect), and the save promise resolves outside act, so
+    // the effect flush races a bare assertion on slow runners -- wait for
+    // the scrub instead of asserting synchronously.
+    await waitFor(() => expect(window.localStorage.getItem('idocs:abc12345678901')).toBeNull())
 
     fetchMock.mockClear()
 
