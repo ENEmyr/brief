@@ -90,6 +90,7 @@
   --compare-pane-good-bg: #f4fbf1;
   --compare-pane-bad-bg: #fdf2f4;
   --compare-tag-bg: #fff;
+  --code-bg: #1e1e2e;
 }
 
 /* Catppuccin Mocha (dark) */
@@ -141,6 +142,7 @@
   --compare-pane-good-bg: rgba(255, 255, 255, 0.02);
   --compare-pane-bad-bg: rgba(255, 255, 255, 0.02);
   --compare-tag-bg: rgba(255, 255, 255, 0.06);
+  --code-bg: #11111b;
 }
 
 html,
@@ -169,4 +171,24 @@ body {
 [data-theme='mocha'] .sk {
   background: linear-gradient(90deg, #24243a 25%, #2e2e48 37%, #24243a 63%);
   background-size: 480px 100%;
+}
+
+/*
+ * Code blocks deliberately render a dark panel in BOTH app themes (per
+ * Reader.dc.html's beforeAfter/code pre: background is #1e1e2e in latte,
+ * #11111b in mocha — always dark, never the light card color). Shiki itself
+ * is rendered with a single theme (catppuccin-mocha) regardless of the app
+ * theme, so its own inline background-color (#1e1e2e) is fixed too; this
+ * rule overrides it with the app-theme-aware --code-bg token. An external
+ * stylesheet !important beats a plain inline style, so this wins over
+ * shiki's own `style="background-color:..."` without needing to post-process
+ * the generated HTML.
+ */
+.shiki {
+  background-color: var(--code-bg) !important;
+}
+.shiki .hl-line {
+  background: rgba(203, 166, 247, 0.12);
+  display: inline-block;
+  width: 100%;
 }
