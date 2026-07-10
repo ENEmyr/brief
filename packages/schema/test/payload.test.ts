@@ -127,4 +127,25 @@ describe('payloadSchema', () => {
     ] as never
     expect(payloadSchema.safeParse(bad).success).toBe(false)
   })
+
+  it('accepts meta with optional docId and subtitle', () => {
+    const withMeta = structuredClone(minimal) as Payload
+    withMeta.meta.docId = 'DOC-018 · RATE-LIMIT'
+    withMeta.meta.subtitle = 'How to choose'
+    expect(payloadSchema.safeParse(withMeta).success).toBe(true)
+  })
+
+  it('rejects non-string docId', () => {
+    const bad = structuredClone(minimal) as Payload
+    // @ts-expect-error testing invalid docId type
+    bad.meta.docId = 123
+    expect(payloadSchema.safeParse(bad).success).toBe(false)
+  })
+
+  it('rejects non-string subtitle', () => {
+    const bad = structuredClone(minimal) as Payload
+    // @ts-expect-error testing invalid subtitle type
+    bad.meta.subtitle = true
+    expect(payloadSchema.safeParse(bad).success).toBe(false)
+  })
 })
