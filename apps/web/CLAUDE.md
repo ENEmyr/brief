@@ -14,7 +14,7 @@ Statically exported Next.js reader UI. See the root CLAUDE.md for repo-wide rule
 - The narrow-screen breakpoint is 880px, written as `min-[880px]:` and `max-[879px]:` variants. Never use `lg:`.
 - Interactive controls need a 44px minimum touch target on narrow screens: `max-[879px]:min-h-11` (plus `min-w-11` where relevant).
 - Heavy renderers (echarts, shiki, katex, mermaid) load lazily via `next/dynamic` or `import()` so they stay out of the first-load chunks. Keep new heavy dependencies behind the same boundaries.
-- Every `dangerouslySetInnerHTML` sink sanitizes its input with DOMPurify and carries a one-line `nosemgrep` justification comment.
+- Every `dangerouslySetInnerHTML` sink that renders payload-derived or library-generated HTML sanitizes it with DOMPurify and carries a one-line `nosemgrep` justification comment. The only exception is the static theme-init script in `src/app/layout.tsx`, which is a build-time constant with no input.
 - Tests live in `apps/web/test`, mirroring the feature layout, using vitest and testing-library.
 
 ## Testing gotcha

@@ -4,7 +4,7 @@ Elysia app on a Cloudflare Worker, backed by D1 (via Drizzle) and KV. See the ro
 
 ## Layout
 
-- `src/features/<feature>/` holds each vertical slice (session, save, state, purge). A slice contains `index.ts` (the Elysia routes), `service.ts` (D1/KV logic), and `model.ts` (Zod request body schemas); smaller slices omit files they do not need.
+- `src/features/<feature>/` holds each vertical slice (session, save, state, purge). A slice contains `index.ts` (the slice's public surface: Elysia routes, or the scheduled-handler entry for purge), `service.ts` (D1/KV logic), and `model.ts` (Zod request body schemas); smaller slices omit files they do not need.
 - The app is assembled in `src/app.ts` (`createApp`), and `src/index.ts` is the Worker entry point with the fetch and scheduled handlers.
 - The D1 schema lives in `src/db/schema.ts`. Migrations live in `apps/api/drizzle/`, generated with `bun run db:generate` and applied with wrangler.
 - Wrangler configuration is `wrangler.jsonc`, with `preview` and `production` environments on top of the local defaults.
