@@ -31,6 +31,12 @@ export interface ReaderStateStore {
   getState(): ReaderState
   subscribe(listener: () => void): () => void
   actions: ReaderStateActions
+  /** Disables future localStorage persistence for this store instance (bug-250):
+   * commit() stops calling schedulePersist. In-memory state and its
+   * listeners are untouched -- annotations stay visible. Irreversible for
+   * the lifetime of this store; ReaderStateProvider's wrapper additionally
+   * tears down KV sync and clears any existing localStorage entry. */
+  stopPersistence(): void
 }
 
 const EMPTY_STATE: ReaderState = { highlights: [], dsel: {}, dnote: {} }
@@ -47,8 +53,8 @@ export function createReaderStateStore(
   sessionId: string,
   options?: { persist?: boolean },
 ): ReaderStateStore {
-  const persist = options?.persist ?? true
-  let state: ReaderState = (persist ? loadPersistedState(sessionId) : null) ?? EMPTY_STATE
+  let persistEnabled = options?.persist ?? true
+  let state: ReaderState = (persistEnabled ? loadPersistedState(sessionId) : null) ?? EMPTY_STATE
   const listeners = new Set<() => void>()
 
   function getState(): ReaderState {
@@ -62,8 +68,12 @@ export function createReaderStateStore(
 
   function commit(next: ReaderState): void {
     state = next
-    if (persist) schedulePersist(sessionId, next)
+    if (persistEnabled) schedulePersist(sessionId, next)
     listeners.forEach((listener) => listener())
+  }
+
+  function stopPersistence(): void {
+    persistEnabled = false
   }
 
   const actions: ReaderStateActions = {
@@ -99,5 +109,5 @@ export function createReaderStateStore(
     },
   }
 
-  return { getState, subscribe, actions }
+  return { getState, subscribe, actions, stopPersistence }
 }

@@ -57,6 +57,18 @@ export function clearPersistedState(sessionId: string): void {
 
 const pendingWrites = new Map<string, ReturnType<typeof setTimeout>>()
 
+/** Cancels a pending debounced write scheduled by schedulePersist for this
+ * session, if one exists. Used by stopPersistence (bug-250) so a write
+ * already queued before persistence was stopped cannot fire afterwards and
+ * silently resurrect an entry clearPersistedState just removed. */
+export function cancelPendingPersist(sessionId: string): void {
+  const existing = pendingWrites.get(sessionId)
+  if (existing !== undefined) {
+    clearTimeout(existing)
+    pendingWrites.delete(sessionId)
+  }
+}
+
 /** Schedules a write of `state` for `sessionId`, deferred to the next timer
  * tick. Multiple calls within the same tick collapse into a single write of
  * the latest state, since each call clears the previous session's pending

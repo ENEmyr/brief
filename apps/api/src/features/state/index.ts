@@ -42,14 +42,23 @@ export function stateFeature(env: AppEnv) {
         set.status = 400
         return { error: 'Invalid state blob.' }
       }
-      const exists = await db(env.DB)
-        .select({ id: sessions.id })
+      const existing = await db(env.DB)
+        .select({ id: sessions.id, encrypted: sessions.encrypted })
         .from(sessions)
         .where(eq(sessions.id, params.id))
         .get()
-      if (!exists) {
+      if (!existing) {
         set.status = 404
         return { error: 'Session not found.' }
+      }
+      // bug-250: once a session is protected, plaintext reader-state excerpts
+      // must never be written to this unauthenticated endpoint again -- the
+      // encrypt save already purged any pre-existing state:<id> blob, and
+      // this guard stops a later client (unaware the session just changed
+      // underneath it) from re-creating one.
+      if (existing.encrypted) {
+        set.status = 403
+        return { error: 'Session is protected.' }
       }
       await env.KV.put(`state:${params.id}`, parsed.data.state, { expirationTtl: (90 * DAY_MS) / 1000 })
       set.status = 204

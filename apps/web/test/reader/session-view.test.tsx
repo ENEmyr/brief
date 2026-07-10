@@ -218,4 +218,80 @@ describe('SessionPage / SessionView', () => {
     expect(screen.queryByText(/Protected session/i)).not.toBeInTheDocument()
     expect(screen.getByText('saved')).toBeInTheDocument()
   })
+
+  it('a highlight added after an in-view encrypt save does not resync plaintext to the state endpoint (bug-250)', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    // Seed a pre-existing localStorage entry so the post-encrypt assertion
+    // below is load-bearing: without stopPersistence's clearPersistedState
+    // call, this entry (or one schedulePersist rewrites) would still be
+    // present after the encrypt save, and this test would fail.
+    window.localStorage.setItem(
+      'idocs:abc12345678901',
+      JSON.stringify({ highlights: [], dsel: {}, dnote: { d1: 'pre-save note' } }),
+    )
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope)))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const dialog = screen.getByRole('dialog', { name: 'Save this doc' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save with password' }))
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Save this doc' })).not.toBeInTheDocument(),
+    )
+    // The encrypt save must scrub the localStorage entry immediately.
+    expect(window.localStorage.getItem('idocs:abc12345678901')).toBeNull()
+
+    fetchMock.mockClear()
+
+    // Simulate selecting "Hello" inside the paragraph and clicking Highlight,
+    // same technique as toolbar.test.tsx's selectWithin helper.
+    const block = screen.getByText('Hello world')
+    const textNode = block.childNodes[0]!
+    const range = {
+      startContainer: textNode,
+      startOffset: 0,
+      endContainer: textNode,
+      endOffset: 5,
+      getBoundingClientRect: () => ({
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    } as unknown as Range
+    const sel = {
+      isCollapsed: false,
+      toString: () => 'Hello',
+      getRangeAt: () => range,
+      removeAllRanges: () => {},
+    } as unknown as Selection
+    vi.spyOn(window, 'getSelection').mockReturnValue(sel)
+    fireEvent.mouseUp(document)
+    fireEvent.click(screen.getByRole('button', { name: 'Highlight' }))
+
+    // The highlight still renders -- persistence being stopped must not hide
+    // annotations already made or newly added in this view.
+    expect(document.querySelector('mark')).toHaveTextContent('Hello')
+    // No PUT to the state endpoint was made re-persisting it, and the
+    // localStorage entry an unfixed provider would have rewritten stays gone.
+    expect(
+      fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'PUT'),
+    ).toBe(false)
+    expect(window.localStorage.getItem('idocs:abc12345678901')).toBeNull()
+
+    vi.restoreAllMocks()
+    window.localStorage.clear()
+  })
 })
