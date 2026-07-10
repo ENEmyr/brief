@@ -21,3 +21,5 @@ CLAUDE.local.md
 .wolf/
 .superpowers/
 .claude/settings.local.json
+docs/design-handoffs/
+.playwright-cli/
