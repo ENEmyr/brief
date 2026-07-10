@@ -1,8 +1,44 @@
-import { test as base, expect } from '@playwright/test'
+import { test as base, expect, type Page } from '@playwright/test'
 import type { Payload } from '@brief/schema'
 import { API_URL } from '../playwright.config'
 
 export { API_URL }
+
+/** First section's first paragraph -- the only block the annotate flow targets. */
+export const FIRST_PARAGRAPH_SELECTOR = '[data-hl][data-sid="0"][data-bid="0"]'
+
+/** How many characters of the first paragraph the annotate flow selects. */
+export const SELECTION_LENGTH = 20
+
+/**
+ * Selects the first SELECTION_LENGTH characters of the first paragraph and
+ * fires the mouseup SelectionToolbar listens for on `document`
+ * (SelectionToolbar.tsx) -- Playwright has no native "select this substring
+ * of text" API, so the component's mouseup-driven contract is reproduced by
+ * building a Range directly in the page. Returns the exact selected text so
+ * callers can assert the resulting mark/export content against it.
+ */
+export async function selectFirstParagraphText(page: Page): Promise<string> {
+  const paragraph = page.locator(FIRST_PARAGRAPH_SELECTOR)
+  await expect(paragraph).toBeVisible()
+  const selected = await page.evaluate(
+    ({ selector, length }) => {
+      const el = document.querySelector(selector)
+      const textNode = el?.firstChild
+      if (!textNode) throw new Error('paragraph text node not found')
+      const range = document.createRange()
+      range.setStart(textNode, 0)
+      range.setEnd(textNode, length)
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      return selection?.toString() ?? ''
+    },
+    { selector: FIRST_PARAGRAPH_SELECTOR, length: SELECTION_LENGTH },
+  )
+  await paragraph.dispatchEvent('mouseup')
+  return selected
+}
 
 /**
  * One payload exercising p/note/table/seq/code block types plus a two
