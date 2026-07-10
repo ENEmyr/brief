@@ -6,14 +6,19 @@ export function Topbar({
   sessionId,
   repo,
   showProgress,
+  savedLabel,
   onMenu,
+  onSave,
   onDownload,
   onShare,
 }: {
   sessionId?: string
   repo?: string
   showProgress?: boolean
+  /** Mono chip text (e.g. "saved") rendered next to the session chip once the doc has been saved. */
+  savedLabel?: string
   onMenu?: () => void
+  onSave?: () => void
   onDownload?: () => void
   onShare?: () => void
 }) {
@@ -33,6 +38,9 @@ export function Topbar({
               session <b className="text-mauve">{sessionId}</b>
             </span>
           )}
+          {savedLabel && (
+            <span className="rounded-md bg-chip px-2 py-0.5 font-mono text-[11px] text-sub">{savedLabel}</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {repo && (
@@ -51,6 +59,17 @@ export function Topbar({
               className="flex h-11 w-11 items-center justify-center rounded-lg text-sub min-[880px]:hidden"
             >
               ☰
+            </button>
+          )}
+          {onSave && (
+            <button
+              type="button"
+              onClick={onSave}
+              aria-label="Save"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border-0 bg-mauve px-2.5 py-[5px] text-[11.5px] font-semibold text-white"
+            >
+              <span className="text-[13px]">⛉</span>
+              <span className="hidden min-[880px]:inline">Save</span>
             </button>
           )}
           {onDownload && (

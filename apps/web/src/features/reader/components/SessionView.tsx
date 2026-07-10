@@ -8,6 +8,7 @@ import type { Highlight } from '@/features/reader-state'
 import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
 import { DecisionSection } from '@/features/decisions'
 import { ExportProvider, useExport } from '@/features/export'
+import { SaveModal } from '@/features/save'
 import type { SessionData } from '../services/api'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
@@ -64,6 +65,16 @@ function SessionReady({ data }: { data: SessionData & { payload: NonNullable<Ses
   // the other, matching the prototype's single-notePop/single-askPop state.
   const [notePopId, setNotePopId] = useState<string | null>(null)
   const [askPopId, setAskPopId] = useState<string | null>(null)
+  const [saveModalOpen, setSaveModalOpen] = useState(false)
+  // Local, display-only override -- deliberately NOT written back into `data`
+  // (or anything the outer SessionView's `data.encrypted` render gate reads).
+  // After an encrypt-save, SessionReady keeps rendering the CURRENT decrypted
+  // payload already in memory; only the "saved" chip reflects the new status.
+  // Mutating `data.encrypted` here would make the component fall through to
+  // the "Protected session" placeholder on next render, which would
+  // incorrectly blank a doc the reader is actively viewing.
+  const [savedOverride, setSavedOverride] = useState(false)
+  const saved = savedOverride || data.saved
 
   useEffect(() => {
     setTocCollapsed(readStoredTocCollapsed())
@@ -107,7 +118,9 @@ function SessionReady({ data }: { data: SessionData & { payload: NonNullable<Ses
         sessionId={data.id}
         repo={data.payload.meta.repo}
         showProgress
+        savedLabel={saved ? 'saved' : undefined}
         onMenu={() => setTocDrawerOpen(true)}
+        onSave={() => setSaveModalOpen(true)}
         onDownload={downloadMarkdown}
         onShare={share}
       />
@@ -152,6 +165,18 @@ function SessionReady({ data }: { data: SessionData & { payload: NonNullable<Ses
           docTitle={data.payload.meta.title}
           onClose={() => setAskPopId(null)}
           copyText={copy}
+        />
+      )}
+      {saveModalOpen && (
+        <SaveModal
+          sessionId={data.id}
+          payload={data.payload}
+          onClose={() => setSaveModalOpen(false)}
+          onSaved={() => setSavedOverride(true)}
+          // A save the user cancelled mid-flight can still commit server-side
+          // (the PUT cannot be recalled). No toast/modal feedback in that
+          // case, but the chip must still reflect server truth.
+          onBackgroundSaveSettled={() => setSavedOverride(true)}
         />
       )}
     </div>

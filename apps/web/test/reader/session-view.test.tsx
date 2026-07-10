@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import SessionPage from '@/app/s/page'
 
 const validPayload = {
@@ -100,5 +100,49 @@ describe('SessionPage / SessionView', () => {
       expect(screen.getByText(/Protected session/i)).toBeInTheDocument(),
     )
     expect(screen.getByText(/password unlock arrives in a later release/i)).toBeInTheDocument()
+  })
+
+  it('Save button opens SaveModal, and a plain save shows the saved chip without losing the doc', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
+
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const dialog = screen.getByRole('dialog', { name: 'Save this doc' })
+
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Save' })))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Save this doc' })).not.toBeInTheDocument())
+    // The doc must still be rendered -- encrypt/plain save must never blank the reader.
+    expect(screen.getByText('Test Doc')).toBeInTheDocument()
+    expect(screen.getByText('Hello world')).toBeInTheDocument()
+    expect(screen.getByText('saved')).toBeInTheDocument()
+  })
+
+  it('an encrypt save keeps the CURRENT decrypted payload on screen (does not drop to the protected-session card)', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
+
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const dialog = screen.getByRole('dialog', { name: 'Save this doc' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save with password' }))
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Save this doc' })).not.toBeInTheDocument(),
+    )
+    // Must still show the live document, never the "Protected session" placeholder.
+    expect(screen.getByText('Test Doc')).toBeInTheDocument()
+    expect(screen.getByText('Hello world')).toBeInTheDocument()
+    expect(screen.queryByText(/Protected session/i)).not.toBeInTheDocument()
+    expect(screen.getByText('saved')).toBeInTheDocument()
   })
 })
