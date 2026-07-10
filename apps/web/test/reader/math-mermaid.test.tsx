@@ -107,6 +107,27 @@ describe('MermaidBlock', () => {
     expect(screen.getByText('graph TD; A-->B')).toBeInTheDocument()
   })
 
+  it('initializes mermaid with htmlLabels false at BOTH the top level and flowchart scope', async () => {
+    // mermaid 11 ignores flowchart.htmlLabels alone — labels stay
+    // foreignObject HTML and DOMPurify's svg profile strips them to empty
+    // node boxes. The top-level key is what actually switches labels to
+    // pure SVG text; this pins the full config shape so neither key can be
+    // dropped without a test failure.
+    mermaidRenderMock.mockResolvedValue({ svg: '<svg></svg>' })
+
+    render(<MermaidBlock block={mermaidBlock} />)
+    await waitFor(() => expect(mermaidInitializeMock).toHaveBeenCalledTimes(1))
+
+    const config = mermaidInitializeMock.mock.calls.at(0)?.[0]
+    expect(config).toMatchObject({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'base',
+      htmlLabels: false,
+      flowchart: { htmlLabels: false },
+    })
+  })
+
   it('re-initializes mermaid with different themeVariables when the app theme changes', async () => {
     mermaidRenderMock.mockResolvedValue({ svg: '<svg></svg>' })
     useThemeMock.mockReturnValue({ theme: 'latte', toggle: vi.fn() })
