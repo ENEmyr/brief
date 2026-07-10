@@ -88,8 +88,27 @@ export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): ECh
   return option as unknown as EChartsOption
 }
 
+// Probed once per module lifetime and cached — WebGL support cannot change
+// within a session, and a fresh `<canvas>` + getContext() call on every
+// render is wasted work (this component re-renders on every theme toggle).
+let webglSupport: boolean | null = null
+
 function hasWebGL(): boolean {
-  return !!document.createElement('canvas').getContext('webgl')
+  if (webglSupport === null) {
+    webglSupport = !!document.createElement('canvas').getContext('webgl')
+  }
+  return webglSupport
+}
+
+/**
+ * Test-only escape hatch: plot3d.test.tsx exercises both the no-WebGL and
+ * WebGL-available paths by mocking `HTMLCanvasElement.prototype.getContext`
+ * differently across cases, but the module-level cache above only probes
+ * once per module lifetime. Exported solely so the test file can force a
+ * re-probe between cases; production code never calls this.
+ */
+export function __resetWebGLCacheForTests(): void {
+  webglSupport = null
 }
 
 function hasData(block: Plot3dBlockType): boolean {

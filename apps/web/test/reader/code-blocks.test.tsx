@@ -111,4 +111,18 @@ describe('BeforeAfter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'After' }))
     expect(screen.getByText('Rate limited')).toBeInTheDocument()
   })
+
+  it('marks the active segment with aria-pressed, matching the Layers chip convention', () => {
+    highlightMock.mockReturnValue(new Promise(() => {}))
+
+    r({ type: 'ba', language: 'ts', before: 'BEFORE_CODE', after: 'AFTER_CODE' })
+
+    expect(screen.getByRole('button', { name: 'Before' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'After' })).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'After' }))
+
+    expect(screen.getByRole('button', { name: 'Before' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'After' })).toHaveAttribute('aria-pressed', 'true')
+  })
 })

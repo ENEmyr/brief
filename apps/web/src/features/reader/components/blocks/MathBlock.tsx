@@ -47,7 +47,7 @@ export function MathBlock({ block }: { block: MathBlockType }) {
   const safeHtml = html === null ? null : DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
 
   return (
-    <DiagramCard caption={block.title ?? 'Equation'}>
+    <DiagramCard caption={block.title ?? 'Equation'} expandable={html !== null}>
       {safeHtml ? (
         <div
           data-expand-root

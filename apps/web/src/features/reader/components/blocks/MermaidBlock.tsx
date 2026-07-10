@@ -144,7 +144,7 @@ export function MermaidBlock({ block }: { block: MermaidBlockType }) {
   }
 
   return (
-    <DiagramCard caption={block.title ?? 'Diagram'}>
+    <DiagramCard caption={block.title ?? 'Diagram'} expandable={svg !== null}>
       {safeSvg ? (
         <div
           className="flex justify-center overflow-x-auto"
