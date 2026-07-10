@@ -136,6 +136,74 @@ describe('mermaid block keywords', () => {
   })
 })
 
+describe('additive tone/tag/caption fields', () => {
+  const mkPayload = (block: Payload['sections'][number]['blocks'][number]): Payload => ({
+    meta: { title: 'Fields' },
+    sections: [{ id: 's1', no: 1, title: 'Fields', blocks: [block] }],
+    decisions: [],
+  })
+
+  it('prefixes a compare block caption as a bold line before the sides', () => {
+    const md = payloadToMarkdown(
+      mkPayload({
+        type: 'compare',
+        caption: 'Before vs after',
+        left: { title: 'A', items: [{ text: 'x', ok: true }] },
+        right: { title: 'B', items: [{ text: 'y', ok: false }] },
+      }),
+      { url: 'https://example.test' },
+    )
+    expect(md).toContain('**Before vs after**\n\n')
+    expect(md.indexOf('**Before vs after**')).toBeLessThan(md.indexOf('**A**'))
+  })
+
+  it('renders no caption line when a compare block has none', () => {
+    const md = payloadToMarkdown(
+      mkPayload({
+        type: 'compare',
+        left: { title: 'A', items: [{ text: 'x', ok: true }] },
+        right: { title: 'B', items: [{ text: 'y', ok: false }] },
+      }),
+      { url: 'https://example.test' },
+    )
+    expect(md).not.toContain('**undefined**')
+  })
+
+  it('appends the side tag in parentheses to a compare side heading', () => {
+    const md = payloadToMarkdown(
+      mkPayload({
+        type: 'compare',
+        left: { title: 'A', tag: 'Recommended', items: [{ text: 'x', ok: true }] },
+        right: { title: 'B', items: [{ text: 'y', ok: false }] },
+      }),
+      { url: 'https://example.test' },
+    )
+    expect(md).toContain('A (Recommended)')
+    expect(md).not.toContain('B (')
+  })
+
+  it('does not emit stat tone in markdown (visual-only field)', () => {
+    const md = payloadToMarkdown(
+      mkPayload({ type: 'stat', items: [{ label: 'files', value: '12', tone: 'green' }] }),
+      { url: 'https://example.test' },
+    )
+    expect(md).not.toContain('green')
+  })
+
+  it('prefixes a coverage block caption as a bold line before the rows', () => {
+    const md = payloadToMarkdown(
+      mkPayload({
+        type: 'coverage',
+        caption: 'Test coverage',
+        items: [{ label: 'auth', status: 'full' }],
+      }),
+      { url: 'https://example.test' },
+    )
+    expect(md).toContain('**Test coverage**\n\n')
+    expect(md.indexOf('**Test coverage**')).toBeLessThan(md.indexOf('auth'))
+  })
+})
+
 describe('injection hardening', () => {
   it('fences a code block containing a literal triple-backtick without corrupting the document', () => {
     const md = payloadToMarkdown(

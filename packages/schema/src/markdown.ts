@@ -102,11 +102,11 @@ function blockToMarkdown(b: Block): string {
     case 'good': return `> [!TIP]${b.title ? ` ${b.title}` : ''}\n> ${b.text}`
     case 'table': return `${b.caption ? `**${b.caption}**\n\n` : ''}${table(b.head, b.rows)}`
     case 'compare': {
-      const side = (s: typeof b.left) => `**${s.title}**\n${s.items.map((i) => `- ${i.ok ? '(+)' : '(-)'} ${i.text}`).join('\n')}`
-      return `${side(b.left)}\n\n${side(b.right)}`
+      const side = (s: typeof b.left) => `**${s.title}${s.tag ? ` (${s.tag})` : ''}**\n${s.items.map((i) => `- ${i.ok ? '(+)' : '(-)'} ${i.text}`).join('\n')}`
+      return `${b.caption ? `**${b.caption}**\n\n` : ''}${side(b.left)}\n\n${side(b.right)}`
     }
     case 'stat': return b.items.map((i) => `- **${i.label}**: ${i.value}${i.hint ? ` (${i.hint})` : ''}`).join('\n')
-    case 'coverage': return b.items.map((i) => `- ${i.label}: ${i.status}${i.note ? ` (${i.note})` : ''}`).join('\n')
+    case 'coverage': return `${b.caption ? `**${b.caption}**\n\n` : ''}${b.items.map((i) => `- ${i.label}: ${i.status}${i.note ? ` (${i.note})` : ''}`).join('\n')}`
     case 'details': return `<details>\n<summary>${b.summary}</summary>\n\n${b.blocks.map(blockToMarkdown).join('\n\n')}\n\n</details>`
     case 'seq': return fence('mermaid', seqToMermaid(b))
     case 'state': return fence('mermaid', stateToMermaid(b))

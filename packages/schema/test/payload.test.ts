@@ -51,6 +51,55 @@ describe('payloadSchema', () => {
     expect(parsed.success).toBe(true)
   })
 
+  it('accepts compare blocks with optional caption, side tone, and side tag', () => {
+    const withExtras = structuredClone(minimal) as Payload
+    withExtras.sections[0]!.blocks = [
+      {
+        type: 'compare',
+        caption: 'Before vs after',
+        left: { title: 'A', tone: 'good', tag: 'Recommended', items: [{ text: 'x', ok: true }] },
+        right: { title: 'B', tone: 'bad', items: [{ text: 'y', ok: false }] },
+      },
+    ]
+    expect(payloadSchema.safeParse(withExtras).success).toBe(true)
+  })
+
+  it('rejects compare side tone outside the good/bad enum', () => {
+    const bad = structuredClone(minimal) as Payload
+    bad.sections[0]!.blocks = [
+      {
+        type: 'compare',
+        left: { title: 'A', tone: 'ugly', items: [{ text: 'x', ok: true }] },
+        right: { title: 'B', items: [{ text: 'y', ok: false }] },
+      },
+    ] as never
+    expect(payloadSchema.safeParse(bad).success).toBe(false)
+  })
+
+  it('accepts stat items with optional tone', () => {
+    const withTone = structuredClone(minimal) as Payload
+    withTone.sections[0]!.blocks = [
+      { type: 'stat', items: [{ label: 'files', value: '12', tone: 'green' }] },
+    ]
+    expect(payloadSchema.safeParse(withTone).success).toBe(true)
+  })
+
+  it('rejects stat item tone outside the palette enum', () => {
+    const bad = structuredClone(minimal) as Payload
+    bad.sections[0]!.blocks = [
+      { type: 'stat', items: [{ label: 'files', value: '12', tone: 'chartreuse' }] },
+    ] as never
+    expect(payloadSchema.safeParse(bad).success).toBe(false)
+  })
+
+  it('accepts coverage blocks with an optional caption', () => {
+    const withCaption = structuredClone(minimal) as Payload
+    withCaption.sections[0]!.blocks = [
+      { type: 'coverage', caption: 'Test coverage', items: [{ label: 'auth', status: 'full' }] },
+    ]
+    expect(payloadSchema.safeParse(withCaption).success).toBe(true)
+  })
+
   it('rejects bigo curves outside the enum (no eval surface)', () => {
     const bad = structuredClone(minimal) as Payload
     // @ts-expect-error testing invalid bigo curve
