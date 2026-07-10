@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { fetchSession, SessionNotFoundError } from '@/features/reader'
+import { fetchSession, SessionNotFoundError, SessionFetchError } from '@/features/reader'
 
 const valid = {
   id: 'abc12345678901',
@@ -20,6 +20,13 @@ const valid = {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('fetchSession', () => {
+  it('calls fetch with correct API_URL and session ID', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(valid)))
+    vi.stubGlobal('fetch', mockFetch)
+    await fetchSession('abc12345678901')
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost:8787/api/session/abc12345678901')
+  })
+
   it('parses a plain session payload', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(valid))))
     const s = await fetchSession('abc12345678901')
@@ -39,5 +46,15 @@ describe('fetchSession', () => {
   it('throws SessionNotFoundError on 404', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"x"}', { status: 404 })))
     await expect(fetchSession('nope')).rejects.toBeInstanceOf(SessionNotFoundError)
+  })
+
+  it('throws SessionFetchError on corrupt payload', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...valid, payload: '{"broken":' }))))
+    await expect(fetchSession('abc12345678901')).rejects.toBeInstanceOf(SessionFetchError)
+  })
+
+  it('throws SessionFetchError on non-ok status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"x"}', { status: 500 })))
+    await expect(fetchSession('abc12345678901')).rejects.toBeInstanceOf(SessionFetchError)
   })
 })
