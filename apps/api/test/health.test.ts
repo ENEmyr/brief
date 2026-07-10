@@ -14,3 +14,13 @@ describe('health', () => {
     expect(await res.json()).toEqual({ ok: true })
   })
 })
+
+describe('unknown route', () => {
+  it('returns a JSON 404 instead of the Elysia default text body', async () => {
+    const app = createApp(env as unknown as AppEnv)
+    const res = await app.handle(new Request('http://localhost/nope'))
+    expect(res.status).toBe(404)
+    expect(res.headers.get('content-type')).toContain('application/json')
+    expect(await res.json()).toEqual({ error: 'Not found.' })
+  })
+})

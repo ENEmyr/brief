@@ -9,7 +9,10 @@ import { stateFeature } from './features/state'
 export function createApp(env: AppEnv) {
   return new Elysia({ adapter: CloudflareAdapter })
     .onError(({ code, set }) => {
-      if (code === 'NOT_FOUND') return
+      if (code === 'NOT_FOUND') {
+        set.status = 404
+        return { error: 'Not found.' }
+      }
       set.status = 500
       return { error: 'Internal error.' }
     })
