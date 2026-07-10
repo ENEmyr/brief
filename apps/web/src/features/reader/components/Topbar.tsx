@@ -7,11 +7,15 @@ export function Topbar({
   repo,
   showProgress,
   onMenu,
+  onDownload,
+  onShare,
 }: {
   sessionId?: string
   repo?: string
   showProgress?: boolean
   onMenu?: () => void
+  onDownload?: () => void
+  onShare?: () => void
 }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-card/[.93] backdrop-blur-[8px] print:hidden">
@@ -49,6 +53,17 @@ export function Topbar({
               ☰
             </button>
           )}
+          {onDownload && (
+            <button
+              type="button"
+              onClick={onDownload}
+              aria-label="Download markdown"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-elev px-2.5 py-[5px] text-[11.5px] font-medium text-sub"
+            >
+              <span className="text-[13px] text-mauve">↓</span>
+              <span className="hidden min-[880px]:inline">Markdown</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => window.print()}
@@ -58,6 +73,17 @@ export function Topbar({
             <span className="text-[13px] text-mauve">⎙</span>
             <span className="hidden min-[880px]:inline">Print / PDF</span>
           </button>
+          {onShare && (
+            <button
+              type="button"
+              onClick={onShare}
+              aria-label="Share"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-elev px-2.5 py-[5px] text-[11.5px] font-medium text-sub"
+            >
+              <span className="text-[13px] text-mauve">⇗</span>
+              <span className="hidden min-[880px]:inline">Share</span>
+            </button>
+          )}
           <ThemeToggle />
         </div>
       </div>
