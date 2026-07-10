@@ -9,7 +9,6 @@ import { Stats } from './blocks/Stats'
 import { Coverage } from './blocks/Coverage'
 import { Details } from './blocks/Details'
 import { UnknownBlock } from './blocks/UnknownBlock'
-import { WidgetPlaceholder } from './blocks/WidgetPlaceholder'
 import { Seq } from './blocks/Seq'
 import { StateMachine } from './blocks/StateMachine'
 import { Layers } from './blocks/Layers'
@@ -22,6 +21,7 @@ import type { BigO as BigOComponent } from './blocks/BigO'
 import type { Heatmap as HeatmapComponent } from './blocks/Heatmap'
 import type { Histogram as HistogramComponent } from './blocks/Histogram'
 import type { Scatter as ScatterComponent } from './blocks/Scatter'
+import type { Plot3d as Plot3dComponent } from './blocks/Plot3d'
 
 // katex/mermaid are only ever needed once a math/mermaid block actually
 // mounts, so both components are routed through next/dynamic({ ssr: false })
@@ -75,11 +75,13 @@ const DynamicScatter = dynamic<{ block: Extract<Block, { type: 'scatter' }> }>(
   { ssr: false, loading: DynamicChunkLoading },
 )
 
-// The remaining diagram/chart block types that don't have a real component
-// yet (Plan 3 task 8 swaps this in as a one-line case above the default).
-// Checked at runtime, not just inferred from the type union, since
-// arbitrary/legacy payloads can still reach the default branch.
-const WIDGET_TYPES = new Set<Block['type']>(['plot3d'])
+// echarts-gl (~1MB on top of echarts/core) gets its own dynamic() boundary
+// for the same reason as the four echarts blocks above — Plot3d.tsx owns the
+// lazy `getEChartsGL()` import (see services/echarts.ts).
+const DynamicPlot3d = dynamic<{ block: Extract<Block, { type: 'plot3d' }> }>(
+  () => import('./blocks/Plot3d').then((m): typeof Plot3dComponent => m.Plot3d),
+  { ssr: false, loading: DynamicChunkLoading },
+)
 
 export function BlockRenderer({ block }: { block: Block }) {
   switch (block.type) {
@@ -123,7 +125,9 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <DynamicHistogram block={block} />
     case 'scatter':
       return <DynamicScatter block={block} />
+    case 'plot3d':
+      return <DynamicPlot3d block={block} />
     default:
-      return WIDGET_TYPES.has(block.type) ? <WidgetPlaceholder block={block} /> : <UnknownBlock block={block} />
+      return <UnknownBlock block={block} />
   }
 }
