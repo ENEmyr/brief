@@ -88,7 +88,12 @@ function SessionReady({
   // incorrectly blank a doc the reader is actively viewing.
   const [savedOverride, setSavedOverride] = useState(false)
   const saved = savedOverride || data.saved
-  const savedLabel = protectedSession ? 'protected' : saved ? 'saved' : undefined
+  let savedLabel: 'protected' | 'saved' | undefined
+  if (protectedSession) {
+    savedLabel = 'protected'
+  } else if (saved) {
+    savedLabel = 'saved'
+  }
 
   // bug-250: an in-view encrypt save purges the server's plaintext state:<id>
   // KV blob (this ReaderStateProvider was mounted with persist=true, since

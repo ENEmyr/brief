@@ -19,7 +19,7 @@ function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   for (let i = 0; i < bytes.length; i += BASE64_CHUNK_SIZE) {
     const chunk = bytes.subarray(i, i + BASE64_CHUNK_SIZE)
-    binary += String.fromCharCode(...chunk)
+    binary += String.fromCodePoint(...chunk)
   }
   return btoa(binary)
 }
@@ -27,7 +27,9 @@ function bytesToBase64(bytes: Uint8Array): string {
 function base64ToBytes(b64: string): Uint8Array {
   const binary = atob(b64)
   const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  // atob output chars are all in 0-255, so no surrogate pairs exist and
+  // codePointAt(i) is always defined and equal to charCodeAt(i) here.
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.codePointAt(i)!
   return bytes
 }
 

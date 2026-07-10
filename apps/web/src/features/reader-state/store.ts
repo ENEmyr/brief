@@ -91,11 +91,14 @@ export function createReaderStateStore(
     },
     pickOption(decisionId, optionId, multi) {
       const current = state.dsel[decisionId] ?? []
-      const next = multi
-        ? current.includes(optionId)
-          ? current.filter((o) => o !== optionId)
-          : [...current, optionId]
-        : [optionId]
+      let next: string[]
+      if (!multi) {
+        next = [optionId]
+      } else if (current.includes(optionId)) {
+        next = current.filter((o) => o !== optionId)
+      } else {
+        next = [...current, optionId]
+      }
       commit({ ...state, dsel: { ...state.dsel, [decisionId]: next } })
     },
     setDecisionNote(decisionId, text) {

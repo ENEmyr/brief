@@ -90,8 +90,10 @@ export function DecisionSection({
   return (
     <section id="decide" data-section="decide" className="mt-4 scroll-mt-[76px]">
       <h2 className="mb-1.5 border-b-2 border-mauvesoft pb-2 text-[21px] font-bold">
-        <span className="mr-2 font-mono text-[16px] text-mauve">{pad(no)}</span>
-        Decisions
+        {/* Same line as the span on purpose: a line break here is ambiguous
+            JSX spacing (S6772); the rendered text has no space, the visual
+            gap comes from the span's mr-2 margin. */}
+        <span className="mr-2 font-mono text-[16px] text-mauve">{pad(no)}</span>Decisions
       </h2>
       <p className="mb-4 text-[13.5px] text-sub">
         Answer every question to unlock prompt generation for Claude Code to continue
