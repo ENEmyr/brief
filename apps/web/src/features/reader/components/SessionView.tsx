@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import { Toc } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
 import { ReaderStateProvider } from '@/features/reader-state'
-import { SelectionToolbar } from '@/features/annotations'
+import type { Highlight } from '@/features/reader-state'
+import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
@@ -47,10 +48,32 @@ export function SessionView({ id }: { id: string | null }) {
   // Drawer open state lives here per the Task 5 contract; `onMenu` from
   // Topbar opens it and Toc's onCloseDrawer prop closes it.
   const [tocDrawerOpen, setTocDrawerOpen] = useState(false)
+  // Note/Ask popovers are mutually exclusive -- opening one always closes
+  // the other, matching the prototype's single-notePop/single-askPop state.
+  const [notePopId, setNotePopId] = useState<string | null>(null)
+  const [askPopId, setAskPopId] = useState<string | null>(null)
 
   useEffect(() => {
     setTocCollapsed(readStoredTocCollapsed())
   }, [])
+
+  function openNote(id: string) {
+    setAskPopId(null)
+    setNotePopId(id)
+  }
+
+  function openAsk(id: string) {
+    setNotePopId(null)
+    setAskPopId(id)
+  }
+
+  function handleMarkClick(highlight: Highlight) {
+    // Any non-ask mark (plain highlight or note) opens NotePopover; an ask
+    // mark (question !== undefined) opens AskPopover -- matches the
+    // prototype's prose() onClick (Reader.dc.html line 572).
+    if (highlight.question !== undefined) openAsk(highlight.id)
+    else openNote(highlight.id)
+  }
 
   function toggleTocCollapsed() {
     setTocCollapsed((prev) => {
@@ -114,16 +137,23 @@ export function SessionView({ id }: { id: string | null }) {
               />
               <div>
                 {data.payload.sections.map((s, si) => (
-                  <SectionView key={s.id} section={s} sid={si} />
+                  <SectionView key={s.id} section={s} sid={si} onMarkClick={handleMarkClick} />
                 ))}
               </div>
             </div>
           </DiagramViewerProvider>
         </main>
-        {/* Highlight/Note/Ask/Copy actions are wired to the store now; Note
-            and Ask popovers themselves arrive in Task 3, so those two
-            callbacks are no-ops here for the moment. */}
-        <SelectionToolbar onRequestNote={() => {}} onRequestAsk={() => {}} />
+        <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} />
+        {notePopId && <NotePopover id={notePopId} onClose={() => setNotePopId(null)} />}
+        {askPopId && (
+          <AskPopover
+            id={askPopId}
+            sections={data.payload.sections}
+            sessionId={data.id}
+            docTitle={data.payload.meta.title}
+            onClose={() => setAskPopId(null)}
+          />
+        )}
       </div>
     </ReaderStateProvider>
   )
