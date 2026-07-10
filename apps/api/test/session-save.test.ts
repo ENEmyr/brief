@@ -59,6 +59,21 @@ describe('PUT /api/session/:id/save', () => {
     expect(await appEnv.KV.get(`payload:${id}`)).toBeNull()
   })
 
+  it('encrypt save blanks the plaintext title in D1 and the GET response (zero-knowledge)', async () => {
+    const id = await createOne()
+    const res = await put(id, {
+      mode: 'encrypt',
+      ciphertext: 'c2VjcmV0',
+      encParams: { salt: 'AAAA', iv: 'BBBB', iterations: 600000 },
+    })
+    expect(res.status).toBe(200)
+    const row = await appEnv.DB.prepare('SELECT title FROM sessions WHERE id = ?').bind(id).first()
+    expect(row?.title).toBe('')
+    const getRes = await app().handle(new Request(`http://localhost/api/session/${id}`))
+    const json = (await getRes.json()) as { title: string }
+    expect(json.title).toBe('')
+  })
+
   it('409s a second encryption', async () => {
     const id = await createOne()
     await put(id, { mode: 'encrypt', ciphertext: 'YQ==', encParams: { salt: 'A', iv: 'B', iterations: 600000 } })

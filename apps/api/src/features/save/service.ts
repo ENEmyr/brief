@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { sessions } from '../../db/schema'
-import { db, SAVED_TTL_MS } from '../session/service'
+import { db, SAVED_TTL_MS } from '../../shared/db'
 import type { SaveBody } from './model'
 
 // Keep in sync with the zod ciphertext cap in ./model.ts. D1's row/value size ceiling is
@@ -48,6 +48,9 @@ export async function saveSession(
       saved: true,
       encrypted: true,
       payload: body.ciphertext,
+      // Zero-knowledge: the title is Payload content, not metadata. Once a session is
+      // encrypted the server must not retain a readable copy of it alongside the ciphertext.
+      title: '',
       encParams: JSON.stringify(body.encParams),
       lastOpenedAt: now,
       expiresAt,
