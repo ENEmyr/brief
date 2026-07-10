@@ -81,6 +81,14 @@ describe('payloadToMarkdown', () => {
     expect(subtitleIdx).toBeGreaterThan(titleIdx)
     expect(firstSectionIdx).toBeGreaterThan(subtitleIdx)
   })
+
+  it('renders a subtitle containing a pipe character literally, unescaped', () => {
+    const withPipeSubtitle = structuredClone(payload)
+    withPipeSubtitle.meta.subtitle = 'A | B'
+    const md = payloadToMarkdown(withPipeSubtitle, { url: 'https://brief.algoryth.me/s/abc' })
+    expect(md).toContain('A | B')
+    expect(md).not.toContain('A \\| B')
+  })
 })
 
 describe('mermaid block keywords', () => {
