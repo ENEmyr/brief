@@ -27,8 +27,17 @@
   --color-pink: var(--ctp-pink);
   --color-flamingo: var(--ctp-flamingo);
   --color-rosewater: var(--ctp-rosewater);
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --color-page: var(--ctp-page);
+  --color-card: var(--ctp-card);
+  --color-elev: var(--ctp-elev);
+  --color-line: var(--ctp-line);
+  --color-line2: var(--ctp-line2);
+  --color-sub: var(--ctp-subtext0);
+  --color-faint: var(--ctp-faint);
+  --color-chip: var(--ctp-chip);
+  --color-mauvesoft: var(--ctp-mauvesoft);
+  --font-sans: var(--font-plex-sans), 'IBM Plex Sans Thai', system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
 }
 
 /* Catppuccin Latte (light) */
@@ -60,6 +69,18 @@
   --ctp-pink: #ea76cb;
   --ctp-flamingo: #dd7878;
   --ctp-rosewater: #dc8a78;
+  --ctp-page: #eff1f5;
+  --ctp-card: #ffffff;
+  --ctp-elev: #f4f5f8;
+  --ctp-line: #dce0e8;
+  --ctp-line2: #e6e9ef;
+  --ctp-faint: #8c8fa1;
+  --ctp-chip: #eceef3;
+  --ctp-mauvesoft: #f2ebfd;
+  --ctp-mark: rgba(223, 142, 29, 0.3);
+  --ctp-marktx: #8a5a10;
+  --ctp-toolbg: #313244;
+  --shadow-card: 0 6px 22px rgba(76, 79, 105, 0.14);
 }
 
 /* Catppuccin Mocha (dark) */
@@ -90,10 +111,44 @@
   --ctp-pink: #f5c2e7;
   --ctp-flamingo: #f2cdcd;
   --ctp-rosewater: #f5e0dc;
+  --ctp-page: #11111b;
+  --ctp-card: #1e1e2e;
+  --ctp-elev: #181825;
+  --ctp-line: #313244;
+  --ctp-line2: #292a3a;
+  --ctp-faint: #6c7086;
+  --ctp-chip: #313244;
+  --ctp-mauvesoft: rgba(203, 166, 247, 0.14);
+  --ctp-mark: rgba(249, 226, 175, 0.22);
+  --ctp-marktx: #f9e2af;
+  --ctp-toolbg: #313244;
+  --shadow-card: 0 8px 26px rgba(0, 0, 0, 0.5);
 }
 
 html,
 body {
-  background: var(--ctp-base);
+  background: var(--ctp-page);
   color: var(--ctp-text);
+}
+
+::selection {
+  background: rgba(136, 57, 239, 0.22);
+}
+[data-theme='mocha'] ::selection {
+  background: rgba(203, 166, 247, 0.28);
+}
+
+@keyframes sk-shimmer {
+  0% { background-position: -480px 0; }
+  100% { background-position: 480px 0; }
+}
+.sk {
+  background: linear-gradient(90deg, #e2e5ec 25%, #eef0f4 37%, #e2e5ec 63%);
+  background-size: 480px 100%;
+  animation: sk-shimmer 1.4s infinite linear;
+  border-radius: 8px;
+}
+[data-theme='mocha'] .sk {
+  background: linear-gradient(90deg, #24243a 25%, #2e2e48 37%, #24243a 63%);
+  background-size: 480px 100%;
 }
