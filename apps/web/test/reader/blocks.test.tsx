@@ -1,13 +1,25 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { BlockRenderer } from '@/features/reader'
+import { ReaderStateProvider } from '@/features/reader-state'
 import type { Block } from '@brief/schema'
 
 const r = (block: Block) => render(<BlockRenderer block={block} />)
 
+afterEach(() => vi.unstubAllGlobals())
+
 describe('BlockRenderer text family', () => {
   it('renders p', () => {
-    r({ type: 'p', text: 'hello world' })
+    // Paragraph now renders through HighlightedText, which reads reader
+    // state via context -- only this 'p' case needs the provider (and its
+    // KV-sync fetch stubbed), every other block type in this file is
+    // untouched by the annotations feature.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+    render(
+      <ReaderStateProvider sessionId="blocks-test">
+        <BlockRenderer block={{ type: 'p', text: 'hello world' }} sid={0} bid={0} />
+      </ReaderStateProvider>,
+    )
     expect(screen.getByText('hello world')).toBeInTheDocument()
   })
 
@@ -111,7 +123,14 @@ describe('BlockRenderer text family', () => {
   })
 
   it('renders details with nested blocks', () => {
-    r({ type: 'details', summary: 'more', blocks: [{ type: 'p', text: 'inner' }] })
+    // The nested block is a 'p', so it hits the same HighlightedText/context
+    // requirement as the top-level 'p' case above.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+    render(
+      <ReaderStateProvider sessionId="blocks-test-details">
+        <BlockRenderer block={{ type: 'details', summary: 'more', blocks: [{ type: 'p', text: 'inner' }] }} />
+      </ReaderStateProvider>,
+    )
     expect(screen.getByText('more')).toBeInTheDocument()
     expect(screen.getByText('inner')).toBeInTheDocument()
   })

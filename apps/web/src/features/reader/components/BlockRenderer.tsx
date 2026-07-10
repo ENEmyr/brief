@@ -83,10 +83,10 @@ const DynamicPlot3d = dynamic<{ block: Extract<Block, { type: 'plot3d' }> }>(
   { ssr: false, loading: DynamicChunkLoading },
 )
 
-export function BlockRenderer({ block }: { block: Block }) {
+export function BlockRenderer({ block, sid = 0, bid = 0 }: { block: Block; sid?: number; bid?: number }) {
   switch (block.type) {
     case 'p':
-      return <Paragraph block={block} />
+      return <Paragraph block={block} sid={sid} bid={bid} />
     case 'note':
     case 'warn':
     case 'good':
