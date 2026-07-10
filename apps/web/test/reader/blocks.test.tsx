@@ -1,14 +1,49 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { BlockRenderer } from '@/features/reader'
+import { ReaderStateProvider } from '@/features/reader-state'
 import type { Block } from '@brief/schema'
 
 const r = (block: Block) => render(<BlockRenderer block={block} />)
 
+afterEach(() => vi.unstubAllGlobals())
+
 describe('BlockRenderer text family', () => {
   it('renders p', () => {
-    r({ type: 'p', text: 'hello world' })
+    // Paragraph now renders through HighlightedText, which reads reader
+    // state via context -- only this 'p' case needs the provider (and its
+    // KV-sync fetch stubbed), every other block type in this file is
+    // untouched by the annotations feature.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+    render(
+      <ReaderStateProvider sessionId="blocks-test">
+        <BlockRenderer block={{ type: 'p', text: 'hello world' }} sid={0} bid={0} />
+      </ReaderStateProvider>,
+    )
     expect(screen.getByText('hello world')).toBeInTheDocument()
+  })
+
+  it('carries the real section/block indices on a top-level p (no default-0 aliasing)', () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+    render(
+      <ReaderStateProvider sessionId="blocks-test-indices">
+        <BlockRenderer block={{ type: 'p', text: 'indexed paragraph' }} sid={2} bid={3} />
+      </ReaderStateProvider>,
+    )
+    const p = screen.getByText('indexed paragraph')
+    expect(p).toHaveAttribute('data-hl')
+    expect(p).toHaveAttribute('data-sid', '2')
+    expect(p).toHaveAttribute('data-bid', '3')
+  })
+
+  it('renders a p WITHOUT annotation attributes when sid/bid are absent', () => {
+    // No default-0: an unindexed p must never alias section 0 / block 0.
+    // The plain path also has no HighlightedText, so no provider is needed.
+    render(<BlockRenderer block={{ type: 'p', text: 'unindexed paragraph' }} />)
+    const p = screen.getByText('unindexed paragraph')
+    expect(p).not.toHaveAttribute('data-hl')
+    expect(p).not.toHaveAttribute('data-sid')
+    expect(p).not.toHaveAttribute('data-bid')
   })
 
   it('renders warn callout with title', () => {
@@ -111,9 +146,27 @@ describe('BlockRenderer text family', () => {
   })
 
   it('renders details with nested blocks', () => {
+    // Details-nested content is NOT annotatable (controller adjudication):
+    // nested paragraphs render plain (no HighlightedText, no context needed),
+    // so this deliberately renders WITHOUT a ReaderStateProvider.
     r({ type: 'details', summary: 'more', blocks: [{ type: 'p', text: 'inner' }] })
     expect(screen.getByText('more')).toBeInTheDocument()
     expect(screen.getByText('inner')).toBeInTheDocument()
+  })
+
+  it('details-nested paragraphs carry no annotation attributes', () => {
+    // Regression for the sid=0/bid=0 aliasing defect: a nested p defaulting
+    // its indices to 0 would cross-contaminate highlights with section 0's
+    // first paragraph. Nested paragraphs must opt out of [data-hl] entirely.
+    r({
+      type: 'details',
+      summary: 'more',
+      blocks: [{ type: 'p', text: 'nested paragraph text' }],
+    })
+    const p = screen.getByText('nested paragraph text')
+    expect(p).not.toHaveAttribute('data-hl')
+    expect(p).not.toHaveAttribute('data-sid')
+    expect(p).not.toHaveAttribute('data-bid')
   })
 
   it('falls back to JSON for a truly unknown type', () => {

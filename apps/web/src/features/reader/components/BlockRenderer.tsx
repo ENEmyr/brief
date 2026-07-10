@@ -83,10 +83,23 @@ const DynamicPlot3d = dynamic<{ block: Extract<Block, { type: 'plot3d' }> }>(
   { ssr: false, loading: DynamicChunkLoading },
 )
 
-export function BlockRenderer({ block }: { block: Block }) {
+// sid/bid deliberately have NO default: an absent index renders the paragraph
+// as plain (non-annotatable) text instead of silently aliasing sid=0/bid=0,
+// which would cross-contaminate highlights with section 0's first paragraph.
+export function BlockRenderer({
+  block,
+  sid,
+  bid,
+  annotatable = true,
+}: {
+  block: Block
+  sid?: number
+  bid?: number
+  annotatable?: boolean
+}) {
   switch (block.type) {
     case 'p':
-      return <Paragraph block={block} />
+      return <Paragraph block={block} sid={sid} bid={bid} annotatable={annotatable} />
     case 'note':
     case 'warn':
     case 'good':

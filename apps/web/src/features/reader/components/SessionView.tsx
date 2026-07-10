@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { Toc } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
+import { ReaderStateProvider } from '@/features/reader-state'
+import { SelectionToolbar } from '@/features/annotations'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
@@ -88,35 +90,41 @@ export function SessionView({ id }: { id: string | null }) {
   const sections = data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))
 
   return (
-    <div className="min-h-screen bg-page">
-      <Topbar
-        sessionId={data.id}
-        repo={data.payload.meta.repo}
-        showProgress
-        onMenu={() => setTocDrawerOpen(true)}
-      />
-      <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
-        <MetaHeader meta={data.payload.meta} />
-        <DiagramViewerProvider>
-          <div
-            className="items-start gap-[34px] min-[880px]:grid"
-            style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
-          >
-            <Toc
-              sections={sections}
-              collapsed={tocCollapsed}
-              onToggleCollapsed={toggleTocCollapsed}
-              drawerOpen={tocDrawerOpen}
-              onCloseDrawer={() => setTocDrawerOpen(false)}
-            />
-            <div>
-              {data.payload.sections.map((s) => (
-                <SectionView key={s.id} section={s} />
-              ))}
+    <ReaderStateProvider key={data.id} sessionId={data.id}>
+      <div className="min-h-screen bg-page">
+        <Topbar
+          sessionId={data.id}
+          repo={data.payload.meta.repo}
+          showProgress
+          onMenu={() => setTocDrawerOpen(true)}
+        />
+        <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
+          <MetaHeader meta={data.payload.meta} />
+          <DiagramViewerProvider>
+            <div
+              className="items-start gap-[34px] min-[880px]:grid"
+              style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
+            >
+              <Toc
+                sections={sections}
+                collapsed={tocCollapsed}
+                onToggleCollapsed={toggleTocCollapsed}
+                drawerOpen={tocDrawerOpen}
+                onCloseDrawer={() => setTocDrawerOpen(false)}
+              />
+              <div>
+                {data.payload.sections.map((s, si) => (
+                  <SectionView key={s.id} section={s} sid={si} />
+                ))}
+              </div>
             </div>
-          </div>
-        </DiagramViewerProvider>
-      </main>
-    </div>
+          </DiagramViewerProvider>
+        </main>
+        {/* Highlight/Note/Ask/Copy actions are wired to the store now; Note
+            and Ask popovers themselves arrive in Task 3, so those two
+            callbacks are no-ops here for the moment. */}
+        <SelectionToolbar onRequestNote={() => {}} onRequestAsk={() => {}} />
+      </div>
+    </ReaderStateProvider>
   )
 }

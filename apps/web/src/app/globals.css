@@ -158,6 +158,11 @@ body {
   background: rgba(203, 166, 247, 0.28);
 }
 
+@keyframes dc-floatpop {
+  0% { opacity: 0; transform: translate(-50%, 4px); }
+  100% { opacity: 1; transform: translate(-50%, 0); }
+}
+
 @keyframes sk-shimmer {
   0% { background-position: -480px 0; }
   100% { background-position: 480px 0; }
