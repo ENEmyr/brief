@@ -10,8 +10,9 @@ export const baseConfig = defineConfig(
 )
 
 // Vertical slice / feature-folder boundary rules.
-// A feature may only be imported from outside via its index.ts.
-// Features must not import other features' internals.
+// A feature may only be imported from outside via its index.ts (enforced below by
+// boundaries/entry-point, which applies to every importer, not just the app layer).
+// Cross-feature composition is allowed as long as it goes through that index.ts.
 export function boundariesConfig() {
   return {
     plugins: { boundaries },
@@ -31,11 +32,6 @@ export function boundariesConfig() {
         {
           default: 'allow',
           rules: [
-            {
-              from: [['feature', { feature: '${feature}' }]],
-              disallow: [['feature', { feature: '!${feature}' }]],
-              message: 'Feature "${file.feature}" must not import internals of another feature. Import from its index.ts through the app layer instead.',
-            },
             { from: ['shared'], disallow: ['feature'], message: 'shared/ must not depend on features.' },
           ],
         },
