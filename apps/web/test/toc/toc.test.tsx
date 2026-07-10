@@ -101,7 +101,8 @@ describe('toc (expanded)', () => {
     renderToc({ collapsed: false, onToggleCollapsed })
 
     const toggle = screen.getByRole('button', { name: 'Collapse contents' })
-    expect(toggle).toHaveTextContent('»')
+    // Prototype parity (coordinator adjudication): expanded shows '«'.
+    expect(toggle).toHaveTextContent('«')
 
     fireEvent.click(toggle)
     expect(onToggleCollapsed).toHaveBeenCalledTimes(1)
@@ -118,7 +119,8 @@ describe('toc (collapsed to numbers)', () => {
     expect(screen.queryByText('Getting Started')).not.toBeInTheDocument()
 
     const toggle = screen.getByRole('button', { name: 'Expand contents' })
-    expect(toggle).toHaveTextContent('«')
+    // Prototype parity (coordinator adjudication): collapsed shows '»'.
+    expect(toggle).toHaveTextContent('»')
   })
 
   it('shows titles on hover and hides them again on mouse leave', () => {

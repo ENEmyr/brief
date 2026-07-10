@@ -200,7 +200,7 @@ export function Toc({
                 aria-label={collapsed ? 'Expand contents' : 'Collapse contents'}
                 className="text-[14px] leading-none text-faint"
               >
-                {collapsed ? '«' : '»'}
+                {collapsed ? '»' : '«'}
               </button>
             </div>
             {showFull ? renderItems(true) : renderCollapsedNumbers()}
