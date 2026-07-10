@@ -18,6 +18,10 @@ import { CodeBlock } from './blocks/CodeBlock'
 import { BeforeAfter } from './blocks/BeforeAfter'
 import type { MathBlock as MathBlockComponent } from './blocks/MathBlock'
 import type { MermaidBlock as MermaidBlockComponent } from './blocks/MermaidBlock'
+import type { BigO as BigOComponent } from './blocks/BigO'
+import type { Heatmap as HeatmapComponent } from './blocks/Heatmap'
+import type { Histogram as HistogramComponent } from './blocks/Histogram'
+import type { Scatter as ScatterComponent } from './blocks/Scatter'
 
 // katex/mermaid are only ever needed once a math/mermaid block actually
 // mounts, so both components are routed through next/dynamic({ ssr: false })
@@ -47,14 +51,35 @@ const DynamicMermaidBlock = dynamic<{ block: Extract<Block, { type: 'mermaid' }>
   { ssr: false, loading: DynamicChunkLoading },
 )
 
+// echarts (~1MB across the four chart modules it needs) must stay out of the
+// first-load chunk exactly like katex/mermaid above — same dynamic()/ssr:
+// false routing, with each block's own component owning the lazy
+// import('echarts/...') calls (see services/echarts.ts).
+const DynamicBigO = dynamic<{ block: Extract<Block, { type: 'bigo' }> }>(
+  () => import('./blocks/BigO').then((m): typeof BigOComponent => m.BigO),
+  { ssr: false, loading: DynamicChunkLoading },
+)
+
+const DynamicHeatmap = dynamic<{ block: Extract<Block, { type: 'heatmap' }> }>(
+  () => import('./blocks/Heatmap').then((m): typeof HeatmapComponent => m.Heatmap),
+  { ssr: false, loading: DynamicChunkLoading },
+)
+
+const DynamicHistogram = dynamic<{ block: Extract<Block, { type: 'histogram' }> }>(
+  () => import('./blocks/Histogram').then((m): typeof HistogramComponent => m.Histogram),
+  { ssr: false, loading: DynamicChunkLoading },
+)
+
+const DynamicScatter = dynamic<{ block: Extract<Block, { type: 'scatter' }> }>(
+  () => import('./blocks/Scatter').then((m): typeof ScatterComponent => m.Scatter),
+  { ssr: false, loading: DynamicChunkLoading },
+)
+
 // The remaining diagram/chart block types that don't have a real component
-// yet (Plan 3 tasks 7-8 swap each of these in as a one-line case above the
-// default). Checked at runtime, not just inferred from the type union,
-// since arbitrary/legacy payloads can still reach the default branch.
-const WIDGET_TYPES = new Set<Block['type']>([
-  'bigo',
-  'heatmap', 'histogram', 'scatter', 'plot3d',
-])
+// yet (Plan 3 task 8 swaps this in as a one-line case above the default).
+// Checked at runtime, not just inferred from the type union, since
+// arbitrary/legacy payloads can still reach the default branch.
+const WIDGET_TYPES = new Set<Block['type']>(['plot3d'])
 
 export function BlockRenderer({ block }: { block: Block }) {
   switch (block.type) {
@@ -90,6 +115,14 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <DynamicMathBlock block={block} />
     case 'mermaid':
       return <DynamicMermaidBlock block={block} />
+    case 'bigo':
+      return <DynamicBigO block={block} />
+    case 'heatmap':
+      return <DynamicHeatmap block={block} />
+    case 'histogram':
+      return <DynamicHistogram block={block} />
+    case 'scatter':
+      return <DynamicScatter block={block} />
     default:
       return WIDGET_TYPES.has(block.type) ? <WidgetPlaceholder block={block} /> : <UnknownBlock block={block} />
   }

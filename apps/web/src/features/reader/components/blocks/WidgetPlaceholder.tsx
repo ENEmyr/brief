@@ -7,11 +7,10 @@ function widgetCaption(block: Block): string {
 }
 
 /**
- * Temporary stand-in for the 5 remaining widget block types (bigo, heatmap,
- * histogram, scatter, plot3d) until their real components land in later
- * Plan 3 tasks. Wraps the same JSON fallback UnknownBlock renders, inside
- * DiagramCard's chrome, so swapping in a real component later is a one-line
- * change in BlockRenderer.
+ * Temporary stand-in for the 1 remaining widget block type (plot3d) until
+ * its real component lands in a later Plan 3 task. Wraps the same JSON
+ * fallback UnknownBlock renders, inside DiagramCard's chrome, so swapping in
+ * a real component later is a one-line change in BlockRenderer.
  */
 export function WidgetPlaceholder({ block }: { block: Block }) {
   return (
