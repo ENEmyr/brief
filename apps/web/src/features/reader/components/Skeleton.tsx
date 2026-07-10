@@ -1,22 +1,30 @@
-const LINE_WIDTHS = ['w-2/3', 'w-1/3', 'w-full', 'w-5/6', 'w-4/6', 'w-1/2']
-
 export function Skeleton() {
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-surface0 bg-base/90 px-4 backdrop-blur">
-        <span className="font-semibold">Brief</span>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-8 space-y-3">
-          <div className="h-8 w-1/2 animate-pulse rounded bg-surface0" />
-          <div className="h-4 w-1/4 animate-pulse rounded bg-surface0" />
+    <div className="min-h-screen" role="status" aria-label="Loading session">
+      <div className="max-w-[1180px] mx-auto px-7 pt-5">
+        <div className="flex justify-between mb-[26px]">
+          <div className="sk w-[220px] h-[26px]" />
+          <div className="sk w-[150px] h-[26px]" />
         </div>
-        <div className="space-y-4">
-          {LINE_WIDTHS.map((width, i) => (
-            <div key={i} className={`h-4 ${width} animate-pulse rounded bg-surface0`} />
-          ))}
+        <div className="sk w-full h-[118px] mb-[26px]" />
+        <div className="min-[880px]:grid min-[880px]:grid-cols-[172px_1fr] min-[880px]:gap-9">
+          <div>
+            <div className="sk h-4 w-full mb-3" />
+            <div className="sk h-3.5 w-4/5 mb-[9px]" />
+            <div className="sk h-3.5 w-[90%] mb-[9px]" />
+            <div className="sk h-3.5 w-[70%]" />
+          </div>
+          <div>
+            <div className="sk w-[46%] h-6 mb-[18px]" />
+            <div className="sk h-3.5 w-full mb-2.5" />
+            <div className="sk h-3.5 w-[97%] mb-2.5" />
+            <div className="sk h-3.5 w-[88%] mb-[22px]" />
+            <div className="sk w-full h-[200px] mb-[22px]" />
+            <div className="sk h-3.5 w-full mb-2.5" />
+            <div className="sk h-3.5 w-[92%]" />
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
