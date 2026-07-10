@@ -117,7 +117,10 @@ describe('BlockRenderer text family', () => {
   })
 
   it('falls back to JSON for not-yet-implemented types', () => {
-    r({ type: 'mermaid', code: 'graph TD; a-->b' } as Block)
-    expect(screen.getByText(/graph TD/)).toBeInTheDocument()
+    // 'mermaid' and 'math' got real components in Plan 3 task 6 — use a
+    // still-unimplemented widget type here instead (see BlockRenderer's
+    // WIDGET_TYPES comment for what's left).
+    r({ type: 'heatmap', marker: 'HEATMAP_MARKER' } as unknown as Block)
+    expect(screen.getByText(/HEATMAP_MARKER/)).toBeInTheDocument()
   })
 })
