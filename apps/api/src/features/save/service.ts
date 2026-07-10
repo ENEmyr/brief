@@ -58,5 +58,10 @@ export async function saveSession(
     .where(and(eq(sessions.id, id), eq(sessions.encrypted, false)))
   if (result.meta.changes === 0) return { ok: false, status: 409, error: 'Session is already encrypted.' }
   await env.KV.delete(`payload:${id}`)
+  // Pre-encryption reader state (state:<id>, written by the unauthenticated state-sync
+  // endpoint) contains plaintext doc excerpts — highlight text, notes, ask questions — and
+  // must not outlive encryption. Leaving it in KV would let anyone with the session id read
+  // plaintext content via GET /api/session/:id/state after the doc is "protected".
+  await env.KV.delete(`state:${id}`)
   return { ok: true, encrypted: true, expiresAt }
 }

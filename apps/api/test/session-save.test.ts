@@ -74,6 +74,32 @@ describe('PUT /api/session/:id/save', () => {
     expect(json.title).toBe('')
   })
 
+  it('encrypt save purges pre-encryption reader state so plaintext excerpts do not outlive it', async () => {
+    const id = await createOne()
+    // Seed reader state the way the client's state-sync does before the doc is protected —
+    // this blob can contain plaintext highlight/note excerpts from the doc.
+    const statePutRes = await app().handle(
+      new Request(`http://localhost/api/session/${id}/state`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ state: '{"highlights":["plaintext excerpt"]}' }),
+      }),
+    )
+    expect(statePutRes.status).toBe(204)
+    expect(await appEnv.KV.get(`state:${id}`)).not.toBeNull()
+
+    const res = await put(id, {
+      mode: 'encrypt',
+      ciphertext: 'c2VjcmV0',
+      encParams: { salt: 'AAAA', iv: 'BBBB', iterations: 600000 },
+    })
+    expect(res.status).toBe(200)
+
+    expect(await appEnv.KV.get(`state:${id}`)).toBeNull()
+    const stateGetRes = await app().handle(new Request(`http://localhost/api/session/${id}/state`))
+    expect(((await stateGetRes.json()) as { state: null }).state).toBeNull()
+  })
+
   it('409s a second encryption', async () => {
     const id = await createOne()
     await put(id, { mode: 'encrypt', ciphertext: 'YQ==', encParams: { salt: 'A', iv: 'B', iterations: 600000 } })
