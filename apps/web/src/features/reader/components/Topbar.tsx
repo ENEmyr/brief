@@ -42,7 +42,7 @@ export function Topbar({
             <span className="rounded-md bg-chip px-2 py-0.5 font-mono text-[11px] text-sub">{savedLabel}</span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto">
           {repo && (
             <span className="hidden items-center gap-1 rounded-lg border border-line bg-elev px-2.5 py-[5px] font-mono text-[11.5px] font-medium text-sub min-[880px]:inline-flex">
               <span aria-hidden="true" className="text-faint">
