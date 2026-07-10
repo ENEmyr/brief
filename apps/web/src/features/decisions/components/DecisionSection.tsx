@@ -3,6 +3,9 @@ import { useState } from 'react'
 import type { Decision } from '@brief/schema'
 import { useReaderActions, useReaderState } from '@/features/reader-state'
 import { DecisionCard } from './DecisionCard'
+import { SupportTabs } from './SupportTabs'
+import { PromptReview } from './PromptReview'
+import { buildReplyPrompt } from '../lib/replyPrompt'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -17,25 +20,38 @@ function isAnswered(decision: Decision, dsel: Record<string, string[]>): boolean
  * question has a selection). The current question index is local, transient
  * UI state -- it is not persisted, matching the prototype. Answers/notes
  * live in the reader-state store via useReaderState/useReaderActions.
- * `support` and `onGeneratePrompt` are placeholders for Task 5 (why/compare/
- * diagram tabs and the actual prompt builder); `onReset` is a toast hook,
- * no-op by default. */
+ *
+ * Task 5 fills in the two former placeholders: the current question's
+ * why/cmp/dia fields are now rendered via `<SupportTabs>` computed
+ * internally (no longer an external `support` prop -- SessionView never
+ * passed one, and the docstring called it a placeholder), and "Generate
+ * prompt" now builds the actual reply-prompt text (`buildReplyPrompt`) and
+ * opens a `<PromptReview>` panel below the nav row; "Rebuild from answers"
+ * inside that panel recomputes the same text from the current answers
+ * without touching `onGeneratePrompt`/open state. `onReset` stays a toast
+ * hook, no-op by default. `docTitle`/`sessionId` are required (no default)
+ * since a blank fallback would silently produce a broken prompt. */
 export function DecisionSection({
   decisions,
   no,
-  support,
+  docTitle,
+  sessionId,
   onGeneratePrompt,
   onReset,
 }: {
   decisions: Decision[]
   no: number
-  support?: React.ReactNode
+  docTitle: string
+  sessionId: string
   onGeneratePrompt?: () => void
   onReset?: () => void
 }) {
-  const { dsel, dnote } = useReaderState()
+  const state = useReaderState()
+  const { dsel, dnote } = state
   const actions = useReaderActions()
   const [curQ, setCurQ] = useState(0)
+  const [promptOpen, setPromptOpen] = useState(false)
+  const [promptText, setPromptText] = useState('')
 
   if (decisions.length === 0) return null
 
@@ -52,6 +68,16 @@ export function DecisionSection({
   function handleReset() {
     actions.resetDecisions()
     onReset?.()
+  }
+
+  function handleGenerate() {
+    setPromptText(buildReplyPrompt(decisions, state, docTitle, sessionId))
+    setPromptOpen(true)
+    onGeneratePrompt?.()
+  }
+
+  function handleRebuild() {
+    setPromptText(buildReplyPrompt(decisions, state, docTitle, sessionId))
   }
 
   return (
@@ -109,7 +135,7 @@ export function DecisionSection({
         note={dnote[current.id] ?? ''}
         onPick={(optionId) => actions.pickOption(current.id, optionId, current.multi)}
         onNoteChange={(text) => actions.setDecisionNote(current.id, text)}
-        support={support}
+        support={<SupportTabs decision={current} />}
       />
 
       <div className="mt-3.5 flex items-center gap-2.5">
@@ -143,7 +169,7 @@ export function DecisionSection({
           {allAnswered ? (
             <button
               type="button"
-              onClick={() => onGeneratePrompt?.()}
+              onClick={handleGenerate}
               className="max-[879px]:min-h-11 rounded-[9px] bg-mauve px-5 py-2.5 text-[14px] font-bold text-white shadow-[var(--shadow-mauve-glow)]"
             >
               ✦ Generate prompt
@@ -155,6 +181,15 @@ export function DecisionSection({
           )}
         </div>
       </div>
+
+      {promptOpen && (
+        <PromptReview
+          text={promptText}
+          onChange={setPromptText}
+          onRebuild={handleRebuild}
+          onClose={() => setPromptOpen(false)}
+        />
+      )}
     </section>
   )
 }

@@ -148,6 +148,8 @@ export function SessionView({ id }: { id: string | null }) {
                   <DecisionSection
                     decisions={data.payload.decisions}
                     no={data.payload.sections.length + 1}
+                    docTitle={data.payload.meta.title}
+                    sessionId={data.id}
                   />
                 )}
               </div>

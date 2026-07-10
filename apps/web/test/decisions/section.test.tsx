@@ -28,7 +28,7 @@ const decisions: Decision[] = [
 function renderSection(list: Decision[] = decisions, sessionId = 'decisions-test') {
   return render(
     <ReaderStateProvider sessionId={sessionId}>
-      <DecisionSection decisions={list} no={2} />
+      <DecisionSection decisions={list} no={2} docTitle="Rate Limiter" sessionId={sessionId} />
     </ReaderStateProvider>,
   )
 }
@@ -151,7 +151,13 @@ describe('DecisionSection', () => {
     const onGeneratePrompt = vi.fn()
     render(
       <ReaderStateProvider sessionId="decisions-gate-test">
-        <DecisionSection decisions={decisions} no={2} onGeneratePrompt={onGeneratePrompt} />
+        <DecisionSection
+          decisions={decisions}
+          no={2}
+          docTitle="Rate Limiter"
+          sessionId="decisions-gate-test"
+          onGeneratePrompt={onGeneratePrompt}
+        />
       </ReaderStateProvider>,
     )
 
@@ -207,7 +213,13 @@ describe('DecisionSection', () => {
     const onReset = vi.fn()
     render(
       <ReaderStateProvider sessionId="decisions-reset-test">
-        <DecisionSection decisions={decisions} no={2} onReset={onReset} />
+        <DecisionSection
+          decisions={decisions}
+          no={2}
+          docTitle="Rate Limiter"
+          sessionId="decisions-reset-test"
+          onReset={onReset}
+        />
       </ReaderStateProvider>,
     )
 
@@ -216,12 +228,8 @@ describe('DecisionSection', () => {
     expect(onReset).toHaveBeenCalledTimes(1)
   })
 
-  it('renders an optional support slot passed through to the current question', () => {
-    render(
-      <ReaderStateProvider sessionId="decisions-support-test">
-        <DecisionSection decisions={decisions} no={2} support={<div>support content</div>} />
-      </ReaderStateProvider>,
-    )
-    expect(screen.getByText('support content')).toBeInTheDocument()
+  it('renders no support tab strip when the current question has no why/cmp/dia', () => {
+    renderSection()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
   })
 })
