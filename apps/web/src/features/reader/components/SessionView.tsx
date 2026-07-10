@@ -5,6 +5,7 @@ import { DiagramViewerProvider } from '@/features/diagram-viewer'
 import { ReaderStateProvider } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
+import { DecisionSection } from '@/features/decisions'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
@@ -111,6 +112,10 @@ export function SessionView({ id }: { id: string | null }) {
   }
 
   const sections = data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))
+  const hasDecisions = data.payload.decisions.length > 0
+  const tocSections = hasDecisions
+    ? [...sections, { id: 'decide', no: sections.length + 1, title: 'Decisions' }]
+    : sections
 
   return (
     <ReaderStateProvider key={data.id} sessionId={data.id}>
@@ -129,7 +134,7 @@ export function SessionView({ id }: { id: string | null }) {
               style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
             >
               <Toc
-                sections={sections}
+                sections={tocSections}
                 collapsed={tocCollapsed}
                 onToggleCollapsed={toggleTocCollapsed}
                 drawerOpen={tocDrawerOpen}
@@ -139,6 +144,12 @@ export function SessionView({ id }: { id: string | null }) {
                 {data.payload.sections.map((s, si) => (
                   <SectionView key={s.id} section={s} sid={si} onMarkClick={handleMarkClick} />
                 ))}
+                {hasDecisions && (
+                  <DecisionSection
+                    decisions={data.payload.decisions}
+                    no={data.payload.sections.length + 1}
+                  />
+                )}
               </div>
             </div>
           </DiagramViewerProvider>
