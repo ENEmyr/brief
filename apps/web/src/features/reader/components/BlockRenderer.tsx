@@ -8,13 +8,15 @@ import { Coverage } from './blocks/Coverage'
 import { Details } from './blocks/Details'
 import { UnknownBlock } from './blocks/UnknownBlock'
 import { WidgetPlaceholder } from './blocks/WidgetPlaceholder'
+import { Seq } from './blocks/Seq'
+import { StateMachine } from './blocks/StateMachine'
 
-// The 13 diagram/chart block types that don't have a real component yet
-// (Plan 3 tasks 3-8 swap each of these in as a one-line case above the
+// The remaining diagram/chart block types that don't have a real component
+// yet (Plan 3 tasks 4-8 swap each of these in as a one-line case above the
 // default). Checked at runtime, not just inferred from the type union,
 // since arbitrary/legacy payloads can still reach the default branch.
 const WIDGET_TYPES = new Set<Block['type']>([
-  'seq', 'state', 'layers', 'ba', 'erd', 'bigo', 'code', 'mermaid', 'math',
+  'layers', 'ba', 'erd', 'bigo', 'code', 'mermaid', 'math',
   'heatmap', 'histogram', 'scatter', 'plot3d',
 ])
 
@@ -36,6 +38,10 @@ export function BlockRenderer({ block }: { block: Block }) {
       return <Coverage block={block} />
     case 'details':
       return <Details block={block} />
+    case 'seq':
+      return <Seq block={block} />
+    case 'state':
+      return <StateMachine block={block} />
     default:
       return WIDGET_TYPES.has(block.type) ? <WidgetPlaceholder block={block} /> : <UnknownBlock block={block} />
   }
