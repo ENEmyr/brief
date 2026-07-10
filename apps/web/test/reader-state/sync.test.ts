@@ -118,6 +118,55 @@ describe('startKvSync debounce', () => {
   })
 })
 
+describe('startKvSync mutation during initial GET', () => {
+  it('does not clobber a mutation made while the GET is in flight', async () => {
+    let resolveGet!: (r: Response) => void
+    const getPromise = new Promise<Response>((resolve) => {
+      resolveGet = resolve
+    })
+    const mockFetch = vi.fn().mockReturnValueOnce(getPromise).mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', mockFetch)
+    const store = createReaderStateStore(sessionId)
+    const stop = startKvSync(sessionId, store)
+
+    // user acts before the GET resolves (realistic on a first visit: no localStorage entry yet)
+    store.actions.pickOption('d1', 'fresh-local', false)
+
+    resolveGet(new Response(JSON.stringify({ state: JSON.stringify({ highlights: [], dsel: { d1: ['stale-remote'] }, dnote: {} }) })))
+    await flushMicrotasks()
+
+    expect(store.getState().dsel).toEqual({ d1: ['fresh-local'] })
+
+    // the blocked hydration must not strand the mutation locally: it still syncs to KV
+    await vi.advanceTimersByTimeAsync(5000)
+    const put = mockFetch.mock.calls.find(([, init]) => init?.method === 'PUT')
+    expect(put).toBeDefined()
+    expect(JSON.parse(JSON.parse(put![1].body).state).dsel).toEqual({ d1: ['fresh-local'] })
+    stop()
+  })
+
+  it('still hydrates from remote when nothing mutated while the GET was in flight', async () => {
+    let resolveGet!: (r: Response) => void
+    const getPromise = new Promise<Response>((resolve) => {
+      resolveGet = resolve
+    })
+    const mockFetch = vi.fn().mockReturnValue(getPromise)
+    vi.stubGlobal('fetch', mockFetch)
+    const store = createReaderStateStore(sessionId)
+    const stop = startKvSync(sessionId, store)
+
+    resolveGet(new Response(JSON.stringify({ state: JSON.stringify({ highlights: [], dsel: { d1: ['remote'] }, dnote: {} }) })))
+    await flushMicrotasks()
+
+    expect(store.getState().dsel).toEqual({ d1: ['remote'] })
+
+    // hydration itself must not arm the debounce and PUT the data straight back
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    stop()
+  })
+})
+
 describe('startKvSync cleanup', () => {
   it('cancels a pending PUT and stops listening after cleanup runs', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null })))
