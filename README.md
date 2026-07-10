@@ -115,6 +115,15 @@ bun run e2e
 
 Monorepo layout: `apps/web` (the reader UI), `apps/api` (Elysia worker, D1 schema, save/session/state features), `packages/schema` (the payload Zod schema shared by both apps), `packages/config` (shared tooling config), `e2e` (end-to-end tests).
 
+## Documentation
+
+- [docs/concept.md](docs/concept.md) explains what Brief is, the agent-to-reader loop, and the session lifecycle.
+- [docs/architecture.md](docs/architecture.md) covers the Cloudflare deployment, the data flow, and the monorepo layout.
+- [docs/api.md](docs/api.md) is the endpoint reference, with request and response examples for every route.
+- [docs/skill.md](docs/skill.md) describes how an agent authors and publishes a payload, including the full block type table.
+
+Architecture decision records live in `docs/adr/`, and `CONTEXT.md` at the repo root is the domain glossary.
+
 ## License
 
 MIT. See `LICENSE`.
