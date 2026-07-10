@@ -31,9 +31,11 @@ jobs:
         with:
           bun-version: 1.2.19
       - run: bun install --frozen-lockfile
-      - name: bun audit (dev-tooling advisories only)
+      - name: bun audit (all advisories, informational)
         run: bun audit --audit-level high
         continue-on-error: true
+      - name: bun audit (critical advisories, enforced)
+        run: bun audit --audit-level critical
       - name: semgrep
         run: |
           pipx install semgrep
