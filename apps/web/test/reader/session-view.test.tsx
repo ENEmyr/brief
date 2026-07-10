@@ -39,7 +39,7 @@ describe('SessionPage / SessionView', () => {
     expect(screen.queryByText('Test Doc')).not.toBeInTheDocument()
 
     await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
-    expect(screen.getByText(/Intro/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Intro/ })).toBeInTheDocument()
     expect(screen.getByText('Hello world')).toBeInTheDocument()
   })
 

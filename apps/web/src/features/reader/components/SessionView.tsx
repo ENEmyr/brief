@@ -1,13 +1,16 @@
 'use client'
 import { ThemeToggle } from '@/features/theme'
+import { Toc } from '@/features/toc'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
 
-function StatusHeader() {
+function StatusHeader({ hasToc = false }: { hasToc?: boolean }) {
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-surface0 bg-base/90 px-4 backdrop-blur">
+    <header
+      className={`sticky top-0 z-10 flex h-14 items-center justify-between border-b border-surface0 bg-base/90 pr-4 backdrop-blur ${hasToc ? 'pl-16 lg:pl-4' : 'pl-4'}`}
+    >
       <span className="font-semibold">Brief</span>
       <ThemeToggle />
     </header>
@@ -63,8 +66,11 @@ export function SessionView({ id }: { id: string | null }) {
 
   return (
     <div className="min-h-screen">
-      <StatusHeader />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <StatusHeader hasToc />
+      <Toc
+        sections={data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))}
+      />
+      <main className="mx-auto max-w-3xl px-4 py-8 lg:pl-16">
         <MetaHeader meta={data.payload.meta} sessionId={data.id} />
         {data.payload.sections.map((s) => (
           <SectionView key={s.id} section={s} />
