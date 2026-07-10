@@ -1,30 +1,43 @@
 'use client'
 import { useRef } from 'react'
-import { copyText } from '../lib/copy'
+import { execCommandCopy } from '../lib/copy'
 import { useDialogFocus } from '../hooks/useDialogFocus'
 
 /**
  * Manual-copy dialog shown when the copy chain exhausts both execCommand and
  * the async Clipboard API (prototype Reader.dc.html lines 325-338's
  * copyModalView). The textarea is readOnly + autofocus + pre-selected so the
- * user can just press Ctrl+C. "Try copy again" re-runs the copy chain
- * against the same text and closes on success; it stays open on repeat
- * failure so the user still has the selected text to hand-copy. Focus trap
- * is shared with ShareModal via useDialogFocus (follows Toc.tsx's drawer
- * pattern). Hint text uses a plain hyphen per the task brief's literal
- * wording (the prototype's own text uses an em dash in the same spot --
- * brief wins per this repo's established brief-vs-prototype tiebreaker, see
- * cerebrum).
+ * user can just press Ctrl+C. "Try copy again" re-runs ONLY the synchronous
+ * execCommand path (prototype line 335's `if(this.execCopy(text))` --
+ * prototype-fidelity fix from review: the async Clipboard API already
+ * failed before this modal ever opened, so retrying it is pointless); on
+ * success it fires onCopied (ExportProvider wires the "Copied" toast) and
+ * closes, on failure it stays open so the user still has the selected text
+ * to hand-copy. Focus trap is shared with ShareModal via useDialogFocus
+ * (follows Toc.tsx's drawer pattern). Hint text uses a plain hyphen per the
+ * task brief's literal wording (the prototype's own text uses an em dash in
+ * the same spot -- brief wins per this repo's established
+ * brief-vs-prototype tiebreaker, see cerebrum).
  */
-export function CopyFallbackModal({ text, onClose }: { text: string; onClose: () => void }) {
+export function CopyFallbackModal({
+  text,
+  onClose,
+  onCopied = () => {},
+}: {
+  text: string
+  onClose: () => void
+  onCopied?: () => void
+}) {
   const panelRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useDialogFocus(panelRef, onClose, textareaRef)
 
-  async function handleTryAgain() {
-    const result = await copyText(text)
-    if (result === 'copied') onClose()
+  function handleTryAgain() {
+    if (execCommandCopy(text)) {
+      onCopied()
+      onClose()
+    }
   }
 
   return (

@@ -1,5 +1,16 @@
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 import type { RefObject } from 'react'
+
+/**
+ * Module-level stack of currently-open dialog ids, newest last. Escape must
+ * only close the TOPMOST dialog: with CopyFallbackModal stacked over
+ * ShareModal, both hooks receive the same document keydown, and without the
+ * stack check a single Escape would close both at once (review finding on
+ * this task). Each useDialogFocus instance registers its id on mount and
+ * removes it on close/unmount, so "am I on top?" is just a last-element
+ * comparison.
+ */
+const dialogStack: string[] = []
 
 /**
  * Shared dialog focus-trap/-restore behavior for ShareModal and
@@ -9,14 +20,18 @@ import type { RefObject } from 'react'
  * restore-focus-on-close sequence, matching the same pattern already used
  * (inline, not shared) by Toc.tsx's mobile drawer. `initialFocusRef` lets a
  * caller focus a specific element (CopyFallbackModal's textarea, so it's
- * also pre-selected) instead of the panel root itself.
+ * also pre-selected) instead of the panel root itself. Escape only closes
+ * this dialog when it is the topmost open dialog (see dialogStack above).
  */
 export function useDialogFocus(
   panelRef: RefObject<HTMLElement | null>,
   onClose: () => void,
   initialFocusRef?: RefObject<HTMLElement | null>,
 ) {
+  const dialogId = useId()
+
   useEffect(() => {
+    dialogStack.push(dialogId)
     const previouslyFocused = document.activeElement as HTMLElement | null
     const initial = initialFocusRef?.current ?? panelRef.current
     initial?.focus()
@@ -24,7 +39,7 @@ export function useDialogFocus(
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        onClose()
+        if (dialogStack[dialogStack.length - 1] === dialogId) onClose()
         return
       }
 
@@ -48,8 +63,10 @@ export function useDialogFocus(
 
     document.addEventListener('keydown', handleKeyDown)
     return () => {
+      const at = dialogStack.indexOf(dialogId)
+      if (at !== -1) dialogStack.splice(at, 1)
       document.removeEventListener('keydown', handleKeyDown)
       previouslyFocused?.focus()
     }
-  }, [onClose, panelRef, initialFocusRef])
+  }, [onClose, panelRef, initialFocusRef, dialogId])
 }

@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { Payload } from '@brief/schema'
 import { useReaderState } from '@/features/reader-state'
 import { copyText } from '../lib/copy'
@@ -62,6 +62,14 @@ export function ExportProvider({
     toastTimer.current = setTimeout(() => setToastMessage(null), TOAST_DURATION_MS)
   }, [])
 
+  // Clear any pending auto-dismiss timer on unmount, so it can never fire a
+  // setState against an unmounted provider (review finding).
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+    }
+  }, [])
+
   const copy = useCallback(
     async (text: string) => {
       const result = await copyText(text)
@@ -92,7 +100,11 @@ export function ExportProvider({
         />
       )}
       {fallbackText != null && (
-        <CopyFallbackModal text={fallbackText} onClose={() => setFallbackText(null)} />
+        <CopyFallbackModal
+          text={fallbackText}
+          onClose={() => setFallbackText(null)}
+          onCopied={() => toast('Copied')}
+        />
       )}
     </ExportContext.Provider>
   )

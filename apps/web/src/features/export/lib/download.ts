@@ -65,12 +65,12 @@ export function buildExportMarkdown(
   origin: string,
 ): string {
   const url = `${origin}/s/${sessionId}`
-  const parts = [
-    payloadToMarkdown(payload, { url }).trimEnd(),
-    highlightsSection(state.highlights),
-    decisionsSection(payload.decisions, state),
-    `_Exported from Brief · ${url}_`,
-  ]
+  const parts = [payloadToMarkdown(payload, { url }).trimEnd(), highlightsSection(state.highlights)]
+  // A payload with no decisions gets no appended "## Decisions" section at
+  // all (payloadToMarkdown skips its own too) -- a dangling heading with no
+  // content under it would just be noise for the reading agent.
+  if (payload.decisions.length > 0) parts.push(decisionsSection(payload.decisions, state))
+  parts.push(`_Exported from Brief · ${url}_`)
   return parts.join('\n\n') + '\n'
 }
 

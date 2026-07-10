@@ -40,9 +40,13 @@ export async function copyText(text: string): Promise<'copied' | 'fallback'> {
  * Synchronous execCommand('copy') via a temporary off-screen textarea.
  * Restores whatever had focus beforehand (prototype's `prev.focus()`) so the
  * copy action doesn't steal focus from the triggering control. Returns
- * whether the browser reported the copy as successful.
+ * whether the browser reported the copy as successful. Exported for the
+ * export feature's CopyFallbackModal "Try copy again" button, which per the
+ * prototype (Reader.dc.html line 335) re-runs ONLY this synchronous path --
+ * the modal only ever opens after the async Clipboard API already failed,
+ * so retrying it would just re-fail asynchronously.
  */
-function execCommandCopy(text: string): boolean {
+export function execCommandCopy(text: string): boolean {
   const textarea = document.createElement('textarea')
   textarea.value = text
   textarea.style.position = 'fixed'

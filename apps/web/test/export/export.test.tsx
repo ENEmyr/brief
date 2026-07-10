@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { Payload } from '@brief/schema'
 import type { Highlight, ReaderState } from '@/features/reader-state'
 import { ReaderStateProvider } from '@/features/reader-state'
@@ -112,6 +112,16 @@ describe('buildExportMarkdown', () => {
 
   it('appends the exported-from footer with the share URL', () => {
     const md = buildExportMarkdown(basePayload, emptyState, 'sess1', 'https://example.com')
+    expect(md).toContain('_Exported from Brief · https://example.com/s/sess1_')
+  })
+
+  it('skips the appended Decisions section entirely when the payload has no decisions', () => {
+    const noDecisions: Payload = { ...basePayload, decisions: [] }
+    const md = buildExportMarkdown(noDecisions, emptyState, 'sess1', 'https://example.com')
+    // Neither payloadToMarkdown's own Decisions section nor the appended
+    // reader-answers one should leave a dangling heading.
+    expect(md).not.toContain('## Decisions')
+    expect(md).toContain('## Reader highlights & notes')
     expect(md).toContain('_Exported from Brief · https://example.com/s/sess1_')
   })
 
@@ -307,23 +317,34 @@ describe('CopyFallbackModal', () => {
     expect(textarea).toHaveFocus()
   })
 
-  it('Try copy again re-runs the copy chain and closes the modal on success', async () => {
-    stubClipboard(true, null)
+  it('Try copy again re-runs execCommand only, fires onCopied, and closes on success', () => {
+    // Give it a working Clipboard API too, to prove the retry never touches it
+    // (prototype line 335 retries the synchronous path exclusively).
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    stubClipboard(true, { writeText })
     const onClose = vi.fn()
-    render(<CopyFallbackModal text="copy me" onClose={onClose} />)
+    const onCopied = vi.fn()
+    render(<CopyFallbackModal text="copy me" onClose={onClose} onCopied={onCopied} />)
 
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: /Try copy again/ })))
+    fireEvent.click(screen.getByRole('button', { name: /Try copy again/ }))
 
-    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    expect(writeText).not.toHaveBeenCalled()
+    expect(onCopied).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('stays open when Try copy again fails again', async () => {
-    stubClipboard(false, null)
+  it('stays open and does not fall back to the Clipboard API when execCommand fails again', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    stubClipboard(false, { writeText })
     const onClose = vi.fn()
-    render(<CopyFallbackModal text="copy me" onClose={onClose} />)
+    const onCopied = vi.fn()
+    render(<CopyFallbackModal text="copy me" onClose={onClose} onCopied={onCopied} />)
 
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: /Try copy again/ })))
+    fireEvent.click(screen.getByRole('button', { name: /Try copy again/ }))
 
+    expect(writeText).not.toHaveBeenCalled()
+    expect(onCopied).not.toHaveBeenCalled()
     expect(onClose).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog', { name: 'Copy manually' })).toBeInTheDocument()
   })
@@ -333,6 +354,43 @@ describe('CopyFallbackModal', () => {
     render(<CopyFallbackModal text="copy me" onClose={onClose} />)
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('stacked dialogs (ShareModal + CopyFallbackModal)', () => {
+  it('Escape closes only the topmost dialog, then the one underneath', async () => {
+    // Both copy paths fail so ShareModal's Copy opens CopyFallbackModal on top.
+    stubFetch()
+    stubClipboard(false, null)
+
+    function ShareOpener() {
+      const { share } = useExport()
+      return <button onClick={share}>open-share</button>
+    }
+
+    render(
+      <ReaderStateProvider sessionId="sess-stack">
+        <ExportProvider sessionId="sess-stack" payload={basePayload}>
+          <ShareOpener />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+
+    fireEvent.click(screen.getByText('open-share'))
+    expect(screen.getByRole('dialog', { name: 'Share this doc' })).toBeInTheDocument()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
+    expect(screen.getByRole('dialog', { name: 'Copy manually' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Share this doc' })).toBeInTheDocument()
+
+    // First Escape: only the fallback modal (topmost) closes.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Copy manually' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Share this doc' })).toBeInTheDocument()
+
+    // Second Escape: now the share modal closes.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Share this doc' })).not.toBeInTheDocument()
   })
 })
 
