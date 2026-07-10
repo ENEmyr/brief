@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useActiveSection } from '../hooks/useActiveSection'
 
 export interface TocSection {
@@ -74,10 +74,60 @@ export function Toc({ sections }: { sections: TocSection[] }) {
   const activeId = useActiveSection(ids)
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const hamburgerButtonRef = useRef<HTMLButtonElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const drawerPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setCollapsed(readStoredCollapsed())
   }, [])
+
+  // Drawer a11y: while open, move focus to the close button, close on Escape,
+  // and keep Tab/Shift+Tab cycling within the drawer's focusable elements. The
+  // cleanup below only runs when this effect actually ran (mobileOpen was
+  // true), so it doubles as the "return focus to the hamburger" step on close
+  // without a separate effect or an extra ref to track the previous state.
+  useEffect(() => {
+    if (!mobileOpen) return
+
+    closeButtonRef.current?.focus()
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setMobileOpen(false)
+        return
+      }
+
+      // Simple focus containment: wrap Tab/Shift+Tab between the first and
+      // last focusable element inside the drawer panel. This is not a full
+      // focus-trap implementation (no live MutationObserver re-scan, no
+      // iframe/shadow-DOM support) — sufficient for phase 1 given the
+      // drawer's small, static set of focusable children (close button +
+      // nav items).
+      if (event.key === 'Tab' && drawerPanelRef.current) {
+        const focusable = drawerPanelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        )
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (!first || !last) return
+
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      hamburgerButtonRef.current?.focus()
+    }
+  }, [mobileOpen])
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -134,6 +184,7 @@ export function Toc({ sections }: { sections: TocSection[] }) {
     <nav aria-label="Table of contents">
       {/* Mobile hamburger */}
       <button
+        ref={hamburgerButtonRef}
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Open table of contents"
@@ -150,8 +201,15 @@ export function Toc({ sections }: { sections: TocSection[] }) {
             className="absolute inset-0 bg-crust/60"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[80%] overflow-y-auto bg-mantle p-3 shadow-xl">
+          <div
+            ref={drawerPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Table of contents"
+            className="absolute inset-y-0 left-0 w-72 max-w-[80%] overflow-y-auto bg-mantle p-3 shadow-xl"
+          >
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Close table of contents"
