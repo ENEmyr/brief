@@ -10,6 +10,9 @@ coverage/
 .env.*
 .dev.vars
 *.tsbuildinfo
+playwright-report/
+test-results/
+blob-report/
 
 # local-only working material, never pushed to the public repo
 docs/PRD.md
