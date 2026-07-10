@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SelectionToolbar } from '@/features/annotations'
+import { BlockRenderer } from '@/features/reader'
 import { ReaderStateProvider, useReaderState } from '@/features/reader-state'
 
 const sessionId = 'sess-toolbar-test'
@@ -110,6 +111,27 @@ describe('SelectionToolbar', () => {
   it('stays hidden for a collapsed selection', () => {
     renderToolbar()
     collapsedSelection()
+    expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument()
+  })
+
+  it('stays hidden when the selection is inside a details-nested paragraph', () => {
+    // Details-nested paragraphs are not annotatable (they render without
+    // [data-hl]), so the mouseup handler's closest('[data-hl]') guard must
+    // keep the toolbar hidden for selections inside them.
+    render(
+      <ReaderStateProvider sessionId={sessionId}>
+        <BlockRenderer
+          block={{
+            type: 'details',
+            summary: 'more',
+            blocks: [{ type: 'p', text: 'nested selectable text' }],
+          }}
+        />
+        <SelectionToolbar />
+      </ReaderStateProvider>,
+    )
+    const nested = screen.getByText('nested selectable text')
+    selectWithin(nested)
     expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument()
   })
 

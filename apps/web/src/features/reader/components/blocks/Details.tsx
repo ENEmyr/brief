@@ -14,8 +14,11 @@ export function Details({ block }: { block: Extract<Block, { type: 'details' }> 
         <span>{block.summary}</span>
       </summary>
       <div className="pl-[35px] pr-[15px] pb-[13px] text-[13.5px] leading-[1.75] text-sub">
+        {/* Details-nested content is not annotatable (controller adjudication):
+            nested paragraphs have no stable top-level block index, so a
+            defaulted sid/bid would alias section 0's first paragraph. */}
         {block.blocks.map((b, i) => (
-          <BlockRenderer key={i} block={b} />
+          <BlockRenderer key={i} block={b} annotatable={false} />
         ))}
       </div>
     </details>
