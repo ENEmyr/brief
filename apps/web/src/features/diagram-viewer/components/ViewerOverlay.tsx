@@ -55,7 +55,8 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
   const [ty, setTy] = useState(0)
   const [panning, setPanning] = useState(false)
 
-  const overlayRef = useRef<HTMLDivElement>(null)
+  // The overlay root IS the dialog (backdrop included), so the toolbar and
+  // content panel both live inside the aria-modal subtree.
   const dialogRef = useRef<HTMLDivElement>(null)
   const previouslyFocusedRef = useRef<HTMLElement | null>(null)
   const pointersRef = useRef<Map<number, Point>>(new Map())
@@ -79,22 +80,46 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
     setTy(0)
   }
 
-  // Dialog a11y: on open, remember whatever had focus so it can be restored
-  // on close, move focus into the dialog, reset the transform to a fresh fit
-  // state, and wire Escape to close. Mirrors the TOC drawer's focus pattern
-  // (apps/web/src/features/toc/components/Toc.tsx).
+  // Dialog a11y + lifecycle: on open, remember whatever had focus so it can
+  // be restored on close, move focus into the dialog, and wire Escape to
+  // close plus simple Tab containment (same pattern as the TOC drawer in
+  // apps/web/src/features/toc/components/Toc.tsx). The cleanup only runs
+  // after an open (isOpen was true), so it doubles as the close step:
+  // restore focus AND reset all gesture state (pointer maps, pan/pinch
+  // anchors, transform) so a leaked pointercancel-less close or a stale
+  // transform can never survive into the next open.
   useEffect(() => {
     if (!isOpen) return
 
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null
     dialogRef.current?.focus()
-    setZ(1)
-    setTx(0)
-    setTy(0)
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         onCloseRef.current()
+        return
+      }
+
+      // Simple focus containment: wrap Tab/Shift+Tab between the first and
+      // last focusable element inside the dialog. Not a full focus-trap (no
+      // live re-scan, no iframe/shadow-DOM support) — sufficient given the
+      // dialog's small, static set of focusable children (the four toolbar
+      // buttons).
+      if (event.key === 'Tab' && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        )
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (!first || !last) return
+
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
 
@@ -102,6 +127,13 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       previouslyFocusedRef.current?.focus()
+      pointersRef.current.clear()
+      panStartRef.current = null
+      pinchStartRef.current = null
+      setZ(1)
+      setTx(0)
+      setTy(0)
+      setPanning(false)
     }
     // Deliberately keyed on isOpen only, so this doesn't re-run (and reset
     // the transform / re-steal focus) on every parent re-render while open.
@@ -113,7 +145,7 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
   // so we bind a native, non-passive listener directly to the overlay node.
   useEffect(() => {
     if (!isOpen) return
-    const el = overlayRef.current
+    const el = dialogRef.current
     if (!el) return
 
     function handleWheel(event: WheelEvent) {
@@ -176,12 +208,17 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
 
   return (
     <div
-      ref={overlayRef}
-      className="fixed inset-0 z-[100] print:hidden"
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Diagram viewer"
+      tabIndex={-1}
+      className="fixed inset-0 z-[100] outline-none print:hidden"
       style={{ background: 'rgba(17,17,27,.93)', touchAction: 'none' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
       <div data-zbar="1" className="absolute right-[18px] top-4 z-[2] flex gap-1.5">
@@ -200,12 +237,7 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
       </div>
 
       <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Diagram viewer"
-        tabIndex={-1}
-        className="flex h-full items-center justify-center outline-none"
+        className="flex h-full items-center justify-center"
         style={{ cursor: panning ? 'grabbing' : 'grab' }}
       >
         <div

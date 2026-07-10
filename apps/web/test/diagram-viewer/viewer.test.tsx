@@ -1,6 +1,22 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, renderHook, act, fireEvent } from '@testing-library/react'
+import { render, screen, within, renderHook, act, fireEvent } from '@testing-library/react'
 import { ViewerOverlay, useViewer } from '@/features/diagram-viewer'
+
+// jsdom has no PointerEvent constructor, so testing-library's
+// fireEvent.pointerDown/Move/Cancel falls back to a plain Event and silently
+// drops pointerId/clientX/clientY (they arrive as undefined in handlers).
+// This minimal polyfill (MouseEvent already carries the coordinates in jsdom;
+// we only add pointerId) makes pointer-gesture assertions real instead of
+// vacuous. Scoped to this file via the same `??` guard style as setup.ts.
+class PointerEventPolyfill extends MouseEvent {
+  pointerId: number
+  constructor(type: string, props: PointerEventInit = {}) {
+    super(type, props)
+    this.pointerId = props.pointerId ?? 0
+  }
+}
+globalThis.PointerEvent =
+  globalThis.PointerEvent ?? (PointerEventPolyfill as unknown as typeof PointerEvent)
 
 const SVG_CONTENT = '<svg data-testid="diagram-svg"><circle r="1" /></svg>'
 
@@ -35,11 +51,14 @@ describe('ViewerOverlay', () => {
     expect(screen.getByTestId('diagram-svg')).toBeInTheDocument()
   })
 
-  it('exposes toolbar buttons with accessible names and a 44px hit floor', () => {
+  it('exposes toolbar buttons inside the dialog subtree with accessible names and a 44px hit floor', () => {
     render(<ViewerOverlay content={SVG_CONTENT} onClose={vi.fn()} />)
 
+    // The toolbar must live inside the role="dialog" element, otherwise
+    // aria-modal hides it (Close included) from assistive tech.
+    const dialog = screen.getByRole('dialog', { name: /diagram viewer/i })
     for (const name of ['Zoom out', 'Zoom in', 'Fit to screen', 'Close viewer']) {
-      const button = screen.getByRole('button', { name })
+      const button = within(dialog).getByRole('button', { name })
       expect(button.className).toContain('min-h-11')
       expect(button.className).toContain('min-w-11')
     }
@@ -113,7 +132,7 @@ describe('ViewerOverlay', () => {
     render(<ViewerOverlay content={SVG_CONTENT} onClose={vi.fn()} />)
 
     const host = getTransformHost()
-    const overlay = screen.getByRole('dialog').parentElement as HTMLElement
+    const overlay = screen.getByRole('dialog')
 
     act(() => {
       fireEvent.wheel(overlay, { deltaY: -100 })
@@ -134,5 +153,63 @@ describe('ViewerOverlay', () => {
     })
 
     expect(host.style.transform).toBe('translate(0px, 0px) scale(1)')
+  })
+
+  it('clears a cancelled pointer so a later single-pointer drag pans instead of pinching', () => {
+    render(<ViewerOverlay content={SVG_CONTENT} onClose={vi.fn()} />)
+
+    const host = getTransformHost()
+    const overlay = screen.getByRole('dialog')
+
+    // Two pointers down = pinch tracking; then the second is cancelled by the
+    // OS (palm rejection, system gesture) instead of lifted.
+    act(() => {
+      fireEvent.pointerDown(overlay, { pointerId: 1, clientX: 100, clientY: 100 })
+      fireEvent.pointerDown(overlay, { pointerId: 2, clientX: 200, clientY: 200 })
+      fireEvent.pointerCancel(overlay, { pointerId: 2, clientX: 200, clientY: 200 })
+    })
+
+    // The surviving pointer drags: this must pan (translate), not pinch (scale).
+    act(() => {
+      fireEvent.pointerMove(overlay, { pointerId: 1, clientX: 130, clientY: 150 })
+    })
+
+    expect(host.style.transform).toBe('translate(30px, 50px) scale(1)')
+  })
+
+  it('resets pan and zoom to the fit state when reopened after a close', () => {
+    const { rerender } = render(<ViewerOverlay content={SVG_CONTENT} onClose={vi.fn()} />)
+
+    const host = getTransformHost()
+    act(() => screen.getByRole('button', { name: 'Zoom in' }).click())
+    act(() => {
+      fireEvent.pointerDown(screen.getByRole('dialog'), { pointerId: 1, clientX: 0, clientY: 0 })
+      fireEvent.pointerMove(screen.getByRole('dialog'), { pointerId: 1, clientX: 40, clientY: 40 })
+    })
+    expect(host.style.transform).not.toBe('translate(0px, 0px) scale(1)')
+
+    rerender(<ViewerOverlay content={null} onClose={vi.fn()} />)
+    rerender(<ViewerOverlay content={SVG_CONTENT} onClose={vi.fn()} />)
+
+    expect(getTransformHost().style.transform).toBe('translate(0px, 0px) scale(1)')
+  })
+
+  it('wraps Tab focus between the first and last focusable element inside the dialog', () => {
+    render(<ViewerOverlay content={SVG_CONTENT} onClose={vi.fn()} />)
+
+    const dialog = screen.getByRole('dialog')
+    const closeButton = screen.getByRole('button', { name: 'Close viewer' })
+    const zoomOutButton = screen.getByRole('button', { name: 'Zoom out' })
+
+    closeButton.focus()
+    act(() => {
+      dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    })
+    expect(zoomOutButton).toHaveFocus()
+
+    act(() => {
+      dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }))
+    })
+    expect(closeButton).toHaveFocus()
   })
 })
