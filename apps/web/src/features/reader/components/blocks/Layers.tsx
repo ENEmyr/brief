@@ -39,7 +39,6 @@ interface OwnedEdge {
 interface Layout {
   nodes: Map<string, NodeInfo>
   edges: OwnedEdge[]
-  rowY: number[]
   width: number
   minY: number
   maxY: number
@@ -70,13 +69,11 @@ function rowYFor(layerIndex: number, aboveCount: number, belowCount: number): nu
  */
 function layoutLayers(layers: LayerDef[]): Layout {
   const nodes = new Map<string, NodeInfo>()
-  const rowY: number[] = []
   let aboveCount = 0
   let belowCount = 0
 
   layers.forEach((layer, layerIndex) => {
     const y = rowYFor(layerIndex, aboveCount, belowCount)
-    rowY[layerIndex] = y
     if (layerIndex > 0) {
       if (layerIndex % 2 === 1) aboveCount += 1
       else belowCount += 1
@@ -107,7 +104,7 @@ function layoutLayers(layers: LayerDef[]): Layout {
     maxY = Math.max(maxY, n.y + n.h)
   }
 
-  return { nodes, edges, rowY, width: maxRight + START_X, minY: minY - 16, maxY: maxY + 16 }
+  return { nodes, edges, width: maxRight + START_X, minY: minY - 16, maxY: maxY + 16 }
 }
 
 function edgeLine(a: NodeInfo, b: NodeInfo): { x1: number; y1: number; x2: number; y2: number } {
@@ -222,7 +219,7 @@ export function Layers({ block }: { block: LayersBlock }) {
                 x2={x2}
                 y2={y2}
                 strokeWidth={1.5}
-                style={{ stroke: 'var(--ctp-sub)' }}
+                style={{ stroke: 'var(--ctp-subtext0)' }}
                 markerEnd={`url(#${markerId})`}
               />
               {edge.label ? (
@@ -232,7 +229,7 @@ export function Layers({ block }: { block: LayersBlock }) {
                   textAnchor="middle"
                   fontFamily="'IBM Plex Mono', monospace"
                   fontSize={9}
-                  style={{ fill: 'var(--ctp-sub)' }}
+                  style={{ fill: 'var(--ctp-subtext0)' }}
                 >
                   {edge.label}
                 </text>
@@ -270,7 +267,7 @@ export function Layers({ block }: { block: LayersBlock }) {
         })}
         <defs>
           <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--ctp-sub)' }} />
+            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--ctp-subtext0)' }} />
           </marker>
         </defs>
       </svg>

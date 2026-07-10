@@ -122,6 +122,58 @@ describe('Layers block', () => {
     expect(screen.getByRole('button', { name: '[x] Request flow' })).toBeInTheDocument()
   })
 
+  it('strokes edge lines, edge labels, and the arrow marker with the real --ctp-subtext0 token (--ctp-sub does not exist)', () => {
+    const { container } = r(layersBlock)
+    const svg = container.querySelector('svg')
+    // Regression for the invisible-edges bug: an unresolved CSS var (the
+    // nonexistent --ctp-sub) collapses SVG stroke to none in a browser,
+    // while jsdom renders the raw string either way. Assert the literal
+    // token name so the bug cannot silently return.
+    const edgeLines = Array.from(svg?.querySelectorAll('g > line') ?? [])
+    expect(edgeLines.length).toBeGreaterThan(0)
+    edgeLines.forEach((l) => expect(l.getAttribute('style')).toContain('var(--ctp-subtext0)'))
+    const edgeLabel = Array.from(svg?.querySelectorAll('g > text') ?? []).find((t) => t.textContent === 'request')
+    expect(edgeLabel?.getAttribute('style')).toContain('var(--ctp-subtext0)')
+    const markerPath = svg?.querySelector('marker path')
+    expect(markerPath?.getAttribute('style')).toContain('var(--ctp-subtext0)')
+    expect(svg?.innerHTML).not.toContain('var(--ctp-sub)')
+  })
+
+  it('renders a node id repeated across two layers exactly once, keeping the first-seen layer position and color', () => {
+    const block: Extract<Block, { type: 'layers' }> = {
+      type: 'layers',
+      layers: [
+        {
+          id: 'base',
+          label: 'Base',
+          nodes: [{ id: 'shared', label: 'Shared' }],
+          edges: [],
+        },
+        {
+          id: 'extra',
+          label: 'Extra',
+          nodes: [
+            { id: 'shared', label: 'Shared duplicate' },
+            { id: 'other', label: 'Other' },
+          ],
+          edges: [{ from: 'other', to: 'shared' }],
+        },
+      ],
+    }
+    const { container } = r(block)
+    // First-seen layer wins: exactly one node for the duplicate id, with the
+    // base layer's label, position (base row y=58), and color (blue).
+    expect(screen.getAllByText('Shared').length).toBe(1)
+    expect(screen.queryByText('Shared duplicate')).not.toBeInTheDocument()
+    const sharedGroup = findAncestorWithText(container, 'Shared')
+    const sharedRect = sharedGroup?.querySelector('rect')
+    expect(sharedRect?.getAttribute('y')).toBe('58')
+    expect(sharedRect?.getAttribute('style')).toContain('var(--ctp-blue)')
+    // The base-layer-owned node stays fully visible even though the extra
+    // layer (off by default) also declared it.
+    expect(sharedGroup?.getAttribute('style')).toContain('opacity: 1')
+  })
+
   it('skips edges referencing unknown node ids instead of crashing', () => {
     const block: Extract<Block, { type: 'layers' }> = {
       type: 'layers',
