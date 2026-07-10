@@ -163,11 +163,12 @@ describe('ProgressBar', () => {
     expect(rafStub.mock.calls.length).toBeGreaterThan(0)
   })
 
-  it('applies fixed positioning and mauve background styles', () => {
+  it('applies absolute positioning and gradient background styles', () => {
     render(<ProgressBar />)
     const bar = screen.getByRole('progressbar')
 
-    expect(bar).toHaveClass('fixed', 'top-0', 'left-0', 'z-20', 'bg-mauve', 'print:hidden')
-    expect(bar).toHaveStyle('height: 3px')
+    expect(bar).toHaveClass('absolute', 'left-0', 'bottom-[-1px]', 'h-[2.5px]', 'print:hidden')
+    expect(bar.style.background).toContain('linear-gradient')
+    expect(bar.style.transition).toBe('width .1s linear')
   })
 })
