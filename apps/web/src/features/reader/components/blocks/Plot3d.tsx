@@ -36,8 +36,11 @@ function axis3D(name: string | undefined, palette: Palette) {
  * matrix) into [x,y,z] triples via `gridToTriples` and feeds echarts-gl's
  * data-based `surface` series (no equation). Both share one continuous
  * `visualMap` over the z dimension (index 2) with a blue -> mauve gradient
- * (low -> high, this repo's mauve-accent convention), and a `grid3D` with
- * `viewControl.autoRotate: false` so the camera only orbits on user drag.
+ * (low -> high, this repo's mauve-accent convention), positioned horizontal
+ * and bottom-centered (same as Heatmap.tsx's visualMap) so the legend sits
+ * under the plot instead of ECharts' default free-floating vertical bar on
+ * the far left of the card, and a `grid3D` with `viewControl.autoRotate:
+ * false` so the camera only orbits on user drag.
  *
  * Returns `EChartsOption` (the full-package kitchen-sink type, same posture
  * as every other chart builder in this feature) via an `unknown` cast — the
@@ -68,6 +71,9 @@ export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): ECh
       min,
       max,
       calculable: false,
+      orient: 'horizontal',
+      left: 'center',
+      bottom: 0,
       show: true,
       inRange: { color: [palette.blue, palette.mauve] },
       textStyle: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
