@@ -1,3 +1,4 @@
+import { StrictMode } from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Payload } from '@brief/schema'
@@ -378,5 +379,30 @@ describe('SaveModal cancel during an in-flight save', () => {
     expect(onSaved).not.toHaveBeenCalled()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('saves normally under React StrictMode (cancel flag must reset on remount)', async () => {
+    // StrictMode's dev-only mount -> cleanup -> remount cycle runs the unmount
+    // cleanup (which sets cancelledRef true) once before the component settles.
+    // Without resetting the flag in the effect BODY, every save in `next dev`
+    // (App Router defaults StrictMode on) is silently discarded as cancelled.
+    stubFetch({ status: 200, body: { saved: true, encrypted: false, expiresAt: 1 } })
+    const onSaved = vi.fn()
+    const onClose = vi.fn()
+    render(
+      <StrictMode>
+        <ReaderStateProvider sessionId="sess1">
+          <ExportProvider sessionId="sess1" payload={payload}>
+            <SaveModal sessionId="sess1" payload={payload} onClose={onClose} onSaved={onSaved} />
+          </ExportProvider>
+        </ReaderStateProvider>
+      </StrictMode>,
+    )
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('plain'))
+    expect(onClose).toHaveBeenCalled()
+    expect(screen.getByRole('status')).toHaveTextContent('Saved')
   })
 })

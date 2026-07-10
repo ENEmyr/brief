@@ -63,6 +63,12 @@ export function SaveModal({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Reset on mount: StrictMode's dev-only mount -> cleanup -> remount cycle
+    // runs the cleanup below once before the component settles, and a flag
+    // that is only ever SET in cleanup would stay true forever after the
+    // remount -- silently discarding every save in `next dev`. Any ref flag
+    // set by an effect cleanup must be re-initialized in the effect body.
+    cancelledRef.current = false
     return () => {
       cancelledRef.current = true
     }
