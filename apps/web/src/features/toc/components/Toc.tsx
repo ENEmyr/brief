@@ -16,6 +16,8 @@ export interface TocProps {
   onCloseDrawer: () => void
 }
 
+const pad = (n: number) => String(n).padStart(2, '0')
+
 export function Toc({
   sections,
   collapsed,
@@ -103,7 +105,7 @@ export function Toc({
                     : 'border-transparent text-sub'
                 }`}
               >
-                <span className="shrink-0 font-mono text-[11px]">{s.no}</span>
+                <span className="shrink-0 font-mono text-[11px]">{pad(s.no)}</span>
                 {showTitle && (
                   <>
                     {' '}
@@ -134,7 +136,7 @@ export function Toc({
                   isActive ? 'font-bold text-mauve' : 'text-faint'
                 }`}
               >
-                {s.no}
+                {pad(s.no)}
               </button>
             </li>
           )
@@ -158,7 +160,7 @@ export function Toc({
                   isActive ? 'bg-mauvesoft text-mauve' : 'text-text'
                 }`}
               >
-                <span className="font-mono text-faint">{s.no}</span>
+                <span className="font-mono text-faint">{pad(s.no)}</span>
                 <span>{s.title}</span>
               </button>
             </li>

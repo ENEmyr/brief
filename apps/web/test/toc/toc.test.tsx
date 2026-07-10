@@ -74,8 +74,8 @@ describe('toc (expanded)', () => {
   it('renders a nav item with number and title for each section', () => {
     renderToc()
 
-    expect(screen.getByRole('button', { name: /1 Introduction/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /2 Getting Started/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /01 Introduction/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /02 Getting Started/ })).toBeInTheDocument()
   })
 
   it('scrolls the matching section into view on click and closes the drawer', () => {
@@ -85,7 +85,7 @@ describe('toc (expanded)', () => {
     const onCloseDrawer = vi.fn()
 
     renderToc({ onCloseDrawer })
-    fireEvent.click(screen.getByRole('button', { name: /2 Getting Started/ }))
+    fireEvent.click(screen.getByRole('button', { name: /02 Getting Started/ }))
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
     expect(onCloseDrawer).toHaveBeenCalledTimes(1)
@@ -107,7 +107,7 @@ describe('toc (expanded)', () => {
     fireEvent.click(toggle)
     expect(onToggleCollapsed).toHaveBeenCalledTimes(1)
     // Still expanded — Toc is controlled, it never flips `collapsed` itself.
-    expect(screen.getByRole('button', { name: /1 Introduction/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /01 Introduction/ })).toBeInTheDocument()
   })
 })
 
@@ -156,7 +156,7 @@ describe('toc (collapsed to numbers)', () => {
         onCloseDrawer={vi.fn()}
       />,
     )
-    expect(screen.getByRole('button', { name: /1 Introduction/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /01 Introduction/ })).toBeInTheDocument()
   })
 })
 
@@ -245,11 +245,11 @@ describe('toc scroll spy', () => {
       observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 40 } }])
     })
 
-    expect(screen.getByRole('button', { name: /1 Introduction/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /01 Introduction/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
-    expect(screen.getByRole('button', { name: /2 Getting Started/ })).not.toHaveAttribute(
+    expect(screen.getByRole('button', { name: /02 Getting Started/ })).not.toHaveAttribute(
       'aria-current',
     )
   })
@@ -264,7 +264,7 @@ describe('toc scroll spy', () => {
     act(() => {
       observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 100 } }])
     })
-    expect(screen.getByRole('button', { name: /1 Introduction/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /01 Introduction/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
@@ -277,11 +277,11 @@ describe('toc scroll spy', () => {
       observer.callback([{ target: s2, isIntersecting: true, boundingClientRect: { top: 20 } }])
     })
 
-    expect(screen.getByRole('button', { name: /2 Getting Started/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /02 Getting Started/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
-    expect(screen.getByRole('button', { name: /1 Introduction/ })).not.toHaveAttribute(
+    expect(screen.getByRole('button', { name: /01 Introduction/ })).not.toHaveAttribute(
       'aria-current',
     )
   })
@@ -295,7 +295,7 @@ describe('toc scroll spy', () => {
     act(() => {
       observer.callback([{ target: s2, isIntersecting: true, boundingClientRect: { top: 10 } }])
     })
-    expect(screen.getByRole('button', { name: /2 Getting Started/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /02 Getting Started/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
@@ -304,7 +304,7 @@ describe('toc scroll spy', () => {
       observer.callback([{ target: s2, isIntersecting: false, boundingClientRect: { top: -200 } }])
     })
 
-    expect(screen.getByRole('button', { name: /2 Getting Started/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /02 Getting Started/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
