@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Toc } from '@/features/toc'
+import { DiagramViewerProvider } from '@/features/diagram-viewer'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
@@ -96,23 +97,25 @@ export function SessionView({ id }: { id: string | null }) {
       />
       <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
         <MetaHeader meta={data.payload.meta} />
-        <div
-          className="items-start gap-[34px] min-[880px]:grid"
-          style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
-        >
-          <Toc
-            sections={sections}
-            collapsed={tocCollapsed}
-            onToggleCollapsed={toggleTocCollapsed}
-            drawerOpen={tocDrawerOpen}
-            onCloseDrawer={() => setTocDrawerOpen(false)}
-          />
-          <div>
-            {data.payload.sections.map((s) => (
-              <SectionView key={s.id} section={s} />
-            ))}
+        <DiagramViewerProvider>
+          <div
+            className="items-start gap-[34px] min-[880px]:grid"
+            style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
+          >
+            <Toc
+              sections={sections}
+              collapsed={tocCollapsed}
+              onToggleCollapsed={toggleTocCollapsed}
+              drawerOpen={tocDrawerOpen}
+              onCloseDrawer={() => setTocDrawerOpen(false)}
+            />
+            <div>
+              {data.payload.sections.map((s) => (
+                <SectionView key={s.id} section={s} />
+              ))}
+            </div>
           </div>
-        </div>
+        </DiagramViewerProvider>
       </main>
     </div>
   )
