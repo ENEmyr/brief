@@ -14,7 +14,7 @@ One published interactive document. Created when an agent submits a Payload; ide
 A reader action that marks a Session as worth keeping, extending its sliding expiry window from 7 to 90 days. Any reader holding the URL can Save. Saving optionally sets a Password, turning the Session into a Protected Session.
 
 ### Protected Session
-A Saved Session whose content is encrypted end-to-end with a reader-chosen Password. The server stores only ciphertext and can never read it. Opening requires the Password in the browser. A Protected Session has no Raw Export; losing the Password loses the content permanently.
+A Saved Session whose content is encrypted end-to-end with a reader-chosen Password. The server stores only ciphertext and can never read it. Opening requires the Password in the browser. A Protected Session has no Raw Export; losing the Password loses the content permanently. Only non-content metadata (timestamps, saved flag) remains readable; the title is blanked at protection time.
 
 ### Payload
 The document content Claude produces: metadata, Sections of content Blocks, and Decisions. The Payload is authored by an agent, never edited by the reader.
