@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import type { Block } from '@brief/schema'
 import { AXIS_FONT, PALETTES } from '@/features/reader/services/echarts'
 import { buildPlot3dOption, Plot3d } from '@/features/reader/components/blocks/Plot3d'
@@ -179,6 +179,22 @@ describe('Plot3d component', () => {
     render(<Plot3d block={scatterBlock} />)
     expect(useEChartMock).toHaveBeenCalled()
     expect(screen.getByLabelText('Expand chart')).toBeInTheDocument()
+    getContextSpy.mockRestore()
+  })
+
+  it('captures the expanded chart at pixelRatio 1 (echarts-gl blanks the GL layer above 1)', () => {
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext') as unknown as ReturnType<
+      typeof vi.fn
+    >
+    getContextSpy.mockReturnValue({})
+    const getDataURL = vi.fn(() => 'data:image/png;base64,x')
+    useEChartMock.mockReturnValue({
+      containerRef: { current: null },
+      chartRef: { current: { getDataURL } },
+    })
+    render(<Plot3d block={scatterBlock} />)
+    fireEvent.click(screen.getByLabelText('Expand chart'))
+    expect(getDataURL).toHaveBeenCalledWith(expect.objectContaining({ pixelRatio: 1 }))
     getContextSpy.mockRestore()
   })
 
