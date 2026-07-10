@@ -1,4 +1,5 @@
 export { SaveModal } from './components/SaveModal'
+export { UnlockCard } from './components/UnlockCard'
 export { PBKDF2_ITERATIONS, encryptPayload, decryptPayload } from './lib/crypto'
 export { saveSession } from './lib/api'
 export type { SaveRequestBody, SaveApiResult } from './lib/api'

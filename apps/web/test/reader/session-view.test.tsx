@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import SessionPage from '@/app/s/page'
+import { encryptPayload } from '@/features/save/lib/crypto'
 
 const validPayload = {
   meta: {
@@ -84,7 +85,7 @@ describe('SessionPage / SessionView', () => {
     expect(screen.getAllByText('Decisions').length).toBeGreaterThan(1)
   })
 
-  it('shows protected-session card for encrypted sessions', async () => {
+  it('shows the UnlockCard password form for encrypted sessions (no stub text)', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
     const encEnvelope = {
       ...validEnvelope,
@@ -96,10 +97,82 @@ describe('SessionPage / SessionView', () => {
 
     render(<SessionPage />)
 
-    await waitFor(() =>
-      expect(screen.getByText(/Protected session/i)).toBeInTheDocument(),
+    await waitFor(() => expect(screen.getByText('Protected session')).toBeInTheDocument())
+    expect(screen.getByLabelText('Password')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unlock' })).toBeInTheDocument()
+    expect(screen.queryByText(/arrives in a later release/i)).not.toBeInTheDocument()
+  })
+
+  it('unlocking a protected session (real WebCrypto round trip) renders the ready view with the decrypted payload, no Save button, and a "protected" chip', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
+    const encEnvelope = {
+      ...validEnvelope,
+      encrypted: true,
+      saved: true,
+      payload: ciphertext,
+      encParams,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(encEnvelope))))
+
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByText('Protected session')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-horse' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+
+    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+    expect(screen.getByText('Hello world')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.getByText('protected')).toBeInTheDocument()
+  })
+
+  it('unlocked protected session runs reader state memory-only: no state-endpoint calls, leftover localStorage entry removed', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    // Simulate a pre-fix visit that persisted plaintext reader state for this
+    // protected session -- the unlocked view must clean it up.
+    window.localStorage.setItem(
+      'idocs:abc12345678901',
+      JSON.stringify({ highlights: [], dsel: {}, dnote: { d1: 'plaintext note' } }),
     )
-    expect(screen.getByText(/password unlock arrives in a later release/i)).toBeInTheDocument()
+    const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
+    const encEnvelope = { ...validEnvelope, encrypted: true, payload: ciphertext, encParams }
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(encEnvelope))))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByText('Protected session')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-horse' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+
+    // Zero-knowledge: the unauthenticated KV state endpoint must never be
+    // touched for a protected session -- not even the mount-time GET.
+    const stateCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/state'))
+    expect(stateCalls).toHaveLength(0)
+    // Pre-fix plaintext removed, and nothing rewrote it.
+    expect(window.localStorage.getItem('idocs:abc12345678901')).toBeNull()
+    window.localStorage.clear()
+  })
+
+  it('wrong password on a protected session shows the generic error and lets the reader retry', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
+    const encEnvelope = { ...validEnvelope, encrypted: true, payload: ciphertext, encParams }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(encEnvelope))))
+
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByText('Protected session')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'totally-wrong' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+
+    await waitFor(() => expect(screen.getByText('Wrong password or corrupted data.')).toBeInTheDocument())
+    expect(screen.queryByText('Test Doc')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).toHaveValue('')
   })
 
   it('Save button opens SaveModal, and a plain save shows the saved chip without losing the doc', async () => {
