@@ -81,6 +81,11 @@
   --ctp-marktx: #8a5a10;
   --ctp-toolbg: #313244;
   --shadow-card: 0 6px 22px rgba(76, 79, 105, 0.14);
+  --callout-note-bg: #eef4ff;
+  --callout-warn-bg: #fff6ee;
+  --callout-good-bg: #f2fbef;
+  --row-zebra: #fafbfc;
+  --compare-pane-bg: var(--ctp-elev);
 }
 
 /* Catppuccin Mocha (dark) */
@@ -123,6 +128,11 @@
   --ctp-marktx: #f9e2af;
   --ctp-toolbg: #313244;
   --shadow-card: 0 8px 26px rgba(0, 0, 0, 0.5);
+  --callout-note-bg: rgba(255, 255, 255, 0.03);
+  --callout-warn-bg: rgba(255, 255, 255, 0.03);
+  --callout-good-bg: rgba(255, 255, 255, 0.03);
+  --row-zebra: rgba(255, 255, 255, 0.015);
+  --compare-pane-bg: rgba(255, 255, 255, 0.02);
 }
 
 html,

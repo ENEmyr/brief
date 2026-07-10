@@ -17,13 +17,25 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('careful')).toBeInTheDocument()
   })
 
-  it('renders table head and cells', () => {
-    r({ type: 'table', head: ['name'], rows: [['kv']] })
+  it('renders table head and cells with figcaption chrome', () => {
+    r({ type: 'table', head: ['name'], rows: [['kv']], caption: 'Files' })
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getByText('kv')).toBeInTheDocument()
+    expect(screen.getByText('Files')).toBeInTheDocument()
   })
 
-  it('renders compare sides', () => {
+  it('renders table with a fallback figcaption when no caption is given', () => {
+    r({ type: 'table', head: ['name'], rows: [['kv']] })
+    expect(screen.getByText('Table')).toBeInTheDocument()
+  })
+
+  it('zebra-stripes odd body rows', () => {
+    r({ type: 'table', head: ['name'], rows: [['a'], ['b']] })
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows[1]?.className).toContain('bg-[var(--row-zebra)]')
+  })
+
+  it('renders compare sides with a figcaption', () => {
     r({
       type: 'compare',
       left: { title: 'A', items: [{ text: 'fast', ok: true }] },
@@ -31,6 +43,7 @@ describe('BlockRenderer text family', () => {
     })
     expect(screen.getByText('A')).toBeInTheDocument()
     expect(screen.getByText('slow')).toBeInTheDocument()
+    expect(screen.getByText('Comparison')).toBeInTheDocument()
   })
 
   it('renders stat values', () => {
@@ -38,9 +51,13 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('12')).toBeInTheDocument()
   })
 
-  it('renders coverage statuses', () => {
+  it('renders coverage rows with a figcaption, accessible status, and full/partial/missing legend', () => {
     r({ type: 'coverage', items: [{ label: 'auth', status: 'partial' }] })
+    expect(screen.getByText('Coverage')).toBeInTheDocument()
+    expect(screen.getByLabelText('auth: partial')).toBeInTheDocument()
+    expect(screen.getByText('full')).toBeInTheDocument()
     expect(screen.getByText('partial')).toBeInTheDocument()
+    expect(screen.getByText('missing')).toBeInTheDocument()
   })
 
   it('renders details with nested blocks', () => {
