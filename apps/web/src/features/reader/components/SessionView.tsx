@@ -41,17 +41,14 @@ function StatusCard({ children }: { children: React.ReactNode }) {
 export function SessionView({ id }: { id: string | null }) {
   const { status, data } = useSession(id)
   const [tocCollapsed, setTocCollapsed] = useState(false)
-  // Drawer open state lives here per the Task 5 contract (`onMenu` from Topbar
-  // opens it); Toc itself doesn't yet accept drawerOpen/onCloseDrawer props,
-  // so only the setter is wired up until that task lands.
-  const [, setTocDrawerOpen] = useState(false)
+  // Drawer open state lives here per the Task 5 contract; `onMenu` from
+  // Topbar opens it and Toc's onCloseDrawer prop closes it.
+  const [tocDrawerOpen, setTocDrawerOpen] = useState(false)
 
   useEffect(() => {
     setTocCollapsed(readStoredTocCollapsed())
   }, [])
 
-  // Not wired to any control yet - Task 5 passes this as Toc's onToggleCollapsed.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function toggleTocCollapsed() {
     setTocCollapsed((prev) => {
       const next = !prev
@@ -103,9 +100,13 @@ export function SessionView({ id }: { id: string | null }) {
           className="items-start gap-[34px] min-[880px]:grid"
           style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
         >
-          <div className="hidden min-[880px]:block">
-            <Toc sections={sections} />
-          </div>
+          <Toc
+            sections={sections}
+            collapsed={tocCollapsed}
+            onToggleCollapsed={toggleTocCollapsed}
+            drawerOpen={tocDrawerOpen}
+            onCloseDrawer={() => setTocDrawerOpen(false)}
+          />
           <div>
             {data.payload.sections.map((s) => (
               <SectionView key={s.id} section={s} />

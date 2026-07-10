@@ -1,11 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
-import { Toc } from '@/features/toc'
+import { render, screen, within, fireEvent, act } from '@testing-library/react'
+import { Toc, type TocProps } from '@/features/toc'
 
 const sections = [
   { id: 's1', no: 1, title: 'Introduction' },
   { id: 's2', no: 2, title: 'Getting Started' },
 ]
+
+function renderToc(overrides: Partial<TocProps> = {}) {
+  const props: TocProps = {
+    sections,
+    collapsed: false,
+    onToggleCollapsed: vi.fn(),
+    drawerOpen: false,
+    onCloseDrawer: vi.fn(),
+    ...overrides,
+  }
+  const utils = render(<Toc {...props} />)
+  return { ...utils, props }
+}
 
 function mountSectionElements() {
   document.body.innerHTML = `
@@ -57,50 +70,150 @@ function getObserver(): ControllableIntersectionObserver {
   return instance
 }
 
-describe('toc', () => {
-  beforeEach(() => {
-    localStorage.clear()
+describe('toc (expanded)', () => {
+  it('renders a nav item with number and title for each section', () => {
+    renderToc()
+
+    expect(screen.getByRole('button', { name: /1 Introduction/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /2 Getting Started/ })).toBeInTheDocument()
   })
 
-  it('renders a list item for each section', () => {
-    render(<Toc sections={sections} />)
-
-    expect(screen.getByText(/1\. Introduction/)).toBeInTheDocument()
-    expect(screen.getByText(/2\. Getting Started/)).toBeInTheDocument()
-  })
-
-  it('scrolls the matching section into view on click', () => {
+  it('scrolls the matching section into view on click and closes the drawer', () => {
     mountSectionElements()
     const scrollIntoView = vi.fn()
     Element.prototype.scrollIntoView = scrollIntoView
+    const onCloseDrawer = vi.fn()
 
-    render(<Toc sections={sections} />)
-    fireEvent.click(screen.getByText(/2\. Getting Started/))
+    renderToc({ onCloseDrawer })
+    fireEvent.click(screen.getByRole('button', { name: /2 Getting Started/ }))
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
-  })
-
-  it('toggles and persists the collapsed state', () => {
-    render(<Toc sections={sections} />)
-
-    expect(localStorage.getItem('idocs:toc')).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: /collapse table of contents/i }))
-    expect(localStorage.getItem('idocs:toc')).toBe('closed')
-
-    fireEvent.click(screen.getByRole('button', { name: /expand table of contents/i }))
-    expect(localStorage.getItem('idocs:toc')).toBe('open')
+    expect(onCloseDrawer).toHaveBeenCalledTimes(1)
   })
 
   it('renders the toc nav landmark', () => {
-    render(<Toc sections={sections} />)
+    renderToc()
     expect(screen.getByRole('navigation', { name: /table of contents/i })).toBeInTheDocument()
+  })
+
+  it('calls onToggleCollapsed (does not manage its own collapsed state) when the toggle is clicked', () => {
+    const onToggleCollapsed = vi.fn()
+    renderToc({ collapsed: false, onToggleCollapsed })
+
+    const toggle = screen.getByRole('button', { name: 'Collapse contents' })
+    expect(toggle).toHaveTextContent('»')
+
+    fireEvent.click(toggle)
+    expect(onToggleCollapsed).toHaveBeenCalledTimes(1)
+    // Still expanded — Toc is controlled, it never flips `collapsed` itself.
+    expect(screen.getByRole('button', { name: /1 Introduction/ })).toBeInTheDocument()
+  })
+})
+
+describe('toc (collapsed to numbers)', () => {
+  it('renders only numbers, no titles, until hovered', () => {
+    renderToc({ collapsed: true })
+
+    expect(screen.queryByText('Introduction')).not.toBeInTheDocument()
+    expect(screen.queryByText('Getting Started')).not.toBeInTheDocument()
+
+    const toggle = screen.getByRole('button', { name: 'Expand contents' })
+    expect(toggle).toHaveTextContent('«')
+  })
+
+  it('shows titles on hover and hides them again on mouse leave', () => {
+    const { container } = renderToc({ collapsed: true })
+    const hoverZone = container.querySelector('nav > div') as Element
+
+    fireEvent.mouseEnter(hoverZone)
+    expect(screen.getByText('Introduction')).toBeInTheDocument()
+
+    fireEvent.mouseLeave(hoverZone)
+    expect(screen.queryByText('Introduction')).not.toBeInTheDocument()
+  })
+
+  it('clears hover state when the toggle is clicked', () => {
+    const onToggleCollapsed = vi.fn()
+    const { container, rerender } = renderToc({ collapsed: true, onToggleCollapsed })
+    const hoverZone = container.querySelector('nav > div') as Element
+
+    fireEvent.mouseEnter(hoverZone)
+    expect(screen.getByText('Introduction')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand contents' }))
+    expect(onToggleCollapsed).toHaveBeenCalledTimes(1)
+
+    // Parent flips `collapsed` to false in response; re-render to simulate it
+    // and confirm the stale hover state didn't leak into the expanded view.
+    rerender(
+      <Toc
+        sections={sections}
+        collapsed={false}
+        onToggleCollapsed={onToggleCollapsed}
+        drawerOpen={false}
+        onCloseDrawer={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /1 Introduction/ })).toBeInTheDocument()
+  })
+})
+
+describe('toc drawer', () => {
+  it('does not render when drawerOpen is false', () => {
+    renderToc({ drawerOpen: false })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('renders as a dialog with the section items when drawerOpen is true', () => {
+    renderToc({ drawerOpen: true })
+
+    const dialog = screen.getByRole('dialog', { name: /table of contents/i })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(within(dialog).getByText('Introduction')).toBeInTheDocument()
+  })
+
+  it('calls onCloseDrawer when Escape is pressed', () => {
+    const onCloseDrawer = vi.fn()
+    renderToc({ drawerOpen: true, onCloseDrawer })
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onCloseDrawer).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onCloseDrawer when the overlay backdrop is clicked', () => {
+    const onCloseDrawer = vi.fn()
+    renderToc({ drawerOpen: true, onCloseDrawer })
+
+    fireEvent.click(screen.getByRole('presentation'))
+    expect(onCloseDrawer).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves focus into the dialog on open and restores it to the previously focused element on close', () => {
+    const outsideButton = document.createElement('button')
+    outsideButton.textContent = 'outside'
+    document.body.appendChild(outsideButton)
+    outsideButton.focus()
+    expect(document.activeElement).toBe(outsideButton)
+
+    const { rerender } = renderToc({ drawerOpen: true })
+    expect(screen.getByRole('dialog')).toHaveFocus()
+
+    rerender(
+      <Toc
+        sections={sections}
+        collapsed={false}
+        onToggleCollapsed={vi.fn()}
+        drawerOpen={false}
+        onCloseDrawer={vi.fn()}
+      />,
+    )
+    expect(document.activeElement).toBe(outsideButton)
+    document.body.removeChild(outsideButton)
   })
 })
 
 describe('toc scroll spy', () => {
   beforeEach(() => {
-    localStorage.clear()
     ControllableIntersectionObserver.instances = []
     vi.stubGlobal('IntersectionObserver', ControllableIntersectionObserver)
   })
@@ -111,7 +224,7 @@ describe('toc scroll spy', () => {
 
   it('marks the top-most intersecting section active', () => {
     mountSectionElements()
-    render(<Toc sections={sections} />)
+    renderToc()
     const observer = getObserver()
     const s1 = document.querySelector('[data-section="s1"]') as Element
 
@@ -119,18 +232,18 @@ describe('toc scroll spy', () => {
       observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 40 } }])
     })
 
-    expect(screen.getByRole('button', { name: /1\. Introduction/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /1 Introduction/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
-    expect(screen.getByRole('button', { name: /2\. Getting Started/ })).not.toHaveAttribute(
+    expect(screen.getByRole('button', { name: /2 Getting Started/ })).not.toHaveAttribute(
       'aria-current',
     )
   })
 
   it('a later entry with a smaller top wins over a previously stored one', () => {
     mountSectionElements()
-    render(<Toc sections={sections} />)
+    renderToc()
     const observer = getObserver()
     const s1 = document.querySelector('[data-section="s1"]') as Element
     const s2 = document.querySelector('[data-section="s2"]') as Element
@@ -138,7 +251,7 @@ describe('toc scroll spy', () => {
     act(() => {
       observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 100 } }])
     })
-    expect(screen.getByRole('button', { name: /1\. Introduction/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /1 Introduction/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
@@ -151,25 +264,25 @@ describe('toc scroll spy', () => {
       observer.callback([{ target: s2, isIntersecting: true, boundingClientRect: { top: 20 } }])
     })
 
-    expect(screen.getByRole('button', { name: /2\. Getting Started/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /2 Getting Started/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
-    expect(screen.getByRole('button', { name: /1\. Introduction/ })).not.toHaveAttribute(
+    expect(screen.getByRole('button', { name: /1 Introduction/ })).not.toHaveAttribute(
       'aria-current',
     )
   })
 
   it('keeps the last active section when nothing is intersecting (sticky)', () => {
     mountSectionElements()
-    render(<Toc sections={sections} />)
+    renderToc()
     const observer = getObserver()
     const s2 = document.querySelector('[data-section="s2"]') as Element
 
     act(() => {
       observer.callback([{ target: s2, isIntersecting: true, boundingClientRect: { top: 10 } }])
     })
-    expect(screen.getByRole('button', { name: /2\. Getting Started/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /2 Getting Started/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
@@ -178,7 +291,7 @@ describe('toc scroll spy', () => {
       observer.callback([{ target: s2, isIntersecting: false, boundingClientRect: { top: -200 } }])
     })
 
-    expect(screen.getByRole('button', { name: /2\. Getting Started/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /2 Getting Started/ })).toHaveAttribute(
       'aria-current',
       'true',
     )
