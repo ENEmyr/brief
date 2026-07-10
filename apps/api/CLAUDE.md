@@ -22,7 +22,7 @@ Any new endpoint that touches sessions must preserve these guarantees.
 ## Validation and limits
 
 - Validate payloads with the shared schema from `packages/schema` (`payloadSchema`, `MAX_PAYLOAD_BYTES`).
-- Request size caps live in each feature's `model.ts` (for example the state body character cap and the save ciphertext caps). Keep new caps there.
+- Zod field caps (for example the state character cap and the save ciphertext char cap) live in each feature's `model.ts`; raw body byte caps are checked in the feature's `index.ts` routes. Follow that split when adding a cap.
 - Rate limiting uses the optional `RATE_LIMITER` binding, checked at the top of each feature's route handlers with a per-feature key prefix.
 
 ## Tests
