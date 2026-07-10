@@ -1,29 +1,17 @@
 'use client'
-import { ThemeToggle } from '@/features/theme'
 import { Toc } from '@/features/toc'
 import { useSession } from '../hooks/useSession'
-import { ProgressBar } from './ProgressBar'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
-
-function StatusHeader({ hasToc = false }: { hasToc?: boolean }) {
-  return (
-    <header
-      className={`sticky top-0 z-10 flex h-14 items-center justify-between border-b border-surface0 bg-base/90 pr-4 backdrop-blur print:hidden ${hasToc ? 'pl-16 lg:pl-4' : 'pl-4'}`}
-    >
-      <span className="font-semibold">Brief</span>
-      <ThemeToggle />
-    </header>
-  )
-}
+import { Topbar } from './Topbar'
 
 function StatusCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen">
-      <StatusHeader />
+    <div className="min-h-screen bg-page">
+      <Topbar />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="rounded-lg border border-surface0 bg-mantle p-6 text-center text-subtext0">
+        <div className="rounded-xl border border-line bg-card p-6 text-center text-sub shadow-[var(--shadow-card)]">
           {children}
         </div>
       </main>
@@ -67,8 +55,7 @@ export function SessionView({ id }: { id: string | null }) {
 
   return (
     <div className="min-h-screen">
-      <ProgressBar />
-      <StatusHeader hasToc />
+      <Topbar sessionId={data.id} repo={data.payload.meta.repo} showProgress />
       <Toc
         sections={data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))}
       />

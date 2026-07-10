@@ -54,8 +54,12 @@ export function ProgressBar() {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct}
-      className="fixed left-0 top-0 z-20 w-full bg-mauve print:hidden"
-      style={{ height: '3px', width: `${pct}%` }}
+      className="absolute bottom-[-1px] left-0 h-[2.5px] print:hidden"
+      style={{
+        width: `${pct}%`,
+        background: 'linear-gradient(90deg, var(--ctp-mauve), var(--ctp-blue))',
+        transition: 'width .1s linear',
+      }}
     />
   )
 }
