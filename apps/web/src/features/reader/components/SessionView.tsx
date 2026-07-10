@@ -2,6 +2,7 @@
 import { ThemeToggle } from '@/features/theme'
 import { Toc } from '@/features/toc'
 import { useSession } from '../hooks/useSession'
+import { ProgressBar } from './ProgressBar'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
@@ -9,7 +10,7 @@ import { SectionView } from './SectionView'
 function StatusHeader({ hasToc = false }: { hasToc?: boolean }) {
   return (
     <header
-      className={`sticky top-0 z-10 flex h-14 items-center justify-between border-b border-surface0 bg-base/90 pr-4 backdrop-blur ${hasToc ? 'pl-16 lg:pl-4' : 'pl-4'}`}
+      className={`sticky top-0 z-10 flex h-14 items-center justify-between border-b border-surface0 bg-base/90 pr-4 backdrop-blur print:hidden ${hasToc ? 'pl-16 lg:pl-4' : 'pl-4'}`}
     >
       <span className="font-semibold">Brief</span>
       <ThemeToggle />
@@ -66,6 +67,7 @@ export function SessionView({ id }: { id: string | null }) {
 
   return (
     <div className="min-h-screen">
+      <ProgressBar />
       <StatusHeader hasToc />
       <Toc
         sections={data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))}
