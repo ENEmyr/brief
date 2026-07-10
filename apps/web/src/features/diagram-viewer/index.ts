@@ -1,4 +1,6 @@
 export { ViewerOverlay } from './components/ViewerOverlay'
 export type { ViewerOverlayProps } from './components/ViewerOverlay'
+export { DiagramViewerProvider, useDiagramViewer } from './components/DiagramViewerProvider'
+export type { DiagramViewerContextValue } from './components/DiagramViewerProvider'
 export { useViewer } from './hooks/useViewer'
 export type { UseViewerResult } from './hooks/useViewer'
