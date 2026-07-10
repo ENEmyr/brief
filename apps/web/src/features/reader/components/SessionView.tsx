@@ -1,10 +1,29 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { Toc } from '@/features/toc'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
 import { Topbar } from './Topbar'
+
+const TOC_STORAGE_KEY = 'idocs:toc'
+
+function readStoredTocCollapsed(): boolean {
+  try {
+    return localStorage.getItem(TOC_STORAGE_KEY) === 'collapsed'
+  } catch {
+    return false
+  }
+}
+
+function storeTocCollapsed(collapsed: boolean) {
+  try {
+    localStorage.setItem(TOC_STORAGE_KEY, collapsed ? 'collapsed' : 'expanded')
+  } catch {
+    // private mode: collapse state just does not persist
+  }
+}
 
 function StatusCard({ children }: { children: React.ReactNode }) {
   return (
@@ -21,6 +40,25 @@ function StatusCard({ children }: { children: React.ReactNode }) {
 
 export function SessionView({ id }: { id: string | null }) {
   const { status, data } = useSession(id)
+  const [tocCollapsed, setTocCollapsed] = useState(false)
+  // Drawer open state lives here per the Task 5 contract (`onMenu` from Topbar
+  // opens it); Toc itself doesn't yet accept drawerOpen/onCloseDrawer props,
+  // so only the setter is wired up until that task lands.
+  const [, setTocDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    setTocCollapsed(readStoredTocCollapsed())
+  }, [])
+
+  // Not wired to any control yet - Task 5 passes this as Toc's onToggleCollapsed.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function toggleTocCollapsed() {
+    setTocCollapsed((prev) => {
+      const next = !prev
+      storeTocCollapsed(next)
+      return next
+    })
+  }
 
   if (status === 'notfound') {
     return <StatusCard>Session not found or expired.</StatusCard>
@@ -33,7 +71,7 @@ export function SessionView({ id }: { id: string | null }) {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="rounded-lg bg-surface0 px-4 py-2 font-medium text-text hover:bg-surface1"
+          className="rounded-lg border border-line bg-elev px-4 py-2 font-medium text-text hover:bg-chip"
         >
           Retry
         </button>
@@ -46,24 +84,34 @@ export function SessionView({ id }: { id: string | null }) {
   }
 
   if (data.encrypted || !data.payload) {
-    return (
-      <StatusCard>
-        Protected session - password unlock arrives in a later release.
-      </StatusCard>
-    )
+    return <StatusCard>Protected session - password unlock arrives in a later release.</StatusCard>
   }
 
+  const sections = data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))
+
   return (
-    <div className="min-h-screen">
-      <Topbar sessionId={data.id} repo={data.payload.meta.repo} showProgress />
-      <Toc
-        sections={data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))}
+    <div className="min-h-screen bg-page">
+      <Topbar
+        sessionId={data.id}
+        repo={data.payload.meta.repo}
+        showProgress
+        onMenu={() => setTocDrawerOpen(true)}
       />
-      <main className="mx-auto max-w-3xl px-4 py-8 lg:pl-16">
-        <MetaHeader meta={data.payload.meta} sessionId={data.id} />
-        {data.payload.sections.map((s) => (
-          <SectionView key={s.id} section={s} />
-        ))}
+      <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
+        <MetaHeader meta={data.payload.meta} />
+        <div
+          className="items-start gap-[34px] min-[880px]:grid"
+          style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
+        >
+          <div className="hidden min-[880px]:block">
+            <Toc sections={sections} />
+          </div>
+          <div>
+            {data.payload.sections.map((s) => (
+              <SectionView key={s.id} section={s} />
+            ))}
+          </div>
+        </div>
       </main>
     </div>
   )
