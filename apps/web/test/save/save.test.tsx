@@ -198,7 +198,13 @@ describe('SaveModal', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Encrypting…' })).toBeDisabled())
 
+    // Must wait for the whole chain to settle before the test ends -- an
+    // unawaited resolve here lets setBusy/toast/onSaved/onClose fire AFTER
+    // RTL's automatic per-test unmount and jsdom teardown, throwing
+    // "window is not defined" as an unhandled rejection that only surfaced
+    // in CI's stricter timing (not reproduced by a handful of local runs).
     resolveFetch(new Response(JSON.stringify({ saved: true, encrypted: true, expiresAt: 1 }), { status: 200 }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved with password'))
   })
 
   it('renders a 409 error inline without closing the modal', async () => {
