@@ -23,16 +23,32 @@ const tableBlock = z.object({
   caption: label.optional(),
 })
 
-const compareSide = z.object({ title: label, items: z.array(z.object({ text, ok: z.boolean() })).min(1) })
-const compareBlock = z.object({ type: z.literal('compare'), left: compareSide, right: compareSide })
+const compareSide = z.object({
+  title: label,
+  tone: z.enum(['good', 'bad']).optional(),
+  tag: label.optional(),
+  items: z.array(z.object({ text, ok: z.boolean() })).min(1),
+})
+const compareBlock = z.object({
+  type: z.literal('compare'),
+  caption: label.optional(),
+  left: compareSide,
+  right: compareSide,
+})
 
 const statBlock = z.object({
   type: z.literal('stat'),
-  items: z.array(z.object({ label, value: z.string(), hint: z.string().optional() })).min(1),
+  items: z.array(z.object({
+    label,
+    value: z.string(),
+    hint: z.string().optional(),
+    tone: z.enum(['mauve', 'blue', 'green', 'red', 'peach', 'teal', 'yellow']).optional(),
+  })).min(1),
 })
 
 const coverageBlock = z.object({
   type: z.literal('coverage'),
+  caption: label.optional(),
   items: z.array(z.object({ label, status: z.enum(['full', 'partial', 'missing']), note: z.string().optional() })).min(1),
 })
 

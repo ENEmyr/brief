@@ -15,7 +15,9 @@ const legend = [
 export function Coverage({ block }: { block: Extract<Block, { type: 'coverage' }> }) {
   return (
     <figure className="my-4">
-      <figcaption className="font-mono text-[10.5px] tracking-[.04em] text-faint mb-2.5">Coverage</figcaption>
+      <figcaption className="font-mono text-[10.5px] tracking-[.04em] text-faint mb-2.5">
+        {block.caption ?? 'Coverage'}
+      </figcaption>
       {block.items.map((item, i) => (
         <div
           key={i}

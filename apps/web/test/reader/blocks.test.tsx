@@ -46,9 +46,53 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('Comparison')).toBeInTheDocument()
   })
 
+  it('applies a toned pane background and border when a compare side has a tone', () => {
+    r({
+      type: 'compare',
+      left: { title: 'A', tone: 'good', items: [{ text: 'fast', ok: true }] },
+      right: { title: 'B', tone: 'bad', items: [{ text: 'slow', ok: false }] },
+    })
+    const goodPane = screen.getByText('A').parentElement?.parentElement
+    const badPane = screen.getByText('B').parentElement?.parentElement
+    expect(goodPane?.className).toContain('border-t-green')
+    expect(goodPane?.className).toContain('--compare-pane-good-bg')
+    expect(badPane?.className).toContain('border-t-red')
+    expect(badPane?.className).toContain('--compare-pane-bad-bg')
+  })
+
+  it('renders a tag pill on a compare side when tag is present', () => {
+    r({
+      type: 'compare',
+      left: { title: 'A', tone: 'good', tag: 'Recommended', items: [{ text: 'fast', ok: true }] },
+      right: { title: 'B', items: [{ text: 'slow', ok: false }] },
+    })
+    expect(screen.getByText('Recommended')).toBeInTheDocument()
+  })
+
+  it('shows the compare caption in the figcaption when present', () => {
+    r({
+      type: 'compare',
+      caption: 'Before vs after',
+      left: { title: 'A', items: [{ text: 'fast', ok: true }] },
+      right: { title: 'B', items: [{ text: 'slow', ok: false }] },
+    })
+    expect(screen.getByText('Before vs after')).toBeInTheDocument()
+    expect(screen.queryByText('Comparison')).not.toBeInTheDocument()
+  })
+
   it('renders stat values', () => {
     r({ type: 'stat', items: [{ label: 'files', value: '12' }] })
     expect(screen.getByText('12')).toBeInTheDocument()
+  })
+
+  it('colors a stat value by tone using a static class map', () => {
+    r({ type: 'stat', items: [{ label: 'files', value: '12', tone: 'green' }] })
+    expect(screen.getByText('12').className).toContain('text-green')
+  })
+
+  it('defaults an untoned stat value to mauve', () => {
+    r({ type: 'stat', items: [{ label: 'files', value: '12' }] })
+    expect(screen.getByText('12').className).toContain('text-mauve')
   })
 
   it('renders coverage rows with a figcaption, accessible status, and full/partial/missing legend', () => {
@@ -58,6 +102,12 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('full')).toBeInTheDocument()
     expect(screen.getByText('partial')).toBeInTheDocument()
     expect(screen.getByText('missing')).toBeInTheDocument()
+  })
+
+  it('shows the coverage caption in the figcaption when present', () => {
+    r({ type: 'coverage', caption: 'Test coverage', items: [{ label: 'auth', status: 'full' }] })
+    expect(screen.getByText('Test coverage')).toBeInTheDocument()
+    expect(screen.queryByText('Coverage')).not.toBeInTheDocument()
   })
 
   it('renders details with nested blocks', () => {
