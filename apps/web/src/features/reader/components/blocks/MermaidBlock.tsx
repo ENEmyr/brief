@@ -43,11 +43,17 @@ function cssId(id: string): string {
  * whenever the app theme flips, using a literal per-palette themeVariables
  * map (see THEME_VARIABLES above) rather than reading CSS custom properties.
  *
- * `securityLevel: 'strict'` + `flowchart: { htmlLabels: false }` keeps
- * mermaid emitting plain SVG text nodes instead of `<foreignObject>` HTML
- * labels, so the DOMPurify svg profile below is a safe sink even though
- * mermaid already sanitizes its own output internally in strict mode — this
- * is a second defense-in-depth layer, same posture as ViewerOverlay/CodePre.
+ * `securityLevel: 'strict'` + `htmlLabels: false` keeps mermaid emitting
+ * plain SVG text nodes instead of `<foreignObject>` HTML labels, so the
+ * DOMPurify svg profile below is a safe sink even though mermaid already
+ * sanitizes its own output internally in strict mode — this is a second
+ * defense-in-depth layer, same posture as ViewerOverlay/CodePre.
+ * IMPORTANT: mermaid 11 IGNORES `flowchart: { htmlLabels: false }` on its
+ * own — node labels still come out as foreignObject HTML, which DOMPurify's
+ * svg profile then strips, leaving EMPTY node boxes (verified empirically
+ * in a real browser; see task-6-report.md follow-up 6b). The TOP-LEVEL
+ * `htmlLabels: false` key is what actually switches labels to pure SVG
+ * text; the flowchart-scoped one is kept as well for belt and suspenders.
  *
  * Invalid mermaid source never crashes the page: mermaid.render() rejects,
  * we fall back to the raw source in a plain pre, and — because a rejected
@@ -95,6 +101,12 @@ export function MermaidBlock({ block }: { block: MermaidBlockType }) {
         securityLevel: 'strict',
         theme: 'base',
         themeVariables: THEME_VARIABLES[theme],
+        // BOTH htmlLabels keys are required: mermaid 11 ignores the
+        // flowchart-scoped one alone (labels stay foreignObject HTML and
+        // DOMPurify's svg profile strips them to empty boxes) — the
+        // top-level key is the one that switches labels to pure SVG text.
+        // See the component doc comment.
+        htmlLabels: false,
         flowchart: { htmlLabels: false },
       })
       try {
