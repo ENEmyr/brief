@@ -22,7 +22,7 @@ export function createApp(env: AppEnv) {
           const origin = request.headers.get('origin')
           if (!origin) return false
           if (origin === env.PUBLIC_WEB_ORIGIN) return true
-          if (origin.endsWith('.brief-web.pages.dev')) return true
+          if (origin.endsWith('.brief-web-d38.pages.dev')) return true
           if (origin.startsWith('http://localhost:')) return true
           return false
         },

@@ -18,7 +18,7 @@
       ],
       "kv_namespaces": [{ "binding": "KV", "id": "322bec5f8a1a40dda4242541f6266121" }],
       "triggers": { "crons": ["0 3 * * *"] },
-      "vars": { "PUBLIC_WEB_ORIGIN": "https://brief-web.pages.dev" },
+      "vars": { "PUBLIC_WEB_ORIGIN": "https://main.brief-web-d38.pages.dev" },
       "unsafe": { "bindings": [{ "name": "RATE_LIMITER", "type": "ratelimit", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }] }
     },
     "production": {
