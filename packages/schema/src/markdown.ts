@@ -139,12 +139,6 @@ export function payloadToMarkdown(payload: Payload, opts: { url: string }): stri
   if (payload.meta.subtitle) {
     parts.push(payload.meta.subtitle)
   }
-  const metaBits = [
-    payload.meta.author && `author: ${payload.meta.author}`,
-    payload.meta.version && `version: ${payload.meta.version}`,
-    payload.meta.repo && `repo: ${payload.meta.repo}`,
-    payload.meta.date && `date: ${payload.meta.date}`,
-  ].filter(Boolean)
   const metaRows: string[][] = []
   if (payload.meta.author) metaRows.push(['author', payload.meta.author])
   if (payload.meta.version) metaRows.push(['version', payload.meta.version])
