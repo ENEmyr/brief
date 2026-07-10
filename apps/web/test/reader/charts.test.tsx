@@ -320,6 +320,24 @@ describe('Heatmap/Histogram/Scatter components (useEChart mocked)', () => {
     expect(screen.getByText('Histogram')).toBeInTheDocument()
   })
 
+  it('Histogram still captures its expanded chart at the default pixelRatio 2', () => {
+    // Plot3d overrides ChartExpandButton's pixelRatio down to 1 (echarts-gl
+    // blanks the WebGL layer above 1) — the canvas-only 2D charts must keep
+    // the crisper 2x capture.
+    const block: Extract<Block, { type: 'histogram' }> = {
+      type: 'histogram',
+      bins: [{ label: '0-10', count: 1 }],
+    }
+    const getDataURL = vi.fn(() => 'data:image/png;base64,x')
+    useEChartMock.mockReturnValue({
+      containerRef: { current: null },
+      chartRef: { current: { getDataURL } },
+    })
+    render(<Histogram block={block} />)
+    fireEvent.click(screen.getByLabelText('Expand chart'))
+    expect(getDataURL).toHaveBeenCalledWith(expect.objectContaining({ pixelRatio: 2 }))
+  })
+
   it('Scatter calls useEChart and defaults its caption', () => {
     const block: Extract<Block, { type: 'scatter' }> = {
       type: 'scatter',

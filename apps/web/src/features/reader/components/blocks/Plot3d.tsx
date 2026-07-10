@@ -132,7 +132,8 @@ export function Plot3d({ block }: { block: Plot3dBlockType }) {
       controls={
         canRender ? (
           <div className="flex justify-end">
-            <ChartExpandButton chartRef={chartRef} palette={palette} />
+            {/* pixelRatio 1: echarts-gl's WebGL layer captures blank at pixelRatio > 1 */}
+            <ChartExpandButton chartRef={chartRef} palette={palette} pixelRatio={1} />
           </div>
         ) : undefined
       }
