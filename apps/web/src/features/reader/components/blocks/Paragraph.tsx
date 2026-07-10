@@ -2,7 +2,7 @@ import type { Block } from '@brief/schema'
 
 export function Paragraph({ block }: { block: Extract<Block, { type: 'p' }> }) {
   return (
-    <p data-block="p" className="my-4 leading-relaxed text-text">
+    <p data-block="p" className="text-[15px] leading-[1.85] text-text mb-3.5">
       {block.text}
     </p>
   )
