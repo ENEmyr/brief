@@ -1,11 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Toc } from '@/features/toc'
+import type { TocSection } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
 import { ReaderStateProvider } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
 import { DecisionSection } from '@/features/decisions'
+import { ExportProvider, useExport } from '@/features/export'
+import type { SessionData } from '../services/api'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
@@ -43,8 +46,16 @@ function StatusCard({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function SessionView({ id }: { id: string | null }) {
-  const { status, data } = useSession(id)
+/**
+ * The fully-loaded reader UI: Topbar, TOC, sections, decisions, and the
+ * annotation popovers/toolbar. Split out from SessionView so it can render
+ * inside both ReaderStateProvider and ExportProvider and call useExport()
+ * for the Topbar's Markdown/Share buttons and the copy chain threaded into
+ * SelectionToolbar/AskPopover (Task 6) -- useExport() only resolves to a
+ * real value for descendants of ExportProvider, not for SessionView itself.
+ */
+function SessionReady({ data }: { data: SessionData & { payload: NonNullable<SessionData['payload']> } }) {
+  const { copy, share, downloadMarkdown } = useExport()
   const [tocCollapsed, setTocCollapsed] = useState(false)
   // Drawer open state lives here per the Task 5 contract; `onMenu` from
   // Topbar opens it and Toc's onCloseDrawer prop closes it.
@@ -84,6 +95,72 @@ export function SessionView({ id }: { id: string | null }) {
     })
   }
 
+  const sections = data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))
+  const hasDecisions = data.payload.decisions.length > 0
+  const tocSections: TocSection[] = hasDecisions
+    ? [...sections, { id: 'decide', no: sections.length + 1, title: 'Decisions' }]
+    : sections
+
+  return (
+    <div className="min-h-screen bg-page">
+      <Topbar
+        sessionId={data.id}
+        repo={data.payload.meta.repo}
+        showProgress
+        onMenu={() => setTocDrawerOpen(true)}
+        onDownload={downloadMarkdown}
+        onShare={share}
+      />
+      <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
+        <MetaHeader meta={data.payload.meta} />
+        <DiagramViewerProvider>
+          <div
+            className="items-start gap-[34px] min-[880px]:grid"
+            style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
+          >
+            <Toc
+              sections={tocSections}
+              collapsed={tocCollapsed}
+              onToggleCollapsed={toggleTocCollapsed}
+              drawerOpen={tocDrawerOpen}
+              onCloseDrawer={() => setTocDrawerOpen(false)}
+            />
+            <div>
+              {data.payload.sections.map((s, si) => (
+                <SectionView key={s.id} section={s} sid={si} onMarkClick={handleMarkClick} />
+              ))}
+              {hasDecisions && (
+                <DecisionSection
+                  decisions={data.payload.decisions}
+                  no={data.payload.sections.length + 1}
+                  docTitle={data.payload.meta.title}
+                  sessionId={data.id}
+                  copyText={copy}
+                />
+              )}
+            </div>
+          </div>
+        </DiagramViewerProvider>
+      </main>
+      <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} copyText={copy} />
+      {notePopId && <NotePopover id={notePopId} onClose={() => setNotePopId(null)} />}
+      {askPopId && (
+        <AskPopover
+          id={askPopId}
+          sections={data.payload.sections}
+          sessionId={data.id}
+          docTitle={data.payload.meta.title}
+          onClose={() => setAskPopId(null)}
+          copyText={copy}
+        />
+      )}
+    </div>
+  )
+}
+
+export function SessionView({ id }: { id: string | null }) {
+  const { status, data } = useSession(id)
+
   if (status === 'notfound') {
     return <StatusCard>Session not found or expired.</StatusCard>
   }
@@ -111,63 +188,11 @@ export function SessionView({ id }: { id: string | null }) {
     return <StatusCard>Protected session - password unlock arrives in a later release.</StatusCard>
   }
 
-  const sections = data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))
-  const hasDecisions = data.payload.decisions.length > 0
-  const tocSections = hasDecisions
-    ? [...sections, { id: 'decide', no: sections.length + 1, title: 'Decisions' }]
-    : sections
-
   return (
     <ReaderStateProvider key={data.id} sessionId={data.id}>
-      <div className="min-h-screen bg-page">
-        <Topbar
-          sessionId={data.id}
-          repo={data.payload.meta.repo}
-          showProgress
-          onMenu={() => setTocDrawerOpen(true)}
-        />
-        <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
-          <MetaHeader meta={data.payload.meta} />
-          <DiagramViewerProvider>
-            <div
-              className="items-start gap-[34px] min-[880px]:grid"
-              style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
-            >
-              <Toc
-                sections={tocSections}
-                collapsed={tocCollapsed}
-                onToggleCollapsed={toggleTocCollapsed}
-                drawerOpen={tocDrawerOpen}
-                onCloseDrawer={() => setTocDrawerOpen(false)}
-              />
-              <div>
-                {data.payload.sections.map((s, si) => (
-                  <SectionView key={s.id} section={s} sid={si} onMarkClick={handleMarkClick} />
-                ))}
-                {hasDecisions && (
-                  <DecisionSection
-                    decisions={data.payload.decisions}
-                    no={data.payload.sections.length + 1}
-                    docTitle={data.payload.meta.title}
-                    sessionId={data.id}
-                  />
-                )}
-              </div>
-            </div>
-          </DiagramViewerProvider>
-        </main>
-        <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} />
-        {notePopId && <NotePopover id={notePopId} onClose={() => setNotePopId(null)} />}
-        {askPopId && (
-          <AskPopover
-            id={askPopId}
-            sections={data.payload.sections}
-            sessionId={data.id}
-            docTitle={data.payload.meta.title}
-            onClose={() => setAskPopId(null)}
-          />
-        )}
-      </div>
+      <ExportProvider sessionId={data.id} payload={data.payload}>
+        <SessionReady data={{ ...data, payload: data.payload }} />
+      </ExportProvider>
     </ReaderStateProvider>
   )
 }

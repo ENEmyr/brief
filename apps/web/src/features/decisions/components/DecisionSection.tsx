@@ -30,7 +30,12 @@ function isAnswered(decision: Decision, dsel: Record<string, string[]>): boolean
  * inside that panel recomputes the same text from the current answers
  * without touching `onGeneratePrompt`/open state. `onReset` stays a toast
  * hook, no-op by default. `docTitle`/`sessionId` are required (no default)
- * since a blank fallback would silently produce a broken prompt. */
+ * since a blank fallback would silently produce a broken prompt.
+ *
+ * Task 6 adds an optional `copyText` pass-through to `PromptReview`'s own
+ * `copyText` prop, so SessionReady can wire the export feature's copy chain
+ * (toast on success, CopyFallbackModal on failure) here too -- without it,
+ * PromptReview falls back to its own silent `defaultCopyText` default. */
 export function DecisionSection({
   decisions,
   no,
@@ -38,6 +43,7 @@ export function DecisionSection({
   sessionId,
   onGeneratePrompt,
   onReset,
+  copyText,
 }: {
   decisions: Decision[]
   no: number
@@ -45,6 +51,7 @@ export function DecisionSection({
   sessionId: string
   onGeneratePrompt?: () => void
   onReset?: () => void
+  copyText?: (text: string) => void
 }) {
   const state = useReaderState()
   const { dsel, dnote } = state
@@ -188,6 +195,7 @@ export function DecisionSection({
           onChange={setPromptText}
           onRebuild={handleRebuild}
           onClose={() => setPromptOpen(false)}
+          {...(copyText ? { copyText } : {})}
         />
       )}
     </section>
