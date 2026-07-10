@@ -72,7 +72,7 @@ Per-document cost to an agent, comparing how the same review gets delivered:
 | Ad-hoc HTML report      | ~30,000-50,000        | No                           | No                     |
 | Markdown doc             | ~4,000-6,000           | Yes, but static              | No                     |
 | Brief payload             | ~4,000-6,000           | Yes, via `/raw`               | Yes                    |
-| Explaining in chat only | none (no artifact)   | No                           | No                     |
+| Explaining in chat only | 20-40 percent more over a session | No           | No                     |
 
 A Brief payload costs about the same to generate as a markdown doc, roughly 85-90 percent less than a hand-built HTML report, but stays interactive: the human can answer decisions and the agent can read the answers back. Explaining the same review in chat with no artifact tends to cost 20-40 percent more over a full session, because there is nothing to point back to and the context has to be re-explained. Every later re-read of a saved Brief document costs one `/raw` fetch instead of regenerating the document from scratch.
 
@@ -113,7 +113,7 @@ bun run build
 bun run e2e
 ```
 
-Monorepo layout: `apps/web` (reader and editor UI), `apps/api` (Elysia worker, D1 schema, save/session/state features), `packages/schema` (the payload Zod schema shared by both apps), `packages/config` (shared tooling config), `e2e` (end-to-end tests).
+Monorepo layout: `apps/web` (the reader UI), `apps/api` (Elysia worker, D1 schema, save/session/state features), `packages/schema` (the payload Zod schema shared by both apps), `packages/config` (shared tooling config), `e2e` (end-to-end tests).
 
 ## License
 
