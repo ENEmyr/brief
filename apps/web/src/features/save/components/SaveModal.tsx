@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Payload } from '@brief/schema'
 import { useDialogFocus, useExport } from '@/features/export'
 import { encryptPayload } from '../lib/crypto'
@@ -33,38 +33,81 @@ export function SaveModal({
   payload,
   onClose,
   onSaved,
+  onBackgroundSaveSettled,
 }: {
   sessionId: string
   payload: Payload
   onClose: () => void
   onSaved: (mode: SaveMode) => void
+  /**
+   * Fires instead of onSaved when a save the user CANCELLED (Cancel/Escape/
+   * backdrop/unmount while the PUT was in flight) later resolves OK anyway.
+   * The server-side commit cannot be rolled back at that point, so the UI
+   * must not lie in either direction: no success toast/modal (the user
+   * abandoned the flow), but the caller should still silently reflect
+   * server truth (e.g. show the "saved" chip).
+   */
+  onBackgroundSaveSettled?: (mode: SaveMode) => void
 }) {
   const { toast } = useExport()
   const panelRef = useRef<HTMLDivElement>(null)
+  // Set by every user-driven dismissal (Cancel button, Escape, backdrop, the
+  // header close button) and by unmount cleanup. Checked after each await in
+  // the submit paths: once cancelled, the pending operation is abandoned
+  // client-side -- no state updates, no toast, no onSaved, no onClose.
+  const cancelledRef = useRef(false)
   const [mode, setMode] = useState<SaveMode>('plain')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useDialogFocus(panelRef, onClose)
+  useEffect(() => {
+    return () => {
+      cancelledRef.current = true
+    }
+  }, [])
+
+  const dismiss = useCallback(() => {
+    cancelledRef.current = true
+    onClose()
+  }, [onClose])
+
+  useDialogFocus(panelRef, dismiss)
 
   const passwordTooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH
   const mismatch = confirm.length > 0 && password !== confirm
   const encryptValid = password.length >= MIN_PASSWORD_LENGTH && password === confirm
   const canSubmit = !busy && (mode === 'plain' || encryptValid)
 
-  async function submitPlain() {
-    setBusy(true)
-    const result = await saveSession(sessionId, { mode: 'plain' })
+  /**
+   * Shared post-PUT tail for both submit paths. When the user cancelled
+   * while the PUT was in flight, the request may already have COMMITTED
+   * server-side and cannot be rolled back -- so the UI must not lie in
+   * either direction: show no success UI (no toast/onSaved/onClose, the
+   * user abandoned the flow), but if the server did accept the save, fire
+   * onBackgroundSaveSettled so the caller can silently reflect server truth.
+   * A cancelled-then-FAILED PUT fires nothing at all.
+   */
+  function settleSave(result: Awaited<ReturnType<typeof saveSession>>, saveMode: SaveMode) {
+    if (cancelledRef.current) {
+      if (result.ok) onBackgroundSaveSettled?.(saveMode)
+      return
+    }
     setBusy(false)
     if (!result.ok) {
       setError(result.error)
       return
     }
-    toast('Saved')
-    onSaved('plain')
+    toast(saveMode === 'encrypt' ? 'Saved with password' : 'Saved')
+    onSaved(saveMode)
     onClose()
+  }
+
+  async function submitPlain() {
+    setBusy(true)
+    const result = await saveSession(sessionId, { mode: 'plain' })
+    settleSave(result, 'plain')
   }
 
   async function submitEncrypt() {
@@ -77,15 +120,11 @@ export function SaveModal({
 
     setBusy(true)
     const { ciphertext, encParams } = await encryptPayload(plaintext, password)
+    // Cancelled while PBKDF2 was still running: nothing has been sent yet,
+    // so the whole operation can be abandoned with no server side effect.
+    if (cancelledRef.current) return
     const result = await saveSession(sessionId, { mode: 'encrypt', ciphertext, encParams })
-    setBusy(false)
-    if (!result.ok) {
-      setError(result.error)
-      return
-    }
-    toast('Saved with password')
-    onSaved('encrypt')
-    onClose()
+    settleSave(result, 'encrypt')
   }
 
   async function handleSubmit() {
@@ -99,7 +138,7 @@ export function SaveModal({
     <div
       className="fixed inset-0 z-[95] flex justify-center bg-black/50 px-5"
       style={{ paddingTop: '14vh' }}
-      onClick={onClose}
+      onClick={dismiss}
     >
       <div
         ref={panelRef}
@@ -115,7 +154,7 @@ export function SaveModal({
           <span className="text-[15px] font-bold">⛉ Save this doc</span>
           <button
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             aria-label="Close"
             className="max-[879px]:min-h-11 max-[879px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
           >
@@ -203,7 +242,7 @@ export function SaveModal({
           </button>
           <button
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             className="max-[879px]:min-h-11 cursor-pointer rounded-[9px] border border-line bg-card px-4 py-[9px] text-[13px] font-semibold text-sub"
           >
             Cancel

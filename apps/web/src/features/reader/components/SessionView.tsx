@@ -173,6 +173,10 @@ function SessionReady({ data }: { data: SessionData & { payload: NonNullable<Ses
           payload={data.payload}
           onClose={() => setSaveModalOpen(false)}
           onSaved={() => setSavedOverride(true)}
+          // A save the user cancelled mid-flight can still commit server-side
+          // (the PUT cannot be recalled). No toast/modal feedback in that
+          // case, but the chip must still reflect server truth.
+          onBackgroundSaveSettled={() => setSavedOverride(true)}
         />
       )}
     </div>

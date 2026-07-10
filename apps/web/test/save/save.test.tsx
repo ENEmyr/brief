@@ -92,15 +92,41 @@ const payload: Payload = {
   decisions: [],
 }
 
-function renderModal(onSaved = vi.fn(), onClose = vi.fn()) {
+function renderModal(onSaved = vi.fn(), onClose = vi.fn(), onBackgroundSaveSettled = vi.fn()) {
   render(
     <ReaderStateProvider sessionId="sess1">
       <ExportProvider sessionId="sess1" payload={payload}>
-        <SaveModal sessionId="sess1" payload={payload} onClose={onClose} onSaved={onSaved} />
+        <SaveModal
+          sessionId="sess1"
+          payload={payload}
+          onClose={onClose}
+          onSaved={onSaved}
+          onBackgroundSaveSettled={onBackgroundSaveSettled}
+        />
       </ExportProvider>
     </ReaderStateProvider>,
   )
-  return { onSaved, onClose }
+  return { onSaved, onClose, onBackgroundSaveSettled }
+}
+
+/**
+ * Stubs fetch so ReaderStateProvider's mount-time KV-sync GET resolves
+ * immediately, while the save PUT stays pending under manual control --
+ * needed by the cancel-during-in-flight tests, which must cancel AFTER the
+ * PUT has fired but BEFORE it settles.
+ */
+function stubFetchWithPendingPut() {
+  let resolvePut: (value: Response) => void = () => {}
+  const putPromise = new Promise<Response>((resolve) => {
+    resolvePut = resolve
+  })
+  const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+    if (init?.method === 'PUT') return putPromise
+    return Promise.resolve(new Response(JSON.stringify({ state: null }), { status: 200 }))
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  const putFired = () => fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === 'PUT')
+  return { fetchMock, resolvePut: (r: Response) => resolvePut(r), putFired }
 }
 
 describe('SaveModal', () => {
@@ -288,5 +314,69 @@ describe('SaveModal', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls.every(([, init]) => (init as RequestInit | undefined)?.method !== 'PUT')).toBe(true)
+  })
+})
+
+describe('SaveModal cancel during an in-flight save', () => {
+  it('cancel during a pending encrypt PUT: no toast/onSaved, onBackgroundSaveSettled("encrypt") when it later resolves ok', async () => {
+    const { resolvePut, putFired } = stubFetchWithPendingPut()
+    const { onSaved, onClose, onBackgroundSaveSettled } = renderModal()
+    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    // Wait for the real PBKDF2 to finish and the PUT to actually be in flight.
+    await waitFor(() => expect(putFired()).toBe(true))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    resolvePut(new Response(JSON.stringify({ saved: true, encrypted: true, expiresAt: 1 }), { status: 200 }))
+
+    // The server DID commit, so the settled callback must fire so the UI can
+    // reflect server truth -- but no success UI (toast/onSaved) may appear.
+    await waitFor(() => expect(onBackgroundSaveSettled).toHaveBeenCalledWith('encrypt'))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancel during a pending plain PUT: no toast/onSaved, onBackgroundSaveSettled("plain") when it later resolves ok', async () => {
+    const { resolvePut, putFired } = stubFetchWithPendingPut()
+    const { onSaved, onClose, onBackgroundSaveSettled } = renderModal()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(putFired()).toBe(true))
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    resolvePut(new Response(JSON.stringify({ saved: true, encrypted: false, expiresAt: 1 }), { status: 200 }))
+
+    await waitFor(() => expect(onBackgroundSaveSettled).toHaveBeenCalledWith('plain'))
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('a PUT that fails after cancel fires nothing: no settled callback, no error UI, no toast', async () => {
+    const { resolvePut, putFired } = stubFetchWithPendingPut()
+    const { onSaved, onClose, onBackgroundSaveSettled } = renderModal()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(putFired()).toBe(true))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolvePut(new Response('{}', { status: 500 }))
+    })
+
+    expect(onBackgroundSaveSettled).not.toHaveBeenCalled()
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })
