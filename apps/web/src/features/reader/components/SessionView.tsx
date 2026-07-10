@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import type { Payload } from '@brief/schema'
 import { Toc } from '@/features/toc'
 import type { TocSection } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
@@ -8,7 +9,7 @@ import type { Highlight } from '@/features/reader-state'
 import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
 import { DecisionSection } from '@/features/decisions'
 import { ExportProvider, useExport } from '@/features/export'
-import { SaveModal } from '@/features/save'
+import { SaveModal, UnlockCard } from '@/features/save'
 import type { SessionData } from '../services/api'
 import { useSession } from '../hooks/useSession'
 import { Skeleton } from './Skeleton'
@@ -55,7 +56,19 @@ function StatusCard({ children }: { children: React.ReactNode }) {
  * SelectionToolbar/AskPopover (Task 6) -- useExport() only resolves to a
  * real value for descendants of ExportProvider, not for SessionView itself.
  */
-function SessionReady({ data }: { data: SessionData & { payload: NonNullable<SessionData['payload']> } }) {
+function SessionReady({
+  data,
+  protectedSession,
+}: {
+  data: SessionData & { payload: NonNullable<SessionData['payload']> }
+  /**
+   * Set once the reader has decrypted a protected session's payload for this
+   * page view (memory-only, re-locks on navigation/reload). Hides the Save
+   * button entirely -- the envelope is already encrypted, so there is
+   * nothing new to save -- and swaps the "saved" chip for a "protected" one.
+   */
+  protectedSession?: boolean
+}) {
   const { copy, share, downloadMarkdown } = useExport()
   const [tocCollapsed, setTocCollapsed] = useState(false)
   // Drawer open state lives here per the Task 5 contract; `onMenu` from
@@ -75,6 +88,7 @@ function SessionReady({ data }: { data: SessionData & { payload: NonNullable<Ses
   // incorrectly blank a doc the reader is actively viewing.
   const [savedOverride, setSavedOverride] = useState(false)
   const saved = savedOverride || data.saved
+  const savedLabel = protectedSession ? 'protected' : saved ? 'saved' : undefined
 
   useEffect(() => {
     setTocCollapsed(readStoredTocCollapsed())
@@ -118,9 +132,9 @@ function SessionReady({ data }: { data: SessionData & { payload: NonNullable<Ses
         sessionId={data.id}
         repo={data.payload.meta.repo}
         showProgress
-        savedLabel={saved ? 'saved' : undefined}
+        savedLabel={savedLabel}
         onMenu={() => setTocDrawerOpen(true)}
-        onSave={() => setSaveModalOpen(true)}
+        onSave={protectedSession ? undefined : () => setSaveModalOpen(true)}
         onDownload={downloadMarkdown}
         onShare={share}
       />
@@ -167,7 +181,7 @@ function SessionReady({ data }: { data: SessionData & { payload: NonNullable<Ses
           copyText={copy}
         />
       )}
-      {saveModalOpen && (
+      {!protectedSession && saveModalOpen && (
         <SaveModal
           sessionId={data.id}
           payload={data.payload}
@@ -185,6 +199,10 @@ function SessionReady({ data }: { data: SessionData & { payload: NonNullable<Ses
 
 export function SessionView({ id }: { id: string | null }) {
   const { status, data } = useSession(id)
+  // Memory-only: never written to sessionStorage/localStorage/IndexedDB.
+  // Losing this state (reload, navigating away) re-locks the session, which
+  // is the intended behavior for a zero-knowledge protected doc.
+  const [decrypted, setDecrypted] = useState<Payload | null>(null)
 
   if (status === 'notfound') {
     return <StatusCard>Session not found or expired.</StatusCard>
@@ -209,8 +227,28 @@ export function SessionView({ id }: { id: string | null }) {
     return <Skeleton />
   }
 
-  if (data.encrypted || !data.payload) {
-    return <StatusCard>Protected session - password unlock arrives in a later release.</StatusCard>
+  if (data.encrypted) {
+    if (decrypted) {
+      return (
+        <ReaderStateProvider key={data.id} sessionId={data.id}>
+          <ExportProvider sessionId={data.id} payload={decrypted}>
+            <SessionReady data={{ ...data, payload: decrypted }} protectedSession />
+          </ExportProvider>
+        </ReaderStateProvider>
+      )
+    }
+    if (!data.encParams) {
+      return <StatusCard>Protected session data is corrupted.</StatusCard>
+    }
+    return (
+      <StatusCard>
+        <UnlockCard ciphertext={data.raw} encParams={data.encParams} onUnlock={setDecrypted} />
+      </StatusCard>
+    )
+  }
+
+  if (!data.payload) {
+    return <StatusCard>Something went wrong loading this session.</StatusCard>
   }
 
   return (
