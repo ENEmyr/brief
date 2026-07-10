@@ -34,9 +34,7 @@ function decisionsSection(decisions: Decision[], state: ReaderState): string {
   const lines = ['## Decisions', '']
   for (const d of decisions) {
     const selected = state.dsel[d.id] ?? []
-    lines.push(`### [${d.id}] ${d.q}${d.multi ? ' _(multi-select)_' : ''}`)
-    lines.push('')
-    lines.push('Options:')
+    lines.push(`### [${d.id}] ${d.q}${d.multi ? ' _(multi-select)_' : ''}`, '', 'Options:')
     for (const o of d.opts) {
       lines.push(`- [${selected.includes(o.id) ? 'x' : ' '}] ${o.label}`)
     }
@@ -44,8 +42,7 @@ function decisionsSection(decisions: Decision[], state: ReaderState): string {
     const answerLabels = d.opts.filter((o) => selected.includes(o.id)).map((o) => o.label)
     lines.push(`- **Answer:** ${answerLabels.length ? answerLabels.join('; ') : '_(not answered)_'}`)
     const note = (state.dnote[d.id] ?? '').trim()
-    lines.push(`- **Free-text note:** ${note || '_(none)_'}`)
-    lines.push('')
+    lines.push(`- **Free-text note:** ${note || '_(none)_'}`, '')
   }
   return lines.join('\n').trimEnd()
 }

@@ -1,6 +1,8 @@
 import type { Block, Decision, Payload } from './payload'
 
-const mmId = (s: string) => s.replace(/[^a-zA-Z0-9_]/g, '_')
+type BlockOf<T extends Block['type']> = Extract<Block, { type: T }>
+
+const mmId = (s: string) => s.replace(/\W/g, '_')
 
 /**
  * Sanitize interpolated text before it lands inside a mermaid statement.
@@ -15,12 +17,12 @@ interface MmTextOptions {
 
 function mmText(s: string, extra?: MmTextOptions): string {
   let out = s.replace(/\r\n|\r|\n/g, ' ')
-  if (extra?.pipe) out = out.replace(/\|/g, '')
-  if (extra?.quote) out = out.replace(/"/g, '')
+  if (extra?.pipe) out = out.replaceAll('|', '')
+  if (extra?.quote) out = out.replaceAll('"', '')
   return out
 }
 
-function seqToMermaid(b: Extract<Block, { type: 'seq' }>): string {
+function seqToMermaid(b: BlockOf<'seq'>): string {
   const lines = ['sequenceDiagram']
   for (const a of b.actors) lines.push(`  participant ${mmId(a)} as ${mmText(a)}`)
   for (const s of b.steps) {
@@ -30,14 +32,17 @@ function seqToMermaid(b: Extract<Block, { type: 'seq' }>): string {
   return lines.join('\n')
 }
 
-function stateToMermaid(b: Extract<Block, { type: 'state' }>): string {
+function stateToMermaid(b: BlockOf<'state'>): string {
   const lines = ['stateDiagram-v2', `  [*] --> ${mmId(b.initial)}`]
   for (const s of b.states) lines.push(`  ${mmId(s.id)}: ${mmText(s.label)}`)
-  for (const t of b.transitions) lines.push(`  ${mmId(t.from)} --> ${mmId(t.to)}${t.label ? `: ${mmText(t.label)}` : ''}`)
+  for (const t of b.transitions) {
+    const label = t.label ? `: ${mmText(t.label)}` : ''
+    lines.push(`  ${mmId(t.from)} --> ${mmId(t.to)}${label}`)
+  }
   return lines.join('\n')
 }
 
-function layersToMermaid(b: Extract<Block, { type: 'layers' }>): string {
+function layersToMermaid(b: BlockOf<'layers'>): string {
   // Flowchart labels are always emitted in quoted form (id["label"]): inside
   // quotes, brackets, parens and pipes are all legal, so label text passes
   // through verbatim. Inner double quotes are stripped by mmText.
@@ -46,18 +51,31 @@ function layersToMermaid(b: Extract<Block, { type: 'layers' }>): string {
     lines.push(`  subgraph ${mmId(layer.id)}["${mmText(layer.label, { quote: true })}"]`)
     for (const n of layer.nodes) lines.push(`    ${mmId(n.id)}["${mmText(n.label, { quote: true })}"]`)
     lines.push('  end')
-    for (const e of layer.edges) lines.push(`  ${mmId(e.from)} --> ${e.label ? `|${mmText(e.label, { pipe: true })}|` : ''}${mmId(e.to)}`)
+    for (const e of layer.edges) {
+      const label = e.label ? `|${mmText(e.label, { pipe: true })}|` : ''
+      lines.push(`  ${mmId(e.from)} --> ${label}${mmId(e.to)}`)
+    }
   }
   return lines.join('\n')
 }
 
-function erdToMermaid(b: Extract<Block, { type: 'erd' }>): string {
+function erdColumnLine(c: BlockOf<'erd'>['tables'][number]['columns'][number]): string {
+  // Attribute type and name must both be single ATTRIBUTE_WORDs: a quote,
+  // space or other punctuation in either breaks erDiagram parsing.
+  let key = ''
+  if (c.pk) {
+    key = ' PK'
+  } else if (c.fk) {
+    key = ' FK'
+  }
+  return `    ${mmId(c.type)} ${mmId(c.name)}${key}`
+}
+
+function erdToMermaid(b: BlockOf<'erd'>): string {
   const lines = ['erDiagram']
   for (const t of b.tables) {
     lines.push(`  ${mmId(t.name)} {`)
-    // Attribute type and name must both be single ATTRIBUTE_WORDs: a quote,
-    // space or other punctuation in either breaks erDiagram parsing.
-    for (const c of t.columns) lines.push(`    ${mmId(c.type)} ${mmId(c.name)}${c.pk ? ' PK' : c.fk ? ' FK' : ''}`)
+    for (const c of t.columns) lines.push(erdColumnLine(c))
     lines.push('  }')
   }
   for (const t of b.tables)
@@ -67,7 +85,7 @@ function erdToMermaid(b: Extract<Block, { type: 'erd' }>): string {
 }
 
 function tableCell(s: string): string {
-  return s.replace(/\|/g, '\\|').replace(/\r\n|\r|\n/g, ' ')
+  return s.replaceAll('|', String.raw`\|`).replace(/\r\n|\r|\n/g, ' ')
 }
 
 function table(head: string[], rows: string[][]): string {
@@ -94,48 +112,144 @@ function assertNever(x: never): never {
   throw new Error(`Unhandled block type: ${JSON.stringify(x)}`)
 }
 
+function captionPrefix(caption: string | undefined): string {
+  return caption ? `**${caption}**\n\n` : ''
+}
+
+function emitCallout(kind: string, b: { title?: string; text: string }): string {
+  const title = b.title ? ` ${b.title}` : ''
+  return `> [!${kind}]${title}\n> ${b.text}`
+}
+
+function compareSide(s: BlockOf<'compare'>['left']): string {
+  const tag = s.tag ? ` (${s.tag})` : ''
+  const items = s.items.map((i) => `- ${i.ok ? '(+)' : '(-)'} ${i.text}`).join('\n')
+  return `**${s.title}${tag}**\n${items}`
+}
+
+function emitCompare(b: BlockOf<'compare'>): string {
+  return `${captionPrefix(b.caption)}${compareSide(b.left)}\n\n${compareSide(b.right)}`
+}
+
+function emitStat(b: BlockOf<'stat'>): string {
+  return b.items
+    .map((i) => {
+      const hint = i.hint ? ` (${i.hint})` : ''
+      return `- **${i.label}**: ${i.value}${hint}`
+    })
+    .join('\n')
+}
+
+function emitCoverage(b: BlockOf<'coverage'>): string {
+  const items = b.items
+    .map((i) => {
+      const note = i.note ? ` (${i.note})` : ''
+      return `- ${i.label}: ${i.status}${note}`
+    })
+    .join('\n')
+  return `${captionPrefix(b.caption)}${items}`
+}
+
+function emitDetails(b: BlockOf<'details'>): string {
+  const inner = b.blocks.map(blockToMarkdown).join('\n\n')
+  return `<details>\n<summary>${b.summary}</summary>\n\n${inner}\n\n</details>`
+}
+
+function emitBeforeAfter(b: BlockOf<'ba'>): string {
+  const beforeTitle = b.titleBefore ? ` (${b.titleBefore})` : ''
+  const afterTitle = b.titleAfter ? ` (${b.titleAfter})` : ''
+  return `**Before**${beforeTitle}\n\n${fence(b.language, b.before)}\n\n**After**${afterTitle}\n\n${fence(b.language, b.after)}`
+}
+
+function emitBigO(b: BlockOf<'bigo'>): string {
+  const series = b.series.map((s) => `${s.label} is O(${s.curve})`).join(', ')
+  return `Complexity comparison: ${series}.`
+}
+
+function emitCode(b: BlockOf<'code'>): string {
+  const filename = b.filename ? `\`${b.filename}\`\n\n` : ''
+  return `${filename}${fence(b.language, b.code)}`
+}
+
+function emitHeatmap(b: BlockOf<'heatmap'>): string {
+  const title = b.title ? `: ${b.title}` : ''
+  const rows = b.yLabels.map((y, i) => [y, ...(b.values[i] ?? []).map(String)])
+  return `Heatmap${title}\n\n${table(['', ...b.xLabels], rows)}`
+}
+
+function emitHistogram(b: BlockOf<'histogram'>): string {
+  const title = b.title ? `: ${b.title}` : ''
+  const rows = b.bins.map((x) => [x.label, String(x.count)])
+  return `Histogram${title}\n\n${table(['bin', 'count'], rows)}`
+}
+
+function emitScatter(b: BlockOf<'scatter'>): string {
+  const title = b.title ? `: ${b.title}` : ''
+  const series = b.series
+    .map((s) => {
+      const points = s.points.map(([x, y]) => `(${x}, ${y})`).join(' ')
+      return `${s.label}: ${points}`
+    })
+    .join('\n')
+  return `Scatter${title}\n\n${series}`
+}
+
+function emitPlot3d(b: BlockOf<'plot3d'>): string {
+  const title = b.title ? `: ${b.title}` : ''
+  let points = ''
+  if (b.points) {
+    const list = b.points.map((p) => `(${p.join(', ')})`).join(' ')
+    points = `\n\npoints: ${list}`
+  }
+  return `3D plot (${b.kind})${title}${points}`
+}
+
 function blockToMarkdown(b: Block): string {
   switch (b.type) {
     case 'p': return b.text
-    case 'note': return `> [!NOTE]${b.title ? ` ${b.title}` : ''}\n> ${b.text}`
-    case 'warn': return `> [!WARNING]${b.title ? ` ${b.title}` : ''}\n> ${b.text}`
-    case 'good': return `> [!TIP]${b.title ? ` ${b.title}` : ''}\n> ${b.text}`
-    case 'table': return `${b.caption ? `**${b.caption}**\n\n` : ''}${table(b.head, b.rows)}`
-    case 'compare': {
-      const side = (s: typeof b.left) => `**${s.title}${s.tag ? ` (${s.tag})` : ''}**\n${s.items.map((i) => `- ${i.ok ? '(+)' : '(-)'} ${i.text}`).join('\n')}`
-      return `${b.caption ? `**${b.caption}**\n\n` : ''}${side(b.left)}\n\n${side(b.right)}`
-    }
-    case 'stat': return b.items.map((i) => `- **${i.label}**: ${i.value}${i.hint ? ` (${i.hint})` : ''}`).join('\n')
-    case 'coverage': return `${b.caption ? `**${b.caption}**\n\n` : ''}${b.items.map((i) => `- ${i.label}: ${i.status}${i.note ? ` (${i.note})` : ''}`).join('\n')}`
-    case 'details': return `<details>\n<summary>${b.summary}</summary>\n\n${b.blocks.map(blockToMarkdown).join('\n\n')}\n\n</details>`
+    case 'note': return emitCallout('NOTE', b)
+    case 'warn': return emitCallout('WARNING', b)
+    case 'good': return emitCallout('TIP', b)
+    case 'table': return `${captionPrefix(b.caption)}${table(b.head, b.rows)}`
+    case 'compare': return emitCompare(b)
+    case 'stat': return emitStat(b)
+    case 'coverage': return emitCoverage(b)
+    case 'details': return emitDetails(b)
     case 'seq': return fence('mermaid', seqToMermaid(b))
     case 'state': return fence('mermaid', stateToMermaid(b))
     case 'layers': return fence('mermaid', layersToMermaid(b))
     case 'erd': return fence('mermaid', erdToMermaid(b))
-    case 'ba': return `**Before**${b.titleBefore ? ` (${b.titleBefore})` : ''}\n\n${fence(b.language, b.before)}\n\n**After**${b.titleAfter ? ` (${b.titleAfter})` : ''}\n\n${fence(b.language, b.after)}`
-    case 'bigo': return `Complexity comparison: ${b.series.map((s) => `${s.label} is O(${s.curve})`).join(', ')}.`
-    case 'code': return `${b.filename ? `\`${b.filename}\`\n\n` : ''}${fence(b.language, b.code)}`
+    case 'ba': return emitBeforeAfter(b)
+    case 'bigo': return emitBigO(b)
+    case 'code': return emitCode(b)
     case 'mermaid': return fence('mermaid', b.code)
     case 'math': return `$$\n${b.latex}\n$$`
-    case 'heatmap': return `Heatmap${b.title ? `: ${b.title}` : ''}\n\n${table(['', ...b.xLabels], b.yLabels.map((y, i) => [y, ...(b.values[i] ?? []).map(String)]))}`
-    case 'histogram': return `Histogram${b.title ? `: ${b.title}` : ''}\n\n${table(['bin', 'count'], b.bins.map((x) => [x.label, String(x.count)]))}`
-    case 'scatter': return `Scatter${b.title ? `: ${b.title}` : ''}\n\n${b.series.map((s) => `${s.label}: ${s.points.map(([x, y]) => `(${x}, ${y})`).join(' ')}`).join('\n')}`
-    case 'plot3d': return `3D plot (${b.kind})${b.title ? `: ${b.title}` : ''}${b.points ? `\n\npoints: ${b.points.map((p) => `(${p.join(', ')})`).join(' ')}` : ''}`
+    case 'heatmap': return emitHeatmap(b)
+    case 'histogram': return emitHistogram(b)
+    case 'scatter': return emitScatter(b)
+    case 'plot3d': return emitPlot3d(b)
     default: return assertNever(b)
   }
 }
 
 function decisionToMarkdown(d: Decision): string {
-  const opts = d.opts.map((o) => `- [ ] \`${o.id}\` ${o.label}${o.detail ? ` : ${o.detail}` : ''}`).join('\n')
-  return `### ${d.q}\n\n(id: \`${d.id}\`, ${d.multi ? 'multi-select' : 'single-select'})\n\n${opts}${d.why ? `\n\nWhy this matters: ${d.why}` : ''}`
+  const opts = d.opts
+    .map((o) => {
+      const detail = o.detail ? ` : ${o.detail}` : ''
+      return `- [ ] \`${o.id}\` ${o.label}${detail}`
+    })
+    .join('\n')
+  const mode = d.multi ? 'multi-select' : 'single-select'
+  const why = d.why ? `\n\nWhy this matters: ${d.why}` : ''
+  return `### ${d.q}\n\n(id: \`${d.id}\`, ${mode})\n\n${opts}${why}`
 }
 
 export function payloadToMarkdown(payload: Payload, opts: { url: string }): string {
   const parts: string[] = []
   parts.push(
     `<!--\nThis file is the complete machine-readable source of the Brief session at\n${opts.url}\nAgents: read this file directly. Do not scrape the HTML page.\nBlock semantics: mermaid fences are diagrams, $$ fences are LaTeX math,\ncode fences carry the original language tag, github alerts are callouts.\n-->`,
+    `# ${payload.meta.title}`,
   )
-  parts.push(`# ${payload.meta.title}`)
   if (payload.meta.subtitle) {
     parts.push(payload.meta.subtitle)
   }
