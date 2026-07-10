@@ -174,6 +174,17 @@ describe('toc drawer', () => {
     expect(within(dialog).getByText('Introduction')).toBeInTheDocument()
   })
 
+  it('keeps the 44px touch target floor (min-h-11) on every drawer item', () => {
+    renderToc({ drawerOpen: true })
+
+    const dialog = screen.getByRole('dialog', { name: /table of contents/i })
+    const items = within(dialog).getAllByRole('button')
+    expect(items).toHaveLength(sections.length)
+    for (const item of items) {
+      expect(item.className).toContain('min-h-11')
+    }
+  })
+
   it('calls onCloseDrawer when Escape is pressed', () => {
     const onCloseDrawer = vi.fn()
     renderToc({ drawerOpen: true, onCloseDrawer })

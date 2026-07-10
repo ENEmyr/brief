@@ -154,7 +154,7 @@ export function Toc({
                 type="button"
                 onClick={() => goToSection(s.id)}
                 aria-current={isActive ? 'true' : undefined}
-                className={`flex w-full items-center gap-2 rounded-lg px-2 py-[9px] text-left text-[14px] ${
+                className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-[9px] text-left text-[14px] ${
                   isActive ? 'bg-mauvesoft text-mauve' : 'text-text'
                 }`}
               >
