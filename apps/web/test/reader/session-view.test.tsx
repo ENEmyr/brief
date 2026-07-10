@@ -127,6 +127,37 @@ describe('SessionPage / SessionView', () => {
     expect(screen.getByText('protected')).toBeInTheDocument()
   })
 
+  it('unlocked protected session runs reader state memory-only: no state-endpoint calls, leftover localStorage entry removed', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    // Simulate a pre-fix visit that persisted plaintext reader state for this
+    // protected session -- the unlocked view must clean it up.
+    window.localStorage.setItem(
+      'idocs:abc12345678901',
+      JSON.stringify({ highlights: [], dsel: {}, dnote: { d1: 'plaintext note' } }),
+    )
+    const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
+    const encEnvelope = { ...validEnvelope, encrypted: true, payload: ciphertext, encParams }
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(encEnvelope))))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByText('Protected session')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-horse' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+
+    // Zero-knowledge: the unauthenticated KV state endpoint must never be
+    // touched for a protected session -- not even the mount-time GET.
+    const stateCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/state'))
+    expect(stateCalls).toHaveLength(0)
+    // Pre-fix plaintext removed, and nothing rewrote it.
+    expect(window.localStorage.getItem('idocs:abc12345678901')).toBeNull()
+    window.localStorage.clear()
+  })
+
   it('wrong password on a protected session shows the generic error and lets the reader retry', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
     const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')

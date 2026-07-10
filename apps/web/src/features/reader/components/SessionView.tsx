@@ -230,7 +230,11 @@ export function SessionView({ id }: { id: string | null }) {
   if (data.encrypted) {
     if (decrypted) {
       return (
-        <ReaderStateProvider key={data.id} sessionId={data.id}>
+        // Reader state for protected sessions is memory-only: the KV state
+        // endpoint is unauthenticated and payload-derived text must never
+        // leave the device unencrypted. Same-key encrypted sync is a
+        // roadmap enhancement.
+        <ReaderStateProvider key={data.id} sessionId={data.id} persist={false}>
           <ExportProvider sessionId={data.id} payload={decrypted}>
             <SessionReady data={{ ...data, payload: decrypted }} protectedSession />
           </ExportProvider>

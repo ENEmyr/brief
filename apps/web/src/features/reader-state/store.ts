@@ -40,9 +40,15 @@ const EMPTY_STATE: ReaderState = { highlights: [], dsel: {}, dnote: {} }
  * useSyncExternalStore's (subscribe, getState) contract. Every mutation
  * schedules a debounced localStorage write (see persistence.ts); KV sync is
  * wired separately by startKvSync (see sync.ts) so this module has no
- * network concerns. */
-export function createReaderStateStore(sessionId: string): ReaderStateStore {
-  let state: ReaderState = loadPersistedState(sessionId) ?? EMPTY_STATE
+ * network concerns. With `persist: false` (protected sessions) the store is
+ * purely in-memory: no localStorage hydration on create and no persistence
+ * writes on mutation. */
+export function createReaderStateStore(
+  sessionId: string,
+  options?: { persist?: boolean },
+): ReaderStateStore {
+  const persist = options?.persist ?? true
+  let state: ReaderState = (persist ? loadPersistedState(sessionId) : null) ?? EMPTY_STATE
   const listeners = new Set<() => void>()
 
   function getState(): ReaderState {
@@ -56,7 +62,7 @@ export function createReaderStateStore(sessionId: string): ReaderStateStore {
 
   function commit(next: ReaderState): void {
     state = next
-    schedulePersist(sessionId, next)
+    if (persist) schedulePersist(sessionId, next)
     listeners.forEach((listener) => listener())
   }
 

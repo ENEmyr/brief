@@ -42,6 +42,19 @@ export function hasPersistedState(sessionId: string): boolean {
   }
 }
 
+/** Best-effort removal of the persisted entry for a session. Used by the
+ * protected-session (memory-only) path to scrub plaintext reader state that
+ * an earlier, pre-fix visit may have written for the same session. Never
+ * throws (SSR, private mode). */
+export function clearPersistedState(sessionId: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(storageKey(sessionId))
+  } catch {
+    // storage unavailable: nothing to scrub
+  }
+}
+
 const pendingWrites = new Map<string, ReturnType<typeof setTimeout>>()
 
 /** Schedules a write of `state` for `sessionId`, deferred to the next timer
