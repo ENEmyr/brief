@@ -1,27 +1,5 @@
-/** Copies text via the async Clipboard API when available, falling back to
- * a hidden-textarea execCommand('copy') otherwise. Shared by SelectionToolbar
- * and AskPopover as their default `copyText` prop — kept minimal per the
- * Task 2 brief; the real copy chain (with feedback toast, etc.) lands in
- * Task 6. */
-export function defaultCopyText(text: string): void {
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).catch(() => execCommandCopy(text))
-    return
-  }
-  execCommandCopy(text)
-}
-
-function execCommandCopy(text: string): void {
-  const textarea = document.createElement('textarea')
-  textarea.value = text
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.select()
-  try {
-    document.execCommand('copy')
-  } catch {
-    // clipboard unavailable in this environment: silently no-op
-  }
-  document.body.removeChild(textarea)
-}
+// Re-exported from shared/clipboard.ts (Task 5 extraction) so this feature's
+// existing relative imports (`../lib/clipboard`) in SelectionToolbar and
+// AskPopover keep working unchanged. See shared/clipboard.ts for the
+// implementation and the extraction rationale.
+export { defaultCopyText } from '@/shared/clipboard'
