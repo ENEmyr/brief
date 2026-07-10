@@ -1,6 +1,7 @@
 import { payloadSchema, sessionEnvelopeSchema, type Payload, type EncParams } from '@brief/schema'
+import { API_URL } from '@/shared/api'
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8787'
+export { API_URL }
 
 // Re-export EncParams for backward compatibility
 export type { EncParams }
