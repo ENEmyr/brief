@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useReaderActions } from '@/features/reader-state'
 import { selectionRangeIn } from '../lib/offsets'
+import { defaultCopyText } from '../lib/clipboard'
 
 type ToolbarState = {
   x: number
@@ -17,32 +18,6 @@ const VIEWPORT_MARGIN = 8
 const TOOLBAR_RISE = 46
 const BELOW_SELECTION_GAP = 8
 const FLIP_BELOW_THRESHOLD = 56
-
-/** Copies text via the async Clipboard API when available, falling back to
- * a hidden-textarea execCommand('copy') otherwise. Kept minimal per the
- * brief — the real copy chain (with feedback toast, etc.) lands in Task 6. */
-function defaultCopyText(text: string): void {
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).catch(() => execCommandCopy(text))
-    return
-  }
-  execCommandCopy(text)
-}
-
-function execCommandCopy(text: string): void {
-  const textarea = document.createElement('textarea')
-  textarea.value = text
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.select()
-  try {
-    document.execCommand('copy')
-  } catch {
-    // clipboard unavailable in this environment: silently no-op
-  }
-  document.body.removeChild(textarea)
-}
 
 function findHlBlock(node: Node | null): HTMLElement | null {
   let el = node

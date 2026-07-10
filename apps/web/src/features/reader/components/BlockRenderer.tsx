@@ -1,6 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
 import type { Block } from '@brief/schema'
+import type { Highlight } from '@/features/reader-state'
 import { Paragraph } from './blocks/Paragraph'
 import { Callout } from './blocks/Callout'
 import { DataTable } from './blocks/DataTable'
@@ -91,15 +92,19 @@ export function BlockRenderer({
   sid,
   bid,
   annotatable = true,
+  onMarkClick,
 }: {
   block: Block
   sid?: number
   bid?: number
   annotatable?: boolean
+  onMarkClick?: (highlight: Highlight) => void
 }) {
   switch (block.type) {
     case 'p':
-      return <Paragraph block={block} sid={sid} bid={bid} annotatable={annotatable} />
+      return (
+        <Paragraph block={block} sid={sid} bid={bid} annotatable={annotatable} onMarkClick={onMarkClick} />
+      )
     case 'note':
     case 'warn':
     case 'good':
