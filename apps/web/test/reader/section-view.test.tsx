@@ -11,12 +11,12 @@ const section: Section = {
 }
 
 describe('SectionView', () => {
-  it('renders the section number and title without a trailing period', () => {
+  it('renders the section number zero-padded and title without a trailing period', () => {
     render(<SectionView section={section} />)
 
-    const heading = screen.getByRole('heading', { name: '1 Intro' })
+    const heading = screen.getByRole('heading', { name: '01 Intro' })
     expect(heading).toBeInTheDocument()
-    expect(heading.textContent).toBe('1Intro')
+    expect(heading.textContent).toBe('01Intro')
   })
 
   it('keeps the id and data-section attributes for scroll-sync and anchor links', () => {
@@ -38,7 +38,7 @@ describe('SectionView', () => {
   it('applies the design chrome classes to the heading and its number span', () => {
     render(<SectionView section={section} />)
 
-    const heading = screen.getByRole('heading', { name: '1 Intro' })
+    const heading = screen.getByRole('heading', { name: '01 Intro' })
     expect(heading).toHaveClass('text-[21px]', 'font-bold', 'border-b-2', 'border-mauvesoft')
     const numberSpan = heading.querySelector('span')
     expect(numberSpan).toHaveClass('font-mono', 'text-mauve', 'text-[16px]')
