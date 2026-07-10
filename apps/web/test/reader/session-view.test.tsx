@@ -57,6 +57,33 @@ describe('SessionPage / SessionView', () => {
     )
   })
 
+  it('renders the Decisions section and its TOC entry when the payload has decisions', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    const withDecisions = {
+      ...validPayload,
+      decisions: [
+        {
+          id: 'd1',
+          q: 'Which cache?',
+          multi: false,
+          opts: [{ id: 'kv', label: 'KV' }, { id: 'none', label: 'None' }],
+        },
+      ],
+    }
+    const envelope = { ...validEnvelope, payload: JSON.stringify(withDecisions) }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(envelope))))
+
+    render(<SessionPage />)
+
+    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: '02 Decisions' })).toBeInTheDocument()
+    const el = document.getElementById('decide')
+    expect(el).not.toBeNull()
+    expect(el).toHaveAttribute('data-section', 'decide')
+    // TOC gets an appended "Decisions" entry pointing at the same section.
+    expect(screen.getAllByText('Decisions').length).toBeGreaterThan(1)
+  })
+
   it('shows protected-session card for encrypted sessions', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
     const encEnvelope = {
