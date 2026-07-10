@@ -1,13 +1,14 @@
 {
   "name": "brief",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": ["apps/*", "packages/*", "e2e"],
   "packageManager": "bun@1.2.19",
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "e2e": "bash e2e/run.sh",
     "format": "prettier --write ."
   },
   "devDependencies": {

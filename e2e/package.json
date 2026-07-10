@@ -1,0 +1,22 @@
+{
+  "name": "@brief/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "lint": "eslint tests playwright.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@brief/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@brief/config": "workspace:*",
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^20.17.0",
+    "eslint": "^9.20.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.30.0"
+  }
+}
