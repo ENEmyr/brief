@@ -122,6 +122,26 @@ describe('MermaidBlock', () => {
     const secondCallConfig = mermaidInitializeMock.mock.calls.at(1)?.[0]
     expect(firstCallConfig?.themeVariables).not.toEqual(secondCallConfig?.themeVariables)
   })
+
+  it('passes a DIFFERENT render id to each mermaid.render invocation (no same-id race across re-renders)', async () => {
+    mermaidRenderMock.mockResolvedValue({ svg: '<svg></svg>' })
+    useThemeMock.mockReturnValue({ theme: 'latte', toggle: vi.fn() })
+
+    const { rerender } = render(<MermaidBlock block={mermaidBlock} />)
+    await waitFor(() => expect(mermaidRenderMock).toHaveBeenCalledTimes(1))
+
+    useThemeMock.mockReturnValue({ theme: 'mocha', toggle: vi.fn() })
+    rerender(<MermaidBlock block={mermaidBlock} />)
+    await waitFor(() => expect(mermaidRenderMock).toHaveBeenCalledTimes(2))
+
+    const firstId = mermaidRenderMock.mock.calls.at(0)?.[0]
+    const secondId = mermaidRenderMock.mock.calls.at(1)?.[0]
+    expect(typeof firstId).toBe('string')
+    expect(firstId).not.toBe(secondId)
+    // Both ids must still be valid CSS ids (useId colons stripped).
+    expect(firstId).toMatch(/^mm-[a-zA-Z0-9-]+$/)
+    expect(secondId).toMatch(/^mm-[a-zA-Z0-9-]+$/)
+  })
 })
 
 describe('BlockRenderer routing (next/dynamic, ssr:false)', () => {

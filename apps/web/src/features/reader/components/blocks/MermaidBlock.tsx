@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
@@ -54,18 +54,39 @@ function cssId(id: string): string {
  * render still leaves an orphan `d<id>` measurement div behind in
  * document.body (mermaid only calls its own cleanup on the success path) —
  * we remove it ourselves in the catch block.
+ *
+ * The render id is unique PER INVOCATION (`mm-<useId>-r<n>` via a ref
+ * counter), not just per component instance. mermaid.render keys its temp
+ * DOM nodes in document.body by the id it's given, and its first step
+ * (removeExistingElements) deletes any existing nodes with that id — so two
+ * overlapping render() calls sharing one id (rapid theme toggle / code
+ * change while the first render is still in flight) would have the second
+ * call tear down the first call's in-use nodes mid-draw. A fresh id per
+ * invocation makes overlapping renders operate on disjoint DOM. The effect
+ * cleanup also removes that invocation's temp nodes, so a cancelled
+ * in-flight render can't strand them in document.body.
  */
 export function MermaidBlock({ block }: { block: MermaidBlockType }) {
   const rawId = useId()
   const mermaidId = cssId(rawId)
+  const renderSeq = useRef(0)
   const { theme } = useTheme()
   const [svg, setSvg] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    const callId = `${mermaidId}-r${++renderSeq.current}`
     setSvg(null)
     setFailed(false)
+
+    // mermaid.render(callId, ...) creates a temp `d<callId>` div (and the
+    // `<callId>` svg inside it) directly in document.body; it only removes
+    // them itself on the success path — see task-6-report.md.
+    const removeTempNodes = () => {
+      document.getElementById(`d${callId}`)?.remove()
+      document.getElementById(callId)?.remove()
+    }
 
     import('mermaid').then(async ({ default: mermaid }) => {
       if (cancelled) return
@@ -77,19 +98,22 @@ export function MermaidBlock({ block }: { block: MermaidBlockType }) {
         flowchart: { htmlLabels: false },
       })
       try {
-        const result = await mermaid.render(mermaidId, block.code)
+        const result = await mermaid.render(callId, block.code)
         if (!cancelled) setSvg(result.svg)
       } catch {
-        // mermaid leaves an orphan `d<id>` (and sometimes `<id>`) element in
-        // document.body when render() rejects — see task-6-report.md.
-        document.getElementById(`d${mermaidId}`)?.remove()
-        document.getElementById(mermaidId)?.remove()
+        removeTempNodes()
         if (!cancelled) setFailed(true)
       }
     })
 
     return () => {
       cancelled = true
+      // Best-effort: if this effect run's render was superseded while still
+      // in flight, its temp nodes may already exist — remove them. (If
+      // mermaid hasn't created them yet this is a no-op; a settle after
+      // cleanup is covered by the catch's removeTempNodes / mermaid's own
+      // success-path cleanup.)
+      removeTempNodes()
     }
   }, [block.code, mermaidId, theme])
 
