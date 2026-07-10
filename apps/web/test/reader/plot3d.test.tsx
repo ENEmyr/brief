@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { Block } from '@brief/schema'
 import { AXIS_FONT, PALETTES } from '@/features/reader/services/echarts'
-import { buildPlot3dOption, Plot3d } from '@/features/reader/components/blocks/Plot3d'
+import { buildPlot3dOption, Plot3d, __resetWebGLCacheForTests } from '@/features/reader/components/blocks/Plot3d'
 
 const palette = PALETTES.latte
 
@@ -28,6 +28,10 @@ beforeEach(() => {
     containerRef: { current: null },
     chartRef: { current: null },
   })
+  // hasWebGL() caches its probe at module scope (Plot3d.tsx) so different
+  // tests here can mock HTMLCanvasElement.prototype.getContext differently
+  // (jsdom-default vs mocked-available) — force a fresh probe each test.
+  __resetWebGLCacheForTests()
 })
 
 describe('Plot3d option builder', () => {
@@ -64,14 +68,12 @@ describe('Plot3d option builder', () => {
     const option = buildPlot3dOption(surfaceBlock, palette)
     const series = option.series as unknown as Array<{ type: string; data: [number, number, number][] }>
     expect(series[0]!.type).toBe('surface')
-    expect(series[0]!.data).toEqual(
-      expect.arrayContaining([
-        [0, 0, 1],
-        [1, 0, 2],
-        [0, 1, 3],
-        [1, 1, 4],
-      ]),
-    )
+    expect(series[0]!.data).toEqual([
+      [0, 0, 1],
+      [1, 0, 2],
+      [0, 1, 3],
+      [1, 1, 4],
+    ])
   })
 
   it('disables the surface wireframe', () => {

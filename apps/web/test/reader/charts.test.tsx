@@ -133,14 +133,12 @@ describe('Heatmap option builder', () => {
   it('maps values[][] to [xIdx,yIdx,value] triples', () => {
     const option = buildHeatmapOption(block, palette)
     const series = option.series as unknown as Array<{ data: [number, number, number][] }>
-    expect(series[0]!.data).toEqual(
-      expect.arrayContaining([
-        [0, 0, 1],
-        [1, 0, 5],
-        [0, 1, -2],
-        [1, 1, 8],
-      ]),
-    )
+    expect(series[0]!.data).toEqual([
+      [0, 0, 1],
+      [1, 0, 5],
+      [0, 1, -2],
+      [1, 1, 8],
+    ])
   })
 
   it('sets visualMap min/max to the true data min/max when negative values are present', () => {

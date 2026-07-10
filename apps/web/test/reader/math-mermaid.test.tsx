@@ -68,6 +68,17 @@ describe('MathBlock', () => {
       output: 'html',
     })
   })
+
+  it('does not show the Expand button while katex has not resolved yet, and shows it once rendered', async () => {
+    renderToStringMock.mockReturnValue('<span class="katex-html">RENDERED_MATH</span>')
+
+    render(<MathBlock block={mathBlock} />)
+
+    expect(screen.queryByLabelText('Expand diagram')).not.toBeInTheDocument()
+
+    await waitFor(() => expect(screen.getByText('RENDERED_MATH')).toBeInTheDocument())
+    expect(screen.getByLabelText('Expand diagram')).toBeInTheDocument()
+  })
 })
 
 describe('MermaidBlock', () => {
@@ -95,6 +106,17 @@ describe('MermaidBlock', () => {
     render(<MermaidBlock block={mermaidBlock} />)
 
     await waitFor(() => expect(screen.getByText('DIAGRAM')).toBeInTheDocument())
+  })
+
+  it('does not show the Expand button while mermaid has not resolved yet, and shows it once rendered', async () => {
+    mermaidRenderMock.mockResolvedValue({ svg: '<svg><text>DIAGRAM</text></svg>' })
+
+    render(<MermaidBlock block={mermaidBlock} />)
+
+    expect(screen.queryByLabelText('Expand diagram')).not.toBeInTheDocument()
+
+    await waitFor(() => expect(screen.getByText('DIAGRAM')).toBeInTheDocument())
+    expect(screen.getByLabelText('Expand diagram')).toBeInTheDocument()
   })
 
   it('falls back to the source in a plain pre with a warning note when mermaid rejects, and never throws', async () => {
