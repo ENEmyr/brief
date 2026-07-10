@@ -117,10 +117,10 @@ describe('BlockRenderer text family', () => {
   })
 
   it('falls back to JSON for not-yet-implemented types', () => {
-    // 'mermaid' and 'math' got real components in Plan 3 task 6 — use a
-    // still-unimplemented widget type here instead (see BlockRenderer's
-    // WIDGET_TYPES comment for what's left).
-    r({ type: 'heatmap', marker: 'HEATMAP_MARKER' } as unknown as Block)
-    expect(screen.getByText(/HEATMAP_MARKER/)).toBeInTheDocument()
+    // 'mermaid'/'math' (task 6) and 'bigo'/'heatmap'/'histogram'/'scatter'
+    // (task 7) all got real components — 'plot3d' is the only widget type
+    // still unimplemented (see BlockRenderer's WIDGET_TYPES comment).
+    r({ type: 'plot3d', marker: 'PLOT3D_MARKER' } as unknown as Block)
+    expect(screen.getByText(/PLOT3D_MARKER/)).toBeInTheDocument()
   })
 })
