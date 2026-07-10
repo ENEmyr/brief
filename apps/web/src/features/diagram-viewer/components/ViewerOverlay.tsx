@@ -1,5 +1,6 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import DOMPurify from 'dompurify'
 
 export interface ViewerOverlayProps {
   content: string | null
@@ -44,11 +45,25 @@ function ToolbarButton({
 /**
  * Fullscreen zoom/pan viewer for expanded diagrams. `content` is always the
  * serialized outerHTML of a diagram element this app itself rendered (see
- * useViewer) — never remote or user-supplied HTML — so injecting it via
- * dangerouslySetInnerHTML below does not introduce an XSS surface.
+ * useViewer) — never remote or user-supplied HTML. DOMPurify is applied as a
+ * defense-in-depth second layer at this single HTML sink, since later block
+ * types (e.g. mermaid-generated SVG) also pipe their markup through it.
  */
 export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
   const isOpen = content !== null
+
+  const safeHtml = useMemo(
+    () =>
+      content === null
+        ? null
+        : DOMPurify.sanitize(content, {
+            USE_PROFILES: { svg: true, svgFilters: true, html: true },
+            // transform-origin is not in DOMPurify's SVG allowlist but our
+            // diagram SVGs legitimately use it.
+            ADD_ATTR: ['transform-origin'],
+          }),
+    [content],
+  )
 
   const [z, setZ] = useState(1)
   const [tx, setTx] = useState(0)
@@ -247,8 +262,12 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
             transformOrigin: 'center',
           }}
           // See the component doc comment above: content is always our own
-          // rendered DOM, never remote/user HTML.
-          dangerouslySetInnerHTML={{ __html: content }}
+          // rendered DOM, never remote/user HTML, and safeHtml is that content
+          // additionally passed through DOMPurify as a second layer. The rule
+          // below is pattern-based (not taint-based), so it cannot see that
+          // the value is already sanitized.
+          // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+          dangerouslySetInnerHTML={{ __html: safeHtml ?? '' }}
         />
       </div>
 

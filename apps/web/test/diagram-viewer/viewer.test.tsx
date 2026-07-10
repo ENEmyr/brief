@@ -194,6 +194,31 @@ describe('ViewerOverlay', () => {
     expect(getTransformHost().style.transform).toBe('translate(0px, 0px) scale(1)')
   })
 
+  it('keeps a data-URI image intact through sanitization', () => {
+    const dataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=='
+    render(
+      <ViewerOverlay content={`<img data-testid="shot" src="${dataUri}" alt="" />`} onClose={vi.fn()} />,
+    )
+
+    const img = screen.getByTestId('shot')
+    expect(img.tagName).toBe('IMG')
+    expect(img).toHaveAttribute('src', dataUri)
+  })
+
+  it('strips script elements and event-handler attributes from injected content', () => {
+    render(
+      <ViewerOverlay
+        content={'<svg data-testid="evil" onload="window.pwned=true"><script>window.pwned=true</script></svg>'}
+        onClose={vi.fn()}
+      />,
+    )
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.querySelector('script')).toBeNull()
+    const svg = screen.getByTestId('evil')
+    expect(svg).not.toHaveAttribute('onload')
+  })
+
   it('wraps Tab focus between the first and last focusable element inside the dialog', () => {
     render(<ViewerOverlay content={SVG_CONTENT} onClose={vi.fn()} />)
 
