@@ -10,6 +10,13 @@ type MermaidBlockType = Extract<Block, { type: 'mermaid' }>
 // Literal Catppuccin hex values (not getComputedStyle — mermaid renders into
 // its own detached temp DOM node before we ever see the resulting markup, so
 // CSS custom properties on the document wouldn't be visible to it anyway).
+// Mermaid's own default is 16px, which renders visibly heavier than the
+// hand-rolled SVG blocks next to it (Erd/Seq/StateMachine/Layers all label at
+// 9-11.5px inside a scaled viewBox). Note this belongs in themeVariables, not
+// as a top-level `fontSize` on initialize(): with theme 'base' plus an explicit
+// themeVariables object, label sizing is read from here.
+const LABEL_FONT_SIZE = '12px'
+
 const THEME_VARIABLES = {
   latte: {
     background: '#ffffff',
@@ -18,6 +25,7 @@ const THEME_VARIABLES = {
     primaryBorderColor: '#8839ef',
     lineColor: '#6c6f85',
     fontFamily: 'IBM Plex Mono',
+    fontSize: LABEL_FONT_SIZE,
   },
   mocha: {
     background: '#1e1e2e',
@@ -26,7 +34,21 @@ const THEME_VARIABLES = {
     primaryBorderColor: '#cba6f7',
     lineColor: '#a6adc8',
     fontFamily: 'IBM Plex Mono',
+    fontSize: LABEL_FONT_SIZE,
   },
+} as const
+
+// Layout knobs. Left at mermaid's defaults, dagre gets one unwrapped line per
+// label (htmlLabels is off, so a label is a single SVG text run unless
+// wrappingWidth forces a break), which inflates node widths and spreads the
+// graph out until it is hard to read. Wrapping the labels is what actually
+// tightens the layout; the spacing values just close the gaps that leaves.
+const FLOWCHART_CONFIG = {
+  htmlLabels: false,
+  wrappingWidth: 160,
+  nodeSpacing: 36,
+  rankSpacing: 44,
+  padding: 8,
 } as const
 
 const FALLBACK_PRE_CLASS = 'm-0 overflow-x-auto p-4 font-mono text-[12.5px] leading-[1.7] text-sub'
@@ -107,7 +129,7 @@ export function MermaidBlock({ block }: { block: MermaidBlockType }) {
         // top-level key is the one that switches labels to pure SVG text.
         // See the component doc comment.
         htmlLabels: false,
-        flowchart: { htmlLabels: false },
+        flowchart: FLOWCHART_CONFIG,
       })
       try {
         const result = await mermaid.render(callId, block.code)
