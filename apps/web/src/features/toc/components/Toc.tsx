@@ -99,7 +99,7 @@ export function Toc({
                 type="button"
                 onClick={() => goToSection(s.id)}
                 aria-current={isActive ? 'true' : undefined}
-                className={`mb-0.5 flex items-center gap-2 whitespace-nowrap rounded-lg border-l-2 px-[9px] py-[5px] text-[12.5px] ${
+                className={`mb-0.5 flex w-full items-center gap-2 overflow-hidden whitespace-nowrap rounded-lg border-l-2 px-[9px] py-[5px] text-left text-[12.5px] transition-colors hover:bg-mauvesoft ${
                   isActive
                     ? 'border-mauve bg-mauvesoft font-semibold text-mauve'
                     : 'border-transparent text-sub'
@@ -109,7 +109,11 @@ export function Toc({
                 {showTitle && (
                   <>
                     {' '}
-                    <span className="overflow-hidden text-ellipsis">{s.title}</span>
+                    {/* min-w-0 is what makes the ellipsis work: a flex item
+                        defaults to min-width:auto, so without this the span
+                        refuses to shrink below its (nowrap) min-content width,
+                        the box never clips, and text-ellipsis never fires. */}
+                    <span className="min-w-0 overflow-hidden text-ellipsis">{s.title}</span>
                   </>
                 )}
               </button>
@@ -132,7 +136,7 @@ export function Toc({
                 onClick={() => goToSection(s.id)}
                 aria-current={isActive ? 'true' : undefined}
                 aria-label={`${s.no}. ${s.title}`}
-                className={`block w-full py-1.5 text-center font-mono text-[11px] ${
+                className={`block w-full rounded-md py-1.5 text-center font-mono text-[11px] transition-colors hover:bg-mauvesoft hover:text-mauve ${
                   isActive ? 'font-bold text-mauve' : 'text-faint'
                 }`}
               >
@@ -156,12 +160,15 @@ export function Toc({
                 type="button"
                 onClick={() => goToSection(s.id)}
                 aria-current={isActive ? 'true' : undefined}
-                className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-[9px] text-left text-[14px] ${
+                className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-[9px] text-left text-[14px] transition-colors hover:bg-mauvesoft ${
                   isActive ? 'bg-mauvesoft text-mauve' : 'text-text'
                 }`}
               >
-                <span className="font-mono text-faint">{pad(s.no)}</span>
-                <span>{s.title}</span>
+                <span className="shrink-0 font-mono text-faint">{pad(s.no)}</span>
+                {/* The drawer wraps rather than truncates, so the title needs
+                    both min-w-0 (to shrink) and break-words (to break a long
+                    unspaced run, e.g. Thai, instead of overflowing the panel). */}
+                <span className="min-w-0 break-words">{s.title}</span>
               </button>
             </li>
           )
@@ -200,7 +207,7 @@ export function Toc({
                 type="button"
                 onClick={handleToggleCollapsed}
                 aria-label={collapsed ? 'Expand contents' : 'Collapse contents'}
-                className="text-[14px] leading-none text-faint"
+                className="text-[14px] leading-none text-faint transition-colors hover:text-mauve"
               >
                 {collapsed ? '»' : '«'}
               </button>

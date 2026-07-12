@@ -112,7 +112,7 @@ export function DecisionSection({
           />
         </div>
         <span
-          className={`font-mono text-[12px] font-semibold ${done === total ? 'text-green' : 'text-sub'}`}
+          className={`shrink-0 whitespace-nowrap font-mono text-[12px] font-semibold ${done === total ? 'text-green' : 'text-sub'}`}
         >
           Answered {done}/{total}
         </span>
@@ -126,12 +126,17 @@ export function DecisionSection({
                 type="button"
                 onClick={() => goQ(i)}
                 aria-label={`Question ${d.id}`}
+                title={d.id}
                 aria-current={active ? 'true' : undefined}
-                className={`h-[26px] w-[26px] rounded-[7px] border font-mono text-[10.5px] max-[879px]:min-h-11 max-[879px]:min-w-11 ${
+                className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-[7px] border font-mono text-[10.5px] leading-none transition-colors hover:border-mauve max-[879px]:min-h-11 max-[879px]:min-w-11 ${
                   active ? 'border-mauve font-bold' : 'border-line font-normal'
                 } ${answered ? 'bg-mauvesoft text-mauve' : 'bg-card text-faint'}`}
               >
-                {d.id.slice(1)}
+                {/* The position in the stepper, not the id. Ids are free-form
+                    labels (`d1-reviewer-chain`), so the old `id.slice(1)` spilled
+                    a whole slug out of this 26px box. The full id stays reachable
+                    via aria-label and the tooltip. */}
+                {i + 1}
               </button>
             )
           })}

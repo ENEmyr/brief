@@ -68,6 +68,23 @@ describe('DecisionSection', () => {
     expect(progress).toHaveAttribute('aria-valuemax', '2')
   })
 
+  it('labels jump buttons with the stepper position, not a slice of the id', () => {
+    // Real ids are free-form labels, not "D1"-shaped. Rendering id.slice(1)
+    // spilled the whole slug out of the 26px button; the position always fits.
+    const slugged: Decision[] = [
+      { ...decisions[0]!, id: 'd1-reviewer-chain' },
+      { ...decisions[1]!, id: 'd2-360-readiness' },
+    ]
+    renderSection(slugged)
+
+    const first = screen.getByRole('button', { name: 'Question d1-reviewer-chain' })
+    expect(first).toHaveTextContent('1')
+    expect(first).toHaveAttribute('title', 'd1-reviewer-chain')
+    expect(first).not.toHaveTextContent('reviewer-chain')
+
+    expect(screen.getByRole('button', { name: 'Question d2-360-readiness' })).toHaveTextContent('2')
+  })
+
   it('renders the detail sub-line only for options that have one', () => {
     renderSection()
     expect(screen.getByText('Fast, eventually consistent')).toBeInTheDocument()
