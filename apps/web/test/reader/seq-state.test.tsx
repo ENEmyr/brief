@@ -36,16 +36,21 @@ const stateBlock: Extract<Block, { type: 'state' }> = {
 const r = (block: Block) => render(<BlockRenderer block={block} />)
 
 describe('Seq block', () => {
-  it('renders an actor box and lifeline per actor, positioned across the viewBox by x(i) = 70 + i * (340 / (n-1))', () => {
+  it('renders an actor box and lifeline per actor, evenly spaced across a content-sized viewBox', () => {
     const { container } = r(seqBlock)
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
     expect(svg?.querySelectorAll('rect').length).toBeGreaterThanOrEqual(seqBlock.actors.length)
-    const lifelines = svg?.querySelectorAll('line[stroke-dasharray="3 3"]')
-    expect(lifelines?.length).toBe(seqBlock.actors.length)
-    // 4 actors: x(0)=70, x(3)=70+3*(340/3)=410
-    expect(lifelines?.[0]?.getAttribute('x1')).toBe('70')
-    expect(lifelines?.[seqBlock.actors.length - 1]?.getAttribute('x1')).toBe('410')
+    const lifelines = Array.from(svg?.querySelectorAll('line[stroke-dasharray="3 3"]') ?? [])
+    expect(lifelines.length).toBe(seqBlock.actors.length)
+
+    const xs = lifelines.map((l) => Number(l.getAttribute('x1')))
+    const lanes = xs.slice(1).map((x, i) => x - (xs[i] as number))
+    lanes.forEach((lane) => expect(lane).toBeCloseTo(lanes[0] as number, 5))
+    expect(lanes[0]).toBeGreaterThan(0)
+    // The last lifeline stays inside the diagram the layout actually sized.
+    expect(xs[xs.length - 1]).toBeLessThan(Number(svg?.getAttribute('width')))
+
     seqBlock.actors.forEach((a) => expect(screen.getAllByText(a).length).toBeGreaterThan(0))
   })
 

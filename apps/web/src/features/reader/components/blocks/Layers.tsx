@@ -4,6 +4,7 @@ import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
 import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
+import { svgTextStyle } from '../../lib/svgText'
 
 type LayersBlock = Extract<Block, { type: 'layers' }>
 type LayerDef = LayersBlock['layers'][number]
@@ -229,9 +230,8 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
                   x={(x1 + x2) / 2}
                   y={(y1 + y2) / 2 - 4}
                   textAnchor="middle"
-                  fontFamily="'IBM Plex Mono', monospace"
                   fontSize={9}
-                  style={{ fill: 'var(--ctp-subtext0)' }}
+                  style={svgTextStyle({ fill: 'var(--ctp-subtext0)' })}
                 >
                   {edge.label}
                 </text>
@@ -257,10 +257,9 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
                 x={n.x + n.w / 2}
                 y={n.y + 21}
                 textAnchor="middle"
-                fontFamily="'IBM Plex Mono', monospace"
                 fontSize={11}
                 fontWeight={600}
-                style={{ fill: colorVar }}
+                style={svgTextStyle({ fill: colorVar })}
               >
                 {n.label}
               </text>
