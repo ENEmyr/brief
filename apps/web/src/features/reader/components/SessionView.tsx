@@ -178,7 +178,11 @@ function SessionReady({
               drawerOpen={tocDrawerOpen}
               onCloseDrawer={() => setTocDrawerOpen(false)}
             />
-            <div>
+            {/* min-w-0: a grid item defaults to min-width:auto, so without this
+                the article column cannot shrink below its widest child and one
+                wide table or diagram pushes the whole page into a horizontal
+                scroll. Wide blocks scroll inside their own box instead. */}
+            <div className="min-w-0">
               {data.payload.sections.map((s, si) => (
                 <SectionView key={s.id} section={s} sid={si} onMarkClick={handleMarkClick} />
               ))}

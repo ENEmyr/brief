@@ -147,6 +147,20 @@
   --code-bg: #11111b;
 }
 
+/*
+ * Tailwind v4's Preflight dropped the `button { cursor: pointer }` rule that v3
+ * shipped, so every control falls back to the UA arrow and reads as inert.
+ * Restore it once here instead of per button. This lands in the `base` layer,
+ * so any explicit `cursor-*` utility still wins.
+ */
+@layer base {
+  button:not(:disabled),
+  summary,
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+}
+
 html,
 body {
   background: var(--ctp-page);

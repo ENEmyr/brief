@@ -21,9 +21,9 @@ export function Coverage({ block }: { block: Extract<Block, { type: 'coverage' }
       {block.items.map((item, i) => (
         <div
           key={i}
-          className="grid grid-cols-1 min-[880px]:grid-cols-[190px_1fr_128px] items-center gap-2.5 mb-2 text-[12.5px]"
+          className="grid grid-cols-1 min-[880px]:grid-cols-[minmax(0,190px)_1fr_minmax(0,160px)] items-center gap-2.5 mb-2 text-[12.5px]"
         >
-          <span className="font-semibold text-text">{item.label}</span>
+          <span className="break-words font-semibold text-text">{item.label}</span>
           <div
             role="img"
             aria-label={`${item.label}: ${item.status}`}
@@ -31,7 +31,10 @@ export function Coverage({ block }: { block: Extract<Block, { type: 'coverage' }
           >
             <div className={`h-full ${barFill[item.status]}`} />
           </div>
-          <span className="hidden min-[880px]:block font-mono text-[11px] text-sub text-right whitespace-nowrap">
+          {/* No whitespace-nowrap: a long note (an unspaced Thai run, say) has
+              nowhere to go in a fixed column and paints straight out of the
+              figure. Let it wrap, and break the run if it has no break points. */}
+          <span className="hidden break-words min-[880px]:block font-mono text-[11px] text-sub text-right">
             {item.note ?? ''}
           </span>
         </div>
