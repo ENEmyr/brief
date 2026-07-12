@@ -104,36 +104,43 @@ export function computeSeqLayout(actorNames: string[], steps: SeqStep[]): SeqLay
     pillWidth: pills[i] ?? PILL_MIN_WIDTH,
   }))
 
-  const indexOf = new Map(actorNames.map((a, i) => [a, i]))
+  const indexOf = new Map(actorNames.map((name, i) => [name, i]))
+  const selfLabelRoom = Math.max(
+    SELF_LABEL_MIN_WIDTH,
+    SELF_LABEL_LANES * lane - SELF_LABEL_OFFSET - LABEL_INSET,
+  )
+
+  // Each step is stacked under the previous one, so the row cursor and the right
+  // edge accumulate across the loop.
   let cursor = PILL_Y + PILL_HEIGHT + 12
   let rightEdge = actors.reduce((r, a) => Math.max(r, a.x + a.pillWidth / 2), 0)
+  const laid: SeqStepLayout[] = []
 
-  const laid: SeqStepLayout[] = steps.map((s) => {
-    const from = actors[indexOf.get(s.from) ?? 0]
-    const to = actors[indexOf.get(s.to) ?? 0]
-    const x1 = from?.x ?? left
-    const x2 = to?.x ?? left
-    const self = s.from === s.to
+  for (const s of steps) {
+    const fromIndex = indexOf.get(s.from) ?? 0
+    const toIndex = indexOf.get(s.to) ?? 0
+    const x1 = actors[fromIndex]?.x ?? left
+    const x2 = actors[toIndex]?.x ?? left
 
-    if (self) {
-      const room = Math.max(SELF_LABEL_MIN_WIDTH, SELF_LABEL_LANES * lane - SELF_LABEL_OFFSET - LABEL_INSET)
-      const lines = wrapText(s.label, room, LABEL_FONT_SIZE)
+    if (s.from === s.to) {
+      const lines = wrapText(s.label, selfLabelRoom, LABEL_FONT_SIZE)
       const stack = (lines.length - 1) * LINE_HEIGHT
       const half = Math.max(12, stack / 2 + 8)
       const y = cursor + half
       const labelX = x1 + SELF_LABEL_OFFSET
       cursor = y + half + ROW_GAP
       rightEdge = Math.max(rightEdge, labelX + widestLine(lines, LABEL_FONT_SIZE))
-      return { self, x1, x2, y, lines, labelX, labelY: y - stack / 2 + 4, centered: false }
+      laid.push({ self: true, x1, x2, y, lines, labelX, labelY: y - stack / 2 + 4, centered: false })
+      continue
     }
 
-    const span = Math.max(1, Math.abs((indexOf.get(s.to) ?? 0) - (indexOf.get(s.from) ?? 0)))
+    const span = Math.max(1, Math.abs(toIndex - fromIndex))
     const lines = wrapText(s.label, span * lane - LABEL_INSET, LABEL_FONT_SIZE)
     const stack = (lines.length - 1) * LINE_HEIGHT
     const y = cursor + stack + BASELINE_LIFT + ASCENT
     cursor = y + 4 + ROW_GAP
-    return {
-      self,
+    laid.push({
+      self: false,
       x1,
       x2,
       y,
@@ -141,8 +148,8 @@ export function computeSeqLayout(actorNames: string[], steps: SeqStep[]): SeqLay
       labelX: (x1 + x2) / 2,
       labelY: y - BASELINE_LIFT - stack,
       centered: true,
-    }
-  })
+    })
+  }
 
   const height = Math.max(cursor - ROW_GAP, PILL_Y + PILL_HEIGHT + 30) + 12
   return {

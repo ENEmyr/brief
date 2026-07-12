@@ -53,6 +53,42 @@ function SeqControls({ step, max, onPrev, onNext }: SeqControlsProps) {
   )
 }
 
+interface StepArrowProps {
+  step: SeqStepLayout
+  color: string
+  dashed: boolean
+  markerId: string
+}
+
+/** The self-loop bracket, or the straight arrow between two lifelines. */
+function StepArrow({ step, color, dashed, markerId }: StepArrowProps) {
+  if (step.self) {
+    return (
+      <path
+        d={`M${step.x1} ${step.y - 8} h${SELF_LOOP_WIDTH} v16 h-${SELF_LOOP_WIDTH}`}
+        fill="none"
+        strokeWidth={1.6}
+        style={{ stroke: color }}
+        markerEnd={`url(#${markerId})`}
+      />
+    )
+  }
+
+  const dir = step.x2 > step.x1 ? 1 : -1
+  return (
+    <line
+      x1={step.x1 + dir * 6}
+      y1={step.y}
+      x2={step.x2 - dir * 6}
+      y2={step.y}
+      strokeWidth={1.8}
+      strokeDasharray={dashed ? '5 3' : undefined}
+      style={{ stroke: color }}
+      markerEnd={`url(#${markerId})`}
+    />
+  )
+}
+
 /** A wrapped label: one <tspan> per line, re-anchored at x so it stays aligned. */
 function StepLabel({ step, fill }: { step: SeqStepLayout; fill: string }) {
   return (
@@ -88,11 +124,10 @@ function StepLabel({ step, fill }: { step: SeqStepLayout; fill: string }) {
 export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
   const markerId = useId()
   const actors = block.actors
-  const blockSteps = block.steps
   const steps = useMemo(() => {
     const known = new Set(actors)
-    return blockSteps.filter((s) => known.has(s.from) && known.has(s.to))
-  }, [actors, blockSteps])
+    return block.steps.filter((s) => known.has(s.from) && known.has(s.to))
+  }, [actors, block.steps])
   const [step, setStep] = useState(steps.length)
 
   const layout = useMemo(() => computeSeqLayout(actors, steps), [actors, steps])
@@ -146,40 +181,16 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
           </g>
         ))}
         {layout.steps.map((s, i) => {
-          const on = i < step
           const colorName = STEP_COLOR_NAMES[i % STEP_COLOR_NAMES.length]
           const colorVar = `var(--ctp-${colorName})`
           const isRed = colorName === 'red'
+          // A red arrow tints its own label; a self-loop label stays neutral.
+          const labelFill = isRed && !s.self ? colorVar : 'var(--ctp-subtext0)'
 
-          if (s.self) {
-            return (
-              <g key={i} style={{ opacity: on ? 1 : 0.2, transition: 'opacity .3s' }}>
-                <path
-                  d={`M${s.x1} ${s.y - 8} h${SELF_LOOP_WIDTH} v16 h-${SELF_LOOP_WIDTH}`}
-                  fill="none"
-                  strokeWidth={1.6}
-                  style={{ stroke: colorVar }}
-                  markerEnd={`url(#${markerId})`}
-                />
-                <StepLabel step={s} fill="var(--ctp-subtext0)" />
-              </g>
-            )
-          }
-
-          const dir = s.x2 > s.x1 ? 1 : -1
           return (
-            <g key={i} style={{ opacity: on ? 1 : 0.2, transition: 'opacity .3s' }}>
-              <line
-                x1={s.x1 + dir * 6}
-                y1={s.y}
-                x2={s.x2 - dir * 6}
-                y2={s.y}
-                strokeWidth={1.8}
-                strokeDasharray={isRed ? '5 3' : undefined}
-                style={{ stroke: colorVar }}
-                markerEnd={`url(#${markerId})`}
-              />
-              <StepLabel step={s} fill={isRed ? colorVar : 'var(--ctp-subtext0)'} />
+            <g key={i} style={{ opacity: i < step ? 1 : 0.2, transition: 'opacity .3s' }}>
+              <StepArrow step={s} color={colorVar} dashed={isRed} markerId={markerId} />
+              <StepLabel step={s} fill={labelFill} />
             </g>
           )
         })}

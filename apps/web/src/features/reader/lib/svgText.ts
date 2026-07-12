@@ -54,6 +54,10 @@ export function estimateTextWidth(text: string, fontSize: number): number {
   return advanceCount(text) * fontSize * ADVANCE_EM * WIDTH_SLACK
 }
 
+/** Null where Intl.Segmenter is missing, which drops us back to a space split. */
+const WORD_SEGMENTER =
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter('th', { granularity: 'word' }) : null
+
 /**
  * Break `text` into line-break candidates. Thai writes without spaces, so a
  * space-based split treats a whole sentence as one unbreakable word; the ICU
@@ -61,14 +65,13 @@ export function estimateTextWidth(text: string, fontSize: number): number {
  * Punctuation is glued to the surrounding word so "1-5" never splits.
  */
 function chunk(text: string): string[] {
-  const segmenter = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter('th', { granularity: 'word' }) : null
-  if (!segmenter) return text.split(/(?<=\s)/).filter(Boolean)
+  if (!WORD_SEGMENTER) return text.split(/(?<=\s)/).filter(Boolean)
 
   const chunks: string[] = []
   let current = ''
   let afterSpace = false
   let afterWord = false
-  for (const { segment, isWordLike } of segmenter.segment(text)) {
+  for (const { segment, isWordLike } of WORD_SEGMENTER.segment(text)) {
     const breakHere = afterSpace || (isWordLike === true && afterWord)
     if (breakHere && current !== '') {
       chunks.push(current)
