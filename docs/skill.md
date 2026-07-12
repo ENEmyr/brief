@@ -8,7 +8,9 @@ Install the skill:
 npx skills add ENEmyr/brief
 ```
 
-Once installed, the skill teaches the agent to author a payload, validate it against the schema, POST it to `https://brief-api.algoryth.me/api/session`, and hand the returned URL to the human. Everything the skill does can also be done by hand with the [API reference](api.md).
+Update an installed copy with `npx skills update brief`. The skill carries a generated copy of the payload schema, so an old copy describes old block types; refresh it when this repository adds any.
+
+Once installed, the skill teaches the agent to author a payload, validate it offline against the schema it ships with, POST it to `https://brief-api.algoryth.me/api/session`, and hand the returned URL to the human. Everything the skill does can also be done by hand with the [API reference](api.md).
 
 ## Authoring workflow
 
@@ -16,8 +18,8 @@ Author in this order. The payload is immutable once published, so the verificati
 
 1. Research and verify the content first. Read the actual code, run the actual commands, collect the real numbers. A decision document full of guesses wastes the reader's judgment.
 2. Structure the material into sections and choose block types. Each section is a numbered top-level division with an id, a title, and an ordered list of blocks. Prefer the specific block over prose: a comparison belongs in a `compare` block, numbers belong in `stat` or `table` blocks, and flows belong in `seq` or `state` blocks.
-3. Formulate the decisions. Each decision is a question with at least two options; add `why` context, a comparison table (`cmp`), or a diagram (`dia`) when the choice is not obvious from the document alone.
-4. Validate against the schema in `packages/schema/src/payload.ts` (the `payloadSchema` Zod export). The API rejects invalid payloads with a 400 listing the failing paths, but validating locally gives faster and fuller feedback.
+3. Formulate the decisions. Each decision is a question with at least two options; add `why` context or a comparison table (`cmp`) when the choice is not obvious from the document alone. Note that a decision's `dia` is a plain string label, rendered as `[diagram: <label>]`, and not a diagram specification; a real diagram belongs in a `seq`, `state`, `layers`, or `mermaid` block in the section that sets the decision up.
+4. Validate before publishing. The installed skill ships an offline validator, `node <skill-dir>/validate.mjs payload.json`, which reads a copy of the payload schema generated from `packages/schema/src/payload.ts` and reports each failing path. The API also rejects an invalid payload with a 400 listing the failing paths, but it reports at most ten of them and each attempt costs a request against a rate limit of ten per minute.
 5. POST the payload and deliver the returned `url` to the human. Keep the `id`; the agent can later re-read the published document as markdown from `/api/session/<id>/raw`. The raw export contains only the payload, not the reader's annotations or answers; those come back to the agent through the reply prompt the reader copies out of the page.
 
 ## Block types

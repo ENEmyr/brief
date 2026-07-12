@@ -16,6 +16,8 @@ Install the skill:
 npx skills add ENEmyr/brief
 ```
 
+The skill tracks the payload schema, so pull the current version with `npx skills update brief` when the block types change.
+
 Or call the API directly. A session is a JSON payload with a title, one or more sections of blocks, and an optional list of decisions:
 
 ```bash
