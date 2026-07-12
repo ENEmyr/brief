@@ -64,9 +64,9 @@ function SessionReady({
   data: SessionData & { payload: NonNullable<SessionData['payload']> }
   /**
    * Set once the reader has decrypted a protected session's payload for this
-   * page view (memory-only, re-locks on navigation/reload). Hides the Save
+   * page view (memory-only, re-locks on navigation/reload). Hides the Archive
    * button entirely -- the envelope is already encrypted, so there is
-   * nothing new to save -- and swaps the "saved" chip for a "protected" one.
+   * nothing new to save -- and swaps the "archived" chip for a "protected" one.
    */
   protectedSession?: boolean
 }) {
@@ -83,17 +83,17 @@ function SessionReady({
   // Local, display-only override -- deliberately NOT written back into `data`
   // (or anything the outer SessionView's `data.encrypted` render gate reads).
   // After an encrypt-save, SessionReady keeps rendering the CURRENT decrypted
-  // payload already in memory; only the "saved" chip reflects the new status.
+  // payload already in memory; only the "archived" chip reflects the new status.
   // Mutating `data.encrypted` here would make the component fall through to
   // the "Protected session" placeholder on next render, which would
   // incorrectly blank a doc the reader is actively viewing.
   const [savedOverride, setSavedOverride] = useState(false)
   const saved = savedOverride || data.saved
-  let savedLabel: 'protected' | 'saved' | undefined
+  let savedLabel: 'protected' | 'archived' | undefined
   if (protectedSession) {
     savedLabel = 'protected'
   } else if (saved) {
-    savedLabel = 'saved'
+    savedLabel = 'archived'
   }
 
   // bug-250: an in-view encrypt save purges the server's plaintext state:<id>

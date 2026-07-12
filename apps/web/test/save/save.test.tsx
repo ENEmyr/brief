@@ -73,17 +73,17 @@ describe('saveSession (api.ts)', () => {
     expect(result).toEqual({ ok: false, error: 'Too many attempts - try again in a minute', status: 429 })
   })
 
-  it('maps other error statuses to "Save failed"', async () => {
+  it('maps other error statuses to "Archive failed"', async () => {
     stubFetch({ status: 500 })
     const result = await saveSession('sess1', { mode: 'plain' })
-    expect(result).toEqual({ ok: false, error: 'Save failed', status: 500 })
+    expect(result).toEqual({ ok: false, error: 'Archive failed', status: 500 })
   })
 
-  it('maps a network failure to "Save failed"', async () => {
+  it('maps a network failure to "Archive failed"', async () => {
     stubFetch(new Error('network down'))
     const result = await saveSession('sess1', { mode: 'plain' })
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('Save failed')
+    if (!result.ok) expect(result.error).toBe('Archive failed')
   })
 })
 
@@ -133,9 +133,9 @@ function stubFetchWithPendingPut() {
 describe('SaveModal', () => {
   it('renders the dialog with plain mode selected by default', () => {
     renderModal()
-    expect(screen.getByRole('dialog', { name: 'Save this doc' })).toBeInTheDocument()
-    expect(screen.getByText(/Saving keeps this doc for 90 days/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    expect(screen.getByRole('dialog', { name: 'Archive this doc' })).toBeInTheDocument()
+    expect(screen.getByText(/Archiving keeps this doc for 90 days/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeEnabled()
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
   })
 
@@ -143,67 +143,67 @@ describe('SaveModal', () => {
     stubFetch({ status: 200, body: { saved: true, encrypted: false, expiresAt: 1 } })
     const { onSaved, onClose } = renderModal()
 
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
 
     expect(onSaved).toHaveBeenCalledWith('plain')
     expect(onClose).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved'))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived'))
   })
 
-  it('selecting "Save with password" reveals the password fields and disables submit until valid', () => {
+  it('selecting "Archive with password" reveals the password fields and disables submit until valid', () => {
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
 
-    expect(screen.getByRole('button', { name: 'Save with password' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Archive with password' })).toHaveAttribute('aria-pressed', 'true')
     const passwordInput = screen.getByLabelText('Password')
     expect(passwordInput).toHaveFocus()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeDisabled()
     expect(screen.getByText(/never leaves this device/)).toBeInTheDocument()
   })
 
   it('shows an inline hint for a too-short password and keeps submit disabled', () => {
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'short' } })
 
     expect(screen.getByText(/at least 8 characters/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeDisabled()
   })
 
   it('shows an inline mismatch error when confirm does not match password', () => {
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password124' } })
 
     expect(screen.getByText(/do not match/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeDisabled()
   })
 
   it('enables submit once password and confirm match and meet the minimum length', () => {
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
-    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeEnabled()
   })
 
   it('encrypt path: calls encryptPayload then saveSession with mode encrypt + encParams, toasts, and closes', async () => {
     stubFetch({ status: 200, body: { saved: true, encrypted: true, expiresAt: 1 } })
     const { onSaved, onClose } = renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
     // Real PBKDF2 (600k iterations) runs here, so the submit handler's promise
     // outlives the click event itself -- wait for the outcome instead of
     // asserting immediately after act(), same as the busy-state test below.
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith('encrypt'))
     expect(onClose).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved with password'))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived with password'))
   })
 
   it('shows "Encrypting…" and disables submit while PBKDF2/save is in flight', async () => {
@@ -217,11 +217,11 @@ describe('SaveModal', () => {
       ),
     )
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Encrypting…' })).toBeDisabled())
 
@@ -231,14 +231,14 @@ describe('SaveModal', () => {
     // "window is not defined" as an unhandled rejection that only surfaced
     // in CI's stricter timing (not reproduced by a handful of local runs).
     resolveFetch(new Response(JSON.stringify({ saved: true, encrypted: true, expiresAt: 1 }), { status: 200 }))
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved with password'))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived with password'))
   })
 
   it('renders a 409 error inline without closing the modal', async () => {
     stubFetch({ status: 409 })
     const { onClose } = renderModal()
 
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Already protected')
     expect(onClose).not.toHaveBeenCalled()
@@ -248,15 +248,15 @@ describe('SaveModal', () => {
     stubFetch({ status: 413 })
     const { onClose } = renderModal()
 
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Document too large to encrypt')
     expect(onClose).not.toHaveBeenCalled()
   })
 
   it('pre-checks projected ciphertext size and skips crypto entirely when too large', async () => {
-    // ReaderStateProvider fires its own KV-sync GET on mount, independent of Save --
-    // stub it to succeed so the only thing left to assert is that Save never PUTs.
+    // ReaderStateProvider fires its own KV-sync GET on mount, independent of Archive --
+    // stub it to succeed so the only thing left to assert is that Archive never PUTs.
     const fetchMock = stubFetch({ status: 200, body: { state: null } })
     const hugePayload: Payload = {
       ...payload,
@@ -280,11 +280,11 @@ describe('SaveModal', () => {
         </ExportProvider>
       </ReaderStateProvider>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Document too large to encrypt')
     expect(fetchMock.mock.calls.every(([, init]) => (init as RequestInit | undefined)?.method !== 'PUT')).toBe(true)
@@ -307,7 +307,7 @@ describe('SaveModal', () => {
 
   it('Cancel closes the modal without saving', () => {
     // ReaderStateProvider fires its own KV-sync GET on mount, independent of
-    // Save -- assert no PUT (the save call) fires, not "no fetch at all".
+    // Archive -- assert no PUT (the save call) fires, not "no fetch at all".
     const fetchMock = stubFetch({ status: 200, body: { state: null } })
     const { onClose } = renderModal()
 
@@ -322,10 +322,10 @@ describe('SaveModal cancel during an in-flight save', () => {
   it('cancel during a pending encrypt PUT: no toast/onSaved, onBackgroundSaveSettled("encrypt") when it later resolves ok', async () => {
     const { resolvePut, putFired } = stubFetchWithPendingPut()
     const { onSaved, onClose, onBackgroundSaveSettled } = renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
 
     // Wait for the real PBKDF2 to finish and the PUT to actually be in flight.
     await waitFor(() => expect(putFired()).toBe(true))
@@ -346,7 +346,7 @@ describe('SaveModal cancel during an in-flight save', () => {
   it('cancel during a pending plain PUT: no toast/onSaved, onBackgroundSaveSettled("plain") when it later resolves ok', async () => {
     const { resolvePut, putFired } = stubFetchWithPendingPut()
     const { onSaved, onClose, onBackgroundSaveSettled } = renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
 
     await waitFor(() => expect(putFired()).toBe(true))
 
@@ -364,7 +364,7 @@ describe('SaveModal cancel during an in-flight save', () => {
   it('a PUT that fails after cancel fires nothing: no settled callback, no error UI, no toast', async () => {
     const { resolvePut, putFired } = stubFetchWithPendingPut()
     const { onSaved, onClose, onBackgroundSaveSettled } = renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
 
     await waitFor(() => expect(putFired()).toBe(true))
 
@@ -399,10 +399,10 @@ describe('SaveModal cancel during an in-flight save', () => {
       </StrictMode>,
     )
 
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Save' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith('plain'))
     expect(onClose).toHaveBeenCalled()
-    expect(screen.getByRole('status')).toHaveTextContent('Saved')
+    expect(screen.getByRole('status')).toHaveTextContent('Archived')
   })
 })

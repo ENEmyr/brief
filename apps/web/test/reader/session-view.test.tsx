@@ -110,7 +110,7 @@ describe('SessionPage / SessionView', () => {
     expect(screen.queryByText(/arrives in a later release/i)).not.toBeInTheDocument()
   })
 
-  it('unlocking a protected session (real WebCrypto round trip) renders the ready view with the decrypted payload, no Save button, and a "protected" chip', async () => {
+  it('unlocking a protected session (real WebCrypto round trip) renders the ready view with the decrypted payload, no Archive button, and a "protected" chip', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
     const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
     const encEnvelope = {
@@ -130,7 +130,7 @@ describe('SessionPage / SessionView', () => {
 
     await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
     expect(screen.getByText('Hello world')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
     expect(screen.getByText('protected')).toBeInTheDocument()
   })
 
@@ -188,23 +188,23 @@ describe('SessionPage / SessionView', () => {
     expect(screen.getByLabelText('Password')).toHaveValue('')
   })
 
-  it('Save button opens SaveModal, and a plain save shows the saved chip without losing the doc', async () => {
+  it('Archive button opens SaveModal, and a plain save shows the archived chip without losing the doc', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
 
     render(<SessionPage />)
     await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    const dialog = screen.getByRole('dialog', { name: 'Save this doc' })
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
 
-    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Save' })))
+    await act(async () => fireEvent.click(within(dialog).getByRole('button', { name: 'Archive' })))
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Save this doc' })).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Archive this doc' })).not.toBeInTheDocument())
     // The doc must still be rendered -- encrypt/plain save must never blank the reader.
     expect(screen.getByText('Test Doc')).toBeInTheDocument()
     expect(screen.getByText('Hello world')).toBeInTheDocument()
-    expect(screen.getByText('saved')).toBeInTheDocument()
+    expect(screen.getByText('archived')).toBeInTheDocument()
   })
 
   it('an encrypt save keeps the CURRENT decrypted payload on screen (does not drop to the protected-session card)', async () => {
@@ -214,22 +214,22 @@ describe('SessionPage / SessionView', () => {
     render(<SessionPage />)
     await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    const dialog = screen.getByRole('dialog', { name: 'Save this doc' })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
     await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Save this doc' })).not.toBeInTheDocument(),
+      expect(screen.queryByRole('dialog', { name: 'Archive this doc' })).not.toBeInTheDocument(),
     )
     // Must still show the live document, never the "Protected session" placeholder.
     expect(screen.getByText('Test Doc')).toBeInTheDocument()
     expect(screen.getByText('Hello world')).toBeInTheDocument()
     expect(screen.queryByText(/Protected session/i)).not.toBeInTheDocument()
-    expect(screen.getByText('saved')).toBeInTheDocument()
+    expect(screen.getByText('archived')).toBeInTheDocument()
   })
 
   it('a highlight added after an in-view encrypt save does not resync plaintext to the state endpoint (bug-250)', async () => {
@@ -248,15 +248,15 @@ describe('SessionPage / SessionView', () => {
     render(<SessionPage />)
     await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    const dialog = screen.getByRole('dialog', { name: 'Save this doc' })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
     await waitFor(() =>
-      expect(screen.queryByRole('dialog', { name: 'Save this doc' })).not.toBeInTheDocument(),
+      expect(screen.queryByRole('dialog', { name: 'Archive this doc' })).not.toBeInTheDocument(),
     )
     // The encrypt save must scrub the localStorage entry. stopPersistence
     // runs in a passive effect after the save settles (SessionView's

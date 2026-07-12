@@ -15,18 +15,18 @@ test.describe('save + encrypt + unlock', () => {
     const { id } = await createSession()
     await page.goto(`/s/${id}`)
 
-    await page.getByRole('button', { name: 'Save' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Save this doc' })
+    await page.getByRole('button', { name: 'Archive' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Archive this doc' })
     await expect(dialog).toBeVisible()
 
-    await dialog.getByRole('button', { name: 'Save with password' }).click()
+    await dialog.getByRole('button', { name: 'Archive with password' }).click()
     await dialog.getByLabel('Password', { exact: true }).fill(testPassphrase)
     await dialog.getByLabel('Confirm password').fill(testPassphrase)
 
     const savePut = page.waitForResponse(
       (res) => res.url().includes(`/api/session/${id}/save`) && res.request().method() === 'PUT',
     )
-    await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Archive', exact: true }).click()
     const putResponse = await savePut
     expect(putResponse.ok()).toBe(true)
     await expect(dialog).not.toBeVisible()
