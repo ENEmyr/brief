@@ -2,6 +2,8 @@
 import { useId, useMemo, useState } from 'react'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
+import { titleCaption } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 
 type StateBlock = Extract<Block, { type: 'state' }>
 type Transition = StateBlock['transitions'][number]
@@ -133,7 +135,7 @@ function StateControls({ current, events, onTransition, onReset }: StateControls
  * out by BFS depth from `initial` instead of hand-placed coordinates.
  * Transitions referencing an unknown state id are dropped defensively.
  */
-export function StateMachine({ block }: { block: StateBlock }) {
+export function StateMachine({ block, ...anchor }: { block: StateBlock } & BlockAnchor) {
   const markerId = useId()
   const [current, setCurrent] = useState(block.initial)
 
@@ -159,7 +161,7 @@ export function StateMachine({ block }: { block: StateBlock }) {
 
   return (
     <DiagramCard
-      caption={block.title ?? 'State machine'}
+      {...titleCaption(anchor, block.title, 'State machine')}
       controls={
         <StateControls
           current={current}

@@ -3,6 +3,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
+import { titleCaption } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 import { useTheme } from '@/features/theme'
 
 type MermaidBlockType = Extract<Block, { type: 'mermaid' }>
@@ -94,7 +96,7 @@ function cssId(id: string): string {
  * cleanup also removes that invocation's temp nodes, so a cancelled
  * in-flight render can't strand them in document.body.
  */
-export function MermaidBlock({ block }: { block: MermaidBlockType }) {
+export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } & BlockAnchor) {
   const rawId = useId()
   const mermaidId = cssId(rawId)
   const renderSeq = useRef(0)
@@ -154,9 +156,13 @@ export function MermaidBlock({ block }: { block: MermaidBlockType }) {
   const safeSvg =
     svg === null ? null : DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true, html: true } })
 
+  // Both cards below show the same caption: whether the source rendered has no
+  // bearing on the title the reader annotates.
+  const caption = titleCaption(anchor, block.title, 'Diagram')
+
   if (failed) {
     return (
-      <DiagramCard caption={block.title ?? 'Diagram'} expandable={false}>
+      <DiagramCard {...caption} expandable={false}>
         <pre className={FALLBACK_PRE_CLASS}>
           <code>{block.code}</code>
         </pre>
@@ -166,7 +172,7 @@ export function MermaidBlock({ block }: { block: MermaidBlockType }) {
   }
 
   return (
-    <DiagramCard caption={block.title ?? 'Diagram'} expandable={svg !== null}>
+    <DiagramCard {...caption} expandable={svg !== null}>
       {safeSvg ? (
         <div
           className="flex justify-center overflow-x-auto"

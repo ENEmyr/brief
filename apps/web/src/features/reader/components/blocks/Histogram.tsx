@@ -2,6 +2,8 @@
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
+import { titleCaption } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
 import { AXIS_FONT, PALETTES, useEChart } from '../../services/echarts'
@@ -44,7 +46,7 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
   }
 }
 
-export function Histogram({ block }: { block: HistogramBlockType }) {
+export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & BlockAnchor) {
   const { theme } = useTheme()
   const palette = PALETTES[theme]
 
@@ -52,7 +54,7 @@ export function Histogram({ block }: { block: HistogramBlockType }) {
 
   return (
     <DiagramCard
-      caption={block.title ?? 'Histogram'}
+      {...titleCaption(anchor, block.title, 'Histogram')}
       expandable={false}
       controls={
         <div className="flex justify-end">

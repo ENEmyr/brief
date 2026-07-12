@@ -6,9 +6,13 @@ import {
   useDiagramViewer,
   usePanZoom,
 } from '@/features/diagram-viewer'
+import { CardCaption } from './CardCaption'
+import type { CaptionAnchor } from './blockAnchor'
 
-export interface DiagramCardProps {
+export interface DiagramCardProps extends CaptionAnchor {
   caption: string
+  /** Dotted path to the caption's string within the block. See Highlight.path. */
+  captionPath?: string
   controls?: React.ReactNode
   expandable?: boolean
   children: React.ReactNode
@@ -34,8 +38,21 @@ const HEADER_BUTTON_CLASS =
  * while this card owns the viewer, so a diagram whose state lives in its parent
  * (a Seq's current step, a StateMachine's current state) stays in step with the
  * page instead of freezing at whatever it showed when Expand was pressed.
+ *
+ * The caption is one annotatable leaf when the card is given an anchor: a
+ * diagram's title is often the only prose on the card, and it was the one bit
+ * of a diagram block a reader could not question. It is plain chrome text when
+ * no anchor is passed, which is also what a block without a real title gets
+ * (see titleCaption).
  */
-export function DiagramCard({ caption, controls, expandable = true, children }: DiagramCardProps) {
+export function DiagramCard({
+  caption,
+  captionPath = 'title',
+  controls,
+  expandable = true,
+  children,
+  ...anchor
+}: DiagramCardProps) {
   const ownerKey = useId()
   const { expandedKey, open, sync } = useDiagramViewer()
   const pan = usePanZoom('inline', expandable)
@@ -48,9 +65,7 @@ export function DiagramCard({ caption, controls, expandable = true, children }: 
   return (
     <div className="my-4 overflow-hidden rounded-xl border border-line bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-line2 bg-elev px-3.5 py-[9px]">
-        <span className="min-w-0 truncate font-mono text-[10.5px] tracking-[.04em] text-faint">
-          {caption}
-        </span>
+        <CardCaption {...anchor} text={caption} path={captionPath} />
         {expandable ? (
           <div className="flex shrink-0 items-center gap-1.5">
             <ZoomControls

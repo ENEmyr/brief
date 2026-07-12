@@ -2,6 +2,8 @@
 import { useId, useState } from 'react'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
+import { titleCaption } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 
 type SeqBlock = Extract<Block, { type: 'seq' }>
 
@@ -51,7 +53,7 @@ function SeqControls({ step, max, onPrev, onNext }: SeqControlsProps) {
  * Steps referencing an actor name not present in `actors` are dropped
  * defensively rather than crashing on an undefined x position.
  */
-export function Seq({ block }: { block: SeqBlock }) {
+export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
   const markerId = useId()
   const actors = block.actors
   const actorIndex = new Map(actors.map((a, i) => [a, i]))
@@ -63,7 +65,7 @@ export function Seq({ block }: { block: SeqBlock }) {
 
   return (
     <DiagramCard
-      caption={block.title ?? 'Sequence'}
+      {...titleCaption(anchor, block.title, 'Sequence')}
       controls={
         <SeqControls
           step={step}
