@@ -1,12 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import type { Root, Element } from 'hast'
 import { BlockRenderer } from '@/features/reader'
+import { ReaderStateProvider } from '@/features/reader-state'
+import type { Highlight } from '@/features/reader-state'
 import type { Block } from '@brief/schema'
 
 const { highlightMock } = vi.hoisted(() => ({ highlightMock: vi.fn() }))
 
 vi.mock('@/features/reader/services/shiki', () => ({
-  highlight: highlightMock,
+  highlightToHast: highlightMock,
 }))
 
 function deferred<T>() {
@@ -19,15 +22,63 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-const r = (block: Block) => render(<BlockRenderer block={block} />)
+/** A minimal shiki-shaped hast tree: one uncoloured `<span class="line">`
+ * per entry of `lines`, joined by the same literal "\n" text-node separators
+ * shiki itself emits between lines. Good enough for tests that don't care
+ * about token colors -- see codeLines.test.ts for the color-preservation
+ * cases, which build their own line nodes directly. */
+function hastFor(lines: string[]): Root {
+  const codeChildren: (Element | { type: 'text'; value: string })[] = []
+  lines.forEach((line, i) => {
+    if (i > 0) codeChildren.push({ type: 'text', value: '\n' })
+    codeChildren.push({
+      type: 'element',
+      tagName: 'span',
+      properties: { class: 'line' },
+      children: line ? [{ type: 'text', value: line }] : [],
+    })
+  })
+  return {
+    type: 'root',
+    children: [
+      {
+        type: 'element',
+        tagName: 'pre',
+        properties: { class: 'shiki catppuccin-mocha', style: 'background-color:#1e1e2e;color:#cdd6f4' },
+        children: [{ type: 'element', tagName: 'code', properties: {}, children: codeChildren }],
+      },
+    ],
+  }
+}
+
+const sessionId = 'code-blocks-test'
+
+function r(block: Block, { sid = 0, bid = 0, highlights = [] as Highlight[] } = {}) {
+  if (highlights.length) {
+    localStorage.setItem(`idocs:${sessionId}`, JSON.stringify({ highlights, dsel: {}, dnote: {} }))
+  }
+  return render(
+    <ReaderStateProvider sessionId={sessionId}>
+      <BlockRenderer block={block} sid={sid} bid={bid} />
+    </ReaderStateProvider>,
+  )
+}
+
+const anchorOf = (el: HTMLElement) => el.closest('[data-hl]')
 
 beforeEach(() => {
   highlightMock.mockReset()
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+})
+
+afterEach(() => {
+  localStorage.clear()
+  vi.unstubAllGlobals()
 })
 
 describe('CodeBlock', () => {
   it('renders the plain fallback code text immediately, before highlight resolves', () => {
-    const pending = deferred<string>()
+    const pending = deferred<Root>()
     highlightMock.mockReturnValue(pending.promise)
 
     r({ type: 'code', language: 'ts', code: 'const a = 1' })
@@ -46,12 +97,12 @@ describe('CodeBlock', () => {
     expect(screen.getByText('python')).toBeInTheDocument()
   })
 
-  it('swaps in the highlighted HTML once shiki resolves', async () => {
-    const pending = deferred<string>()
+  it('swaps in the highlighted, React-owned tree once shiki resolves', async () => {
+    const pending = deferred<Root>()
     highlightMock.mockReturnValue(pending.promise)
 
     r({ type: 'code', language: 'ts', code: 'const a = 1' })
-    pending.resolve('<pre class="shiki"><code><span class="line">HIGHLIGHTED</span></code></pre>')
+    pending.resolve(hastFor(['HIGHLIGHTED']))
 
     await waitFor(() => expect(screen.getByText('HIGHLIGHTED')).toBeInTheDocument())
   })
@@ -69,6 +120,38 @@ describe('CodeBlock', () => {
 
     expect(() => r({ type: 'code', language: 'not-a-real-lang', code: 'still here' })).not.toThrow()
     expect(screen.getByText('still here')).toBeInTheDocument()
+  })
+
+  it('anchors each non-empty line at code.<index>, and gives an empty line no anchor at all', async () => {
+    highlightMock.mockReturnValue(Promise.resolve(hastFor(['const a = 1', '', 'return a'])))
+
+    r({ type: 'code', language: 'ts', code: 'const a = 1\n\nreturn a' })
+
+    await waitFor(() => expect(screen.getByText('const a = 1')).toBeInTheDocument())
+    expect(anchorOf(screen.getByText('const a = 1'))).toHaveAttribute('data-path', 'code.0')
+    expect(anchorOf(screen.getByText('return a'))).toHaveAttribute('data-path', 'code.2')
+
+    // The empty line renders as an empty `<span class="line">` with no text
+    // to query by, so assert on the DOM directly: it must carry no data-hl.
+    const lineSpans = document.querySelectorAll('code > span')
+    expect(lineSpans).toHaveLength(3)
+    expect(lineSpans[1]).not.toHaveAttribute('data-hl')
+  })
+
+  it('paints a highlight anchored to one code line as a mark', async () => {
+    highlightMock.mockReturnValue(Promise.resolve(hastFor(['const a = 1'])))
+
+    r(
+      { type: 'code', language: 'ts', code: 'const a = 1' },
+      {
+        highlights: [
+          { id: 'h1', sid: 0, bid: 0, path: 'code.0', start: 6, end: 7, text: 'a', note: null },
+        ],
+      },
+    )
+
+    await waitFor(() => expect(document.querySelector('mark')).not.toBeNull())
+    expect(document.querySelector('mark')?.textContent).toBe('a')
   })
 })
 
@@ -124,5 +207,18 @@ describe('BeforeAfter', () => {
 
     expect(screen.getByRole('button', { name: 'Before' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: 'After' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('anchors each side at its own field, so before/after lines never collide', async () => {
+    highlightMock.mockImplementation((code: string) => Promise.resolve(hastFor(code.split('\n'))))
+
+    r({ type: 'ba', language: 'ts', before: 'BEFORE_CODE', after: 'AFTER_CODE' })
+
+    await waitFor(() => expect(screen.getByText('BEFORE_CODE')).toBeInTheDocument())
+    expect(anchorOf(screen.getByText('BEFORE_CODE'))).toHaveAttribute('data-path', 'before.0')
+
+    fireEvent.click(screen.getByRole('button', { name: 'After' }))
+    await waitFor(() => expect(screen.getByText('AFTER_CODE')).toBeInTheDocument())
+    expect(anchorOf(screen.getByText('AFTER_CODE'))).toHaveAttribute('data-path', 'after.0')
   })
 })

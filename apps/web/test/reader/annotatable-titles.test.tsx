@@ -7,7 +7,7 @@ import type { Block } from '@brief/schema'
 // CodeBlock's body goes through shiki; only the header bar matters here, so the
 // highlight call is stubbed out with a promise that never settles.
 const { highlightMock } = vi.hoisted(() => ({ highlightMock: vi.fn() }))
-vi.mock('@/features/reader/services/shiki', () => ({ highlight: highlightMock }))
+vi.mock('@/features/reader/services/shiki', () => ({ highlightToHast: highlightMock }))
 
 beforeEach(() => {
   highlightMock.mockReset()

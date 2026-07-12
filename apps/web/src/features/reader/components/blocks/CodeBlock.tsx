@@ -33,7 +33,14 @@ export function CodeBlock({
           path={`${pathPrefix}${leaf}`}
         />
       </div>
-      <CodePre code={block.code} language={block.language} highlightLines={block.highlight} />
+      <CodePre
+        code={block.code}
+        language={block.language}
+        highlightLines={block.highlight}
+        pathPrefix={pathPrefix}
+        field="code"
+        {...anchor}
+      />
     </div>
   )
 }

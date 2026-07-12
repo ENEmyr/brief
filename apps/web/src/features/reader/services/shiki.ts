@@ -1,3 +1,4 @@
+import type { Root } from 'hast'
 import type { BundledLanguage, Highlighter, ShikiTransformer } from 'shiki'
 
 // Lazy singleton: the `shiki` package (~1-2MB with bundled grammars) must
@@ -39,15 +40,23 @@ export interface HighlightOptions {
 }
 
 /**
- * Highlights `code` as `lang` using the Catppuccin Mocha shiki theme
- * (deliberately the SAME theme regardless of the app's own light/dark
- * setting — the prototype renders a dark code panel in both themes; see
- * globals.css `--code-bg` for how the panel shade itself still differs
- * between latte/mocha even though the syntax theme doesn't). Never throws:
- * an unrecognized language degrades to plaintext, and any other failure
- * degrades to a plain (uncolored) shiki plaintext render.
+ * Highlights `code` as `lang` into a hast tree, using the Catppuccin Mocha
+ * shiki theme (deliberately the SAME theme regardless of the app's own
+ * light/dark setting — the prototype renders a dark code panel in both
+ * themes; see globals.css `--code-bg` for how the panel shade itself still
+ * differs between latte/mocha even though the syntax theme doesn't). Never
+ * throws: an unrecognized language degrades to plaintext, and any other
+ * failure degrades to a plain (uncolored) shiki plaintext render.
+ *
+ * Returns the hast tree rather than an HTML string (codeToHast, not
+ * codeToHtml) so CodePre can render it as real React elements — see CodePre
+ * for why the code body can no longer go through dangerouslySetInnerHTML.
  */
-export async function highlight(code: string, lang: string, options: HighlightOptions = {}): Promise<string> {
+export async function highlightToHast(
+  code: string,
+  lang: string,
+  options: HighlightOptions = {},
+): Promise<Root> {
   const highlighter = await getHighlighter()
   const highlightSet = new Set(options.highlightLines ?? [])
   const resolvedLang = await resolveLanguage(highlighter, lang)
@@ -59,14 +68,14 @@ export async function highlight(code: string, lang: string, options: HighlightOp
   }
 
   const render = (renderLang: string) =>
-    highlighter.codeToHtml(code, {
+    highlighter.codeToHast(code, {
       lang: renderLang as BundledLanguage,
       theme: 'catppuccin-mocha',
       transformers: highlightSet.size ? [highlightLinesTransformer] : [],
     })
 
   try {
-    return render(resolvedLang)
+    return await render(resolvedLang)
   } catch {
     // Belt-and-suspenders beyond resolveLanguage's own try/catch: some
     // languages load successfully but still fail to render for a given
