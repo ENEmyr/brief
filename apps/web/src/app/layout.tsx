@@ -4,7 +4,8 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Brief',
-  description: 'Decision docs from your coding agent',
+  description:
+    "Brief turns an agent's work into an interactive decision document. The agent sends one JSON payload; you get one link to read, annotate, and answer.",
 }
 
 const plexSans = IBM_Plex_Sans_Thai({
