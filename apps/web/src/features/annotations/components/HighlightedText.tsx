@@ -1,27 +1,43 @@
 'use client'
-import { useReaderState } from '@/features/reader-state'
+import { DEFAULT_HIGHLIGHT_PATH, useReaderState } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 
-/** Renders a paragraph's text with its highlights spliced in as <mark>
- * segments, mirroring the prototype's prose() (Reader.dc.html line 566):
- * highlights for this sid/bid are sorted by start, and the walk tracks `cur`
- * to avoid re-emitting plain text already covered by an earlier mark.
- * Overlapping highlights are rendered as-is (each mark still slices its own
- * full start..end range), matching the prototype rather than trying to be
- * smarter about clipping the rendered text — see task-p4-2-report.md. */
+/**
+ * Renders one leaf string with its highlights spliced in as <mark> segments.
+ * Highlights for this (sid, bid, path) are sorted by start, and the walk tracks
+ * `cur` so text already covered by an earlier mark is not re-emitted.
+ * Overlapping highlights each still slice their own full start..end range.
+ *
+ * A highlight whose stored text no longer matches the characters at its offsets
+ * is dropped rather than painted. That single check covers every way an anchor
+ * can go stale at once: the payload was edited under it, the persisted state was
+ * hand-edited or corrupted, or it was written against an older anchor model.
+ * Painting it anyway would highlight arbitrary characters the reader never
+ * selected, which is worse than not painting it.
+ */
 export function HighlightedText({
   sid,
   bid,
+  path = DEFAULT_HIGHLIGHT_PATH,
   text,
   onMarkClick = () => {},
 }: {
   sid: number
-  bid: number
+  bid: number | null
+  path?: string
   text: string
   onMarkClick?: (highlight: Highlight) => void
 }) {
   const { highlights } = useReaderState()
-  const hs = highlights.filter((h) => h.sid === sid && h.bid === bid).sort((a, b) => a.start - b.start)
+  const hs = highlights
+    .filter(
+      (h) =>
+        h.sid === sid &&
+        (h.bid ?? null) === bid &&
+        (h.path ?? DEFAULT_HIGHLIGHT_PATH) === path &&
+        text.slice(h.start, h.end) === h.text,
+    )
+    .sort((a, b) => a.start - b.start)
 
   if (!hs.length) return <>{text}</>
 

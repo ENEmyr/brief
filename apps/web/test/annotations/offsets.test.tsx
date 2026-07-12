@@ -97,4 +97,32 @@ describe('selectionRangeIn', () => {
     const sel = fakeSelection(range, 'fore bold af')
     expect(selectionRangeIn(root, sel)).toEqual({ start: 2, end: 13, text: 'fore bold af' })
   })
+
+  it('treats an element boundary as a child index, not a character offset', () => {
+    // A Range boundary is not always a text node. When it is an element,
+    // `offset` indexes its CHILD NODES. Selecting next to an existing <mark> is
+    // the everyday way to land one. Counting the child index as characters put
+    // the anchor somewhere the reader never selected.
+    const root = document.createElement('p')
+    root.innerHTML = '<mark>Hello</mark> world'
+    // Boundary "after child 1" = after the <mark>, i.e. character 5.
+    expect(textOffset(root, root, 1)).toBe(5)
+    expect(textOffset(root, root, 0)).toBe(0)
+  })
+
+  it('returns null for a boundary outside the block instead of clamping to its end', () => {
+    // This is what corrupted cross-block selections: the walk fell through and
+    // returned the block's full text length, so the stored anchor covered text
+    // the reader never selected.
+    const root = document.createElement('p')
+    root.textContent = 'inside'
+    const outside = document.createElement('p')
+    outside.textContent = 'elsewhere'
+    document.body.append(root, outside)
+
+    expect(textOffset(root, outside.firstChild!, 3)).toBeNull()
+
+    root.remove()
+    outside.remove()
+  })
 })

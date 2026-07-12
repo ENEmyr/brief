@@ -1,9 +1,28 @@
 import { loadPersistedState, schedulePersist } from './persistence'
 
+/** The leaf a highlight anchors to when it does not say otherwise. `p` blocks
+ *  were the only annotatable thing before paths existed, and their one string
+ *  field is `text`, so a stored highlight without a path is a paragraph's. */
+export const DEFAULT_HIGHLIGHT_PATH = 'text'
+
 export type Highlight = {
   id: string
   sid: number
-  bid: number
+  /** Index of the block within the section, or null for the section heading,
+   *  which is not a block and therefore has no index. */
+  bid: number | null
+  /**
+   * Which string inside the block this anchors to, as a dotted path into the
+   * payload: `text`, `title`, `head.2`, `rows.1.0`, `items.3.label`.
+   *
+   * Offsets are into that ONE leaf string, which is what makes structured
+   * blocks annotatable at all. A table has no single flat text to count
+   * characters into; each cell does.
+   *
+   * Absent on highlights stored before paths existed; treat as
+   * DEFAULT_HIGHLIGHT_PATH.
+   */
+  path?: string
   start: number
   end: number
   text: string

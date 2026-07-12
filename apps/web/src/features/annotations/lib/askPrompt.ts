@@ -1,7 +1,21 @@
 import type { Section } from '@brief/schema'
+import { DEFAULT_HIGHLIGHT_PATH } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 
 const pad = (n: number) => String(n).padStart(2, '0')
+
+/**
+ * Where inside the section a highlight sits. "paragraph N" no longer covers it:
+ * a highlight can now anchor to the section heading (which is not a block) or to
+ * a leaf inside a structured block, so the leaf path carries the detail that
+ * actually locates the quote (`rows.3.1` in a table, say).
+ */
+export function describeLocation(h: Highlight): string {
+  if (h.bid === null) return 'heading'
+  const path = h.path ?? DEFAULT_HIGHLIGHT_PATH
+  const block = `block ${h.bid + 1}`
+  return path === DEFAULT_HIGHLIGHT_PATH ? block : `${block} (${path})`
+}
 
 /** Builds the "Copy as prompt" text for an ask highlight, adapted from the
  * prototype's buildAskPrompt (Reader.dc.html lines 208-221): origin and
@@ -29,7 +43,7 @@ export function buildAskPrompt(
     '',
     'Reference:',
     `- URL: ${url}`,
-    `- Location: ${locationSection} · paragraph ${h.bid + 1} · chars ${h.start}–${h.end}`,
+    `- Location: ${locationSection} · ${describeLocation(h)} · chars ${h.start}–${h.end}`,
     `- Quoted text: "${h.text}"`,
     '',
     'Question:',

@@ -91,34 +91,40 @@ export function BlockRenderer({
   block,
   sid,
   bid,
+  pathPrefix = '',
   annotatable = true,
   onMarkClick,
 }: {
   block: Block
   sid?: number
   bid?: number
+  /** Set for a nested block (inside a details), so its leaves are addressed
+   *  under `blocks.<i>.` instead of colliding with the parent's own leaves. */
+  pathPrefix?: string
   annotatable?: boolean
   onMarkClick?: (highlight: Highlight) => void
 }) {
+  // Every text-bearing block takes the same anchor: which section, which block,
+  // and where in the payload this block's leaves live.
+  const anchor = { sid, bid, pathPrefix, annotatable, onMarkClick }
+
   switch (block.type) {
     case 'p':
-      return (
-        <Paragraph block={block} sid={sid} bid={bid} annotatable={annotatable} onMarkClick={onMarkClick} />
-      )
+      return <Paragraph block={block} {...anchor} />
     case 'note':
     case 'warn':
     case 'good':
-      return <Callout block={block} />
+      return <Callout block={block} {...anchor} />
     case 'table':
-      return <DataTable block={block} />
+      return <DataTable block={block} {...anchor} />
     case 'compare':
-      return <Compare block={block} />
+      return <Compare block={block} {...anchor} />
     case 'stat':
-      return <Stats block={block} />
+      return <Stats block={block} {...anchor} />
     case 'coverage':
-      return <Coverage block={block} />
+      return <Coverage block={block} {...anchor} />
     case 'details':
-      return <Details block={block} />
+      return <Details block={block} {...anchor} />
     case 'seq':
       return <Seq block={block} />
     case 'state':

@@ -1,6 +1,8 @@
 export { textOffset, selectionRangeIn } from './lib/offsets'
 export { buildAskPrompt } from './lib/askPrompt'
 export { HighlightedText } from './components/HighlightedText'
+export { Annotatable } from './components/Annotatable'
+export type { AnnotatableProps } from './components/Annotatable'
 export { SelectionToolbar } from './components/SelectionToolbar'
 export { NotePopover } from './components/NotePopover'
 export { AskPopover } from './components/AskPopover'
