@@ -48,6 +48,64 @@ describe('Topbar Edit menu', () => {
     expect(trigger).toHaveFocus()
   })
 
+  // Regression for the click-away bug inherited from a pre-fix copy of
+  // DownloadMenu: a `position: fixed` overlay rendered inside Topbar's header
+  // (which has `backdrop-blur`, making it a containing block for fixed
+  // descendants) resolves `inset-0` against the ~56px header box, not the
+  // viewport, so a click on the page body never reached it. jsdom has no
+  // layout, so it cannot reproduce the coordinate bug directly -- this
+  // instead pins the actual fix: a document-level pointerdown listener with
+  // no viewport-covering element involved at all.
+  it('closes on a document-level pointerdown outside the menu, wherever the target is', () => {
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.pointerDown(document.body)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('does not close on a pointerdown inside the panel (an item click still runs its own close)', () => {
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+
+    fireEvent.pointerDown(screen.getByRole('menuitem', { name: /Copy edit prompt/ }))
+
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('re-clicking the trigger toggles the menu closed instead of being raced by the outside-click listener', () => {
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.pointerDown(trigger)
+    fireEvent.click(trigger)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('ArrowDown/ArrowUp/Home/End move focus with roving navigation, wrapping over the single item', () => {
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+
+    const copyItem = screen.getByRole('menuitem', { name: /Copy edit prompt/ })
+    expect(copyItem).toHaveFocus()
+
+    fireEvent.keyDown(copyItem, { key: 'ArrowDown' })
+    expect(copyItem).toHaveFocus()
+
+    fireEvent.keyDown(copyItem, { key: 'ArrowUp' })
+    expect(copyItem).toHaveFocus()
+
+    fireEvent.keyDown(copyItem, { key: 'End' })
+    expect(copyItem).toHaveFocus()
+
+    fireEvent.keyDown(copyItem, { key: 'Home' })
+    expect(copyItem).toHaveFocus()
+  })
+
   it('renders between Save and Download when both are present', () => {
     render(
       <Topbar
