@@ -8,8 +8,9 @@
   "scripts": {
     "lint": "eslint src test",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen:skill-schema": "bun run scripts/emit-skill-schema.ts"
   },
   "dependencies": { "zod": "^4.0.0" },
-  "devDependencies": { "@brief/config": "workspace:*", "vitest": "^3.1.0", "eslint": "^9.20.0", "typescript": "^5.8.0", "typescript-eslint": "^8.30.0" }
+  "devDependencies": { "@brief/config": "workspace:*", "vitest": "^3.1.0", "eslint": "^9.20.0", "typescript": "^5.8.0", "typescript-eslint": "^8.30.0", "@types/node": "^26.1.1" }
 }

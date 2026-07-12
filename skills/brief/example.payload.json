@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "title": "Rate limiting for /api/session",
+    "subtitle": "Two options, one recommendation",
+    "author": "Claude",
+    "role": "Agent",
+    "date": "2026-07-12",
+    "repo": "ENEmyr/brief",
+    "readTime": "6 min"
+  },
+  "sections": [
+    {
+      "id": "problem",
+      "no": 1,
+      "title": "The problem",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "The create-session handler in apps/api/src/features/session/index.ts already calls env.RATE_LIMITER, but the binding is optional and unset in the current wrangler config, so every deployment today accepts unbounded writes. A single client looping on POST /api/session exhausts the D1 daily write quota in about four minutes at 200 requests per second."
+        },
+        {
+          "type": "stat",
+          "items": [
+            { "label": "Endpoints with no limit", "value": "3", "tone": "red" },
+            { "label": "Writes to exhaust free D1", "value": "100k", "hint": "Per day", "tone": "peach" },
+            { "label": "Time to exhaust at 200 rps", "value": "4 min", "tone": "red" }
+          ]
+        },
+        {
+          "type": "warn",
+          "title": "This is reachable today",
+          "text": "The endpoint is unauthenticated by design, so the abuse path needs no credentials and no prior session."
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "no": 2,
+      "title": "What the traffic shows",
+      "blocks": [
+        {
+          "type": "table",
+          "caption": "Write volume by endpoint, last 7 days",
+          "head": ["Endpoint", "Writes", "P95 latency"],
+          "rows": [
+            ["POST /api/session", "48,120", "82 ms"],
+            ["POST /api/session/:id/state", "9,004", "31 ms"],
+            ["POST /api/session/:id/save", "412", "44 ms"]
+          ]
+        },
+        {
+          "type": "seq",
+          "title": "The abuse path",
+          "actors": ["Client", "Ingest API", "D1"],
+          "steps": [
+            { "from": "Client", "to": "Ingest API", "label": "POST /api/session (repeat)" },
+            { "from": "Ingest API", "to": "D1", "label": "INSERT session", "note": "No limiter in front of this write." },
+            { "from": "Ingest API", "to": "Client", "label": "201 { id, url }" }
+          ]
+        },
+        {
+          "type": "details",
+          "summary": "Handler source, the unguarded write (12 lines)",
+          "blocks": [
+            {
+              "type": "code",
+              "language": "ts",
+              "filename": "apps/api/src/features/session/index.ts",
+              "highlight": [1],
+              "code": "if (env.RATE_LIMITER) {\n  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'\n  const { success } = await env.RATE_LIMITER.limit({ key: `create:${ip}` })\n  if (!success) {\n    set.status = 429\n    return { error: 'Rate limit exceeded. Try again in a minute.' }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "options",
+      "no": 3,
+      "title": "The two options",
+      "blocks": [
+        {
+          "type": "compare",
+          "caption": "Rate limiter options",
+          "left": {
+            "title": "Cloudflare Rate Limiting binding",
+            "tone": "good",
+            "tag": "Recommended",
+            "items": [
+              { "text": "No storage cost and no extra request in the hot path", "ok": true },
+              { "text": "Already coded against in the handler", "ok": true },
+              { "text": "Key space is limited, so per-user quotas are out", "ok": false }
+            ]
+          },
+          "right": {
+            "title": "Custom KV counter",
+            "items": [
+              { "text": "Any key space we want, including per-user", "ok": true },
+              { "text": "One KV write per request", "ok": false },
+              { "text": "Eventual consistency lets a short burst through", "ok": false }
+            ]
+          }
+        },
+        {
+          "type": "coverage",
+          "caption": "Test coverage if we take the binding",
+          "items": [
+            { "label": "429 on limit exceeded", "status": "full" },
+            { "label": "Limiter absent in local dev", "status": "partial", "note": "The handler skips the check; no test asserts the skip." },
+            { "label": "Per-IP key derivation", "status": "missing" }
+          ]
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "limiter-choice",
+      "q": "Which rate limiter should we put in front of POST /api/session?",
+      "multi": false,
+      "why": "The binding costs nothing to run and covers the abuse case we actually observed. The KV counter only pays off if we later need per-user quotas, which nothing in the current roadmap asks for.",
+      "opts": [
+        {
+          "id": "cf-binding",
+          "label": "Cloudflare Rate Limiting binding",
+          "detail": "Ships in hours, no storage cost, but the key space is limited to what the binding exposes, so per-user quotas are out."
+        },
+        {
+          "id": "custom-kv",
+          "label": "Custom KV counter",
+          "detail": "Any key space we want, at one KV write per request and an eventual-consistency window that lets a burst through."
+        }
+      ],
+      "cmp": {
+        "head": ["Criterion", "CF binding", "KV counter"],
+        "rows": [
+          ["Cost per request", "None", "1 KV write"],
+          ["Per-user quotas", "No", "Yes"],
+          ["Time to ship", "Hours", "Days"]
+        ]
+      }
+    },
+    {
+      "id": "rollout",
+      "q": "How should the limit reach production?",
+      "multi": true,
+      "why": "Shadow mode first is cheap insurance; the other two are independent and can be taken in any combination.",
+      "opts": [
+        { "id": "shadow", "label": "Shadow mode for one week", "detail": "Log what would have been blocked, block nothing." },
+        { "id": "alert", "label": "Alert on sustained 429s", "detail": "A real client hitting the limit is a signal we set it too low." },
+        { "id": "raise", "label": "Raise the limit to 30 per minute", "detail": "10 per minute may be tight for an agent publishing several documents in one run." }
+      ]
+    }
+  ]
+}
