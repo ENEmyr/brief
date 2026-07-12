@@ -14,7 +14,11 @@ import { useDialogFocus } from '../hooks/useDialogFocus'
  * success it fires onCopied (ExportProvider wires the "Copied" toast) and
  * closes, on failure it stays open so the user still has the selected text
  * to hand-copy. Focus trap is shared with ShareModal via useDialogFocus
- * (follows Toc.tsx's drawer pattern). Hint text uses a plain hyphen per the
+ * (follows Toc.tsx's drawer pattern). The textarea carries `data-code-panel`
+ * for consistency with CodePre/PromptReview's identical `--code-bg` +
+ * `#cdd6f4` pairing, though it is moot here in practice: this whole dialog
+ * sits behind a `print:hidden` backdrop and never reaches the printed page.
+ * Hint text uses a plain hyphen per the
  * task brief's literal wording (the prototype's own text uses an em dash in
  * the same spot -- brief wins per this repo's established
  * brief-vs-prototype tiebreaker, see cerebrum).
@@ -42,7 +46,7 @@ export function CopyFallbackModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-5"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-5 print:hidden"
       style={{ background: 'rgba(17,17,27,.55)' }}
       onClick={onClose}
     >
@@ -73,6 +77,7 @@ export function CopyFallbackModal({
         </p>
         <textarea
           ref={textareaRef}
+          data-code-panel
           readOnly
           value={text}
           aria-label="Text to copy"

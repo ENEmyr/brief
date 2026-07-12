@@ -94,57 +94,67 @@
   --code-bg: #1e1e2e;
 }
 
-/* Catppuccin Mocha (dark) */
-[data-theme='mocha'] {
-  --ctp-base: #1e1e2e;
-  --ctp-mantle: #181825;
-  --ctp-crust: #11111b;
-  --ctp-text: #cdd6f4;
-  --ctp-subtext1: #bac2de;
-  --ctp-subtext0: #a6adc8;
-  --ctp-overlay2: #9399b2;
-  --ctp-overlay1: #7f849c;
-  --ctp-overlay0: #6c7086;
-  --ctp-surface2: #585b70;
-  --ctp-surface1: #45475a;
-  --ctp-surface0: #313244;
-  --ctp-blue: #89b4fa;
-  --ctp-lavender: #b4befe;
-  --ctp-sapphire: #74c7ec;
-  --ctp-sky: #89dceb;
-  --ctp-teal: #94e2d5;
-  --ctp-green: #a6e3a1;
-  --ctp-yellow: #f9e2af;
-  --ctp-peach: #fab387;
-  --ctp-maroon: #eba0ac;
-  --ctp-red: #f38ba8;
-  --ctp-mauve: #cba6f7;
-  --ctp-pink: #f5c2e7;
-  --ctp-flamingo: #f2cdcd;
-  --ctp-rosewater: #f5e0dc;
-  --ctp-page: #11111b;
-  --ctp-card: #1e1e2e;
-  --ctp-elev: #181825;
-  --ctp-line: #313244;
-  --ctp-line2: #292a3a;
-  --ctp-faint: #6c7086;
-  --ctp-chip: #313244;
-  --ctp-mauvesoft: rgba(203, 166, 247, 0.14);
-  --ctp-oncolor: #11111b;
-  --ctp-mark: rgba(249, 226, 175, 0.22);
-  --ctp-marktx: #f9e2af;
-  --ctp-toolbg: #313244;
-  --shadow-card: 0 8px 26px rgba(0, 0, 0, 0.5);
-  --shadow-mauve-glow: 0 4px 14px rgba(203, 166, 247, 0.3);
-  --callout-note-bg: rgba(255, 255, 255, 0.03);
-  --callout-warn-bg: rgba(255, 255, 255, 0.03);
-  --callout-good-bg: rgba(255, 255, 255, 0.03);
-  --row-zebra: rgba(255, 255, 255, 0.015);
-  --compare-pane-bg: rgba(255, 255, 255, 0.02);
-  --compare-pane-good-bg: rgba(255, 255, 255, 0.02);
-  --compare-pane-bad-bg: rgba(255, 255, 255, 0.02);
-  --compare-tag-bg: rgba(255, 255, 255, 0.06);
-  --code-bg: #11111b;
+/*
+ * Catppuccin Mocha (dark).
+ *
+ * `not print` is how the print stylesheet forces the light theme: the theme
+ * attribute lives on <html>, the same element :root matches, so a print-time
+ * override would have to restate all 45 latte tokens to beat these. Withholding
+ * the dark ones on paper leaves the latte block below :root as the only theme in
+ * play. Nobody wants a dark background and 45 duplicated tokens in their PDF.
+ */
+@media not print {
+  [data-theme='mocha'] {
+    --ctp-base: #1e1e2e;
+    --ctp-mantle: #181825;
+    --ctp-crust: #11111b;
+    --ctp-text: #cdd6f4;
+    --ctp-subtext1: #bac2de;
+    --ctp-subtext0: #a6adc8;
+    --ctp-overlay2: #9399b2;
+    --ctp-overlay1: #7f849c;
+    --ctp-overlay0: #6c7086;
+    --ctp-surface2: #585b70;
+    --ctp-surface1: #45475a;
+    --ctp-surface0: #313244;
+    --ctp-blue: #89b4fa;
+    --ctp-lavender: #b4befe;
+    --ctp-sapphire: #74c7ec;
+    --ctp-sky: #89dceb;
+    --ctp-teal: #94e2d5;
+    --ctp-green: #a6e3a1;
+    --ctp-yellow: #f9e2af;
+    --ctp-peach: #fab387;
+    --ctp-maroon: #eba0ac;
+    --ctp-red: #f38ba8;
+    --ctp-mauve: #cba6f7;
+    --ctp-pink: #f5c2e7;
+    --ctp-flamingo: #f2cdcd;
+    --ctp-rosewater: #f5e0dc;
+    --ctp-page: #11111b;
+    --ctp-card: #1e1e2e;
+    --ctp-elev: #181825;
+    --ctp-line: #313244;
+    --ctp-line2: #292a3a;
+    --ctp-faint: #6c7086;
+    --ctp-chip: #313244;
+    --ctp-mauvesoft: rgba(203, 166, 247, 0.14);
+    --ctp-oncolor: #11111b;
+    --ctp-mark: rgba(249, 226, 175, 0.22);
+    --ctp-marktx: #f9e2af;
+    --ctp-toolbg: #313244;
+    --shadow-card: 0 8px 26px rgba(0, 0, 0, 0.5);
+    --shadow-mauve-glow: 0 4px 14px rgba(203, 166, 247, 0.3);
+    --callout-note-bg: rgba(255, 255, 255, 0.03);
+    --callout-warn-bg: rgba(255, 255, 255, 0.03);
+    --callout-good-bg: rgba(255, 255, 255, 0.03);
+    --row-zebra: rgba(255, 255, 255, 0.015);
+    --compare-pane-bg: rgba(255, 255, 255, 0.02);
+    --compare-pane-good-bg: rgba(255, 255, 255, 0.02);
+    --compare-pane-bad-bg: rgba(255, 255, 255, 0.02);
+    --compare-tag-bg: rgba(255, 255, 255, 0.06);
+    --code-bg: #11111b;
+  }
 }
 
 /*
@@ -217,4 +227,143 @@ body {
   background: rgba(203, 166, 247, 0.12);
   display: inline-block;
   width: 100%;
+}
+
+/*
+ * Print / PDF. The reader is an interactive dark-capable app; paper is none of
+ * those things, so this is where the document stops being an app and becomes a
+ * document. The dark theme is already withheld above (see `@media not print`);
+ * the rest of the chrome hides itself with Tailwind's `print:hidden`. What is
+ * left here is everything a utility class cannot express: inline styles that
+ * need overriding, and page-fragmentation rules.
+ */
+@media print {
+  @page {
+    margin: 15mm;
+  }
+
+  html,
+  body {
+    background: #fff;
+  }
+
+  /* Shadows print as grey smudges around every card. */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* The floating selection toolbar styles itself inline (`display: flex`),
+     so `print:hidden` -- a class -- would lose to it; that's why this needs
+     the !important. The diagram zoom bar (`data-zbar`) does not actually
+     need it -- it gets `display: flex` from a class (ViewerOverlay.tsx),
+     which this rule already beats on source order -- but it is harmless to
+     share the rule with the toolbar rather than split it for one selector's
+     sake. */
+  [data-seltoolbar],
+  [data-zbar] {
+    display: none !important;
+  }
+
+  /* TOC is hidden, so its 188px grid column would otherwise print as a blank
+     left gutter on every page. */
+  [data-reader-grid] {
+    display: block !important;
+  }
+
+  /* Reset any pan/zoom the reader left on a diagram: the transform is inline,
+     and printing it mid-gesture crops the diagram against its own card.
+     KNOWN LIMITATION (disclosed, not fixed here): mermaid renders its SVG at
+     `width: 100%` up to its own natural pixel width (a `max-width` inline
+     style), so on paper it already scales down to whatever the page's
+     printable width is -- there is no extra shrink introduced by this
+     stylesheet to remove. For a diagram far wider than it is tall (an 11:1
+     flowchart measured against this app's real payloads renders its natural
+     width at roughly a third of a portrait page's printable width) that
+     scale-down is severe enough to make the labels hard to read, even
+     though every box and color is present and correct. Landscape paging or
+     forcing the SVG to its natural size were both considered: landscape
+     still would not reach a genuinely legible scale for a diagram this
+     wide, and forcing natural size would push it past the page margin,
+     silently losing the same way the wide-table clip in DataTable does.
+     Neither is worth the added pagination complexity for a partial result,
+     so an unusually wide diagram printing small is accepted as a known
+     limitation rather than papered over. */
+  [data-panzoom-content] {
+    transform: none !important;
+  }
+
+  /* A collapsed <details> would just be silently missing from the PDF. Two
+     rules because engines hide the content two different ways: the modern one
+     via the ::details-content content-visibility, the older via display. */
+  details::details-content {
+    content-visibility: visible !important;
+    block-size: auto !important;
+  }
+  details:not([open]) > *:not(summary) {
+    display: block !important;
+  }
+
+  /* Keep whole units whole. Diagrams, tables and code are unreadable when a
+     page break lands in the middle of them. */
+  [data-panzoom-content],
+  details,
+  figure,
+  pre,
+  table,
+  .shiki {
+    break-inside: avoid;
+  }
+
+  h2,
+  h3 {
+    break-after: avoid-page;
+  }
+
+  p,
+  li {
+    orphans: 2;
+    widows: 2;
+  }
+
+  /* DataTable's screen layout puts a wide `table` block in a horizontally
+     scrolling wrapper (`overflow-x-auto` in DataTable.tsx) and keeps its
+     header and first-column cells on one line (`whitespace-nowrap`), so the
+     widest cell -- often a long Thai sentence -- decides how wide the whole
+     table gets. Paper has no scrollbar: with `table-layout: auto` that same
+     wide cell would still push the table past the page edge, and the
+     rightmost columns would not just look cropped, they would be genuinely
+     missing from the PDF. `table-layout: fixed` locks the table to its
+     container's width instead of its content's, and letting cells wrap
+     (overriding `whitespace-nowrap`) keeps the overflowing text inside its
+     own cell rather than off the page. The smaller font buys back some of
+     the room the wrapping costs. CmpTable (decisions' compare tables) picks
+     up the same rule; it was never at risk of clipping, so this only tidies
+     it up to match. */
+  table {
+    table-layout: fixed;
+  }
+
+  th,
+  td {
+    font-size: 10.5px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  /* Backgrounds are dropped by default when printing, which is fine for the
+     near-white card surfaces but not for these: code panels are dark in both
+     themes (light syntax colors on white paper is unreadable), and a
+     highlight without its background is not a highlight. `.shiki` is the
+     highlighted code path; `[data-code-panel]` marks the other spots that
+     pair the same dark `--code-bg` with fixed light text outside shiki --
+     CodePre's pre-highlight/highlight-failed fallback `<pre>` and
+     PromptReview's and CopyFallbackModal's textareas -- which would
+     otherwise lose only the background and keep the light text, unreadable
+     on the white page underneath. */
+  .shiki,
+  mark,
+  [data-code-panel] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }

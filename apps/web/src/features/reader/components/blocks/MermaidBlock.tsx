@@ -5,7 +5,7 @@ import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
 import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
-import { useTheme } from '@/features/theme'
+import { useTheme, beginThemedRender } from '@/features/theme'
 
 type MermaidBlockType = Extract<Block, { type: 'mermaid' }>
 
@@ -109,6 +109,10 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
     const callId = `${mermaidId}-r${++renderSeq.current}`
     setSvg(null)
     setFailed(false)
+    // Tracked so lib/print.ts can wait for this diagram's redraw in the
+    // print-forced palette before handing off to window.print() -- see
+    // features/theme's beginThemedRender doc comment.
+    const endThemedRender = beginThemedRender()
 
     // mermaid.render(callId, ...) creates a temp `d<callId>` div (and the
     // `<callId>` svg inside it) directly in document.body; it only removes
@@ -140,7 +144,7 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
         removeTempNodes()
         if (!cancelled) setFailed(true)
       }
-    })
+    }).finally(endThemedRender)
 
     return () => {
       cancelled = true

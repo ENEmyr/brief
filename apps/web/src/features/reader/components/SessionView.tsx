@@ -53,7 +53,7 @@ function StatusCard({ children }: { children: React.ReactNode }) {
  * The fully-loaded reader UI: Topbar, TOC, sections, decisions, and the
  * annotation popovers/toolbar. Split out from SessionView so it can render
  * inside both ReaderStateProvider and ExportProvider and call useExport()
- * for the Topbar's Markdown/Share buttons and the copy chain threaded into
+ * for the Topbar's Download/Share controls and the copy chain threaded into
  * SelectionToolbar/AskPopover (Task 6) -- useExport() only resolves to a
  * real value for descendants of ExportProvider, not for SessionView itself.
  */
@@ -70,7 +70,7 @@ function SessionReady({
    */
   protectedSession?: boolean
 }) {
-  const { copy, share, downloadMarkdown } = useExport()
+  const { copy, share, downloadMarkdown, print } = useExport()
   const [tocCollapsed, setTocCollapsed] = useState(false)
   // Drawer open state lives here per the Task 5 contract; `onMenu` from
   // Topbar opens it and Toc's onCloseDrawer prop closes it.
@@ -163,6 +163,7 @@ function SessionReady({
         onMenu={() => setTocDrawerOpen(true)}
         onSave={protectedSession ? undefined : () => setSaveModalOpen(true)}
         onDownload={downloadMarkdown}
+        onPrint={print}
         onShare={share}
       />
       <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
@@ -170,6 +171,10 @@ function SessionReady({
         <DiagramLayoutProvider sessionId={data.id}>
           <DiagramViewerProvider>
             <div
+              // data-reader-grid: the print stylesheet collapses this back to a
+              // single column, since the TOC does not print and its column would
+              // leave a blank gutter down every page.
+              data-reader-grid=""
               className="items-start gap-[34px] min-[880px]:grid"
               style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
             >

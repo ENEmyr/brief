@@ -1,7 +1,7 @@
 import { test, expect, testPayload, selectFirstParagraphText, FIRST_PARAGRAPH_SELECTOR } from './fixtures'
 
 test.describe('export', () => {
-  test('Markdown button downloads a file with the doc title and highlights section', async ({
+  test('Download > Markdown writes a file with the doc title and highlights section', async ({
     page,
     createSession,
   }) => {
@@ -17,11 +17,15 @@ test.describe('export', () => {
     await page.getByRole('button', { name: 'Highlight' }).click()
     await expect(page.locator(FIRST_PARAGRAPH_SELECTOR).locator('mark')).toBeVisible()
 
+    // Markdown and Print / PDF share one Download control now, so the export
+    // is two clicks: open the menu, then pick the item.
+    await page.getByRole('button', { name: 'Download' }).click()
+
     // Arm the listener before the click -- the download event fires the
     // instant the anchor's click() resolves (downloadMarkdown in
     // export/lib/download.ts), which can race a waiter set up afterward.
     const downloadPromise = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Download markdown' }).click()
+    await page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()
     const download = await downloadPromise
 
     expect(download.suggestedFilename()).toBe(`brief-${id}.md`)

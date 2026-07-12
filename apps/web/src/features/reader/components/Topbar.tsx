@@ -1,13 +1,8 @@
 'use client'
 import { ThemeToggle } from '@/features/theme'
+import { DownloadMenu } from './DownloadMenu'
 import { ProgressBar } from './ProgressBar'
-
-const FOCUS_RING =
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mauve'
-
-/** The three secondary topbar controls (Markdown, Print, Share) are identical
- * apart from their icon and label, so their chrome lives here once. */
-const GHOST_BUTTON = `inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-elev px-2.5 py-[5px] text-[11.5px] font-medium text-sub transition-colors hover:border-mauve hover:bg-chip hover:text-text active:bg-mauvesoft ${FOCUS_RING}`
+import { FOCUS_RING, GHOST_BUTTON } from './topbarChrome'
 
 export function Topbar({
   sessionId,
@@ -17,6 +12,7 @@ export function Topbar({
   onMenu,
   onSave,
   onDownload,
+  onPrint,
   onShare,
 }: {
   sessionId?: string
@@ -26,7 +22,12 @@ export function Topbar({
   savedLabel?: string
   onMenu?: () => void
   onSave?: () => void
+  /** Markdown export; surfaced as an item of the Download menu. */
   onDownload?: () => void
+  /** Print / PDF; also an item of the Download menu. Prop-gated like every
+   *  other control, so the propless loading-skeleton Topbar no longer offers
+   *  a print button for a document that has not loaded yet. */
+  onPrint?: () => void
   onShare?: () => void
 }) {
   return (
@@ -83,26 +84,7 @@ export function Topbar({
               <span className="hidden min-[880px]:inline">Save</span>
             </button>
           )}
-          {onDownload && (
-            <button
-              type="button"
-              onClick={onDownload}
-              aria-label="Download markdown"
-              className={GHOST_BUTTON}
-            >
-              <span className="text-[13px] text-mauve">↓</span>
-              <span className="hidden min-[880px]:inline">Markdown</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => window.print()}
-            aria-label="Print / PDF"
-            className={GHOST_BUTTON}
-          >
-            <span className="text-[13px] text-mauve">⎙</span>
-            <span className="hidden min-[880px]:inline">Print / PDF</span>
-          </button>
+          <DownloadMenu onDownload={onDownload} onPrint={onPrint} />
           {onShare && (
             <button
               type="button"

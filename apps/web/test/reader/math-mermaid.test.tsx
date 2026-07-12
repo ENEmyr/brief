@@ -17,7 +17,7 @@ vi.mock('mermaid', () => ({
 }))
 
 const { useThemeMock } = vi.hoisted(() => ({ useThemeMock: vi.fn() }))
-vi.mock('@/features/theme', () => ({ useTheme: useThemeMock }))
+vi.mock('@/features/theme', () => ({ useTheme: useThemeMock, beginThemedRender: () => () => {} }))
 
 const mathBlock: Extract<Block, { type: 'math' }> = { type: 'math', latex: 'e=mc^2' }
 const mermaidBlock: Extract<Block, { type: 'mermaid' }> = { type: 'mermaid', code: 'graph TD; A-->B' }

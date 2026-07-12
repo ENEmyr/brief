@@ -3,13 +3,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { Topbar } from '@/features/reader/components/Topbar'
 
 describe('Topbar', () => {
-  it('renders brand, session chip, theme toggle, and print button', () => {
+  it('renders brand, session chip, and theme toggle', () => {
     render(<Topbar sessionId="abc12345678901" repo="https://github.com/example/repo" />)
 
     expect(screen.getByText('Brief')).toBeInTheDocument()
     expect(screen.getByText('abc12345678901')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Toggle theme' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument()
   })
 
   it('omits the session chip when no sessionId is provided', () => {
@@ -24,14 +23,14 @@ describe('Topbar', () => {
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
   })
 
-  it('renders a Save button before Markdown and fires onSave when clicked', () => {
+  it('renders a Save button before Download and fires onSave when clicked', () => {
     const onSave = vi.fn()
     const onDownload = vi.fn()
     render(<Topbar sessionId="sess1" onSave={onSave} onDownload={onDownload} />)
 
     const buttons = screen.getAllByRole('button')
     const saveIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Save')
-    const downloadIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Download markdown')
+    const downloadIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Download')
     expect(saveIndex).toBeGreaterThanOrEqual(0)
     expect(downloadIndex).toBeGreaterThan(saveIndex)
 

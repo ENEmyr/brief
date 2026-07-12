@@ -4,6 +4,7 @@ import type { RefObject } from 'react'
 import type { EChartsType } from 'echarts/core'
 import { useDiagramViewer } from '@/features/diagram-viewer'
 import type { Palette } from '../../services/echarts'
+import { HEADER_BUTTON_CLASS } from '../DiagramCard'
 
 export interface ChartExpandButtonProps {
   chartRef: RefObject<EChartsType | null>
@@ -46,7 +47,7 @@ export function ChartExpandButton({ chartRef, palette, pixelRatio = 2 }: ChartEx
       type="button"
       aria-label="Expand chart"
       onClick={onExpand}
-      className="relative rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-mauve transition-colors hover:border-mauve hover:bg-mauvesoft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mauve before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']"
+      className={HEADER_BUTTON_CLASS}
     >
       ⤢ Expand
     </button>

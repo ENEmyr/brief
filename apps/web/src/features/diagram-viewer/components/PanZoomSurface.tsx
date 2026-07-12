@@ -22,8 +22,13 @@ export function PanZoomSurface({ api, className, contentClassName, children }: P
       {...api.surfaceProps}
       style={api.surfaceProps.style}
     >
+      {/* data-panzoom-content is the print stylesheet's handle on this box: the
+          transform is an inline style, so only a targeted `!important` rule can
+          reset it, and a reader who panned or zoomed a diagram must not print it
+          mid-transform (half off its own card). */}
       <div
         ref={api.contentRef}
+        data-panzoom-content=""
         className={contentClassName}
         style={{ transform: api.transform, transformOrigin: 'center' }}
       >
