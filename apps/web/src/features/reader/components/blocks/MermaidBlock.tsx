@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
-import { titleAnchor } from '../blockAnchor'
+import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { useTheme } from '@/features/theme'
 
@@ -156,13 +156,13 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
   const safeSvg =
     svg === null ? null : DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true, html: true } })
 
+  // Both cards below show the same caption: whether the source rendered has no
+  // bearing on the title the reader annotates.
+  const caption = titleCaption(anchor, block.title, 'Diagram')
+
   if (failed) {
     return (
-      <DiagramCard
-        caption={block.title ?? 'Diagram'}
-        {...titleAnchor(anchor, block.title)}
-        expandable={false}
-      >
+      <DiagramCard {...caption} expandable={false}>
         <pre className={FALLBACK_PRE_CLASS}>
           <code>{block.code}</code>
         </pre>
@@ -172,11 +172,7 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
   }
 
   return (
-    <DiagramCard
-      caption={block.title ?? 'Diagram'}
-      {...titleAnchor(anchor, block.title)}
-      expandable={svg !== null}
-    >
+    <DiagramCard {...caption} expandable={svg !== null}>
       {safeSvg ? (
         <div
           className="flex justify-center overflow-x-auto"

@@ -2,7 +2,7 @@
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
-import { titleAnchor } from '../blockAnchor'
+import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
@@ -154,8 +154,7 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
 
   return (
     <DiagramCard
-      caption={block.title ?? '3D plot'}
-      {...titleAnchor(anchor, block.title)}
+      {...titleCaption(anchor, block.title, '3D plot')}
       expandable={false}
       controls={
         canRender ? (

@@ -2,7 +2,7 @@
 import { useId, useState } from 'react'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
-import { titleAnchor } from '../blockAnchor'
+import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 
 type SeqBlock = Extract<Block, { type: 'seq' }>
@@ -65,8 +65,7 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
 
   return (
     <DiagramCard
-      caption={block.title ?? 'Sequence'}
-      {...titleAnchor(anchor, block.title)}
+      {...titleCaption(anchor, block.title, 'Sequence')}
       controls={
         <SeqControls
           step={step}

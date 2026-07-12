@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { Block } from '@brief/schema'
-import { Annotatable } from '@/features/annotations'
+import { CardCaption } from '../CardCaption'
 import type { BlockAnchor } from '../blockAnchor'
 import { CodePre } from './CodePre'
 
@@ -25,11 +25,9 @@ function segmentClass(active: boolean): string {
  */
 export function BeforeAfter({
   block,
-  sid,
-  bid,
   pathPrefix = '',
   annotatable = true,
-  onMarkClick,
+  ...anchor
 }: { block: BeforeAfterBlock } & BlockAnchor) {
   const [showAfter, setShowAfter] = useState(false)
   const code = showAfter ? block.after : block.before
@@ -39,14 +37,11 @@ export function BeforeAfter({
   return (
     <div className="my-4 overflow-hidden rounded-xl border border-line bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-line2 bg-elev px-3.5 py-[9px]">
-        <Annotatable
-          className="min-w-0 break-words font-mono text-[10.5px] tracking-[.04em] text-faint"
+        <CardCaption
+          {...anchor}
           text={caption}
-          sid={sid}
-          bid={bid ?? null}
           path={`${pathPrefix}${showAfter ? 'titleAfter' : 'titleBefore'}`}
-          annotatable={annotatable && bid !== undefined && title !== undefined}
-          onMarkClick={onMarkClick}
+          annotatable={annotatable && title !== undefined}
         />
         <div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-chip p-0.5">
           <button

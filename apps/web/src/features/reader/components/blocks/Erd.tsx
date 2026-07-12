@@ -4,7 +4,7 @@ import type { Block } from '@brief/schema'
 import { useBlockLayout } from '@/features/diagram-layout'
 import type { NodeOffset } from '@/features/diagram-layout'
 import { DiagramCard } from '../DiagramCard'
-import { titleAnchor } from '../blockAnchor'
+import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 
 type ErdBlock = Extract<Block, { type: 'erd' }>
@@ -227,8 +227,7 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
 
   return (
     <DiagramCard
-      caption={block.title ?? 'Entity relationship'}
-      {...titleAnchor(anchor, block.title)}
+      {...titleCaption(anchor, block.title, 'Entity relationship')}
       controls={
         moved ? (
           <button

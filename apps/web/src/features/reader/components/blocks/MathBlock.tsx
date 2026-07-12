@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
-import { titleAnchor } from '../blockAnchor'
+import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 // Static import at module scope is safe here only because MathBlock itself
 // is loaded via next/dynamic({ ssr: false }) in BlockRenderer — the CSS
@@ -49,11 +49,7 @@ export function MathBlock({ block, ...anchor }: { block: MathBlockType } & Block
   const safeHtml = html === null ? null : DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
 
   return (
-    <DiagramCard
-      caption={block.title ?? 'Equation'}
-      {...titleAnchor(anchor, block.title)}
-      expandable={html !== null}
-    >
+    <DiagramCard {...titleCaption(anchor, block.title, 'Equation')} expandable={html !== null}>
       {safeHtml ? (
         <div
           data-expand-root

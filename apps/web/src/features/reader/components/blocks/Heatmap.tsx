@@ -2,7 +2,7 @@
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
-import { titleAnchor } from '../blockAnchor'
+import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
@@ -85,8 +85,7 @@ export function Heatmap({ block, ...anchor }: { block: HeatmapBlockType } & Bloc
 
   return (
     <DiagramCard
-      caption={block.title ?? 'Heatmap'}
-      {...titleAnchor(anchor, block.title)}
+      {...titleCaption(anchor, block.title, 'Heatmap')}
       expandable={false}
       controls={
         <div className="flex justify-end">

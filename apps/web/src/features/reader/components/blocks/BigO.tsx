@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
-import { titleAnchor } from '../blockAnchor'
+import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
@@ -180,8 +180,7 @@ export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAncho
 
   return (
     <DiagramCard
-      caption={block.title ?? 'Big-O comparison'}
-      {...titleAnchor(anchor, block.title)}
+      {...titleCaption(anchor, block.title, 'Big-O comparison')}
       expandable={false}
       controls={controls}
     >

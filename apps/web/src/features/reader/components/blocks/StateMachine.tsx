@@ -2,7 +2,7 @@
 import { useId, useMemo, useState } from 'react'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
-import { titleAnchor } from '../blockAnchor'
+import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 
 type StateBlock = Extract<Block, { type: 'state' }>
@@ -161,8 +161,7 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
 
   return (
     <DiagramCard
-      caption={block.title ?? 'State machine'}
-      {...titleAnchor(anchor, block.title)}
+      {...titleCaption(anchor, block.title, 'State machine')}
       controls={
         <StateControls
           current={current}
