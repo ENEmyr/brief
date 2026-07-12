@@ -158,7 +158,7 @@ export function SaveModal({
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex justify-center bg-black/50 px-5"
+      className="fixed inset-0 z-[95] flex justify-center bg-black/50 px-5 print:hidden"
       style={{ paddingTop: '14vh' }}
       onClick={dismiss}
     >

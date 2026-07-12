@@ -46,7 +46,7 @@ export function ChartExpandButton({ chartRef, palette, pixelRatio = 2 }: ChartEx
       type="button"
       aria-label="Expand chart"
       onClick={onExpand}
-      className="relative rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-mauve transition-colors hover:border-mauve hover:bg-mauvesoft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mauve before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']"
+      className="relative rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-mauve transition-colors hover:border-mauve hover:bg-mauvesoft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mauve before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] print:hidden"
     >
       ⤢ Expand
     </button>

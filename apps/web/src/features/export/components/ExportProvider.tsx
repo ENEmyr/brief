@@ -4,6 +4,7 @@ import type { Payload } from '@brief/schema'
 import { useReaderStateStore } from '@/features/reader-state'
 import { copyText } from '../lib/copy'
 import { downloadMarkdown as downloadMarkdownFile } from '../lib/download'
+import { printDocument } from '../lib/print'
 import { Toast } from './Toast'
 import { ShareModal } from './ShareModal'
 import { CopyFallbackModal } from './CopyFallbackModal'
@@ -14,6 +15,10 @@ export interface ExportContextValue {
   copy: (text: string) => Promise<void>
   share: () => void
   downloadMarkdown: () => void
+  /** Print / save-as-PDF. Sits next to downloadMarkdown because both answer
+   *  the same reader intent ("hand me this doc as a file"), and the Topbar's
+   *  Download menu offers them as two items of one control. */
+  print: () => void
   toast: (message: string) => void
 }
 
@@ -22,6 +27,7 @@ const ExportContext = createContext<ExportContextValue>({
   copy: async () => {},
   share: noop,
   downloadMarkdown: noop,
+  print: noop,
   toast: noop,
 })
 
@@ -90,9 +96,11 @@ export function ExportProvider({
     downloadMarkdownFile(payload, store.getState(), sessionId, window.location.origin)
   }, [payload, store, sessionId])
 
+  const print = useCallback(() => printDocument(), [])
+
   const value = useMemo<ExportContextValue>(
-    () => ({ copy, share, downloadMarkdown, toast }),
-    [copy, share, downloadMarkdown, toast],
+    () => ({ copy, share, downloadMarkdown, print, toast }),
+    [copy, share, downloadMarkdown, print, toast],
   )
 
   return (

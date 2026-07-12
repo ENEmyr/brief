@@ -42,7 +42,7 @@ export function CopyFallbackModal({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-5"
+      className="fixed inset-0 z-[120] flex items-center justify-center p-5 print:hidden"
       style={{ background: 'rgba(17,17,27,.55)' }}
       onClick={onClose}
     >

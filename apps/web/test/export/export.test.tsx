@@ -207,16 +207,34 @@ describe('copyText chain', () => {
 })
 
 function ExportProbe() {
-  const { copy, toast } = useExport()
+  const { copy, toast, print } = useExport()
   return (
     <div>
       <button onClick={() => copy('some text')}>do-copy</button>
       <button onClick={() => toast('Custom message')}>do-toast</button>
+      <button onClick={print}>do-print</button>
     </div>
   )
 }
 
 describe('ExportProvider', () => {
+  it('print() calls window.print()', () => {
+    stubFetch()
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+    render(
+      <ReaderStateProvider sessionId="sess-print">
+        <ExportProvider sessionId="sess-print" payload={basePayload}>
+          <ExportProbe />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+
+    fireEvent.click(screen.getByText('do-print'))
+
+    expect(print).toHaveBeenCalledTimes(1)
+  })
+
   it('toast auto-dismisses 1600ms after being shown', () => {
     vi.useFakeTimers()
     stubFetch()
@@ -394,27 +412,87 @@ describe('stacked dialogs (ShareModal + CopyFallbackModal)', () => {
   })
 })
 
-describe('Topbar export buttons', () => {
-  it('does not render Markdown/Share buttons when no handlers are provided', () => {
+describe('Topbar export controls', () => {
+  it('does not render the Download menu or Share button when no handlers are provided', () => {
     render(<Topbar sessionId="sess1" />)
-    expect(screen.queryByRole('button', { name: 'Download markdown' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Download' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument()
   })
 
-  it('renders Markdown/Share buttons and fires their handlers when provided', () => {
-    const onDownload = vi.fn()
-    const onShare = vi.fn()
-    render(<Topbar sessionId="sess1" onDownload={onDownload} onShare={onShare} />)
+  // The print control used to be hardcoded and ungated, so it rendered even on
+  // the propless loading-skeleton Topbar -- offering to print a document that
+  // had not loaded. It is a prop now, like every other control.
+  it('does not render any print control when onPrint is not provided', () => {
+    render(<Topbar sessionId="sess1" />)
+    expect(screen.queryByRole('button', { name: /print/i })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Download markdown' }))
-    expect(onDownload).toHaveBeenCalledTimes(1)
+    render(<Topbar sessionId="sess1" onDownload={vi.fn()} onShare={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    expect(screen.getByRole('menuitem', { name: /Markdown/ })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /Print/ })).not.toBeInTheDocument()
+  })
+
+  it('fires onShare from the Share button', () => {
+    const onShare = vi.fn()
+    render(<Topbar sessionId="sess1" onShare={onShare} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Share' }))
     expect(onShare).toHaveBeenCalledTimes(1)
   })
+})
 
-  it('still renders the Print button regardless of the new handlers', () => {
-    render(<Topbar sessionId="sess1" onDownload={vi.fn()} onShare={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Print / PDF' })).toBeInTheDocument()
+describe('Topbar Download menu', () => {
+  function renderMenu() {
+    const onDownload = vi.fn()
+    const onPrint = vi.fn()
+    render(<Topbar sessionId="sess1" onDownload={onDownload} onPrint={onPrint} />)
+    return { onDownload, onPrint, trigger: screen.getByRole('button', { name: 'Download' }) }
+  }
+
+  it('is closed until the trigger is clicked, then exposes both actions', () => {
+    const { trigger } = renderMenu()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(trigger)
+
+    expect(screen.getByRole('menu', { name: 'Download' })).toBeInTheDocument()
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /Print \/ PDF/ })).toBeInTheDocument()
+  })
+
+  it('Markdown (.md) fires onDownload and closes the menu', () => {
+    const { onDownload, onPrint, trigger } = renderMenu()
+    fireEvent.click(trigger)
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ }))
+
+    expect(onDownload).toHaveBeenCalledTimes(1)
+    expect(onPrint).not.toHaveBeenCalled()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('Print / PDF fires onPrint and closes the menu', () => {
+    const { onDownload, onPrint, trigger } = renderMenu()
+    fireEvent.click(trigger)
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /Print \/ PDF/ }))
+
+    expect(onPrint).toHaveBeenCalledTimes(1)
+    expect(onDownload).not.toHaveBeenCalled()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('focuses the first item on open, and Escape closes it and restores focus to the trigger', () => {
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+
+    expect(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ })).toHaveFocus()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
   })
 })

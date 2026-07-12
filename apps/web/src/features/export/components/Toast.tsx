@@ -13,7 +13,7 @@ export function Toast({ message }: { message: string | null }) {
       role="status"
       aria-live="polite"
       style={{ animation: 'dc-floatpop .18s ease' }}
-      className="fixed bottom-6 left-1/2 z-[110] -translate-x-1/2 rounded-[9px] bg-[var(--ctp-toolbg)] px-[18px] py-[9px] text-[13px] text-white shadow-[0_8px_24px_rgba(0,0,0,.4)]"
+      className="fixed bottom-6 left-1/2 z-[110] -translate-x-1/2 rounded-[9px] bg-[var(--ctp-toolbg)] px-[18px] py-[9px] text-[13px] text-white shadow-[0_8px_24px_rgba(0,0,0,.4)] print:hidden"
     >
       {message}
     </div>

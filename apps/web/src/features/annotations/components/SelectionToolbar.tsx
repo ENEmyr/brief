@@ -147,6 +147,10 @@ export function SelectionToolbar({
 
   return (
     <div
+      // Styled inline, so `print:hidden` (a class) cannot beat its own
+      // `display: flex`. The print stylesheet hides it by this attribute
+      // instead, same idiom as ZoomControls' data-zbar.
+      data-seltoolbar="1"
       style={{
         position: 'fixed',
         left: toolbar.x,

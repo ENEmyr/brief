@@ -22,7 +22,7 @@ export interface DiagramCardProps extends CaptionAnchor {
 // WCAG touch floor comes from a transparent centered ::before, so the hit area
 // grows without inflating the header row's height.
 const HEADER_BUTTON_CLASS =
-  "relative rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-mauve transition-colors hover:border-mauve hover:bg-mauvesoft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mauve before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']"
+  "relative rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-mauve transition-colors hover:border-mauve hover:bg-mauvesoft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mauve before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] print:hidden"
 
 /**
  * Shared chrome for diagram/widget blocks: a header row with the caption, zoom
@@ -63,7 +63,7 @@ export function DiagramCard({
   }, [isExpanded, sync, ownerKey, children])
 
   return (
-    <div className="my-4 overflow-hidden rounded-xl border border-line bg-card">
+    <div className="my-4 overflow-hidden rounded-xl border border-line bg-card break-inside-avoid">
       <div className="flex items-center justify-between gap-2 border-b border-line2 bg-elev px-3.5 py-[9px]">
         <CardCaption {...anchor} text={caption} path={captionPath} />
         {expandable ? (
