@@ -62,7 +62,14 @@ export function BeforeAfter({
           </button>
         </div>
       </div>
-      <CodePre code={code} language={block.language} />
+      <CodePre
+        code={code}
+        language={block.language}
+        pathPrefix={pathPrefix}
+        field={showAfter ? 'after' : 'before'}
+        annotatable={annotatable}
+        {...anchor}
+      />
     </div>
   )
 }

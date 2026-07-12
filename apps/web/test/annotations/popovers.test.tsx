@@ -89,6 +89,13 @@ describe('buildAskPrompt', () => {
     expect(out).toContain('Question:\nคำถามคืออะไร')
   })
 
+  it('names a code line by its dotted path, same as any other structured leaf', () => {
+    // describeLocation only ever treats `path` as an opaque label, so a code
+    // line's `code.4` needs no special case here -- this just proves that.
+    const out = buildAskPrompt({ ...highlight, path: 'code.4' }, sections, 'sess1', 'https://example.com', 'My Doc')
+    expect(out).toContain('- Location: section 01 "Introduction" · block 3 (code.4) · chars 10–20')
+  })
+
   it('does not escape quotes embedded in the quoted text', () => {
     const out = buildAskPrompt(
       { ...highlight, text: 'say "hi" now' },
