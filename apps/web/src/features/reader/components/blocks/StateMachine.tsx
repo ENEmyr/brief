@@ -4,6 +4,7 @@ import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
 import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
+import { svgTextStyle } from '../../lib/svgText'
 
 type StateBlock = Extract<Block, { type: 'state' }>
 type Transition = StateBlock['transitions'][number]
@@ -171,7 +172,12 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
         />
       }
     >
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto' }}>
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
+      >
         {transitions.map((t, i) => {
           const a = coordsOf(t.from)
           const b = coordsOf(t.to)
@@ -212,10 +218,9 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
                 x={x + NODE_WIDTH / 2}
                 y={y + 20}
                 textAnchor="middle"
-                fontFamily="'IBM Plex Mono', monospace"
                 fontSize={11}
                 fontWeight={isCurrent ? 700 : 500}
-                style={{ fill: isCurrent ? 'var(--ctp-oncolor)' : colorVar }}
+                style={svgTextStyle({ fill: isCurrent ? 'var(--ctp-oncolor)' : colorVar })}
               >
                 {s.label}
               </text>

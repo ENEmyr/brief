@@ -1,9 +1,20 @@
 'use client'
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
 import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
+import {
+  ACTOR_FONT_SIZE,
+  computeSeqLayout,
+  LABEL_FONT_SIZE,
+  LINE_HEIGHT,
+  PILL_HEIGHT,
+  PILL_Y,
+  SELF_LOOP_WIDTH,
+  type SeqStepLayout,
+} from '../../lib/seqLayout'
+import { svgTextStyle } from '../../lib/svgText'
 
 type SeqBlock = Extract<Block, { type: 'seq' }>
 
@@ -11,10 +22,6 @@ type SeqBlock = Extract<Block, { type: 'seq' }>
 // 'red' the arrow gets a dashed stroke and the label is colored red too,
 // matching the prototype's explicit per-step color tagging.
 const STEP_COLOR_NAMES = ['blue', 'mauve', 'green', 'red', 'teal'] as const
-
-function actorX(i: number, actorCount: number): number {
-  return 70 + i * (340 / Math.max(1, actorCount - 1))
-}
 
 interface SeqControlsProps {
   step: number
@@ -46,22 +53,84 @@ function SeqControls({ step, max, onPrev, onNext }: SeqControlsProps) {
   )
 }
 
+interface StepArrowProps {
+  step: SeqStepLayout
+  color: string
+  dashed: boolean
+  markerId: string
+}
+
+/** The self-loop bracket, or the straight arrow between two lifelines. */
+function StepArrow({ step, color, dashed, markerId }: StepArrowProps) {
+  if (step.self) {
+    return (
+      <path
+        d={`M${step.x1} ${step.y - 8} h${SELF_LOOP_WIDTH} v16 h-${SELF_LOOP_WIDTH}`}
+        fill="none"
+        strokeWidth={1.6}
+        style={{ stroke: color }}
+        markerEnd={`url(#${markerId})`}
+      />
+    )
+  }
+
+  const dir = step.x2 > step.x1 ? 1 : -1
+  return (
+    <line
+      x1={step.x1 + dir * 6}
+      y1={step.y}
+      x2={step.x2 - dir * 6}
+      y2={step.y}
+      strokeWidth={1.8}
+      strokeDasharray={dashed ? '5 3' : undefined}
+      style={{ stroke: color }}
+      markerEnd={`url(#${markerId})`}
+    />
+  )
+}
+
+/** A wrapped label: one <tspan> per line, re-anchored at x so it stays aligned. */
+function StepLabel({ step, fill }: { step: SeqStepLayout; fill: string }) {
+  return (
+    <text
+      x={step.labelX}
+      y={step.labelY}
+      textAnchor={step.centered ? 'middle' : 'start'}
+      fontSize={LABEL_FONT_SIZE}
+      style={svgTextStyle({ fill })}
+    >
+      {step.lines.map((line, i) => (
+        <tspan key={i} x={step.labelX} dy={i === 0 ? 0 : LINE_HEIGHT}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  )
+}
+
 /**
- * Sequence diagram block. Generalizes the prototype's fixed 3-actor mock
- * (Reader.dc.html lines 596-622) to n actors laid out evenly across a fixed
- * 480-wide viewBox, and n schema-driven steps instead of a hardcoded array.
+ * Sequence diagram block: n actors, n schema-driven steps, and a Prev/Next
+ * control that reveals the steps one at a time.
+ *
+ * All geometry comes from `computeSeqLayout`, which sizes the diagram to its
+ * content. The svg renders at that natural size with `max-width: 100%`, so a
+ * wide diagram is scaled down into the column but a small one is never scaled
+ * up. The old fixed 480-unit viewBox at `width: 100%` was a ~1.8x upscale in
+ * the reader's column, which is why the labels used to dwarf the body copy.
+ *
  * Steps referencing an actor name not present in `actors` are dropped
  * defensively rather than crashing on an undefined x position.
  */
 export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
   const markerId = useId()
   const actors = block.actors
-  const actorIndex = new Map(actors.map((a, i) => [a, i]))
-  const steps = block.steps.filter((s) => actorIndex.has(s.from) && actorIndex.has(s.to))
+  const steps = useMemo(() => {
+    const known = new Set(actors)
+    return block.steps.filter((s) => known.has(s.from) && known.has(s.to))
+  }, [actors, block.steps])
   const [step, setStep] = useState(steps.length)
 
-  const height = 34 + (steps.length + 1) * 30 + 12
-  const lifelineBottom = height - 12
+  const layout = useMemo(() => computeSeqLayout(actors, steps), [actors, steps])
 
   return (
     <DiagramCard
@@ -75,98 +144,53 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
         />
       }
     >
-      <svg viewBox={`0 0 480 ${height}`} style={{ width: '100%', height: 'auto' }}>
-        {actors.map((actor, i) => {
-          const x = actorX(i, actors.length)
-          return (
-            <g key={actor}>
-              <rect
-                x={x - 40}
-                y={6}
-                width={80}
-                height={22}
-                rx={6}
-                style={{ fill: 'var(--ctp-mauvesoft)', stroke: 'var(--ctp-line)' }}
-              />
-              <text
-                x={x}
-                y={21}
-                textAnchor="middle"
-                fontFamily="'IBM Plex Mono', monospace"
-                fontSize={11}
-                fontWeight={600}
-                style={{ fill: 'var(--ctp-mauve)' }}
-              >
-                {actor}
-              </text>
-              <line
-                x1={x}
-                y1={28}
-                x2={x}
-                y2={lifelineBottom}
-                strokeDasharray="3 3"
-                style={{ stroke: 'var(--ctp-line)' }}
-              />
-            </g>
-          )
-        })}
-        {steps.map((s, i) => {
-          const on = i < step
+      <svg
+        width={layout.width}
+        height={layout.height}
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
+      >
+        {layout.actors.map((actor) => (
+          <g key={actor.name}>
+            <rect
+              x={actor.x - actor.pillWidth / 2}
+              y={PILL_Y}
+              width={actor.pillWidth}
+              height={PILL_HEIGHT}
+              rx={6}
+              style={{ fill: 'var(--ctp-mauvesoft)', stroke: 'var(--ctp-line)' }}
+            />
+            <text
+              x={actor.x}
+              y={PILL_Y + PILL_HEIGHT / 2 + 4}
+              textAnchor="middle"
+              fontSize={ACTOR_FONT_SIZE}
+              fontWeight={600}
+              style={svgTextStyle({ fill: 'var(--ctp-mauve)' })}
+            >
+              {actor.name}
+            </text>
+            <line
+              x1={actor.x}
+              y1={PILL_Y + PILL_HEIGHT}
+              x2={actor.x}
+              y2={layout.lifelineBottom}
+              strokeDasharray="3 3"
+              style={{ stroke: 'var(--ctp-line)' }}
+            />
+          </g>
+        ))}
+        {layout.steps.map((s, i) => {
           const colorName = STEP_COLOR_NAMES[i % STEP_COLOR_NAMES.length]
           const colorVar = `var(--ctp-${colorName})`
           const isRed = colorName === 'red'
-          const yy = 34 + (i + 1) * 30
-          const fromIndex = actorIndex.get(s.from) ?? 0
-          const toIndex = actorIndex.get(s.to) ?? 0
-          const x1 = actorX(fromIndex, actors.length)
-          const x2 = actorX(toIndex, actors.length)
+          // A red arrow tints its own label; a self-loop label stays neutral.
+          const labelFill = isRed && !s.self ? colorVar : 'var(--ctp-subtext0)'
 
-          if (s.from === s.to) {
-            return (
-              <g key={i} style={{ opacity: on ? 1 : 0.2, transition: 'opacity .3s' }}>
-                <path
-                  d={`M${x1} ${yy - 8} h26 v16 h-26`}
-                  fill="none"
-                  strokeWidth={1.6}
-                  style={{ stroke: colorVar }}
-                  markerEnd={`url(#${markerId})`}
-                />
-                <text
-                  x={x1 + 32}
-                  y={yy}
-                  fontFamily="'IBM Plex Mono', monospace"
-                  fontSize={10}
-                  style={{ fill: 'var(--ctp-subtext0)' }}
-                >
-                  {s.label}
-                </text>
-              </g>
-            )
-          }
-
-          const dir = x2 > x1 ? 1 : -1
           return (
-            <g key={i} style={{ opacity: on ? 1 : 0.2, transition: 'opacity .3s' }}>
-              <line
-                x1={x1 + dir * 6}
-                y1={yy}
-                x2={x2 - dir * 6}
-                y2={yy}
-                strokeWidth={1.8}
-                strokeDasharray={isRed ? '5 3' : undefined}
-                style={{ stroke: colorVar }}
-                markerEnd={`url(#${markerId})`}
-              />
-              <text
-                x={(x1 + x2) / 2}
-                y={yy - 6}
-                textAnchor="middle"
-                fontFamily="'IBM Plex Mono', monospace"
-                fontSize={10}
-                style={{ fill: isRed ? colorVar : 'var(--ctp-subtext0)' }}
-              >
-                {s.label}
-              </text>
+            <g key={i} style={{ opacity: i < step ? 1 : 0.2, transition: 'opacity .3s' }}>
+              <StepArrow step={s} color={colorVar} dashed={isRed} markerId={markerId} />
+              <StepLabel step={s} fill={labelFill} />
             </g>
           )
         })}

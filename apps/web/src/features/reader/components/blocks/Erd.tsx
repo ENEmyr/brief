@@ -6,6 +6,7 @@ import type { NodeOffset } from '@/features/diagram-layout'
 import { DiagramCard } from '../DiagramCard'
 import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
+import { svgTextStyle } from '../../lib/svgText'
 
 type ErdBlock = Extract<Block, { type: 'erd' }>
 type TableDef = ErdBlock['tables'][number]
@@ -242,8 +243,10 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
     >
       <svg
         ref={svgRef}
+        width={viewBox.width}
+        height={viewBox.height}
         viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.width} ${viewBox.height}`}
-        style={{ width: '100%', height: 'auto' }}
+        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
@@ -276,10 +279,9 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
             <text
               x={box.x + 8}
               y={box.y + 15}
-              fontFamily="'IBM Plex Mono', monospace"
               fontSize={11.5}
               fontWeight={700}
-              style={{ fill: 'var(--ctp-mauve)' }}
+              style={svgTextStyle({ fill: 'var(--ctp-mauve)' })}
             >
               {box.table.name}
             </text>
@@ -297,8 +299,8 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
                   <text
                     x={box.x + 8}
                     y={rowY + ROW_H / 2 + 3.5}
-                    fontFamily="'IBM Plex Mono', monospace"
                     fontSize={10}
+                    style={svgTextStyle()}
                   >
                     {col.pk ? (
                       <tspan
