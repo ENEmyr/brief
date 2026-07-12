@@ -3,8 +3,13 @@ import { useCallback, useRef, useState } from 'react'
 import { useDialogFocus } from '@/features/export'
 import { FOCUS_RING, GHOST_BUTTON } from './topbarChrome'
 
-const MENU_ITEM =
-  `flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12.5px] font-medium text-text transition-colors hover:bg-chip active:bg-mauvesoft ${FOCUS_RING}`
+const MENU_ITEM = `flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12.5px] font-medium text-text transition-colors hover:bg-chip active:bg-mauvesoft ${FOCUS_RING}`
+
+interface MenuItem {
+  icon: string
+  label: string
+  run: () => void
+}
 
 /**
  * The open menu, split out because useDialogFocus must not run while the menu
@@ -14,26 +19,11 @@ const MENU_ITEM =
  * rules as ShareModal/CopyFallbackModal (a menu open under a modal must not
  * swallow that modal's Escape).
  */
-function DownloadMenuPanel({
-  onDownload,
-  onPrint,
-  onClose,
-}: {
-  onDownload?: () => void
-  onPrint?: () => void
-  onClose: () => void
-}) {
+function DownloadMenuPanel({ items, onClose }: { items: MenuItem[]; onClose: () => void }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const firstItemRef = useRef<HTMLButtonElement>(null)
 
   useDialogFocus(panelRef, onClose, firstItemRef)
-
-  // Every item closes the menu after acting: print hands off to the browser's
-  // print dialog, and a menu left hanging open would be captured in the PDF.
-  const run = (action?: () => void) => () => {
-    onClose()
-    action?.()
-  }
 
   return (
     <div
@@ -44,36 +34,28 @@ function DownloadMenuPanel({
       className="absolute right-0 top-[calc(100%+6px)] z-50 w-[190px] rounded-xl border border-line bg-card p-1.5 shadow-[var(--shadow-card)] outline-none"
       style={{ animation: 'dc-pop .18s ease' }}
     >
-      {onDownload && (
+      {items.map((item, index) => (
         <button
-          ref={firstItemRef}
+          key={item.label}
+          // Focus opens on the first item that actually renders, which is not
+          // always the markdown one: either handler can be absent.
+          ref={index === 0 ? firstItemRef : undefined}
           type="button"
           role="menuitem"
-          onClick={run(onDownload)}
+          onClick={() => {
+            // Close before acting: print hands off to the browser's print
+            // dialog, and a menu left hanging open would be captured in the PDF.
+            onClose()
+            item.run()
+          }}
           className={MENU_ITEM}
         >
           <span aria-hidden="true" className="text-[13px] text-mauve">
-            ↓
+            {item.icon}
           </span>
-          Markdown (.md)
+          {item.label}
         </button>
-      )}
-      {onPrint && (
-        <button
-          // Focus lands here when markdown is absent, so the ref follows the
-          // first item that actually renders rather than a fixed one.
-          ref={onDownload ? undefined : firstItemRef}
-          type="button"
-          role="menuitem"
-          onClick={run(onPrint)}
-          className={MENU_ITEM}
-        >
-          <span aria-hidden="true" className="text-[13px] text-mauve">
-            ⎙
-          </span>
-          Print / PDF
-        </button>
-      )}
+      ))}
     </div>
   )
 }
@@ -83,6 +65,9 @@ function DownloadMenuPanel({
  * buttons. Both are the same reader intent ("give me this doc as a file"), and
  * collapsing them frees a slot in a topbar that is already tight at the
  * 880px breakpoint where every label hides.
+ *
+ * Each handler is optional and an absent one drops its menu item; with neither,
+ * there is no menu to open and the control does not render at all.
  */
 export function DownloadMenu({
   onDownload,
@@ -94,7 +79,10 @@ export function DownloadMenu({
   const [open, setOpen] = useState(false)
   const close = useCallback(() => setOpen(false), [])
 
-  if (!onDownload && !onPrint) return null
+  const items: MenuItem[] = []
+  if (onDownload) items.push({ icon: '↓', label: 'Markdown (.md)', run: onDownload })
+  if (onPrint) items.push({ icon: '⎙', label: 'Print / PDF', run: onPrint })
+  if (items.length === 0) return null
 
   return (
     <div className="relative">
@@ -122,7 +110,7 @@ export function DownloadMenu({
         </span>
         <span className="hidden min-[880px]:inline">Download</span>
       </button>
-      {open && <DownloadMenuPanel onDownload={onDownload} onPrint={onPrint} onClose={close} />}
+      {open && <DownloadMenuPanel items={items} onClose={close} />}
     </div>
   )
 }

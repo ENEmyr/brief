@@ -15,9 +15,8 @@ export interface ExportContextValue {
   copy: (text: string) => Promise<void>
   share: () => void
   downloadMarkdown: () => void
-  /** Print / save-as-PDF. Sits next to downloadMarkdown because both answer
-   *  the same reader intent ("hand me this doc as a file"), and the Topbar's
-   *  Download menu offers them as two items of one control. */
+  /** Print / save-as-PDF, alongside downloadMarkdown because the Topbar's
+   *  Download menu offers the two as items of one control (see lib/print.ts). */
   print: () => void
   toast: (message: string) => void
 }
