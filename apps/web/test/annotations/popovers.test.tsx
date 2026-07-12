@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { NotePopover, AskPopover, buildAskPrompt } from '@/features/annotations'
 import { ReaderStateProvider, useReaderState } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
@@ -21,7 +21,16 @@ function Probe() {
   return <div data-testid="probe">{JSON.stringify(highlights)}</div>
 }
 
-afterEach(() => {
+afterEach(async () => {
+  // Every mutation schedules its localStorage write on a 0ms timer
+  // (persistence.ts), so a test that ends right after one leaves that timer
+  // armed. Clearing storage synchronously here does not defuse it: it fires
+  // during the NEXT test and re-seeds the state we just wiped. The next
+  // SessionPage then hydrates from it, because its ReaderStateProvider mounts
+  // only after the envelope fetch resolves -- later than the write. Yielding
+  // one macrotask first lets the pending writes land, so the clear below
+  // actually removes them.
+  await new Promise((resolve) => setTimeout(resolve, 0))
   localStorage.clear()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -354,6 +363,18 @@ describe('SessionView popover wiring (integration)', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
     render(<SessionPage />)
     await screen.findByText('Hello world')
+    // The text appearing is not the same thing as the page being ready to
+    // listen. findByText resolves off a DOM mutation, which can land before
+    // React has flushed its passive effects -- and SelectionToolbar registers
+    // its document mouseup listener inside one of those. Fire a selection in
+    // that gap and no toolbar appears, because nothing is listening yet: the
+    // page looks ready and is not. Under load the gap widens, which is why this
+    // only ever failed in CI.
+    //
+    // Flushing effects here closes it. A real reader cannot hit this race: they
+    // cannot select text before the page's effects have run. It is an artefact
+    // of driving the DOM directly, so the fix belongs in the test.
+    await act(async () => {})
   }
 
   it('Note action opens the note popover; a later Ask action closes it and opens the ask popover instead', async () => {
