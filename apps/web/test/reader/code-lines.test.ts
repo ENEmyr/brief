@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { Element } from 'hast'
+import type { Element, ElementContent } from 'hast'
 import type { Highlight } from '@/features/reader-state'
 import {
   extractLineNodes,
@@ -16,6 +16,16 @@ function tokenSpan(text: string, style: string): Element {
 
 function highlight(overrides: Partial<Highlight> & Pick<Highlight, 'start' | 'end' | 'text'>): Highlight {
   return { id: 'h1', sid: 0, bid: 0, path: 'code.0', note: null, ...overrides }
+}
+
+function flattenText(nodes: ElementContent[]): string {
+  return nodes
+    .map((node) => {
+      if (node.type === 'text') return node.value
+      if (node.type === 'element') return flattenText(node.children)
+      return ''
+    })
+    .join('')
 }
 
 describe('extractLineNodes / lineText (anchor invariant)', () => {
@@ -99,6 +109,50 @@ describe('renderLineChildren', () => {
     const mark = out[0] as Element
     const sup = mark.children[mark.children.length - 1] as Element
     expect((sup.children[0] as { value: string }).value).toBe('●')
+  })
+
+  it('paints a highlight after an astral character at the model\'s own UTF-16 offsets', () => {
+    // The emoji is one code point but two UTF-16 code units. `start`/`end`
+    // come from the browser's Range API, which counts code units, so a
+    // correct splicer must too -- iterating code points instead shifts
+    // every offset after the emoji left by one.
+    const modelLine = 'x = "\u{1F600}" + hello'
+    const start = modelLine.indexOf('hello')
+    const end = start + 'hello'.length
+    const astralLine: Element = {
+      type: 'element',
+      tagName: 'span',
+      properties: { class: 'line' },
+      children: [{ type: 'text', value: modelLine }],
+    }
+    const h = highlight({ start, end, text: 'hello' })
+
+    const out = renderLineChildren(astralLine, [h])
+    const mark = out.find((n): n is Element => n.type === 'element' && n.tagName === 'mark')
+    expect(mark).toBeDefined()
+    expect(flattenText(mark!.children)).toBe('hello')
+  })
+
+  it('does not duplicate characters when two highlights overlap', () => {
+    // A second, overlapping selection is an ordinary user action (select,
+    // then select again over part of the same text), not an exotic input.
+    const modelLine = 'abcdefghij'
+    const overlapLine: Element = {
+      type: 'element',
+      tagName: 'span',
+      properties: { class: 'line' },
+      children: [{ type: 'text', value: modelLine }],
+    }
+    const first = highlight({ id: 'first', start: 0, end: 6, text: 'abcdef' })
+    const second = highlight({ id: 'second', start: 3, end: 9, text: 'defghi' })
+
+    const out = renderLineChildren(overlapLine, [first, second])
+
+    expect(flattenText(out)).toBe(modelLine)
+    const markIds = out
+      .filter((n): n is Element => n.type === 'element' && n.tagName === 'mark')
+      .map((m) => m.properties?.['data-highlight-id'])
+    expect(markIds).toEqual(['first', 'second'])
   })
 })
 

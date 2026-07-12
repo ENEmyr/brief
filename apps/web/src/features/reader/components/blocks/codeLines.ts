@@ -1,4 +1,5 @@
 import type { Element, ElementContent, Root } from 'hast'
+import { DEFAULT_HIGHLIGHT_PATH } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 
 /**
@@ -91,7 +92,7 @@ function collectChars(nodes: ElementContent[], inherited: CharStyle): { ch: stri
   const out: { ch: string; style: CharStyle }[] = []
   for (const node of nodes) {
     if (node.type === 'text') {
-      for (const ch of node.value) out.push({ ch, style: inherited })
+      for (let i = 0; i < node.value.length; i++) out.push({ ch: node.value[i]!, style: inherited })
     } else if (node.type === 'element') {
       out.push(...collectChars(node.children, styleOf(node, inherited)))
     }
@@ -174,7 +175,7 @@ export function renderLineChildren(node: Element, highlights: Highlight[]): Elem
     const end = Math.max(0, Math.min(h.end, chars.length))
     if (start > cur) pushRun(cur, start, out)
     const markChildren: ElementContent[] = []
-    pushRun(start, end, markChildren)
+    pushRun(Math.max(start, cur), end, markChildren)
     out.push(markNode(h, markChildren))
     cur = Math.max(cur, end)
   }
@@ -195,7 +196,11 @@ export function highlightsForLine(
 ): Highlight[] {
   if (sid === undefined) return []
   return highlights.filter(
-    (h) => h.sid === sid && (h.bid ?? null) === bid && (h.path ?? '') === path && text.slice(h.start, h.end) === h.text,
+    (h) =>
+      h.sid === sid &&
+      (h.bid ?? null) === bid &&
+      (h.path ?? DEFAULT_HIGHLIGHT_PATH) === path &&
+      text.slice(h.start, h.end) === h.text,
   )
 }
 
