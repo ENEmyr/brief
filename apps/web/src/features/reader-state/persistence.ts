@@ -1,20 +1,8 @@
+import { coerceState } from './coerce'
 import type { ReaderState } from './store'
 
 function storageKey(sessionId: string): string {
   return `idocs:${sessionId}`
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function coerceState(raw: unknown): ReaderState {
-  const value = isRecord(raw) ? raw : {}
-  return {
-    highlights: Array.isArray(value.highlights) ? (value.highlights as ReaderState['highlights']) : [],
-    dsel: isRecord(value.dsel) ? (value.dsel as ReaderState['dsel']) : {},
-    dnote: isRecord(value.dnote) ? (value.dnote as ReaderState['dnote']) : {},
-  }
 }
 
 /** Reads and parses the persisted state for a session. Never throws; returns

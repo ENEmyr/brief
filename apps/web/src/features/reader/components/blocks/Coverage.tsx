@@ -1,4 +1,6 @@
 import type { Block } from '@brief/schema'
+import { Annotatable } from '@/features/annotations'
+import type { Highlight } from '@/features/reader-state'
 
 const barFill = {
   full: 'bg-green w-full',
@@ -12,18 +14,48 @@ const legend = [
   { status: 'missing', color: 'bg-red' },
 ] as const
 
-export function Coverage({ block }: { block: Extract<Block, { type: 'coverage' }> }) {
+export function Coverage({
+  block,
+  sid,
+  bid,
+  pathPrefix = '',
+  annotatable = true,
+  onMarkClick,
+}: {
+  block: Extract<Block, { type: 'coverage' }>
+  sid?: number
+  bid?: number
+  pathPrefix?: string
+  annotatable?: boolean
+  onMarkClick?: (highlight: Highlight) => void
+}) {
+  const anchor = {
+    sid,
+    bid: bid ?? null,
+    annotatable: annotatable && bid !== undefined,
+    onMarkClick,
+  }
+
   return (
     <figure className="my-4">
       <figcaption className="font-mono text-[10.5px] tracking-[.04em] text-faint mb-2.5">
-        {block.caption ?? 'Coverage'}
+        {block.caption ? (
+          <Annotatable {...anchor} text={block.caption} path={`${pathPrefix}caption`} />
+        ) : (
+          'Coverage'
+        )}
       </figcaption>
       {block.items.map((item, i) => (
         <div
           key={i}
           className="grid grid-cols-1 min-[880px]:grid-cols-[minmax(0,190px)_1fr_minmax(0,160px)] items-center gap-2.5 mb-2 text-[12.5px]"
         >
-          <span className="break-words font-semibold text-text">{item.label}</span>
+          <Annotatable
+            {...anchor}
+            className="break-words font-semibold text-text"
+            text={item.label}
+            path={`${pathPrefix}items.${i}.label`}
+          />
           <div
             role="img"
             aria-label={`${item.label}: ${item.status}`}
@@ -34,9 +66,12 @@ export function Coverage({ block }: { block: Extract<Block, { type: 'coverage' }
           {/* No whitespace-nowrap: a long note (an unspaced Thai run, say) has
               nowhere to go in a fixed column and paints straight out of the
               figure. Let it wrap, and break the run if it has no break points. */}
-          <span className="hidden break-words min-[880px]:block font-mono text-[11px] text-sub text-right">
-            {item.note ?? ''}
-          </span>
+          <Annotatable
+            {...anchor}
+            className="hidden break-words min-[880px]:block font-mono text-[11px] text-sub text-right"
+            text={item.note ?? ''}
+            path={`${pathPrefix}items.${i}.note`}
+          />
         </div>
       ))}
       <div className="flex gap-3.5 mt-2 text-[11px] text-faint">

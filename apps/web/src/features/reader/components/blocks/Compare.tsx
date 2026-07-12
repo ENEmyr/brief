@@ -1,4 +1,6 @@
 import type { Block } from '@brief/schema'
+import { Annotatable } from '@/features/annotations'
+import type { Highlight } from '@/features/reader-state'
 
 const paneBorderTop = {
   good: 'border-t-green',
@@ -15,11 +17,36 @@ const tagPillTone = {
   bad: 'text-red border-red',
 } as const
 
-export function Compare({ block }: { block: Extract<Block, { type: 'compare' }> }) {
+export function Compare({
+  block,
+  sid,
+  bid,
+  pathPrefix = '',
+  annotatable = true,
+  onMarkClick,
+}: {
+  block: Extract<Block, { type: 'compare' }>
+  sid?: number
+  bid?: number
+  pathPrefix?: string
+  annotatable?: boolean
+  onMarkClick?: (highlight: Highlight) => void
+}) {
+  const anchor = {
+    sid,
+    bid: bid ?? null,
+    annotatable: annotatable && bid !== undefined,
+    onMarkClick,
+  }
+
   return (
     <figure className="my-4">
       <figcaption className="font-mono text-[10.5px] tracking-[.04em] text-faint mb-2">
-        {block.caption ?? 'Comparison'}
+        {block.caption ? (
+          <Annotatable {...anchor} text={block.caption} path={`${pathPrefix}caption`} />
+        ) : (
+          'Comparison'
+        )}
       </figcaption>
       <div className="flex gap-3.5 items-stretch max-[879px]:flex-col">
         {[
@@ -31,7 +58,13 @@ export function Compare({ block }: { block: Extract<Block, { type: 'compare' }> 
             className={`flex-1 min-w-0 border border-line border-t-[3px] ${data.tone ? paneBorderTop[data.tone] : 'border-t-mauve'} rounded-xl ${data.tone ? paneBg[data.tone] : 'bg-[var(--compare-pane-bg)]'} px-[17px] py-[15px]`}
           >
             <div className="flex items-center gap-2 mb-[11px]">
-              <div className="text-[14.5px] font-bold text-text">{data.title}</div>
+              <Annotatable
+                {...anchor}
+                as="div"
+                className="text-[14.5px] font-bold text-text"
+                text={data.title}
+                path={`${pathPrefix}${side}.title`}
+              />
               {data.tag && (
                 <span
                   className={`font-mono text-[10.5px] font-semibold rounded-full px-2.5 py-0.5 border bg-[var(--compare-tag-bg)] ${data.tone ? tagPillTone[data.tone] : 'text-mauve border-mauve'}`}
@@ -46,7 +79,11 @@ export function Compare({ block }: { block: Extract<Block, { type: 'compare' }> 
                   <span className={`flex-none font-bold ${item.ok ? 'text-green' : 'text-red'}`}>
                     {item.ok ? '✓' : '✕'}
                   </span>
-                  <span>{item.text}</span>
+                  <Annotatable
+                    {...anchor}
+                    text={item.text}
+                    path={`${pathPrefix}${side}.items.${i}.text`}
+                  />
                 </li>
               ))}
             </ul>

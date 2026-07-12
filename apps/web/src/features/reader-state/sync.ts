@@ -1,24 +1,12 @@
 import { API_URL } from '@/shared/api'
 import { hasPersistedState } from './persistence'
+import { coerceState } from './coerce'
 import type { ReaderState, ReaderStateStore } from './store'
 
 const DEBOUNCE_MS = 5000
 
 interface StateResponseBody {
   state: string | null
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function coerceState(raw: unknown): ReaderState {
-  const value = isRecord(raw) ? raw : {}
-  return {
-    highlights: Array.isArray(value.highlights) ? (value.highlights as ReaderState['highlights']) : [],
-    dsel: isRecord(value.dsel) ? (value.dsel as ReaderState['dsel']) : {},
-    dnote: isRecord(value.dnote) ? (value.dnote as ReaderState['dnote']) : {},
-  }
 }
 
 function stateUrl(sessionId: string): string {

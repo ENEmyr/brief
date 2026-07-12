@@ -3,7 +3,7 @@ import type { Section } from '@brief/schema'
 import { useReaderActions, useReaderState } from '@/features/reader-state'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { defaultCopyText } from '../lib/clipboard'
-import { buildAskPrompt } from '../lib/askPrompt'
+import { buildAskPrompt, describeLocation } from '../lib/askPrompt'
 
 const QUOTE_MAX = 140
 
@@ -38,7 +38,7 @@ export function AskPopover({
   if (!h) return null
 
   const section = sections[h.sid]
-  const locationRef = `${section ? section.no : ''} · ¶${h.bid + 1} · ch ${h.start}–${h.end}`
+  const locationRef = `${section ? section.no : ''} · ${describeLocation(h)} · ch ${h.start}–${h.end}`
   const quote = h.text.length > QUOTE_MAX ? `${h.text.slice(0, QUOTE_MAX)}…` : h.text
   const ready = !!(h.question ?? '').trim()
 

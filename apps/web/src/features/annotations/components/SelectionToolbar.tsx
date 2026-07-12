@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useReaderActions } from '@/features/reader-state'
+import { DEFAULT_HIGHLIGHT_PATH, useReaderActions } from '@/features/reader-state'
 import { selectionRangeIn } from '../lib/offsets'
 import { defaultCopyText } from '../lib/clipboard'
 
@@ -8,7 +8,8 @@ type ToolbarState = {
   x: number
   top: number
   sid: number
-  bid: number
+  bid: number | null
+  path: string
   start: number
   end: number
   text: string
@@ -52,7 +53,10 @@ export function SelectionToolbar({
       }
       const range = sel.getRangeAt(0)
       const block = findHlBlock(range.startContainer)
-      if (!block) {
+      // A highlight addresses ONE leaf, so a selection that starts in one and
+      // ends in another has no honest anchor. Refuse it rather than quietly
+      // storing the part that fits.
+      if (!block || findHlBlock(range.endContainer) !== block) {
         setToolbar(null)
         return
       }
@@ -67,11 +71,14 @@ export function SelectionToolbar({
         window.innerWidth - VIEWPORT_MARGIN,
       )
       const top = rect.top < FLIP_BELOW_THRESHOLD ? rect.bottom + BELOW_SELECTION_GAP : rect.top - TOOLBAR_RISE
+      const bidAttr = block.dataset.bid
       setToolbar({
         x,
         top,
         sid: Number(block.dataset.sid),
-        bid: Number(block.dataset.bid),
+        // Absent for a section heading, which is not a block.
+        bid: bidAttr === undefined ? null : Number(bidAttr),
+        path: block.dataset.path ?? DEFAULT_HIGHLIGHT_PATH,
         start: result.start,
         end: result.end,
         text: result.text,
@@ -95,32 +102,29 @@ export function SelectionToolbar({
     setToolbar(null)
   }
 
+  /** The anchor is identical for all three actions; only note/question differ. */
+  function anchorFrom(state: ToolbarState, id: string) {
+    return {
+      id,
+      sid: state.sid,
+      bid: state.bid,
+      path: state.path,
+      start: state.start,
+      end: state.end,
+      text: state.text,
+    }
+  }
+
   function handleHighlight() {
     if (!toolbar) return
-    actions.addHighlight({
-      id: `h${Date.now()}`,
-      sid: toolbar.sid,
-      bid: toolbar.bid,
-      start: toolbar.start,
-      end: toolbar.end,
-      text: toolbar.text,
-      note: null,
-    })
+    actions.addHighlight({ ...anchorFrom(toolbar, `h${Date.now()}`), note: null })
     finish()
   }
 
   function handleNote() {
     if (!toolbar) return
     const id = `h${Date.now()}`
-    actions.addHighlight({
-      id,
-      sid: toolbar.sid,
-      bid: toolbar.bid,
-      start: toolbar.start,
-      end: toolbar.end,
-      text: toolbar.text,
-      note: '',
-    })
+    actions.addHighlight({ ...anchorFrom(toolbar, id), note: '' })
     onRequestNote(id)
     finish()
   }
@@ -128,16 +132,7 @@ export function SelectionToolbar({
   function handleAsk() {
     if (!toolbar) return
     const id = `h${Date.now()}`
-    actions.addHighlight({
-      id,
-      sid: toolbar.sid,
-      bid: toolbar.bid,
-      start: toolbar.start,
-      end: toolbar.end,
-      text: toolbar.text,
-      note: null,
-      question: '',
-    })
+    actions.addHighlight({ ...anchorFrom(toolbar, id), note: null, question: '' })
     onRequestAsk(id)
     finish()
   }

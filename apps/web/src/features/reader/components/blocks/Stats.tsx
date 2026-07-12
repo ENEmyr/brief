@@ -1,5 +1,7 @@
 import type { Block } from '@brief/schema'
 import type { CSSProperties } from 'react'
+import { Annotatable } from '@/features/annotations'
+import type { Highlight } from '@/features/reader-state'
 
 const statToneClass = {
   mauve: 'text-mauve',
@@ -11,8 +13,28 @@ const statToneClass = {
   yellow: 'text-yellow',
 } as const
 
-export function Stats({ block }: { block: Extract<Block, { type: 'stat' }> }) {
+export function Stats({
+  block,
+  sid,
+  bid,
+  pathPrefix = '',
+  annotatable = true,
+  onMarkClick,
+}: {
+  block: Extract<Block, { type: 'stat' }>
+  sid?: number
+  bid?: number
+  pathPrefix?: string
+  annotatable?: boolean
+  onMarkClick?: (highlight: Highlight) => void
+}) {
   const style = { '--stat-cols': `repeat(${Math.min(4, block.items.length)}, 1fr)` } as CSSProperties
+  const anchor = {
+    sid,
+    bid: bid ?? null,
+    annotatable: annotatable && bid !== undefined,
+    onMarkClick,
+  }
 
   return (
     <div
@@ -21,11 +43,29 @@ export function Stats({ block }: { block: Extract<Block, { type: 'stat' }> }) {
     >
       {block.items.map((item, i) => (
         <div key={i} className="border border-line rounded-xl bg-card px-4 py-[15px] text-center">
-          <p className={`text-[28px] font-bold font-mono leading-none ${statToneClass[item.tone ?? 'mauve']}`}>
-            {item.value}
-          </p>
-          <p className="text-[12px] text-sub mt-1.5 leading-[1.4]">{item.label}</p>
-          {item.hint && <p className="text-[11px] text-faint mt-1">{item.hint}</p>}
+          <Annotatable
+            {...anchor}
+            as="p"
+            className={`text-[28px] font-bold font-mono leading-none ${statToneClass[item.tone ?? 'mauve']}`}
+            text={item.value}
+            path={`${pathPrefix}items.${i}.value`}
+          />
+          <Annotatable
+            {...anchor}
+            as="p"
+            className="text-[12px] text-sub mt-1.5 leading-[1.4]"
+            text={item.label}
+            path={`${pathPrefix}items.${i}.label`}
+          />
+          {item.hint && (
+            <Annotatable
+              {...anchor}
+              as="p"
+              className="text-[11px] text-faint mt-1"
+              text={item.hint}
+              path={`${pathPrefix}items.${i}.hint`}
+            />
+          )}
         </div>
       ))}
     </div>

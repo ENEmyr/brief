@@ -62,6 +62,25 @@ function selectWithin(el: Element, textNodeIndex = 0, start = 0, end = 5, text =
   fireEvent.mouseUp(document)
 }
 
+/** A selection dragged out of one leaf and into another. */
+function selectAcross(fromEl: Element, toEl: Element, text = 'Hello Not') {
+  const range = {
+    startContainer: fromEl.childNodes[0]!,
+    startOffset: 0,
+    endContainer: toEl.childNodes[0]!,
+    endOffset: 3,
+    getBoundingClientRect: () => fakeRect(),
+  } as unknown as Range
+  const sel = {
+    isCollapsed: false,
+    toString: () => text,
+    getRangeAt: () => range,
+    removeAllRanges: () => {},
+  } as unknown as Selection
+  vi.spyOn(window, 'getSelection').mockReturnValue(sel)
+  fireEvent.mouseUp(document)
+}
+
 function collapsedSelection() {
   const sel = {
     isCollapsed: true,
@@ -101,6 +120,28 @@ describe('SelectionToolbar', () => {
     expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument()
   })
 
+  it('refuses a selection that spans two leaves instead of silently truncating it', () => {
+    // This used to corrupt in silence: the offset walk fell through and returned
+    // the first block's full text length, so the stored anchor covered text the
+    // reader never selected. An anchor addresses ONE leaf; spanning two has no
+    // honest answer, so there is nothing to offer.
+    const { container } = render(
+      <ReaderStateProvider sessionId={sessionId}>
+        <p data-hl data-sid="2" data-bid="1" data-path="text">
+          Hello world
+        </p>
+        <p data-hl data-sid="2" data-bid="2" data-path="text">
+          Second para
+        </p>
+        <SelectionToolbar />
+      </ReaderStateProvider>,
+    )
+    const [first, second] = Array.from(container.querySelectorAll('p'))
+    selectAcross(first!, second!)
+
+    expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument()
+  })
+
   it('stays hidden when the selection is outside any [data-hl] block', () => {
     renderToolbar()
     const other = screen.getByText('Not selectable')
@@ -114,13 +155,17 @@ describe('SelectionToolbar', () => {
     expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument()
   })
 
-  it('stays hidden when the selection is inside a details-nested paragraph', () => {
-    // Details-nested paragraphs are not annotatable (they render without
-    // [data-hl]), so the mouseup handler's closest('[data-hl]') guard must
-    // keep the toolbar hidden for selections inside them.
+  it('annotates a details-nested paragraph, addressing it by leaf path', () => {
+    // Nested content used to be excluded: an anchor was only (sid, bid,
+    // offsets), and a nested paragraph has no top-level block index of its own,
+    // so a defaulted index would have aliased another block's highlights. A leaf
+    // path removes that constraint -- the nested paragraph is `blocks.0.text`
+    // inside the details block's own bid.
     render(
       <ReaderStateProvider sessionId={sessionId}>
         <BlockRenderer
+          sid={2}
+          bid={1}
           block={{
             type: 'details',
             summary: 'more',
@@ -131,7 +176,25 @@ describe('SelectionToolbar', () => {
       </ReaderStateProvider>,
     )
     const nested = screen.getByText('nested selectable text')
+    expect(nested.closest('[data-hl]')).toHaveAttribute('data-path', 'blocks.0.text')
+
     selectWithin(nested)
+    expect(screen.getByRole('button', { name: 'Highlight' })).toBeInTheDocument()
+  })
+
+  it('stays hidden when the selection is inside a block with no annotatable leaf', () => {
+    render(
+      <ReaderStateProvider sessionId={sessionId}>
+        <BlockRenderer
+          sid={2}
+          bid={1}
+          block={{ type: 'code', language: 'ts', code: 'const x = 1' }}
+        />
+        <SelectionToolbar />
+      </ReaderStateProvider>,
+    )
+    const code = screen.getByText(/const x/)
+    selectWithin(code)
     expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument()
   })
 

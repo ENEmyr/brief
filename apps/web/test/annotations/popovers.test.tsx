@@ -47,7 +47,7 @@ describe('buildAskPrompt', () => {
     const lines = out.split('\n')
     expect(lines).toContain('Question about a specific part of the "My Doc" doc (session sess1).')
     expect(lines).toContain('- URL: https://example.com/s/sess1#intro')
-    expect(lines).toContain('- Location: section 01 "Introduction" · paragraph 3 · chars 10–20')
+    expect(lines).toContain('- Location: section 01 "Introduction" · block 3 · chars 10–20')
     expect(lines).toContain('- Quoted text: "quoted bit"')
     expect(out).toContain('Question:\nWhy does this work?')
     expect(lines).toContain(
@@ -60,7 +60,7 @@ describe('buildAskPrompt', () => {
     const out = buildAskPrompt(orphan, sections, 'sess1', 'https://example.com', 'My Doc')
     const lines = out.split('\n')
     expect(lines).toContain('- URL: https://example.com/s/sess1')
-    expect(lines).toContain('- Location: section 9 · paragraph 3 · chars 10–20')
+    expect(lines).toContain('- Location: section 9 · block 3 · chars 10–20')
   })
 
   it('uses the placeholder when the question is empty or whitespace', () => {
@@ -218,7 +218,7 @@ describe('AskPopover', () => {
 
   it('renders the raw (non-padded) location reference', () => {
     renderPopover()
-    expect(screen.getByText('3 · ¶5 · ch 2–9')).toBeInTheDocument()
+    expect(screen.getByText('3 · block 5 · ch 2–9')).toBeInTheDocument()
   })
 
   it('renders up to 140 chars of the quoted excerpt with an ellipsis', () => {
@@ -320,8 +320,8 @@ describe('SessionView popover wiring (integration)', () => {
     expiresAt: 2,
   }
 
-  function selectWithin(el: Element, start: number, end: number, text: string) {
-    const textNode = el.childNodes[0]!
+  function selectWithin(el: Element, start: number, end: number, text: string, nodeIndex = 0) {
+    const textNode = el.childNodes[nodeIndex]!
     const range = {
       startContainer: textNode,
       startOffset: start,
@@ -364,7 +364,11 @@ describe('SessionView popover wiring (integration)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Note' }))
     expect(screen.getByPlaceholderText(/write a short note/i)).toBeInTheDocument()
 
-    selectWithin(paragraph, 6, 11, 'world')
+    // The first note split the paragraph into [<mark>Hello</mark>, ' world'], so
+    // a selection of "world" now lands in the second text node at offsets 1..6.
+    // Addressing it as the old flat 6..11 of childNodes[0] would be selecting
+    // inside the <mark> element, which is not where the reader clicked.
+    selectWithin(paragraph, 1, 6, 'world', 1)
     fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
 
     expect(screen.queryByPlaceholderText(/write a short note/i)).not.toBeInTheDocument()
