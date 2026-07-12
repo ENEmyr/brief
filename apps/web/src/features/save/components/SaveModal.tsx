@@ -22,11 +22,11 @@ function projectedCiphertextChars(plaintextBytes: number): number {
 }
 
 /**
- * Save dialog (design language follows ShareModal chrome -- prototype has no
- * direct save-modal reference). Two save modes: plain (mode: 'plain') or
- * end-to-end encrypted (mode: 'encrypt', password never leaves this device).
- * Joins the shared dialog stack via useDialogFocus (bug-214) so Escape only
- * closes this dialog when it is topmost.
+ * Archive dialog (design language follows ShareModal chrome -- prototype has
+ * no direct save-modal reference). Two archive modes: plain (mode: 'plain')
+ * or end-to-end encrypted (mode: 'encrypt', password never leaves this
+ * device). Joins the shared dialog stack via useDialogFocus (bug-214) so
+ * Escape only closes this dialog when it is topmost.
  */
 export function SaveModal({
   sessionId,
@@ -45,7 +45,7 @@ export function SaveModal({
    * The server-side commit cannot be rolled back at that point, so the UI
    * must not lie in either direction: no success toast/modal (the user
    * abandoned the flow), but the caller should still silently reflect
-   * server truth (e.g. show the "saved" chip).
+   * server truth (e.g. show the "archived" chip).
    */
   onBackgroundSaveSettled?: (mode: SaveMode) => void
 }) {
@@ -105,7 +105,7 @@ export function SaveModal({
       setError(result.error)
       return
     }
-    toast(saveMode === 'encrypt' ? 'Saved with password' : 'Saved')
+    toast(saveMode === 'encrypt' ? 'Archived with password' : 'Archived')
     onSaved(saveMode)
     onClose()
   }
@@ -133,7 +133,7 @@ export function SaveModal({
       // failure) before anything is ever sent -- surface it the same way a
       // failed PUT does instead of leaving the modal silently stuck busy.
       if (!cancelledRef.current) {
-        setError('Save failed')
+        setError('Archive failed')
         setBusy(false)
       }
       return
@@ -166,14 +166,14 @@ export function SaveModal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Save this doc"
+        aria-label="Archive this doc"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
         className="h-fit w-[min(92vw,440px)] rounded-[14px] border border-line bg-card p-5 shadow-[var(--shadow-card)]"
         style={{ animation: 'dc-pop .18s ease' }}
       >
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[15px] font-bold">⛉ Save this doc</span>
+          <span className="text-[15px] font-bold">⛉ Archive this doc</span>
           <button
             type="button"
             onClick={dismiss}
@@ -183,25 +183,25 @@ export function SaveModal({
             ✕
           </button>
         </div>
-        <p className="mb-3.5 text-[13px] text-sub">Saving keeps this doc for 90 days from last open.</p>
+        <p className="mb-3.5 text-[13px] text-sub">Archiving keeps this doc for 90 days from last open.</p>
 
-        <div className="mb-3 flex flex-col gap-2" role="group" aria-label="Save mode">
+        <div className="mb-3 flex flex-col gap-2" role="group" aria-label="Archive mode">
           <button
             type="button"
             aria-pressed={mode === 'plain'}
             // Distinguishes this option row's accessible name from the footer's
-            // "Save" submit button (both show the literal word "Save" per the
-            // design copy) -- same one-attribute-addition posture as
+            // "Archive" submit button (both show the literal word "Archive" per
+            // the design copy) -- same one-attribute-addition posture as
             // PromptReview's aria-label fix, harmless for and arguably helpful
             // to real screen-reader users.
-            aria-label="Save without a password"
+            aria-label="Archive without a password"
             onClick={() => setMode('plain')}
             className={`max-[879px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
               mode === 'plain' ? 'border-mauve bg-mauvesoft text-text' : 'border-line bg-card text-sub'
             }`}
           >
             <span aria-hidden="true" className="font-semibold">
-              Save
+              Archive
             </span>
           </button>
           <button
@@ -212,7 +212,7 @@ export function SaveModal({
               mode === 'encrypt' ? 'border-mauve bg-mauvesoft text-text' : 'border-line bg-card text-sub'
             }`}
           >
-            <span className="font-semibold">Save with password</span>
+            <span className="font-semibold">Archive with password</span>
           </button>
         </div>
 
@@ -260,7 +260,7 @@ export function SaveModal({
             disabled={!canSubmit}
             className="max-[879px]:min-h-11 flex-1 cursor-pointer rounded-[9px] border-0 bg-mauve px-4 py-[9px] text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy && mode === 'encrypt' ? 'Encrypting…' : 'Save'}
+            {busy && mode === 'encrypt' ? 'Encrypting…' : 'Archive'}
           </button>
           <button
             type="button"

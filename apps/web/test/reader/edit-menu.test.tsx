@@ -106,7 +106,7 @@ describe('Topbar Edit menu', () => {
     expect(copyItem).toHaveFocus()
   })
 
-  it('renders between Save and Download when both are present', () => {
+  it('renders between Archive and Download when both are present', () => {
     render(
       <Topbar
         sessionId="sess1"
@@ -116,7 +116,7 @@ describe('Topbar Edit menu', () => {
       />,
     )
     const buttons = screen.getAllByRole('button')
-    const saveIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Save')
+    const saveIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Archive')
     const editIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Edit')
     const downloadIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Download')
     expect(saveIndex).toBeGreaterThanOrEqual(0)

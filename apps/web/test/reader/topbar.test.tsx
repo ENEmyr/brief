@@ -18,23 +18,23 @@ describe('Topbar', () => {
     expect(screen.queryByText(/session/i)).not.toBeInTheDocument()
   })
 
-  it('does not render a Save button when onSave is not provided', () => {
+  it('does not render an Archive button when onSave is not provided', () => {
     render(<Topbar sessionId="sess1" />)
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
   })
 
-  it('renders a Save button before Download and fires onSave when clicked', () => {
+  it('renders an Archive button before Download and fires onSave when clicked', () => {
     const onSave = vi.fn()
     const onDownload = vi.fn()
     render(<Topbar sessionId="sess1" onSave={onSave} onDownload={onDownload} />)
 
     const buttons = screen.getAllByRole('button')
-    const saveIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Save')
+    const saveIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Archive')
     const downloadIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Download')
     expect(saveIndex).toBeGreaterThanOrEqual(0)
     expect(downloadIndex).toBeGreaterThan(saveIndex)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     expect(onSave).toHaveBeenCalledTimes(1)
   })
 

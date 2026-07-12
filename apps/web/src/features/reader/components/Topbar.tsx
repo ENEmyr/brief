@@ -20,7 +20,7 @@ export function Topbar({
   sessionId?: string
   repo?: string
   showProgress?: boolean
-  /** Mono chip text (e.g. "saved") rendered next to the session chip once the doc has been saved. */
+  /** Mono chip text (e.g. "archived") rendered next to the session chip once the doc has been archived. */
   savedLabel?: string
   onMenu?: () => void
   onSave?: () => void
@@ -82,11 +82,11 @@ export function Topbar({
             <button
               type="button"
               onClick={onSave}
-              aria-label="Save"
+              aria-label="Archive"
               className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border-0 bg-mauve px-2.5 py-[5px] text-[11.5px] font-semibold text-white transition hover:brightness-110 active:brightness-95 ${FOCUS_RING}`}
             >
               <span className="text-[13px]">⛉</span>
-              <span className="hidden min-[880px]:inline">Save</span>
+              <span className="hidden min-[880px]:inline">Archive</span>
             </button>
           )}
           <EditMenu onCopyPrompt={onEditPrompt} />

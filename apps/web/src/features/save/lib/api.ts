@@ -14,7 +14,7 @@ function mapErrorStatus(status: number): string {
     case 429:
       return 'Too many attempts - try again in a minute'
     default:
-      return 'Save failed'
+      return 'Archive failed'
   }
 }
 
@@ -27,7 +27,7 @@ export async function saveSession(sessionId: string, body: SaveRequestBody): Pro
       body: JSON.stringify(body),
     })
   } catch {
-    return { ok: false, error: 'Save failed', status: 0 }
+    return { ok: false, error: 'Archive failed', status: 0 }
   }
   if (res.ok) return { ok: true }
   return { ok: false, error: mapErrorStatus(res.status), status: res.status }
