@@ -1,5 +1,6 @@
 export { textOffset, selectionRangeIn } from './lib/offsets'
 export { buildAskPrompt } from './lib/askPrompt'
+export { buildEditPrompt } from './lib/editPrompt'
 export { HighlightedText } from './components/HighlightedText'
 export { Annotatable } from './components/Annotatable'
 export type { AnnotatableProps } from './components/Annotatable'

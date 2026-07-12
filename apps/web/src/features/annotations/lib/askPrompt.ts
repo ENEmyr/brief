@@ -2,7 +2,9 @@ import type { Section } from '@brief/schema'
 import { DEFAULT_HIGHLIGHT_PATH } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 
-const pad = (n: number) => String(n).padStart(2, '0')
+/** Zero-pads a section number, shared with editPrompt.ts so both prompt
+ *  builders render section references identically. */
+export const pad = (n: number) => String(n).padStart(2, '0')
 
 /**
  * Where inside the section a highlight sits. "paragraph N" no longer covers it:

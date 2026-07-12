@@ -70,7 +70,7 @@ function SessionReady({
    */
   protectedSession?: boolean
 }) {
-  const { copy, share, downloadMarkdown, print } = useExport()
+  const { copy, share, downloadMarkdown, print, copyEditPrompt } = useExport()
   const [tocCollapsed, setTocCollapsed] = useState(false)
   // Drawer open state lives here per the Task 5 contract; `onMenu` from
   // Topbar opens it and Toc's onCloseDrawer prop closes it.
@@ -162,6 +162,7 @@ function SessionReady({
         savedLabel={savedLabel}
         onMenu={() => setTocDrawerOpen(true)}
         onSave={protectedSession ? undefined : () => setSaveModalOpen(true)}
+        onEditPrompt={copyEditPrompt}
         onDownload={downloadMarkdown}
         onPrint={print}
         onShare={share}
@@ -279,7 +280,7 @@ export function SessionView({ id }: { id: string | null }) {
         // leave the device unencrypted. Same-key encrypted sync is a
         // roadmap enhancement.
         <ReaderStateProvider key={data.id} sessionId={data.id} persist={false}>
-          <ExportProvider sessionId={data.id} payload={decrypted}>
+          <ExportProvider sessionId={data.id} payload={decrypted} encrypted={data.encrypted}>
             <SessionReady data={{ ...data, payload: decrypted }} protectedSession />
           </ExportProvider>
         </ReaderStateProvider>
@@ -301,7 +302,7 @@ export function SessionView({ id }: { id: string | null }) {
 
   return (
     <ReaderStateProvider key={data.id} sessionId={data.id}>
-      <ExportProvider sessionId={data.id} payload={data.payload}>
+      <ExportProvider sessionId={data.id} payload={data.payload} encrypted={data.encrypted}>
         <SessionReady data={{ ...data, payload: data.payload }} />
       </ExportProvider>
     </ReaderStateProvider>

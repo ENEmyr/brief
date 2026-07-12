@@ -1,6 +1,7 @@
 'use client'
 import { ThemeToggle } from '@/features/theme'
 import { DownloadMenu } from './DownloadMenu'
+import { EditMenu } from './EditMenu'
 import { ProgressBar } from './ProgressBar'
 import { FOCUS_RING, GHOST_BUTTON } from './topbarChrome'
 
@@ -11,6 +12,7 @@ export function Topbar({
   savedLabel,
   onMenu,
   onSave,
+  onEditPrompt,
   onDownload,
   onPrint,
   onShare,
@@ -22,6 +24,9 @@ export function Topbar({
   savedLabel?: string
   onMenu?: () => void
   onSave?: () => void
+  /** Copies the edit prompt (highlights/notes/questions/decision answers) for
+   *  an AI agent to act on; the Edit menu's one live item. */
+  onEditPrompt?: () => void
   /** Markdown export; surfaced as an item of the Download menu. */
   onDownload?: () => void
   /** Print / PDF; also an item of the Download menu. Prop-gated like every
@@ -84,6 +89,7 @@ export function Topbar({
               <span className="hidden min-[880px]:inline">Save</span>
             </button>
           )}
+          <EditMenu onCopyPrompt={onEditPrompt} />
           <DownloadMenu onDownload={onDownload} onPrint={onPrint} />
           {onShare && (
             <button
