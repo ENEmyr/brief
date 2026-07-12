@@ -1,5 +1,6 @@
 'use client'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { RefObject } from 'react'
 import { useDialogFocus } from '@/features/export'
 import { FOCUS_RING, GHOST_BUTTON } from './topbarChrome'
 
@@ -18,12 +19,78 @@ interface MenuItem {
  * and focus returns to the trigger" fall out for free, with the same stacking
  * rules as ShareModal/CopyFallbackModal (a menu open under a modal must not
  * swallow that modal's Escape).
+ *
+ * Click-away is a document-level `pointerdown` listener registered in this
+ * component's own effect, rather than a full-viewport overlay div: an
+ * overlay would need to be a fixed-position descendant of Topbar's header,
+ * and that header has `backdrop-blur`, which makes it a containing block for
+ * fixed-position descendants (CSS Filter Effects spec) -- so `inset-0` on
+ * the overlay resolves against the ~56px header box, not the viewport, and
+ * a click anywhere in the actual page body never reaches it. A document
+ * listener has no containing-block problem: `rootRef` (passed down from
+ * DownloadMenu, spanning both the trigger and this panel) is what a click on
+ * the trigger button itself is inside of, so re-clicking the trigger is left
+ * entirely to the trigger's own onClick toggle rather than being raced by
+ * this listener. Attaching on `pointerdown` from THIS effect, which only
+ * runs after the panel has mounted -- which is only after the trigger's own
+ * click has already finished dispatching -- means it can never fire for the
+ * same click that opened the menu; there is no listener to race.
  */
-function DownloadMenuPanel({ items, onClose }: { items: MenuItem[]; onClose: () => void }) {
+function DownloadMenuPanel({
+  items,
+  onClose,
+  rootRef,
+}: {
+  items: MenuItem[]
+  onClose: () => void
+  rootRef: RefObject<HTMLDivElement | null>
+}) {
   const panelRef = useRef<HTMLDivElement>(null)
   const firstItemRef = useRef<HTMLButtonElement>(null)
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useDialogFocus(panelRef, onClose, firstItemRef)
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (rootRef.current?.contains(event.target as Node)) return
+      onClose()
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [onClose, rootRef])
+
+  // Roving arrow-key navigation over the item buttons: `role="menu"` /
+  // `role="menuitem"` commits to Up/Down/Home/End moving between items per
+  // the ARIA APG menu pattern, which useDialogFocus's Tab-cycle alone does
+  // not provide.
+  function focusItemAt(index: number) {
+    const count = itemRefs.current.length
+    const wrapped = ((index % count) + count) % count
+    itemRefs.current[wrapped]?.focus()
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const current = itemRefs.current.findIndex((el) => el === document.activeElement)
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault()
+        focusItemAt(current + 1)
+        break
+      case 'ArrowUp':
+        event.preventDefault()
+        focusItemAt(current - 1)
+        break
+      case 'Home':
+        event.preventDefault()
+        focusItemAt(0)
+        break
+      case 'End':
+        event.preventDefault()
+        focusItemAt(itemRefs.current.length - 1)
+        break
+    }
+  }
 
   return (
     <div
@@ -31,6 +98,7 @@ function DownloadMenuPanel({ items, onClose }: { items: MenuItem[]; onClose: () 
       role="menu"
       aria-label="Download"
       tabIndex={-1}
+      onKeyDown={handleKeyDown}
       className="absolute right-0 top-[calc(100%+6px)] z-50 w-[190px] rounded-xl border border-line bg-card p-1.5 shadow-[var(--shadow-card)] outline-none"
       style={{ animation: 'dc-pop .18s ease' }}
     >
@@ -39,12 +107,18 @@ function DownloadMenuPanel({ items, onClose }: { items: MenuItem[]; onClose: () 
           key={item.label}
           // Focus opens on the first item that actually renders, which is not
           // always the markdown one: either handler can be absent.
-          ref={index === 0 ? firstItemRef : undefined}
+          ref={(el) => {
+            itemRefs.current[index] = el
+            if (index === 0) firstItemRef.current = el
+          }}
           type="button"
           role="menuitem"
           onClick={() => {
-            // Close before acting: print hands off to the browser's print
-            // dialog, and a menu left hanging open would be captured in the PDF.
+            // Order is harmless either way here (React 18 batches this
+            // setOpen(false), so window.print() -- synchronous -- still
+            // runs with the panel present in the DOM); the menu never shows
+            // up in the PDF because Topbar carries print:hidden, not
+            // because of this ordering.
             onClose()
             item.run()
           }}
@@ -78,6 +152,7 @@ export function DownloadMenu({
 }) {
   const [open, setOpen] = useState(false)
   const close = useCallback(() => setOpen(false), [])
+  const rootRef = useRef<HTMLDivElement>(null)
 
   const items: MenuItem[] = []
   if (onDownload) items.push({ icon: '↓', label: 'Markdown (.md)', run: onDownload })
@@ -85,11 +160,7 @@ export function DownloadMenu({
   if (items.length === 0) return null
 
   return (
-    <div className="relative">
-      {/* Click-away layer: covers the viewport behind the menu so a click
-          anywhere else dismisses it, without a document-level listener that
-          would race the trigger's own onClick. */}
-      {open && <div className="fixed inset-0 z-40" onClick={close} />}
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         onClick={(event) => {
@@ -110,7 +181,7 @@ export function DownloadMenu({
         </span>
         <span className="hidden min-[880px]:inline">Download</span>
       </button>
-      {open && <DownloadMenuPanel items={items} onClose={close} />}
+      {open && <DownloadMenuPanel items={items} onClose={close} rootRef={rootRef} />}
     </div>
   )
 }

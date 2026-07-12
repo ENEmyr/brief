@@ -118,7 +118,11 @@ const CodeLine = memo(function CodeLine({
  * lazy shiki import), then swaps in a shiki-highlighted, React-owned tree
  * once `highlightToHast` resolves. Both states share the same dark panel
  * look (`--code-bg` / fixed `#cdd6f4` text) per the prototype, which keeps a
- * dark code panel in both app themes — see globals.css.
+ * dark code panel in both app themes -- see globals.css. The `data-code-panel`
+ * attribute on the fallback `<pre>` is what tells the print stylesheet to
+ * keep that background printing too (`print-color-adjust: exact`); without
+ * it, print drops the background but keeps the light text color. The shiki
+ * path doesn't need the attribute -- the `.shiki` selector already covers it.
  *
  * The highlighted tree is built from shiki's hast output via
  * hast-util-to-jsx-runtime rather than `dangerouslySetInnerHTML`: nothing
@@ -190,7 +194,7 @@ export function CodePre({
   }
 
   return (
-    <pre className={PRE_CLASS} style={{ background: 'var(--code-bg)', color: '#cdd6f4' }}>
+    <pre data-code-panel className={PRE_CLASS} style={{ background: 'var(--code-bg)', color: '#cdd6f4' }}>
       <code>{code}</code>
     </pre>
   )

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { EChartsType } from 'echarts/core'
 import type { EChartsOption } from 'echarts'
+import { beginThemedRender } from '@/features/theme'
 
 export interface Palette {
   text: string
@@ -139,11 +140,17 @@ export function useEChart(
 
   useEffect(() => {
     let cancelled = false
-    loader().then((echarts) => {
-      if (cancelled || !containerRef.current) return
-      chartRef.current ??= echarts.init(containerRef.current)
-      chartRef.current.setOption(buildOption(), true)
-    })
+    // Tracked so lib/print.ts can wait for this chart's redraw in the
+    // print-forced palette before handing off to window.print() -- see
+    // features/theme's beginThemedRender doc comment.
+    const endThemedRender = beginThemedRender()
+    loader()
+      .then((echarts) => {
+        if (cancelled || !containerRef.current) return
+        chartRef.current ??= echarts.init(containerRef.current)
+        chartRef.current.setOption(buildOption(), true)
+      })
+      .finally(endThemedRender)
     return () => {
       cancelled = true
     }

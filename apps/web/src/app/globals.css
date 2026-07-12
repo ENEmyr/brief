@@ -252,9 +252,13 @@ body {
     box-shadow: none !important;
   }
 
-  /* The floating selection toolbar and the diagram zoom bar both style
-     themselves inline (`display: flex`), so `print:hidden` -- a class -- would
-     lose to them. These two need the important. */
+  /* The floating selection toolbar styles itself inline (`display: flex`),
+     so `print:hidden` -- a class -- would lose to it; that's why this needs
+     the !important. The diagram zoom bar (`data-zbar`) does not actually
+     need it -- it gets `display: flex` from a class (ViewerOverlay.tsx),
+     which this rule already beats on source order -- but it is harmless to
+     share the rule with the toolbar rather than split it for one selector's
+     sake. */
   [data-seltoolbar],
   [data-zbar] {
     display: none !important;
@@ -306,11 +310,18 @@ body {
   }
 
   /* Backgrounds are dropped by default when printing, which is fine for the
-     near-white card surfaces but not for these two: code panels are dark in
-     both themes (light syntax colors on white paper is unreadable), and a
-     highlight without its background is not a highlight. */
+     near-white card surfaces but not for these: code panels are dark in both
+     themes (light syntax colors on white paper is unreadable), and a
+     highlight without its background is not a highlight. `.shiki` is the
+     highlighted code path; `[data-code-panel]` marks the other spots that
+     pair the same dark `--code-bg` with fixed light text outside shiki --
+     CodePre's pre-highlight/highlight-failed fallback `<pre>` and
+     PromptReview's and CopyFallbackModal's textareas -- which would
+     otherwise lose only the background and keep the light text, unreadable
+     on the white page underneath. */
   .shiki,
-  mark {
+  mark,
+  [data-code-panel] {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }

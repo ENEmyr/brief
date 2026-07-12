@@ -9,7 +9,12 @@ import { defaultCopyText } from '@/shared/clipboard'
  * rebuilds); footer has a solid "Copy prompt" and an outline "Rebuild from
  * answers". The textarea reuses the `--code-bg` token (dark panel
  * regardless of app theme, same as CodePre's shiki panel) rather than the
- * prototype's literal `this.state.dark ? '#11111b' : '#1e1e2e'` branch. */
+ * prototype's literal `this.state.dark ? '#11111b' : '#1e1e2e'` branch. Also
+ * carries `data-code-panel` so print keeps this dark background instead of
+ * dropping it and leaving the fixed light text unreadable on white paper --
+ * this is document body content that reaches the printed page, unlike
+ * CopyFallbackModal's identical-looking textarea, which sits behind a
+ * `print:hidden` modal backdrop and never does. */
 export function PromptReview({
   text,
   onChange,
@@ -48,6 +53,7 @@ export function PromptReview({
           Edit the text below as you like, then copy it into Claude Code
         </p>
         <textarea
+          data-code-panel
           value={text}
           onChange={(event) => onChange(event.target.value)}
           aria-label="Prompt text"

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import type { Payload } from '@brief/schema'
 import type { Highlight, ReaderState } from '@/features/reader-state'
 import { ReaderStateProvider } from '@/features/reader-state'
@@ -11,7 +11,9 @@ import {
   useExport,
   ShareModal,
   CopyFallbackModal,
+  printDocument,
 } from '@/features/export'
+import { useTheme, beginThemedRender } from '@/features/theme'
 import { Topbar } from '@/features/reader/components/Topbar'
 
 function stubFetch() {
@@ -290,6 +292,50 @@ describe('ExportProvider', () => {
   })
 })
 
+describe('printDocument', () => {
+  afterEach(() => {
+    document.documentElement.removeAttribute('data-theme')
+  })
+
+  it('calls window.print() immediately, without forcing a theme override, when the app is not on mocha', async () => {
+    document.documentElement.setAttribute('data-theme', 'latte')
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+
+    await printDocument()
+
+    expect(print).toHaveBeenCalledTimes(1)
+  })
+
+  it('forces latte, waits for in-flight chart/diagram renders, prints, then restores mocha (blocker 2)', async () => {
+    document.documentElement.setAttribute('data-theme', 'mocha')
+    const print = vi.fn()
+    vi.stubGlobal('print', print)
+
+    const { result } = renderHook(() => useTheme())
+    expect(result.current.theme).toBe('mocha')
+
+    // Simulate a chart/diagram still redrawing in the new palette: print
+    // must not fire until this settles.
+    const endRender = beginThemedRender()
+    let printing!: Promise<void>
+    await act(async () => {
+      printing = printDocument()
+      await new Promise((resolve) => setTimeout(resolve, 60))
+    })
+    expect(result.current.theme).toBe('latte')
+    expect(print).not.toHaveBeenCalled()
+
+    await act(async () => {
+      endRender()
+      await printing
+    })
+
+    expect(print).toHaveBeenCalledTimes(1)
+    expect(result.current.theme).toBe('mocha')
+  })
+})
+
 describe('ShareModal', () => {
   it('renders the share URL, session and version chips, and copies via onCopy', () => {
     const onClose = vi.fn()
@@ -494,5 +540,70 @@ describe('Topbar Download menu', () => {
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
+  })
+
+  // Regression for the click-away bug: a `position: fixed` overlay rendered
+  // inside Topbar's header (which has `backdrop-blur`, making it a
+  // containing block for fixed descendants) resolves `inset-0` against the
+  // ~56px header box, not the viewport, so a click on the page body never
+  // reached it. jsdom has no layout, so it cannot reproduce the coordinate
+  // bug directly -- this instead pins the actual fix: a document-level
+  // pointerdown listener with no viewport-covering element involved at all.
+  it('closes on a document-level pointerdown outside the menu, wherever the target is', () => {
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.pointerDown(document.body)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('does not close on a pointerdown inside the panel (an item click still runs its own close)', () => {
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+
+    fireEvent.pointerDown(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ }))
+
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('re-clicking the trigger toggles the menu closed instead of being raced by the outside-click listener', () => {
+    // A real click dispatches pointerdown before click; the trigger sits
+    // inside rootRef alongside the panel, so the outside-click listener
+    // must treat this pointerdown as "inside" and leave closing entirely to
+    // the trigger's own onClick toggle.
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.pointerDown(trigger)
+    fireEvent.click(trigger)
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('ArrowDown/ArrowUp/Home/End move focus between items with roving navigation', () => {
+    const { trigger } = renderMenu()
+    fireEvent.click(trigger)
+
+    const markdownItem = screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ })
+    const printItem = screen.getByRole('menuitem', { name: /Print \/ PDF/ })
+    expect(markdownItem).toHaveFocus()
+
+    fireEvent.keyDown(markdownItem, { key: 'ArrowDown' })
+    expect(printItem).toHaveFocus()
+
+    fireEvent.keyDown(printItem, { key: 'ArrowDown' })
+    expect(markdownItem).toHaveFocus()
+
+    fireEvent.keyDown(markdownItem, { key: 'ArrowUp' })
+    expect(printItem).toHaveFocus()
+
+    fireEvent.keyDown(printItem, { key: 'End' })
+    expect(printItem).toHaveFocus()
+
+    fireEvent.keyDown(printItem, { key: 'Home' })
+    expect(markdownItem).toHaveFocus()
   })
 })
