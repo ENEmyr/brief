@@ -232,11 +232,22 @@ describe('Erd block', () => {
   it('renders exactly one fk edge per valid fk reference, skipping unknown table refs', () => {
     const { container } = r(erdBlock)
     const svg = container.querySelector('svg')
-    const dashedTealEdges = Array.from(svg?.querySelectorAll('line') ?? []).filter(
-      (l) => l.getAttribute('stroke-dasharray') === '4 3',
+    // Edges are orthogonal paths, not straight lines: an edge now picks which
+    // side of each box to leave from and arrive at, so it needs elbows.
+    const dashedTealEdges = Array.from(svg?.querySelectorAll('path') ?? []).filter(
+      (p) => p.getAttribute('stroke-dasharray') === '4 3',
     )
     // only user_id -> users is a resolvable table; ghost_id -> nonexistent is skipped
     expect(dashedTealEdges.length).toBe(1)
+  })
+
+  it('routes an fk edge orthogonally, standing off the box before it turns', () => {
+    const { container } = r(erdBlock)
+    const edge = Array.from(container.querySelectorAll('path')).find(
+      (p) => p.getAttribute('stroke-dasharray') === '4 3',
+    )
+    // M x,y H mid V y2 H x2: horizontal out, vertical across, horizontal in.
+    expect(edge?.getAttribute('d')).toMatch(/^M[\d.-]+,[\d.-]+ H[\d.-]+ V[\d.-]+ H[\d.-]+$/)
   })
 
   it('does not crash when a fk references an unknown table', () => {

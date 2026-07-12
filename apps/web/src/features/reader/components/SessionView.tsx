@@ -4,6 +4,7 @@ import type { Payload } from '@brief/schema'
 import { Toc } from '@/features/toc'
 import type { TocSection } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
+import { DiagramLayoutProvider } from '@/features/diagram-layout'
 import { ReaderStateProvider, useReaderStateStore } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
@@ -166,38 +167,40 @@ function SessionReady({
       />
       <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
         <MetaHeader meta={data.payload.meta} />
-        <DiagramViewerProvider>
-          <div
-            className="items-start gap-[34px] min-[880px]:grid"
-            style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
-          >
-            <Toc
-              sections={tocSections}
-              collapsed={tocCollapsed}
-              onToggleCollapsed={toggleTocCollapsed}
-              drawerOpen={tocDrawerOpen}
-              onCloseDrawer={() => setTocDrawerOpen(false)}
-            />
-            {/* min-w-0: a grid item defaults to min-width:auto, so without this
-                the article column cannot shrink below its widest child and one
-                wide table or diagram pushes the whole page into a horizontal
-                scroll. Wide blocks scroll inside their own box instead. */}
-            <div className="min-w-0">
-              {data.payload.sections.map((s, si) => (
-                <SectionView key={s.id} section={s} sid={si} onMarkClick={handleMarkClick} />
-              ))}
-              {hasDecisions && (
-                <DecisionSection
-                  decisions={data.payload.decisions}
-                  no={data.payload.sections.length + 1}
-                  docTitle={data.payload.meta.title}
-                  sessionId={data.id}
-                  copyText={copy}
-                />
-              )}
+        <DiagramLayoutProvider sessionId={data.id}>
+          <DiagramViewerProvider>
+            <div
+              className="items-start gap-[34px] min-[880px]:grid"
+              style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
+            >
+              <Toc
+                sections={tocSections}
+                collapsed={tocCollapsed}
+                onToggleCollapsed={toggleTocCollapsed}
+                drawerOpen={tocDrawerOpen}
+                onCloseDrawer={() => setTocDrawerOpen(false)}
+              />
+              {/* min-w-0: a grid item defaults to min-width:auto, so without this
+                  the article column cannot shrink below its widest child and one
+                  wide table or diagram pushes the whole page into a horizontal
+                  scroll. Wide blocks scroll inside their own box instead. */}
+              <div className="min-w-0">
+                {data.payload.sections.map((s, si) => (
+                  <SectionView key={s.id} section={s} sid={si} onMarkClick={handleMarkClick} />
+                ))}
+                {hasDecisions && (
+                  <DecisionSection
+                    decisions={data.payload.decisions}
+                    no={data.payload.sections.length + 1}
+                    docTitle={data.payload.meta.title}
+                    sessionId={data.id}
+                    copyText={copy}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        </DiagramViewerProvider>
+          </DiagramViewerProvider>
+        </DiagramLayoutProvider>
       </main>
       <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} copyText={copy} />
       {notePopId && <NotePopover id={notePopId} onClose={closeNotePopover} />}

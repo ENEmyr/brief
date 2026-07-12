@@ -126,7 +126,7 @@ export function BlockRenderer({
     case 'layers':
       return <Layers block={block} />
     case 'erd':
-      return <Erd block={block} />
+      return <Erd block={block} sid={sid} bid={bid} />
     case 'code':
       return <CodeBlock block={block} />
     case 'ba':
