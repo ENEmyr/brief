@@ -271,7 +271,23 @@ body {
   }
 
   /* Reset any pan/zoom the reader left on a diagram: the transform is inline,
-     and printing it mid-gesture crops the diagram against its own card. */
+     and printing it mid-gesture crops the diagram against its own card.
+     KNOWN LIMITATION (disclosed, not fixed here): mermaid renders its SVG at
+     `width: 100%` up to its own natural pixel width (a `max-width` inline
+     style), so on paper it already scales down to whatever the page's
+     printable width is -- there is no extra shrink introduced by this
+     stylesheet to remove. For a diagram far wider than it is tall (an 11:1
+     flowchart measured against this app's real payloads renders its natural
+     width at roughly a third of a portrait page's printable width) that
+     scale-down is severe enough to make the labels hard to read, even
+     though every box and color is present and correct. Landscape paging or
+     forcing the SVG to its natural size were both considered: landscape
+     still would not reach a genuinely legible scale for a diagram this
+     wide, and forcing natural size would push it past the page margin,
+     silently losing the same way the wide-table clip in DataTable does.
+     Neither is worth the added pagination complexity for a partial result,
+     so an unusually wide diagram printing small is accepted as a known
+     limitation rather than papered over. */
   [data-panzoom-content] {
     transform: none !important;
   }
@@ -307,6 +323,31 @@ body {
   li {
     orphans: 2;
     widows: 2;
+  }
+
+  /* DataTable's screen layout puts a wide `table` block in a horizontally
+     scrolling wrapper (`overflow-x-auto` in DataTable.tsx) and keeps its
+     header and first-column cells on one line (`whitespace-nowrap`), so the
+     widest cell -- often a long Thai sentence -- decides how wide the whole
+     table gets. Paper has no scrollbar: with `table-layout: auto` that same
+     wide cell would still push the table past the page edge, and the
+     rightmost columns would not just look cropped, they would be genuinely
+     missing from the PDF. `table-layout: fixed` locks the table to its
+     container's width instead of its content's, and letting cells wrap
+     (overriding `whitespace-nowrap`) keeps the overflowing text inside its
+     own cell rather than off the page. The smaller font buys back some of
+     the room the wrapping costs. CmpTable (decisions' compare tables) picks
+     up the same rule; it was never at risk of clipping, so this only tidies
+     it up to match. */
+  table {
+    table-layout: fixed;
+  }
+
+  th,
+  td {
+    font-size: 10.5px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
   }
 
   /* Backgrounds are dropped by default when printing, which is fine for the
