@@ -28,7 +28,14 @@ const validEnvelope = {
   expiresAt: 2,
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  // Reader state is keyed by session id and these tests share one, so a test
+  // that seeds or writes an entry must not leak it into the next. Doing this
+  // in afterEach rather than at the end of a test body means a failing test
+  // cleans up too.
+  window.localStorage.clear()
+})
 
 describe('SessionPage / SessionView', () => {
   it('renders skeleton first, then title, section heading and paragraph after resolve', async () => {
@@ -153,9 +160,15 @@ describe('SessionPage / SessionView', () => {
     // touched for a protected session -- not even the mount-time GET.
     const stateCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/state'))
     expect(stateCalls).toHaveLength(0)
-    // Pre-fix plaintext removed, and nothing rewrote it.
+    // Pre-fix plaintext removed. The scrub runs in ReaderStateProvider's mount
+    // effect, and React flushes passive effects after it commits the DOM, so
+    // "Test Doc" can be on screen a tick before the entry is gone. Waiting for
+    // the removal rather than asserting it outright is what keeps this green on
+    // a loaded machine; a bare expect() here raced the effect and failed in CI.
+    await waitFor(() => expect(window.localStorage.getItem('idocs:abc12345678901')).toBeNull())
+    // ... and nothing rewrote it afterwards.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
     expect(window.localStorage.getItem('idocs:abc12345678901')).toBeNull()
-    window.localStorage.clear()
   })
 
   it('wrong password on a protected session shows the generic error and lets the reader retry', async () => {
