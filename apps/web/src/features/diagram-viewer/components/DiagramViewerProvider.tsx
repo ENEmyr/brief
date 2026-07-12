@@ -1,35 +1,46 @@
 'use client'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import { useViewer } from '../hooks/useViewer'
 import { ViewerOverlay } from './ViewerOverlay'
 
 export interface DiagramViewerContextValue {
-  open: (html: string) => void
+  /** Key of the block currently expanded, or null. */
+  expandedKey: string | null
+  open: (ownerKey: string, node: React.ReactNode) => void
+  sync: (ownerKey: string, node: React.ReactNode) => void
   close: () => void
 }
 
 // A no-op default so any consumer calling useDiagramViewer() outside a
-// DiagramViewerProvider (e.g. a block component under a bare unit test)
-// gets a harmless open()/close() instead of a crash. This lets tests for
-// individual blocks skip wrapping every render in a provider.
+// DiagramViewerProvider (e.g. a block component under a bare unit test) gets a
+// harmless open()/close() instead of a crash.
 const noop = () => {}
-const defaultValue: DiagramViewerContextValue = { open: noop, close: noop }
+const defaultValue: DiagramViewerContextValue = {
+  expandedKey: null,
+  open: noop,
+  sync: noop,
+  close: noop,
+}
 
 const DiagramViewerContext = createContext<DiagramViewerContextValue>(defaultValue)
 
 /**
  * Owns the single fullscreen diagram viewer for its subtree: holds the
- * useViewer() open/closed state and renders one ViewerOverlay after
- * `children`, so any descendant can call useDiagramViewer().open(html) to
- * expand a diagram without each block needing its own overlay instance.
+ * useViewer() state and renders one ViewerOverlay after `children`, so any
+ * descendant can expand a diagram without each block owning an overlay.
  */
 export function DiagramViewerProvider({ children }: { children: React.ReactNode }) {
-  const { content, open, close } = useViewer()
+  const { content, open, sync, close } = useViewer()
+
+  const value = useMemo(
+    () => ({ expandedKey: content?.ownerKey ?? null, open, sync, close }),
+    [content?.ownerKey, open, sync, close],
+  )
 
   return (
-    <DiagramViewerContext.Provider value={{ open, close }}>
+    <DiagramViewerContext.Provider value={value}>
       {children}
-      <ViewerOverlay content={content} onClose={close} />
+      <ViewerOverlay content={content?.node ?? null} onClose={close} />
     </DiagramViewerContext.Provider>
   )
 }
