@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { BlockRenderer } from '@/features/reader'
+import { pillWidth } from '@/features/reader/lib/seqLayout'
 import type { Block } from '@brief/schema'
 
 /**
@@ -47,14 +48,6 @@ function num(el: Element | null | undefined, attr: string): number {
   return Number(el?.getAttribute(attr) ?? NaN)
 }
 
-/**
- * Zero-advance Thai marks (vowels above/below, tone marks) do not consume
- * horizontal space, so a floor on the pill width must not count them.
- */
-function advanceChars(text: string): number {
-  return Array.from(text).filter((ch) => !/[ัิ-ฺ็-๎]/.test(ch)).length
-}
-
 describe('Seq typography and sizing (Thai payload)', () => {
   it('renders at its natural pixel size and never upscales', () => {
     const svg = renderSeq(thaiSeq)
@@ -91,16 +84,47 @@ describe('Seq typography and sizing (Thai payload)', () => {
       const name = THAI_ACTORS[i] as string
       const text = g.querySelector('text')
       expect(text?.textContent).toBe(name)
-      const fontSize = Number(text?.getAttribute('font-size'))
-      // Every glyph of the name fits inside its pill, at a conservative 0.6em
-      // advance per advance-bearing character.
-      expect(widths[i] as number).toBeGreaterThanOrEqual(advanceChars(name) * fontSize * 0.6)
+      // The rendered pill must be exactly the width `pillWidth` computes for
+      // this name, not merely "wide enough" - a bound that widens with the
+      // name can never fail, which is why the previous version of this
+      // assertion (name-length * 0.6em) passed even while the pill's own
+      // lane was too narrow to hold it (blocker 1).
+      expect(widths[i] as number).toBeCloseTo(pillWidth(name), 5)
     })
   })
 
   it('keeps neighbouring actor pills from colliding', () => {
     const svg = renderSeq(thaiSeq)
     const rects = actorGroups(svg, THAI_ACTORS.length).map((g) => g.querySelector('rect'))
+    for (let i = 1; i < rects.length; i++) {
+      const prev = rects[i - 1]
+      const cur = rects[i]
+      const prevRight = num(prev, 'x') + num(prev, 'width')
+      expect(num(cur, 'x')).toBeGreaterThan(prevRight)
+    }
+  })
+
+  it('keeps pills from colliding even when a name is long enough to hit the lane cap', () => {
+    // These two names are long enough that their pills (278.5 and 323 units)
+    // exceed LANE_MAX - LANE_GAP (172 units, ~18 advance-bearing characters).
+    // A lane clamped to LANE_MAX regardless of pill width is narrower than
+    // the pill it holds, so the next pill starts inside its neighbour: this
+    // is blocker 1, and the THAI_ACTORS fixture above never crossed the
+    // threshold, so it could not catch it.
+    const longNameActors = [
+      'ผู้อำนวยการสำนักบริหารทรัพยากรบุคคล',
+      'คณะกรรมการพิจารณาผลการปฏิบัติงานประจำปี',
+      'HR',
+    ]
+    const svg = renderSeq({
+      type: 'seq',
+      actors: longNameActors,
+      steps: [
+        { from: longNameActors[0] as string, to: longNameActors[1] as string, label: 'ส่ง' },
+        { from: longNameActors[1] as string, to: longNameActors[2] as string, label: 'รับ' },
+      ],
+    })
+    const rects = actorGroups(svg, longNameActors.length).map((g) => g.querySelector('rect'))
     for (let i = 1; i < rects.length; i++) {
       const prev = rects[i - 1]
       const cur = rects[i]

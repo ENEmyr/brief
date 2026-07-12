@@ -36,11 +36,25 @@ export function svgTextStyle(extra?: CSSProperties): CSSProperties {
 // plus generic combining marks: all zero-advance.
 const ZERO_ADVANCE = /[ัิ-ฺ็-๎̀-ͯ]/
 
-/** Average advance of one character, as a fraction of the font size. */
+// The Thai script block (U+0E00-U+0E7F). Any label containing a Thai
+// character falls back off the first, monospace face in DIAGRAM_FONT_STACK
+// onto IBM Plex Sans Thai, a proportional face, so it needs the average +
+// slack treatment below. Text with no Thai renders entirely in IBM Plex
+// Mono, whose advance per character is fixed and known, not estimated.
+const THAI_SCRIPT = /[฀-๿]/
+
+/** Average advance of one character in the proportional Thai fallback face,
+ *  as a fraction of the font size. */
 const ADVANCE_EM = 0.62
 
-/** Slack over the estimate, since the estimate is an average and not a measure. */
+/** Slack over the proportional estimate, since it is an average over
+ *  variable-width glyphs and not a measure. */
 const WIDTH_SLACK = 1.25
+
+/** IBM Plex Mono's actual, fixed per-character advance. Latin/ASCII text
+ *  always renders in this face, so this is exact, not an estimate, and
+ *  carries no slack. */
+const MONO_ADVANCE_EM = 0.6
 
 /** Characters that actually consume horizontal space. */
 export function advanceCount(text: string): number {
@@ -51,7 +65,9 @@ export function advanceCount(text: string): number {
 
 /** Measure-free width estimate for `text` at `fontSize`, in SVG user units. */
 export function estimateTextWidth(text: string, fontSize: number): number {
-  return advanceCount(text) * fontSize * ADVANCE_EM * WIDTH_SLACK
+  const n = advanceCount(text)
+  if (!THAI_SCRIPT.test(text)) return n * fontSize * MONO_ADVANCE_EM
+  return n * fontSize * ADVANCE_EM * WIDTH_SLACK
 }
 
 /** Null where Intl.Segmenter is missing, which drops us back to a space split. */

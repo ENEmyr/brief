@@ -243,8 +243,10 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
     >
       <svg
         ref={svgRef}
+        width={viewBox.width}
+        height={viewBox.height}
         viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.width} ${viewBox.height}`}
-        style={{ width: '100%', height: 'auto' }}
+        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}

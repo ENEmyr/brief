@@ -172,7 +172,12 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
         />
       }
     >
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto' }}>
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
+      >
         {transitions.map((t, i) => {
           const a = coordsOf(t.from)
           const b = coordsOf(t.to)

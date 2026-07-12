@@ -21,7 +21,12 @@ type SeqStep = SeqBlock['steps'][number]
 
 export const ACTOR_FONT_SIZE = 11.5
 export const LABEL_FONT_SIZE = 11
-export const LINE_HEIGHT = 13
+// 1.5em leading, the standard recommendation for Thai: stacked marks (a
+// vowel above plus a tone mark, e.g. "ติ๊", "ขึ้") reach ~1.1em above the
+// baseline and below-vowels (e.g. the "ุ" in "ประชุม") reach ~0.25em below,
+// so anything close to a Latin-style 1.18em leading collides two wrapped
+// Thai lines.
+export const LINE_HEIGHT = 17
 export const PILL_HEIGHT = 24
 export const PILL_Y = 6
 export const SELF_LOOP_WIDTH = 26
@@ -52,6 +57,16 @@ const SELF_LABEL_LANES = 2
 /** Gap between the bottom label baseline and the arrow it sits on. */
 const BASELINE_LIFT = 6
 const ASCENT = 10
+/**
+ * A span-1 cross-lane label may safely bleed into the neighbouring lane
+ * rather than being squeezed to a single lane's width: `rightEdge` grows to
+ * cover the overhang (same trick already used for self-labels), so nothing
+ * gets clipped. Without this, a single-lane label only gets `lane -
+ * LABEL_INSET` of room (as little as 96 units at LANE_MIN), which forces
+ * short Latin identifiers into `hardSplit` well before they run out of
+ * page.
+ */
+const CROSS_LABEL_MIN_LANES = 1.6
 
 export interface SeqActorLayout {
   name: string
@@ -83,14 +98,20 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v))
 }
 
-function pillWidth(name: string): number {
+/** The width an actor pill gets for `name`. Exported so tests can assert the
+ *  rendered pill matches this formula instead of a loose, always-true bound. */
+export function pillWidth(name: string): number {
   return Math.max(PILL_MIN_WIDTH, estimateTextWidth(name, ACTOR_FONT_SIZE) + 2 * PILL_PAD_X)
 }
 
 function laneWidth(pills: number[], steps: SeqStep[]): number {
   const widestPill = pills.reduce((w, p) => Math.max(w, p), 0)
   const longestLabel = steps.reduce((w, s) => Math.max(w, estimateTextWidth(s.label, LABEL_FONT_SIZE)), 0)
-  return clamp(Math.max(widestPill + LANE_GAP, longestLabel * LANE_LABEL_SHARE), LANE_MIN, LANE_MAX)
+  // LANE_MAX caps how far a lane grows for a long LABEL, but it must never
+  // cap the lane below what the widest PILL needs: a lane narrower than its
+  // own pill puts that pill on top of its neighbour.
+  const minForWidestPill = widestPill + LANE_GAP
+  return clamp(Math.max(minForWidestPill, longestLabel * LANE_LABEL_SHARE), LANE_MIN, Math.max(LANE_MAX, minForWidestPill))
 }
 
 export function computeSeqLayout(actorNames: string[], steps: SeqStep[]): SeqLayout {
@@ -135,10 +156,15 @@ export function computeSeqLayout(actorNames: string[], steps: SeqStep[]): SeqLay
     }
 
     const span = Math.max(1, Math.abs(toIndex - fromIndex))
-    const lines = wrapText(s.label, span * lane - LABEL_INSET, LABEL_FONT_SIZE)
+    const room = Math.max(span, CROSS_LABEL_MIN_LANES) * lane - LABEL_INSET
+    const lines = wrapText(s.label, room, LABEL_FONT_SIZE)
     const stack = (lines.length - 1) * LINE_HEIGHT
     const y = cursor + stack + BASELINE_LIFT + ASCENT
     cursor = y + 4 + ROW_GAP
+    // The label is centered on the arrow, so the overhang the wider room
+    // above can introduce extends widestLine/2 past labelX; grow the
+    // diagram to cover it instead of clipping it.
+    rightEdge = Math.max(rightEdge, (x1 + x2) / 2 + widestLine(lines, LABEL_FONT_SIZE) / 2)
     laid.push({
       self: false,
       x1,
