@@ -4,6 +4,8 @@ import type { Block } from '@brief/schema'
 import { useBlockLayout } from '@/features/diagram-layout'
 import type { NodeOffset } from '@/features/diagram-layout'
 import { DiagramCard } from '../DiagramCard'
+import { titleAnchor } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 
 type ErdBlock = Extract<Block, { type: 'erd' }>
 type TableDef = ErdBlock['tables'][number]
@@ -123,13 +125,13 @@ function fkEdgePath(source: TableBox, columnIndex: number, target: TableBox): st
  * the OFFSET from the auto-laid-out position (see diagram-layout), in this
  * reader's browser only.
  */
-export function Erd({ block, sid, bid }: { block: ErdBlock; sid?: number; bid?: number }) {
+export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
   const markerId = useId()
   const svgRef = useRef<SVGSVGElement>(null)
 
   const base = useMemo(() => layoutTables(block.tables), [block.tables])
   const names = useMemo(() => block.tables.map((t) => t.name), [block.tables])
-  const blockKey = `${sid ?? 'x'}:${bid ?? 'x'}`
+  const blockKey = `${anchor.sid ?? 'x'}:${anchor.bid ?? 'x'}`
   const { offsets, moved, moveNode, reset } = useBlockLayout(blockKey, names)
 
   // The offset being dragged right now, not yet committed to storage. The
@@ -226,6 +228,7 @@ export function Erd({ block, sid, bid }: { block: ErdBlock; sid?: number; bid?: 
   return (
     <DiagramCard
       caption={block.title ?? 'Entity relationship'}
+      {...titleAnchor(anchor, block.title)}
       controls={
         moved ? (
           <button

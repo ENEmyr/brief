@@ -1,13 +1,15 @@
 'use client'
 import { useEffect, useId } from 'react'
+import { Annotatable } from '@/features/annotations'
 import {
   PanZoomSurface,
   ZoomControls,
   useDiagramViewer,
   usePanZoom,
 } from '@/features/diagram-viewer'
+import type { CaptionAnchor } from './blockAnchor'
 
-export interface DiagramCardProps {
+export interface DiagramCardProps extends CaptionAnchor {
   caption: string
   controls?: React.ReactNode
   expandable?: boolean
@@ -34,8 +36,29 @@ const HEADER_BUTTON_CLASS =
  * while this card owns the viewer, so a diagram whose state lives in its parent
  * (a Seq's current step, a StateMachine's current state) stays in step with the
  * page instead of freezing at whatever it showed when Expand was pressed.
+ *
+ * The caption is one annotatable leaf when the card is given an anchor: a
+ * diagram's title is often the only prose on the card, and it was the one bit
+ * of a diagram block a reader could not question. It is plain chrome text when
+ * no anchor is passed, which is also what a block without a real title gets
+ * (see titleAnchor).
+ *
+ * The caption wraps rather than truncating. CSS truncation would keep the DOM
+ * text intact, so the anchor offsets would still be honest, but a <mark> that
+ * lands in the clipped tail would be invisible - a highlight the reader made
+ * and can no longer see.
  */
-export function DiagramCard({ caption, controls, expandable = true, children }: DiagramCardProps) {
+export function DiagramCard({
+  caption,
+  controls,
+  expandable = true,
+  sid,
+  bid,
+  captionPath = 'title',
+  annotatable = true,
+  onMarkClick,
+  children,
+}: DiagramCardProps) {
   const ownerKey = useId()
   const { expandedKey, open, sync } = useDiagramViewer()
   const pan = usePanZoom('inline', expandable)
@@ -48,9 +71,17 @@ export function DiagramCard({ caption, controls, expandable = true, children }: 
   return (
     <div className="my-4 overflow-hidden rounded-xl border border-line bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-line2 bg-elev px-3.5 py-[9px]">
-        <span className="min-w-0 truncate font-mono text-[10.5px] tracking-[.04em] text-faint">
-          {caption}
-        </span>
+        <Annotatable
+          className="min-w-0 break-words font-mono text-[10.5px] tracking-[.04em] text-faint"
+          text={caption}
+          sid={sid}
+          bid={bid ?? null}
+          path={captionPath}
+          // A caption always belongs to a block, never to a section heading, so
+          // a missing bid means "not addressable" rather than "heading".
+          annotatable={annotatable && bid !== undefined}
+          onMarkClick={onMarkClick}
+        />
         {expandable ? (
           <div className="flex shrink-0 items-center gap-1.5">
             <ZoomControls

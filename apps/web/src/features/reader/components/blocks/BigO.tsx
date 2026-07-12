@@ -3,6 +3,8 @@ import { useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
+import { titleAnchor } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
 import { AXIS_FONT, PALETTES, seriesColors, useEChart } from '../../services/echarts'
@@ -131,7 +133,7 @@ export function buildBigOOption(block: BigOBlockType, n: number, palette: Palett
   }
 }
 
-export function BigO({ block }: { block: BigOBlockType }) {
+export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAnchor) {
   const { theme } = useTheme()
   const palette = PALETTES[theme]
   const maxN = block.maxN ?? DEFAULT_MAX_N
@@ -177,7 +179,12 @@ export function BigO({ block }: { block: BigOBlockType }) {
   )
 
   return (
-    <DiagramCard caption={block.title ?? 'Big-O comparison'} expandable={false} controls={controls}>
+    <DiagramCard
+      caption={block.title ?? 'Big-O comparison'}
+      {...titleAnchor(anchor, block.title)}
+      expandable={false}
+      controls={controls}
+    >
       <div ref={containerRef} className="h-[260px] w-full" />
     </DiagramCard>
   )

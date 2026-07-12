@@ -2,6 +2,8 @@
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
+import { titleAnchor } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
 import { AXIS_FONT, PALETTES, seriesColors, useEChart } from '../../services/echarts'
@@ -58,7 +60,7 @@ export function buildScatterOption(block: ScatterBlockType, palette: Palette): E
   }
 }
 
-export function Scatter({ block }: { block: ScatterBlockType }) {
+export function Scatter({ block, ...anchor }: { block: ScatterBlockType } & BlockAnchor) {
   const { theme } = useTheme()
   const palette = PALETTES[theme]
 
@@ -67,6 +69,7 @@ export function Scatter({ block }: { block: ScatterBlockType }) {
   return (
     <DiagramCard
       caption={block.title ?? 'Scatter plot'}
+      {...titleAnchor(anchor, block.title)}
       expandable={false}
       controls={
         <div className="flex justify-end">

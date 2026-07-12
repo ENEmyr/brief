@@ -1,7 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
 import type { Block } from '@brief/schema'
-import type { Highlight } from '@/features/reader-state'
+import type { BlockAnchor } from './blockAnchor'
 import { Paragraph } from './blocks/Paragraph'
 import { Callout } from './blocks/Callout'
 import { DataTable } from './blocks/DataTable'
@@ -42,12 +42,12 @@ function DynamicChunkLoading() {
   )
 }
 
-const DynamicMathBlock = dynamic<{ block: Extract<Block, { type: 'math' }> }>(
+const DynamicMathBlock = dynamic<{ block: Extract<Block, { type: 'math' }> } & BlockAnchor>(
   () => import('./blocks/MathBlock').then((m): typeof MathBlockComponent => m.MathBlock),
   { ssr: false, loading: DynamicChunkLoading },
 )
 
-const DynamicMermaidBlock = dynamic<{ block: Extract<Block, { type: 'mermaid' }> }>(
+const DynamicMermaidBlock = dynamic<{ block: Extract<Block, { type: 'mermaid' }> } & BlockAnchor>(
   () => import('./blocks/MermaidBlock').then((m): typeof MermaidBlockComponent => m.MermaidBlock),
   { ssr: false, loading: DynamicChunkLoading },
 )
@@ -56,22 +56,22 @@ const DynamicMermaidBlock = dynamic<{ block: Extract<Block, { type: 'mermaid' }>
 // first-load chunk exactly like katex/mermaid above — same dynamic()/ssr:
 // false routing, with each block's own component owning the lazy
 // import('echarts/...') calls (see services/echarts.ts).
-const DynamicBigO = dynamic<{ block: Extract<Block, { type: 'bigo' }> }>(
+const DynamicBigO = dynamic<{ block: Extract<Block, { type: 'bigo' }> } & BlockAnchor>(
   () => import('./blocks/BigO').then((m): typeof BigOComponent => m.BigO),
   { ssr: false, loading: DynamicChunkLoading },
 )
 
-const DynamicHeatmap = dynamic<{ block: Extract<Block, { type: 'heatmap' }> }>(
+const DynamicHeatmap = dynamic<{ block: Extract<Block, { type: 'heatmap' }> } & BlockAnchor>(
   () => import('./blocks/Heatmap').then((m): typeof HeatmapComponent => m.Heatmap),
   { ssr: false, loading: DynamicChunkLoading },
 )
 
-const DynamicHistogram = dynamic<{ block: Extract<Block, { type: 'histogram' }> }>(
+const DynamicHistogram = dynamic<{ block: Extract<Block, { type: 'histogram' }> } & BlockAnchor>(
   () => import('./blocks/Histogram').then((m): typeof HistogramComponent => m.Histogram),
   { ssr: false, loading: DynamicChunkLoading },
 )
 
-const DynamicScatter = dynamic<{ block: Extract<Block, { type: 'scatter' }> }>(
+const DynamicScatter = dynamic<{ block: Extract<Block, { type: 'scatter' }> } & BlockAnchor>(
   () => import('./blocks/Scatter').then((m): typeof ScatterComponent => m.Scatter),
   { ssr: false, loading: DynamicChunkLoading },
 )
@@ -79,7 +79,7 @@ const DynamicScatter = dynamic<{ block: Extract<Block, { type: 'scatter' }> }>(
 // echarts-gl (~1MB on top of echarts/core) gets its own dynamic() boundary
 // for the same reason as the four echarts blocks above — Plot3d.tsx owns the
 // lazy `getEChartsGL()` import (see services/echarts.ts).
-const DynamicPlot3d = dynamic<{ block: Extract<Block, { type: 'plot3d' }> }>(
+const DynamicPlot3d = dynamic<{ block: Extract<Block, { type: 'plot3d' }> } & BlockAnchor>(
   () => import('./blocks/Plot3d').then((m): typeof Plot3dComponent => m.Plot3d),
   { ssr: false, loading: DynamicChunkLoading },
 )
@@ -94,18 +94,11 @@ export function BlockRenderer({
   pathPrefix = '',
   annotatable = true,
   onMarkClick,
-}: {
-  block: Block
-  sid?: number
-  bid?: number
-  /** Set for a nested block (inside a details), so its leaves are addressed
-   *  under `blocks.<i>.` instead of colliding with the parent's own leaves. */
-  pathPrefix?: string
-  annotatable?: boolean
-  onMarkClick?: (highlight: Highlight) => void
-}) {
-  // Every text-bearing block takes the same anchor: which section, which block,
-  // and where in the payload this block's leaves live.
+}: { block: Block } & BlockAnchor) {
+  // Every block takes the same anchor: which section, which block, and where in
+  // the payload this block's leaves live. A diagram or a code block gets it too
+  // — its title/filename header is prose the reader can question, and used to be
+  // the one thing on the card they could not.
   const anchor = { sid, bid, pathPrefix, annotatable, onMarkClick }
 
   switch (block.type) {
@@ -126,31 +119,31 @@ export function BlockRenderer({
     case 'details':
       return <Details block={block} {...anchor} />
     case 'seq':
-      return <Seq block={block} />
+      return <Seq block={block} {...anchor} />
     case 'state':
-      return <StateMachine block={block} />
+      return <StateMachine block={block} {...anchor} />
     case 'layers':
-      return <Layers block={block} />
+      return <Layers block={block} {...anchor} />
     case 'erd':
-      return <Erd block={block} sid={sid} bid={bid} />
+      return <Erd block={block} {...anchor} />
     case 'code':
-      return <CodeBlock block={block} />
+      return <CodeBlock block={block} {...anchor} />
     case 'ba':
-      return <BeforeAfter block={block} />
+      return <BeforeAfter block={block} {...anchor} />
     case 'math':
-      return <DynamicMathBlock block={block} />
+      return <DynamicMathBlock block={block} {...anchor} />
     case 'mermaid':
-      return <DynamicMermaidBlock block={block} />
+      return <DynamicMermaidBlock block={block} {...anchor} />
     case 'bigo':
-      return <DynamicBigO block={block} />
+      return <DynamicBigO block={block} {...anchor} />
     case 'heatmap':
-      return <DynamicHeatmap block={block} />
+      return <DynamicHeatmap block={block} {...anchor} />
     case 'histogram':
-      return <DynamicHistogram block={block} />
+      return <DynamicHistogram block={block} {...anchor} />
     case 'scatter':
-      return <DynamicScatter block={block} />
+      return <DynamicScatter block={block} {...anchor} />
     case 'plot3d':
-      return <DynamicPlot3d block={block} />
+      return <DynamicPlot3d block={block} {...anchor} />
     default:
       return <UnknownBlock block={block} />
   }

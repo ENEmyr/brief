@@ -2,6 +2,8 @@
 import { useId, useMemo, useState } from 'react'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
+import { titleAnchor } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 
 type LayersBlock = Extract<Block, { type: 'layers' }>
 type LayerDef = LayersBlock['layers'][number]
@@ -183,7 +185,7 @@ function LayerControls({ layers, visible, onToggle }: LayerControlsProps) {
  * referencing an id absent from the union of all layers' nodes are dropped
  * defensively rather than crashing on an undefined position.
  */
-export function Layers({ block }: { block: LayersBlock }) {
+export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAnchor) {
   const markerId = useId()
   const layout = useMemo(() => layoutLayers(block.layers), [block.layers])
   const [visibleLayers, setVisibleLayers] = useState<Record<number, boolean>>({})
@@ -202,6 +204,7 @@ export function Layers({ block }: { block: LayersBlock }) {
   return (
     <DiagramCard
       caption={block.title ?? 'Layers'}
+      {...titleAnchor(anchor, block.title)}
       controls={<LayerControls layers={block.layers} visible={isVisible} onToggle={toggle} />}
     >
       <svg viewBox={`0 ${layout.minY} ${layout.width} ${height}`} style={{ width: '100%', height: 'auto' }}>

@@ -2,6 +2,8 @@
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
+import { titleAnchor } from '../blockAnchor'
+import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
 import { AXIS_FONT, PALETTES, useEChart, getEChartsGL } from '../../services/echarts'
@@ -137,7 +139,7 @@ function FallbackNote({ text }: { text: string }) {
   )
 }
 
-export function Plot3d({ block }: { block: Plot3dBlockType }) {
+export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockAnchor) {
   const { theme } = useTheme()
   const palette = PALETTES[theme]
 
@@ -153,6 +155,7 @@ export function Plot3d({ block }: { block: Plot3dBlockType }) {
   return (
     <DiagramCard
       caption={block.title ?? '3D plot'}
+      {...titleAnchor(anchor, block.title)}
       expandable={false}
       controls={
         canRender ? (
