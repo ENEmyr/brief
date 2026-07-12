@@ -1,6 +1,7 @@
 'use client'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Payload } from '@brief/schema'
+import { buildEditPrompt } from '@/features/annotations'
 import { useReaderStateStore } from '@/features/reader-state'
 import { copyText } from '../lib/copy'
 import { downloadMarkdown as downloadMarkdownFile } from '../lib/download'
@@ -10,6 +11,7 @@ import { ShareModal } from './ShareModal'
 import { CopyFallbackModal } from './CopyFallbackModal'
 
 const TOAST_DURATION_MS = 1600
+const NO_EDIT_POINTS_MESSAGE = 'No edit points yet - highlight something or answer a decision first'
 
 export interface ExportContextValue {
   copy: (text: string) => Promise<void>
@@ -18,6 +20,10 @@ export interface ExportContextValue {
   /** Print / save-as-PDF, alongside downloadMarkdown because the Topbar's
    *  Download menu offers the two as items of one control (see lib/print.ts). */
   print: () => void
+  /** Builds the edit prompt from the reader's current highlights/decision
+   *  answers and copies it, or toasts that there is nothing to act on yet.
+   *  The Edit menu's one live item (see EditMenu.tsx). */
+  copyEditPrompt: () => void
   toast: (message: string) => void
 }
 
@@ -27,6 +33,7 @@ const ExportContext = createContext<ExportContextValue>({
   share: noop,
   downloadMarkdown: noop,
   print: noop,
+  copyEditPrompt: noop,
   toast: noop,
 })
 
@@ -54,10 +61,16 @@ export function useExport(): ExportContextValue {
 export function ExportProvider({
   sessionId,
   payload,
+  encrypted = false,
   children,
 }: {
   sessionId: string
   payload: Payload
+  /** Whether the server only holds ciphertext for this session; threaded
+   *  into copyEditPrompt so the edit prompt tells the human to paste the
+   *  document instead of pointing an AI at a raw endpoint that would 403.
+   *  Defaults to false so existing plain-session callers need no change. */
+  encrypted?: boolean
   children: React.ReactNode
 }) {
   const store = useReaderStateStore()
@@ -97,9 +110,15 @@ export function ExportProvider({
 
   const print = useCallback(() => printDocument(), [])
 
+  const copyEditPrompt = useCallback(() => {
+    const prompt = buildEditPrompt(payload, store.getState(), sessionId, window.location.origin, encrypted)
+    if (prompt) void copy(prompt)
+    else toast(NO_EDIT_POINTS_MESSAGE)
+  }, [payload, store, sessionId, encrypted, copy, toast])
+
   const value = useMemo<ExportContextValue>(
-    () => ({ copy, share, downloadMarkdown, print, toast }),
-    [copy, share, downloadMarkdown, print, toast],
+    () => ({ copy, share, downloadMarkdown, print, copyEditPrompt, toast }),
+    [copy, share, downloadMarkdown, print, copyEditPrompt, toast],
   )
 
   return (

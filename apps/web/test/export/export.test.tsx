@@ -29,6 +29,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   vi.useRealTimers()
+  localStorage.clear()
 })
 
 const basePayload: Payload = {
@@ -209,13 +210,21 @@ describe('copyText chain', () => {
 })
 
 function ExportProbe() {
-  const { copy, toast, print } = useExport()
+  const { copy, toast, print, copyEditPrompt } = useExport()
   return (
     <div>
       <button onClick={() => copy('some text')}>do-copy</button>
       <button onClick={() => toast('Custom message')}>do-toast</button>
       <button onClick={print}>do-print</button>
+      <button onClick={copyEditPrompt}>do-copy-edit-prompt</button>
     </div>
+  )
+}
+
+function seedReaderState(sessionId: string, state: Partial<ReaderState>) {
+  localStorage.setItem(
+    `idocs:${sessionId}`,
+    JSON.stringify({ highlights: [], dsel: {}, dnote: {}, ...state }),
   )
 }
 
@@ -289,6 +298,61 @@ describe('ExportProvider', () => {
 
     expect(screen.getByRole('dialog', { name: 'Copy manually' })).toBeInTheDocument()
     expect(screen.getByRole('textbox')).toHaveValue('some text')
+  })
+
+  it('copyEditPrompt() toasts instead of copying when there is nothing to act on', async () => {
+    stubFetch()
+    render(
+      <ReaderStateProvider sessionId="sess-edit-empty">
+        <ExportProvider sessionId="sess-edit-empty" payload={basePayload}>
+          <ExportProbe />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+
+    await act(async () => fireEvent.click(screen.getByText('do-copy-edit-prompt')))
+
+    expect(screen.getByRole('status')).toHaveTextContent(/no edit points yet/i)
+  })
+
+  it('copyEditPrompt() builds and copies the prompt when a decision has been answered', async () => {
+    stubFetch()
+    stubClipboard(true, { writeText: vi.fn() })
+    seedReaderState('sess-edit-answered', { dsel: { d1: ['kv'] } })
+    render(
+      <ReaderStateProvider sessionId="sess-edit-answered">
+        <ExportProvider sessionId="sess-edit-answered" payload={basePayload}>
+          <ExportProbe />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+
+    await act(async () => fireEvent.click(screen.getByText('do-copy-edit-prompt')))
+
+    expect(screen.getByRole('status')).toHaveTextContent('Copied')
+  })
+
+  it('copyEditPrompt() omits the raw URL and asks the reader to paste content for an encrypted session', async () => {
+    stubFetch()
+    // execCommandResult=false forces the copy chain past execCommandCopy so
+    // the text actually reaches the mocked async Clipboard API, where this
+    // test can inspect what was copied.
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    stubClipboard(false, { writeText })
+    seedReaderState('sess-edit-encrypted', { dsel: { d1: ['kv'] } })
+    render(
+      <ReaderStateProvider sessionId="sess-edit-encrypted">
+        <ExportProvider sessionId="sess-edit-encrypted" payload={basePayload} encrypted>
+          <ExportProbe />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+
+    await act(async () => fireEvent.click(screen.getByText('do-copy-edit-prompt')))
+
+    const copied = writeText.mock.calls[0]?.[0] as string
+    expect(copied).toMatch(/paste the current document/i)
+    expect(copied).not.toContain('/api/session')
   })
 })
 
