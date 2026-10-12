@@ -18,7 +18,7 @@ Author in this order. The payload is immutable once published, so the verificati
 
 1. Research and verify the content first. Read the actual code, run the actual commands, collect the real numbers. A decision document full of guesses wastes the reader's judgment.
 2. Structure the material into sections and choose block types. Each section is a numbered top-level division with an id, a title, and an ordered list of blocks. Prefer the specific block over prose: a comparison belongs in a `compare` block, numbers belong in `stat` or `table` blocks, and flows belong in `seq` or `state` blocks.
-3. Formulate the decisions. Each decision is a question with at least two options; add `why` context or a comparison table (`cmp`) when the choice is not obvious from the document alone. Note that a decision's `dia` is a plain string label, rendered as `[diagram: <label>]`, and not a diagram specification; a real diagram belongs in a `seq`, `state`, `layers`, or `mermaid` block in the section that sets the decision up.
+3. Add decisions where the work leaves a choice open. A document with nothing to decide sends an empty `decisions` array, and the reader shows no decision area. Each decision is a question with at least two options; add `why` context or a comparison table (`cmp`) when the choice is not obvious from the document alone. Note that a decision's `dia` is a plain string label, rendered as `[diagram: <label>]`, and not a diagram specification; a real diagram belongs in a `seq`, `state`, `layers`, or `mermaid` block in the section that sets the decision up.
 4. Validate before publishing. The installed skill ships an offline validator, `node <skill-dir>/validate.mjs payload.json`, which reads a copy of the payload schema generated from `packages/schema/src/payload.ts` and reports each failing path. The API also rejects an invalid payload with a 400 listing the failing paths, but it reports at most ten of them and each attempt costs a request against a rate limit of ten per minute.
 5. POST the payload and deliver the returned `url` to the human. Keep the `id`; the agent can later re-read the published document as markdown from `/api/session/<id>/raw`. The raw export contains only the payload, not the reader's annotations or answers; those come back to the agent through the reply prompt the reader copies out of the page.
 
@@ -39,7 +39,7 @@ The payload supports 22 block types. All of them are defined in `packages/schema
 | `details` | A collapsible disclosure wrapping other blocks (any type except another `details`). |
 | `seq` | An interactive sequence diagram from a list of actors and labeled steps. |
 | `state` | An interactive state machine from states, transitions, and an initial state. |
-| `layers` | A layered architecture diagram; each layer owns nodes and edges. |
+| `layers` | A base flow with optional layers the reader toggles on; an edge may join nodes in different layers. |
 | `ba` | A before and after code comparison in one language. |
 | `bigo` | A complexity growth chart plotting named curves (constant through exponential). |
 | `code` | Syntax-highlighted code with optional filename and highlighted line numbers. |
@@ -57,7 +57,7 @@ The serialized payload JSON must stay under 1,900,000 bytes; the API returns 413
 
 ## Decisions and asks
 
-Decisions are the point of the product; a payload without them is just a report. Write each decision as a real question the human must settle, with the options the agent can actually implement. Use `multi: false` for either-or choices and `multi: true` when several options can be combined. Give options a `detail` string when the label alone is ambiguous.
+Add a decision only for a choice the human owns and the research leaves open. An explanation or a review with nothing to decide is a complete document with an empty `decisions` array, and the reader can still ask about or request edits on any passage. Write each decision as a real question the human must settle, with the options the agent can actually implement. Use `multi: false` for either-or choices and `multi: true` when several options can be combined. Give options a `detail` string when the label alone is ambiguous.
 
 Readers can also raise questions the agent did not anticipate: an Ask is an annotation on a specific text span that exports as a prompt carrying the document URL, the anchor, and the quoted text. Expect asks to arrive as pasted prompts referencing the session, and use `/api/session/<id>/raw` to re-read the document they point into.
 

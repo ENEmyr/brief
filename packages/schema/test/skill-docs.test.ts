@@ -11,9 +11,9 @@ const skillMd = read('skills/brief/SKILL.md')
 const docsMd = read('docs/skill.md')
 const schema = read('skills/brief/payload.schema.json')
 
-const blockPicker = blocksMd.slice(
-  blocksMd.indexOf('## Choosing a block'),
-  blocksMd.indexOf('## Text and callouts'),
+const blockPicker = skillMd.slice(
+  skillMd.indexOf('## Choosing blocks'),
+  skillMd.indexOf('## Validating the payload'),
 )
 
 /** Every enum value the schema can accept, harvested from the generated JSON
@@ -49,10 +49,10 @@ describe('the brief skill tracks the payload schema', () => {
     ).toBe(true)
   })
 
-  it.each(BLOCK_TYPES)('the BLOCKS.md block picker mentions %s', (type) => {
+  it.each(BLOCK_TYPES)('the SKILL.md block picker mentions %s', (type) => {
     expect(
       blockPicker.includes('`' + type + '`'),
-      `skills/brief/BLOCKS.md's "Choosing a block" table never mentions '${type}', so an agent has no cue for when to reach for it.`,
+      `skills/brief/SKILL.md's "Choosing blocks" table never mentions '${type}', so an agent has no cue for when to reach for it.`,
     ).toBe(true)
   })
 

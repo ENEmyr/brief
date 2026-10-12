@@ -1,28 +1,28 @@
 ---
 name: brief
-description: Use when research, analysis, review, or planning work ends in decisions a human must make (architecture choices, migration plans, incident reviews, dependency upgrades) and the findings are too large or too visual for chat. Publishes the work as an interactive document on Brief (https://brief.algoryth.me) that the human reads, annotates, and answers from, then replies back into the conversation.
+description: Use when research, analysis, review, or planning work produces findings too large or too visual for chat, such as an architecture walkthrough, an incident review, a migration plan, or a comparison of options. Publishes the work as an interactive document on Brief (https://brief.algoryth.me) that the human reads, annotates, questions, and answers any open decisions in, then replies back into the conversation.
 ---
 
-# Publish a decision document to Brief
+# Publish a document to Brief
 
 ## Overview
 
-Brief turns a piece of agent work into a web document the human can act on. You POST one JSON payload; the API returns a URL; the human opens it, reads the sections, answers the decision cards, and pastes a generated reply back into this conversation. You then act on their answers.
+Brief turns a piece of agent work into a web document the human can act on. You POST one JSON payload; the API returns a URL; the human opens it, reads the sections, highlights passages to ask about or change, answers any decision cards, and pastes a generated reply back into this conversation. You then act on that reply.
 
 The payload has exactly three top-level keys: `meta`, `sections`, and `decisions`. Everything the reader sees is built from those.
 
 ## When to use
 
-Use it after work that leaves the human with a choice to make: which of two architectures, whether to take the migration now, which incident fix to fund, whether to accept the breaking upgrade. The document is worth its cost when the reader needs evidence in front of them to choose well.
+Use it when the work produced more than chat carries well: evidence the reader should see laid out, a flow or structure that prose flattens, numbers worth a chart, or a choice that needs the evidence in front of the reader. A document does not need a decision to be worth publishing. The reader can question or ask for an edit on any passage, so an explanation or a review still gets a reply back.
 
-Do not use it for an answer that fits in chat, for a status update with nothing to decide, or as a dumping ground for a report. A payload with an empty `decisions` array is allowed by the schema but is usually a sign the work belongs in chat instead.
+Do not use it for an answer that fits in a few chat paragraphs, or as a place to dump raw logs and command output.
 
 ## Workflow
 
 1. **Research and verify.** Read the real files, trace the real code paths, run the real commands. Every number, path, and claim that reaches the payload must come from something you actually saw. Collect file paths as you go; you will cite them in the prose.
-2. **Plan the sections.** One topic per section, in reading order, numbered from 1. A common shape: the problem, the evidence, the options, the recommendation.
-3. **Pick blocks deliberately.** Read `BLOCKS.md` in this skill directory before writing any block. It has the exact fields, the exact enum values, and a valid JSON example for all 22 block types, plus a table matching each kind of content to the right block.
-4. **Write the decisions last**, so the options reflect what the research actually found. Each decision needs two or more options with honest `detail` text, and usually a `why` that states your recommendation and its cost.
+2. **Plan the sections.** One topic per section, in reading order, numbered from 1. When the work ends in a choice, a common shape is the problem, the evidence, the options, and the recommendation.
+3. **Pick a block for each kind of content.** Use "Choosing blocks" below to match each finding to the block built for its shape, then read `BLOCKS.md` in this skill directory for that block's exact fields, enum values, and a valid JSON example. It covers all 22 block types.
+4. **Add decisions only for choices left open.** A decision belongs where the human owns a choice that the research leaves open and at least two options are real. Write those last, so the options reflect what the research found, each with honest `detail` text and usually a `why` that states your recommendation and its cost. When nothing is left to decide, send `"decisions": []`; the reader then shows no decision area.
 5. **Validate before publishing.** Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
 6. **Publish and hand over the URL.** Give the human the link and nothing else; the document carries the content now.
 7. **Act on the reply.** The human pastes a generated prompt back into the conversation. See "What comes back" below.
@@ -66,7 +66,38 @@ At least one. Each needs `id` (short, unique, used as the URL fragment), `no` (i
 
 ### `decisions`
 
-May be empty. Each decision needs `id`, `q`, `multi`, and at least two `opts`. Set `multi` to `false` for an either-or choice and `true` when several options can be taken together. The full field reference, including the two fields agents habitually get wrong (`cmp` and `dia`), is in `BLOCKS.md`.
+May be empty, and then the reader shows no decision area. Each decision needs `id`, `q`, `multi`, and at least two `opts`. Set `multi` to `false` for an either-or choice and `true` when several options can be taken together. The full field reference, including the two fields agents habitually get wrong (`cmp` and `dia`), is in `BLOCKS.md`.
+
+## Choosing blocks
+
+A page can show what chat cannot, and the blocks are how. Each one renders a shape of content that prose flattens, and several respond to the reader: `seq` steps through its messages one at a time, `state` lets the reader fire transitions from the current state, `layers` switches optional layers on over a base flow, `erd` tables can be dragged, `details` folds away, and every diagram and chart opens in a pan-and-zoom view. A document of paragraphs alone leaves the reader to build those pictures in their head.
+
+For each section, name the shapes in its content, then take the block built for each shape from the table below. Let the content set the count: one block per shape the section actually contains, and none where a block would only repeat the paragraph beside it. Prose is the glue between blocks, a `p` that says what a block shows and why it matters. A section that is an argument with no other shape stays in paragraphs.
+
+| You have | Use | Not |
+| --- | --- | --- |
+| An argument or explanation in prose | `p` | A `note` for every paragraph. Callouts lose their weight when everything is one. |
+| A caveat the reader must not miss | `warn` | A `p` starting with "Warning:". |
+| An aside the reader can skip | `note` | `warn`, which signals risk. |
+| A result worth celebrating, or a passing check | `good` | `stat`, which is for numbers. |
+| Enumerable facts with the same shape, such as findings with a severity or options across several criteria | `table` | Several `p` blocks with bullet-like prose. |
+| Two competing options, item by item | `compare` | A two-column `table`, which cannot show the ok or not-ok verdict per item. |
+| Two or three headline numbers | `stat` | A one-row `table`. |
+| What is covered, partly covered, and missing | `coverage` | A `table` with a "Status" column. |
+| Long evidence that supports a claim but interrupts reading | `details` | Cutting the evidence. Content the reader needs to follow the argument, such as the options being decided, stays outside it. |
+| A message exchange over time between named parties | `seq` | `mermaid` with a `sequenceDiagram`, which is not interactive. |
+| A machine with states and transitions | `state` | `mermaid` with a `stateDiagram`. |
+| A main flow with optional parts the reader switches on, such as a cache or a retry path | `layers` | Several tiers that must all show at once. Only the first layer is visible until the reader toggles the others, so draw those with `mermaid` and a `flowchart`. |
+| A code change, old versus new | `ba` | Two `code` blocks. |
+| Algorithmic growth as input size rises | `bigo` | `scatter` with hand-computed points. |
+| A snippet the reader should read as code | `code` | A `p` with backticks. |
+| A diagram no other block covers (a flowchart of components, Gantt, class, mindmap, ER variants) | `mermaid` | Forcing the data into `layers` or `seq`. |
+| An equation | `math` | A `code` block with LaTeX in it. |
+| Tables, columns, keys, and their relationships | `erd` | `mermaid` with `erDiagram`, unless you need an ER feature this block lacks. |
+| A value per cell across two labelled axes | `heatmap` | `table` full of numbers. |
+| A distribution across bins | `histogram` | `table` of counts. |
+| Points in two dimensions, possibly several series | `scatter` | `histogram`. |
+| Points or a surface in three dimensions | `plot3d` | Two `scatter` blocks. |
 
 ## Validating the payload
 
@@ -172,7 +203,7 @@ Please answer specifically about the quoted part above, using the reference to l
 
 Answer the quoted passage specifically. If the answer changes a claim in the document, say so plainly: a published document is immutable, so a correction lives in the conversation or in a new document.
 
-Design the decisions so this loop closes in one pass. A question the human cannot settle from the document alone is a question that comes back as another round trip.
+When the document has decisions, design them so this loop closes in one pass. A question the human cannot settle from the document alone is a question that comes back as another round trip.
 
 ## Common mistakes
 
@@ -182,7 +213,9 @@ Design the decisions so this loop closes in one pass. A question the human canno
 | Including `"type": "table"` inside a decision's `cmp` | `cmp` is a table shape with the `type` key removed: `{ head, rows, caption? }`. |
 | Numbers in `table.rows` cells | Cells are strings. Write `"48120"`, not `48120`. |
 | Nesting a `details` inside a `details` | Rejected by the schema. Flatten it. |
-| A diagram in every section | Most good documents are mostly `p` and `table`. Reach for a diagram when the data has a shape that prose loses. |
+| Explaining a flow, a comparison, or a set of numbers in paragraphs | Use the block built for that shape, and keep the paragraph for what the block cannot say, such as why it matters. |
+| A block that repeats the paragraph beside it | Keep whichever carries the fact better and cut the other. |
+| Adding a decision so the document has one | `"decisions": []` is a complete document. A decision is for a choice the human owns, with at least two options you would accept. |
 | Publishing unverified claims | Every number and path must come from the research phase. A confident wrong document is worse than no document. |
 | Retrying a 429 in a loop | Ten creations per minute. Fix the payload offline, then POST once. |
 | POSTing without running `validate.mjs` | The script is offline and free; a rejected POST is not. Validate, then publish. |
