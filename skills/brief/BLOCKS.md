@@ -14,35 +14,6 @@ Two more rules that catch agents out:
 - A section requires `id`, `no`, `title`, and at least one block. `no` is an integer of 1 or more and is what the reader sees as the section number.
 - Every block is discriminated on `type`. A misspelled `type` fails validation with `sections.N.blocks.M: Invalid discriminator value`.
 
-## Choosing a block
-
-| You have | Use | Not |
-| --- | --- | --- |
-| An argument or explanation in prose | `p` | A `note` for every paragraph. Callouts lose their weight when everything is one. |
-| A caveat the reader must not miss | `warn` | A `p` starting with "Warning:". |
-| An aside the reader can skip | `note` | `warn`, which signals risk. |
-| A result worth celebrating, or a passing check | `good` | `stat`, which is for numbers. |
-| Enumerable facts with the same shape | `table` | Several `p` blocks with bullet-like prose. |
-| Two competing options, item by item | `compare` | A two-column `table`, which cannot show the ok or not-ok verdict per item. |
-| Two or three headline numbers | `stat` | A one-row `table`. |
-| What is covered, partly covered, and missing | `coverage` | A `table` with a "Status" column. |
-| Long evidence that supports a claim but interrupts reading | `details` | Cutting the evidence. |
-| A message exchange over time between named parties | `seq` | `mermaid` with a `sequenceDiagram`, which is not interactive. |
-| A machine with states and transitions | `state` | `mermaid` with a `stateDiagram`. |
-| An architecture in tiers, with nodes and edges inside each tier | `layers` | `mermaid` with a `flowchart`. |
-| A code change, old versus new | `ba` | Two `code` blocks. |
-| Algorithmic growth as input size rises | `bigo` | `scatter` with hand-computed points. |
-| A snippet the reader should read as code | `code` | A `p` with backticks. |
-| A diagram no other block covers (Gantt, class, mindmap, ER variants) | `mermaid` | Forcing the data into `layers` or `seq`. |
-| An equation | `math` | A `code` block with LaTeX in it. |
-| Tables, columns, keys, and their relationships | `erd` | `mermaid` with `erDiagram`, unless you need an ER feature this block lacks. |
-| A value per cell across two labelled axes | `heatmap` | `table` full of numbers. |
-| A distribution across bins | `histogram` | `table` of counts. |
-| Points in two dimensions, possibly several series | `scatter` | `histogram`. |
-| Points or a surface in three dimensions | `plot3d` | Two `scatter` blocks. |
-
-Prefer the plainest block that carries the fact. A document of twenty diagrams reads as decoration; a document of twenty paragraphs reads as an essay. Most real documents are mostly `p` and `table`, with a handful of the rest where the shape of the data demands it.
-
 ## Text and callouts
 
 ### `p`
@@ -282,7 +253,7 @@ Step object:
 
 ### `layers`
 
-Edges live inside a layer, so an edge connects nodes within that same layer.
+The first layer is the base flow and is always visible. Every later layer starts hidden, drawn above or below the base row, and the reader switches it on with a toggle under the diagram. An edge may join any two nodes in the block, and it shows and hides with the layer that lists it.
 
 | Field | Required | Type |
 | --- | --- | --- |
@@ -302,25 +273,26 @@ Layer object:
 ```json
 {
   "type": "layers",
-  "title": "Tracker architecture",
+  "title": "Session create path",
   "layers": [
     {
-      "id": "client",
-      "label": "Developer machine",
+      "id": "base",
+      "label": "Request path",
       "nodes": [
-        { "id": "hook", "label": "Tracker hook" },
-        { "id": "buffer", "label": "Local buffer" }
-      ],
-      "edges": [{ "from": "hook", "to": "buffer", "label": "append" }]
-    },
-    {
-      "id": "edge",
-      "label": "Cloudflare",
-      "nodes": [
+        { "id": "client", "label": "Client" },
         { "id": "ingest", "label": "Ingest API" },
         { "id": "d1", "label": "D1" }
       ],
-      "edges": [{ "from": "ingest", "to": "d1", "label": "Drizzle" }]
+      "edges": [
+        { "from": "client", "to": "ingest", "label": "POST /api/session" },
+        { "from": "ingest", "to": "d1", "label": "INSERT" }
+      ]
+    },
+    {
+      "id": "limit",
+      "label": "Rate limiting",
+      "nodes": [{ "id": "limiter", "label": "RATE_LIMITER" }],
+      "edges": [{ "from": "ingest", "to": "limiter", "label": "limit(ip)" }]
     }
   ]
 }
@@ -568,7 +540,7 @@ The schema marks both `points` and `grid` optional, so a `plot3d` with neither p
 
 ## Decisions
 
-A decision is not a block. Decisions live in the top-level `decisions` array, and the reader answers them in a stepper at the end of the document.
+A decision is not a block. Decisions live in the top-level `decisions` array, and the reader answers them in a stepper at the end of the document. The array may be empty; the reader then shows no stepper.
 
 | Field | Required | Type |
 | --- | --- | --- |

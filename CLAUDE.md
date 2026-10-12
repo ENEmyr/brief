@@ -30,8 +30,8 @@ End-to-end tests run with `bun run e2e`, which executes `e2e/run.sh`: it builds 
 Any change to `payloadSchema` (a new block type, a new field, a new enum value, a tighter constraint) is not finished until the skill has caught up:
 
 1. Regenerate the skill's copy of the rules: `cd packages/schema && bun run gen:skill-schema`. This rewrites `skills/brief/payload.schema.json`, which is what the skill's offline validator reads. Never hand-edit that file.
-2. Document it in `skills/brief/BLOCKS.md`: a heading for the block with a field table (required, optional, exact type, exact enum values) and a valid JSON example, plus a row in the "Choosing a block" table saying when to reach for it and what to use instead.
-3. Update the block count and, where a new field invites a specific mistake, the "Common mistakes" table in `skills/brief/SKILL.md`.
+2. Document it in `skills/brief/BLOCKS.md`: a heading for the block with a field table (required, optional, exact type, exact enum values) and a valid JSON example.
+3. Add a row for the block to the "Choosing blocks" table in `skills/brief/SKILL.md`, saying when to reach for it and what to use instead. Update the block count and, where a new field invites a specific mistake, the "Common mistakes" table in `skills/brief/SKILL.md`.
 4. Update the block table in `docs/skill.md`, which is the human-facing companion.
 5. Extend `skills/brief/example.payload.json` if the change belongs in a worked example.
 6. Run `bun run test --filter=@brief/schema`.
