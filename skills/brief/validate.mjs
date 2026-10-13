@@ -194,8 +194,10 @@ const PROSE_BLOCKS = new Set(['p', 'note', 'warn', 'good'])
 /** Fields whose string is code, not text the reader reads as prose. */
 const CODE_FIELDS = new Set(['code', 'before', 'after', 'latex'])
 const URL_PATTERN = /\bhttps?:\/\/\S+/g
-const PATH_PATTERN = /(?:~|\.{1,2}|[\w@.-]+)?(?:\/[\w@.-]+)+\/?/g
-const MARKUP_PATTERN = /`|\*\*|\[[^\]]+\]\([^)]+\)/
+/** The lookbehind stops a match from starting inside a word, which keeps the
+ * scan linear on a long unbroken run such as a pasted hash. */
+const PATH_PATTERN = /(?<![\w@.\/~-])(?:~|[\w@.-]+)?(?:\/[\w@.-]+)+\/?/g
+const LINK_PATTERN = /\[[^\][\n]{1,200}\]\([^()\s]{1,500}\)/
 
 /** Paths a reader would recognise as a location on disk. Slash-separated words
  * such as "and/or", "TCP/IP", or "dev/staging/prod", dates such as 14/10/2026,
@@ -218,7 +220,7 @@ function proseHints(text, path, hints) {
       message: `${text.length} characters in one paragraph. Keep one point per paragraph: split it, or move the supporting detail into a table or a details block.`,
     })
   }
-  const paths = (text.replace(URL_PATTERN, ' ').match(PATH_PATTERN) ?? []).filter(isFilePath)
+  const paths = text.includes('/') ? (text.replace(URL_PATTERN, ' ').match(PATH_PATTERN) ?? []).filter(isFilePath) : []
   if (paths.length > 0) {
     hints.push({
       path,
@@ -283,7 +285,7 @@ export function readabilityHints(payload) {
 
   const visitStrings = (node, path) => {
     if (typeof node === 'string') {
-      if (MARKUP_PATTERN.test(node)) {
+      if (node.includes('`') || node.includes('**') || LINK_PATTERN.test(node)) {
         hints.push({
           path,
           message: 'Brief renders text as typed, so this markdown shows as literal characters. Write names plainly and put code in a code block.',

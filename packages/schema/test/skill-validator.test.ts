@@ -243,6 +243,14 @@ describe("the offline validator's readability hints", () => {
     expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.0.0'])
   })
 
+  it('scans a payload-sized unbroken run in linear time', () => {
+    const run = 'a'.repeat(1_900_000)
+    const hints = readabilityHints(paragraph(`${run} x/y.ts`))
+    expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.text', 'sections.0.blocks.0.text'])
+    expect(hints[1]!.message).toContain('(x/y.ts)')
+    expect(readabilityHints(withBlock({ type: 'note', text: `[${run}](${run}` }))).toHaveLength(1)
+  })
+
   it('leaves code alone', () => {
     expect(readabilityHints(withBlock({ type: 'code', language: 'md', code: '**bold** and `tick`' }))).toEqual([])
   })
