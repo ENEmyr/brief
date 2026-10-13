@@ -53,7 +53,7 @@ A document can read well and still fail because the number the reader came for i
 | Database design | The tables and how they relate. Example rows. The queries it must serve. | `erd`, `table`, `code` |
 | Choosing between options | What each option is. The same criteria applied to every option. Cost and effort. Your recommendation and its downside. | `table` with one row per criterion, `compare` for two options, a decision |
 
-Three rules hold for every kind of work. A claim about code shows the few lines of code in a `code` or `ba` block instead of naming a file and a line. An equation comes with its variables explained and one worked example. A number comes with what it is measured against, such as the target, the previous value, or the limit.
+Three rules hold for every kind of work. A claim about code shows the few lines of code in a `code` or `ba` block instead of naming a file and a line; code shown as it is today is copied from the source, and code you propose says whether you ran it. An equation comes with its variables explained and one worked example. A number comes with what it is measured against, such as the target, the previous value, or the limit.
 
 ## Writing for the reader
 
@@ -135,7 +135,7 @@ Pick a block when the reader gets the point from it faster than from a sentence.
 
 Take each fact from your list and find the block built for its shape in the table below. An argument with no other shape stays in paragraphs. Prose is the glue between blocks: a sentence that says what a block shows and why it matters.
 
-A block is forced when it holds less than a sentence would, or when the reader needs a paragraph to learn how to read it. The usual cases are a table of one row, a diagram of two boxes, a stat tile whose label or hint is a sentence, a `compare` whose two sides answer different points, a `coverage` list of the commands you ran, and a table whose cells are paragraphs. Write those as a sentence or two. A block is missing when the reader has to build the picture in their head: a flow told in prose, a set of numbers inside a paragraph, a database design with no `erd`, or a claim about growth with no `bigo`.
+A block is forced when it holds less than a sentence would, or when the reader needs a paragraph to learn how to read it. The usual cases are a table of one row, a diagram of two boxes, a stat tile whose label or hint is a sentence, a `compare` whose two sides answer different points, a `coverage` list of the commands you ran, a table whose cells are paragraphs, and a growth chart whose curves all have the same shape. Write those as a sentence or two. A block is missing when the reader has to build the picture in their head: a flow told in prose, a set of numbers inside a paragraph, a database design with no `erd`, or options that grow at different rates compared only in prose.
 
 | You have | Use | Not |
 | --- | --- | --- |
@@ -152,7 +152,7 @@ A block is forced when it holds less than a sentence would, or when the reader n
 | A machine with states and transitions | `state` | `mermaid` with a `stateDiagram`. |
 | A main flow with optional parts the reader switches on, such as a cache or a retry path | `layers` | Several tiers that must all show at once. Only the first layer is visible until the reader toggles the others, so draw those with `mermaid` and a `flowchart`. |
 | A code change, old versus new | `ba` | Two `code` blocks. |
-| How cost grows as input or load rises, for an algorithm, a query, or a capacity estimate | `bigo` | A growth claim made only in prose, or `scatter` with hand-computed points. |
+| How cost grows as input or load rises, when the options or parts grow at different rates | `bigo` | A chart whose curves all have the same shape, which one sentence says better, or `scatter` with hand-computed points. |
 | A snippet the reader should read as code, including the lines behind a claim about code | `code` | A file name and line number in a sentence, or a `p` with backticks. |
 | A diagram no other block covers (a flowchart of components, Gantt, class, mindmap, ER variants) | `mermaid` | Forcing the data into `layers` or `seq`. |
 | An equation, with its variables explained and a worked example beside it | `math` | A `code` block with LaTeX in it. |
