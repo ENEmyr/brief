@@ -4,4 +4,5 @@ declare module '*validate.mjs' {
     value: unknown,
     schema: unknown,
   ): { errors: Problem[]; warnings: Problem[] }
+  export function readabilityHints(payload: unknown): Problem[]
 }

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, mkdtempSync, symlinkSync, rmSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { readFileSync, writeFileSync, mkdtempSync, symlinkSync, rmSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
 import { payloadSchema, type Payload } from '../src'
 import { emitSkillSchema, SKILL_SCHEMA_PATH } from '../scripts/emit-skill-schema'
-import { validatePayload } from '../../../skills/brief/validate.mjs'
+import { validatePayload, readabilityHints } from '../../../skills/brief/validate.mjs'
 
 const skillDir = resolve(import.meta.dirname, '../../../skills/brief')
 const readJson = (file: string) => JSON.parse(readFileSync(resolve(skillDir, file), 'utf8'))
@@ -166,6 +166,109 @@ describe("the brief skill's offline validator", () => {
         { cwd: tmpdir(), encoding: 'utf8' },
       )
       expect(out).toContain('Valid.')
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+})
+
+describe("the offline validator's readability hints", () => {
+  const withBlock = (block: Payload['sections'][number]['blocks'][number]): Payload => {
+    const payload = clone()
+    payload.sections[0]!.blocks[0] = block
+    return payload
+  }
+  const paragraph = (text: string) => withBlock({ type: 'p', text })
+
+  it('finds nothing to flag in the shipped example', () => {
+    expect(readabilityHints(clone())).toEqual([])
+  })
+
+  it('flags a paragraph too long to read in one pass, and accepts one at the limit', () => {
+    expect(readabilityHints(paragraph('a'.repeat(400)))).toEqual([])
+    expect(readabilityHints(paragraph('a'.repeat(401)))).toEqual([
+      {
+        path: 'sections.0.blocks.0.text',
+        message:
+          '401 characters in one paragraph. Keep one point per paragraph: split it, or move the supporting detail into a table or a details block.',
+      },
+    ])
+  })
+
+  it('flags a table cell that holds a paragraph', () => {
+    const hints = readabilityHints(withBlock({ type: 'table', head: ['Finding'], rows: [['a'.repeat(200)], ['b'.repeat(201)]] }))
+    expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.1.0'])
+    expect(hints[0]!.message).toMatch(/^201 characters in one table cell\./)
+  })
+
+  it('flags a stat tile whose label or hint is a sentence', () => {
+    const hints = readabilityHints(
+      withBlock({
+        type: 'stat',
+        items: [
+          { label: 'CPU at 10,000 students', value: '83%', hint: 'Estimate' },
+          { label: 'After', value: '77%', hint: 'Estimated from the refit, warm plan cache, bcrypt cost 10 kept' },
+        ],
+      }),
+    )
+    expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.items.1.hint'])
+  })
+
+  it('names the file path it found in running text', () => {
+    const hints = readabilityHints(paragraph('The handler in apps/api/src/index.ts writes the row.'))
+    expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.text'])
+    expect(hints[0]!.message).toMatch(/^File path in running text \(apps\/api\/src\/index\.ts\)\./)
+  })
+
+  it.each(['~/notes', './run.sh', '/mnt/nas/documents'])('treats %s as a file path', (path) => {
+    expect(readabilityHints(paragraph(`Mounted at ${path} today.`))).toHaveLength(1)
+  })
+
+  it.each([
+    'POST /api/session/:id/raw',
+    'and/or',
+    'TCP/IP',
+    'dev/staging/prod',
+    '14/10/2026',
+    'https://brief.algoryth.me/s/abc/page.ts',
+    'code.claude.com/docs/en/hooks',
+  ])('does not mistake %s for a file path', (text) => {
+    expect(readabilityHints(paragraph(`Read ${text} first.`))).toEqual([])
+  })
+
+  it('flags markdown in any text the reader sees, since Brief renders it as typed', () => {
+    const hints = readabilityHints(
+      withBlock({ type: 'table', head: ['Field', 'Use'], rows: [['`tone`', 'Colour of the tile']] }),
+    )
+    expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.0.0'])
+  })
+
+  it('leaves code alone', () => {
+    expect(readabilityHints(withBlock({ type: 'code', language: 'md', code: '**bold** and `tick`' }))).toEqual([])
+  })
+
+  it('reads paragraphs inside a details block and the text of decisions', () => {
+    const payload = withBlock({
+      type: 'details',
+      summary: 'Evidence',
+      blocks: [{ type: 'p', text: 'See apps/web/src/page.tsx for the call.' }],
+    })
+    payload.decisions[0]!.opts[0]!.detail = 'x'.repeat(401)
+    expect(readabilityHints(payload).map((h) => h.path)).toEqual([
+      'sections.0.blocks.0.blocks.0.text',
+      'decisions.0.opts.0.detail',
+    ])
+  })
+
+  it('prints hints without failing the run, because the API does not check them', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'brief-hints-'))
+    const file = join(tmp, 'payload.json')
+    writeFileSync(file, JSON.stringify(paragraph('a'.repeat(401))))
+    try {
+      const run = spawnSync(process.execPath, [resolve(skillDir, 'validate.mjs'), file], { encoding: 'utf8' })
+      expect(run.status).toBe(0)
+      expect(run.stderr).toContain('hint     sections.0.blocks.0.text: 401 characters')
+      expect(run.stdout).toContain('1 readability hint(s).')
     } finally {
       rmSync(tmp, { recursive: true, force: true })
     }

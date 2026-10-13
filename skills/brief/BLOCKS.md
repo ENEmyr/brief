@@ -54,6 +54,8 @@ Same three fields for all three types. `note` is informational, `warn` signals r
 
 Cells are plain strings, never numbers. Write `"1200"`, not `1200`. Ragged rows are accepted by the schema but render badly; keep every row the same length as `head`.
 
+Keep each cell to a phrase; the validator hints at a cell over 200 characters. Make the `caption` say what the table shows, not which file the numbers came from.
+
 ```json
 {
   "type": "table",
@@ -127,6 +129,8 @@ Stat item:
 | `tone` | no | one of `mauve`, `blue`, `green`, `red`, `peach`, `teal`, `yellow` |
 
 `tone` is a fixed palette. Any other colour name fails validation. Values are strings: `"82 ms"`, `"48,120"`, `"3.2x"`.
+
+A tile holds a number and a few words. Keep `label` and `hint` short; the validator hints at either one over 50 characters. Qualifiers such as how the number was measured go in the paragraph beside the tile.
 
 ```json
 {
@@ -557,7 +561,7 @@ Option object:
 | Field | Required | Type |
 | --- | --- | --- |
 | `id` | yes | `label`, unique within the decision |
-| `label` | yes | `label`, the option as the reader sees it |
+| `label` | yes | `label`, the option as the reader sees it, in words; do not repeat the `id` |
 | `detail` | no | string, the honest tradeoff |
 
 Two fields that agents routinely get wrong:

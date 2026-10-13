@@ -17,17 +17,78 @@ Use it when the work produced more than chat carries well: evidence the reader s
 
 Do not use it for an answer that fits in a few chat paragraphs, or as a place to dump raw logs and command output.
 
+## Who reads it
+
+The reader asked for this document because they did not follow the work. They know their product and what they asked you to do. They do not know the files you opened, the commands you ran, the names you gave things along the way, the ticket and task numbers you tracked, or what an earlier document said. Write every sentence so that person can follow it without asking. If they would have to ask "what is that?", the sentence is not finished.
+
+A document fails this reader in two ways. It buries the point under the story of how you worked, or it reads smoothly and leaves out the facts the reader came for. "What the reader needs" and "Writing for the reader" below guard against each.
+
 ## Workflow
 
-1. **Research and verify.** Read the real files, trace the real code paths, run the real commands. Every number, path, and claim that reaches the payload must come from something you actually saw. Collect file paths as you go; you will cite them in the prose.
-2. **Plan the sections.** One topic per section, in reading order, numbered from 1. When the work ends in a choice, a common shape is the problem, the evidence, the options, and the recommendation.
-3. **Pick a block for each kind of content.** Use "Choosing blocks" below to match each finding to the block built for its shape, then read `BLOCKS.md` in this skill directory for that block's exact fields, enum values, and a valid JSON example. It covers all 22 block types.
-4. **Add decisions only for choices left open.** A decision belongs where the human owns a choice that the research leaves open and at least two options are real. Write those last, so the options reflect what the research found, each with honest `detail` text and usually a `why` that states your recommendation and its cost. When nothing is left to decide, send `"decisions": []`; the reader then shows no decision area.
-5. **Validate before publishing.** Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
-6. **Publish and hand over the URL.** Give the human the link and nothing else; the document carries the content now.
-7. **Act on the reply.** The human pastes a generated prompt back into the conversation. See "What comes back" below.
+1. **Research and verify.** Read the real files, trace the real code paths, run the real commands. Every number and claim that reaches the payload must come from something you actually saw. Note where each fact came from; that note belongs in an evidence block, not in your sentences.
+2. **List what the reader needs.** Find the kind of work in "What the reader needs" below and write down each fact its row asks for. A fact you could not get is a gap to state in the document, not a row to drop.
+3. **Plan the sections.** Section 1 is a summary of two to four sentences: what you found or did, what it means for the reader, and what they should do now, with no name the reader has not met. Do not restate the request. After it comes one topic per section, in reading order, numbered from 1.
+4. **Pick a block for each fact.** Use "Choosing blocks" below to match each fact to the block built for its shape, then read `BLOCKS.md` in this skill directory for that block's exact fields, enum values, and a valid JSON example. It covers all 22 block types.
+5. **Write for the reader.** Follow "Writing for the reader" below.
+6. **Add decisions only for calls the human must make.** Settle every question you can answer by thinking it through or checking, and say in the document what you chose. A decision is for a choice that turns on the human's priorities, money, risk, or taste, with at least two options you would accept. Write those last, so the options reflect what the research found, each with honest `detail` text and usually a `why` that states your recommendation and its cost. When nothing is left to decide, send `"decisions": []`; the reader then shows no decision area.
+7. **Reread it as the reader.** Before validating, read the payload as someone who saw none of this session. Every name, path, id, abbreviation, and number is explained where it first appears, or it goes. Every fact from step 2 is there. No sentence describes how you worked.
+8. **Validate before publishing.** Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. It also prints readability hints. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
+9. **Publish and hand over the URL.** Give the human the link and nothing else; the document carries the content now.
+10. **Act on the reply.** The human pastes a generated prompt back into the conversation. See "What comes back" below.
 
 This skill directory holds three things you will use: `BLOCKS.md` (every field of every block), `example.payload.json` (a complete, valid document to model yours on), and `validate.mjs` (the pre-flight check).
+
+## What the reader needs
+
+A document can read well and still fail because the number the reader came for is missing. Before writing, find the row for the kind of work and collect each fact it lists.
+
+| Kind of work | Facts the reader needs | Blocks that carry them |
+| --- | --- | --- |
+| Performance, load, or capacity | The target, and the machine or plan it runs on with its size and price. The result against the target, before and after, measured the same way. How each number was measured: tool, load, data size, runs, and spread. Where the time or the resources go. Each fix, shown as code. How cost grows with users or data. The money cost now and at the target. What was not measured. | `stat`, `table`, `histogram`, `scatter`, `bigo`, `ba`, `coverage` |
+| Bug, incident, or failed test | What the user saw. The cause, as a chain of steps. The fix. The proof that it works. What can still go wrong. | `seq`, `state`, or a `mermaid` flowchart, then `ba`, `good`, `warn` |
+| Code review | What the change is for, in the user's terms. The verdict. Findings by severity, each with its effect on users. The code behind each blocking finding, and its fix. What the tests cover, and which checks fail. | `table`, `code` or `ba`, `coverage` |
+| A change you made | What changed for the user. How it works now. What changed where. How you checked it. What is left. | `mermaid` or `layers`, `table`, `ba`, `coverage` |
+| How something works | What each part is. How a request or a record moves through the parts. Its states. Its data. | `mermaid` flowchart, `seq`, `state`, `erd` |
+| Deployment, migration, or rollout | The target layout. The steps in order, with who does each. The risks. How to roll back. The cost. | `mermaid`, `table`, `warn` |
+| Database design | The tables and how they relate. Example rows. The queries it must serve. | `erd`, `table`, `code` |
+| Choosing between options | What each option is. The same criteria applied to every option. Cost and effort. Your recommendation and its downside. | `table` with one row per criterion, `compare` for two options, a decision |
+
+Three rules hold for every kind of work. A claim about code shows the few lines of code in a `code` or `ba` block instead of naming a file and a line. An equation comes with its variables explained and one worked example. A number comes with what it is measured against, such as the target, the previous value, or the limit.
+
+## Writing for the reader
+
+- **Lead with the point.** The first sentence of each section is its conclusion. Evidence and method follow it, and long evidence goes in a `details` block.
+- **One point per paragraph.** Two or three sentences. A paragraph that counts "first ..., second ..., third ..." is a `table` with one row per item. The validator hints at any paragraph over 400 characters.
+- **Explain or cut every name the reader has not met.** That covers file paths, function and variable names, ticket and PR numbers, decision ids, and the labels you made up while working, such as lanes, phases, or cards. Say what the thing is or does in plain words: "the function that saves the host settings", not `config.SaveHost`. When the reader needs the exact path to act or to check, put it in a table column, a code block's `filename`, or a `details` block.
+- **Make the document stand alone.** If it follows an earlier document or conversation, restate in one sentence what that one found or decided. Never point to "the card" or "last round".
+- **Leave out how you worked.** Subagents, lanes, verifiers, worktrees, the commands you ran, and the folders your notes live in mean nothing to the reader. Give the result. If the method changes how far to trust it, say so in one sentence or put it in a `details` block.
+- **Say how facts relate.** The reader takes two facts placed side by side as cause and effect. If they are unrelated, say so, or keep them apart.
+- **Mark uncertainty once.** Say which numbers are estimates in one place, such as a stat hint or a `coverage` block of what was not checked. A parenthesis in every clause buries the result.
+- **Write in the reader's language, the way you would say it to a colleague.** If the human writes to you in Thai, write the document in Thai from the first draft. A translated English draft keeps English grammar and reads as a translation. See "Writing in Thai" below.
+- **Text shows exactly as typed.** The reader does not render markdown, so backticks, asterisks, and links appear as literal characters. Write names plainly and put code in a `code` block.
+- **No emoji, no em dash, no en dash.** Use a plain hyphen.
+- **Honest `detail` on every option.** An option with no downside listed reads as a sales pitch, and it costs the reader their trust in the rest of the document.
+
+The same finding, written twice:
+
+| Written for someone who was in the session | Written for the reader |
+| --- | --- |
+| Per the chmod-test card I mounted the export at /tmp/pxx-nfs-test-docs and ran the probe as uid 102000. chmod returned EPERM, so mp0 cannot point at documents without a Hand Step. | Notes cannot be stored in the documents share as it is set up today. The NAS refuses permission changes there, and the notes app changes a file's permissions every time it saves, so the second save of any note fails. Each fix needs a setting changed on the NAS, which only you can do. |
+
+### Writing in Thai
+
+- Keep in English the terms Thai engineers say in English: API, PR, merge, branch, commit, deploy, migration, cache, endpoint, CPU, container, login, autosave. Use Thai for the rest: ข้อที่พบ, not finding; ผู้เขียน PR, not author; ตรวจแล้ว, not verify แล้ว.
+- End a Thai sentence with a space, not a full stop.
+- Use the words the product itself uses. If the screen says โลก, write โลก, not world.
+- Check words that change meaning in Thai. เทอม means a school term, so an equation term is ส่วนของสมการ. ค่าใช้จ่าย means money, so CPU overhead is ภาระ CPU.
+- Keep one voice. Use the same word for yourself from start to end, and call the reader คุณ.
+
+| Translated from English | Written in Thai |
+| --- | --- |
+| lint และ sync:docs:check ผ่าน. ยัง merge แบบนี้ไม่ได้ | lint และการตรวจเอกสารผ่านแล้ว แต่ยัง merge ไม่ได้ |
+| ข้อเหล่านี้ author รู้และตัดออกจาก scope ไว้แล้ว. | ผู้เขียน PR รู้เรื่องเหล่านี้ และตั้งใจไม่แก้ใน PR นี้ |
+| PR พา frontend เข้าใกล้ contract v2 | PR นี้แก้หน้าเว็บให้ส่งข้อมูลตรงกับสเปก API ฉบับที่ 2 มากขึ้น |
+| เทอมต่อนักเรียนที่กำลังทำมาจาก autosave | ภาระ CPU ต่อนักเรียนที่กำลังทำแบบประเมิน ส่วนใหญ่มาจาก autosave |
 
 ## The envelope
 
@@ -70,9 +131,11 @@ May be empty, and then the reader shows no decision area. Each decision needs `i
 
 ## Choosing blocks
 
-A page can show what chat cannot, and the blocks are how. Each one renders a shape of content that prose flattens, and several respond to the reader: `seq` steps through its messages one at a time, `state` lets the reader fire transitions from the current state, `layers` switches optional layers on over a base flow, `erd` tables can be dragged, `details` folds away, and every diagram and chart opens in a pan-and-zoom view. A document of paragraphs alone leaves the reader to build those pictures in their head.
+Pick a block when the reader gets the point from it faster than from a sentence. Several blocks also respond to the reader, which prose cannot: `seq` steps through its messages one at a time, `state` lets the reader fire transitions from the current state, `layers` switches optional layers on over a base flow, `erd` tables can be dragged, `details` folds away, and every diagram and chart opens in a pan-and-zoom view.
 
-For each section, name the shapes in its content, then take the block built for each shape from the table below. Let the content set the count: one block per shape the section actually contains, and none where a block would only repeat the paragraph beside it. Prose is the glue between blocks, a `p` that says what a block shows and why it matters. A section that is an argument with no other shape stays in paragraphs.
+Take each fact from your list and find the block built for its shape in the table below. An argument with no other shape stays in paragraphs. Prose is the glue between blocks: a sentence that says what a block shows and why it matters.
+
+A block is forced when it holds less than a sentence would, or when the reader needs a paragraph to learn how to read it. The usual cases are a table of one row, a diagram of two boxes, a stat tile whose label or hint is a sentence, a `compare` whose two sides answer different points, a `coverage` list of the commands you ran, and a table whose cells are paragraphs. Write those as a sentence or two. A block is missing when the reader has to build the picture in their head: a flow told in prose, a set of numbers inside a paragraph, a database design with no `erd`, or a claim about growth with no `bigo`.
 
 | You have | Use | Not |
 | --- | --- | --- |
@@ -80,23 +143,23 @@ For each section, name the shapes in its content, then take the block built for 
 | A caveat the reader must not miss | `warn` | A `p` starting with "Warning:". |
 | An aside the reader can skip | `note` | `warn`, which signals risk. |
 | A result worth celebrating, or a passing check | `good` | `stat`, which is for numbers. |
-| Enumerable facts with the same shape, such as findings with a severity or options across several criteria | `table` | Several `p` blocks with bullet-like prose. |
-| Two competing options, item by item | `compare` | A two-column `table`, which cannot show the ok or not-ok verdict per item. |
-| Two or three headline numbers | `stat` | A one-row `table`. |
-| What is covered, partly covered, and missing | `coverage` | A `table` with a "Status" column. |
-| Long evidence that supports a claim but interrupts reading | `details` | Cutting the evidence. Content the reader needs to follow the argument, such as the options being decided, stays outside it. |
+| Enumerable facts with the same shape, such as findings with a severity, steps in order, or options across several criteria | `table`, each cell a phrase, with a caption that says what the table shows | A paragraph that counts "first ..., second ...", or cells that are whole paragraphs. |
+| Two options compared point by point, where each item on one side answers the same point on the other | `compare` | Two unrelated lists of pros and cons. Use a `table` with one row per criterion. |
+| Two or three headline numbers the reader came for | `stat`, with a label and a hint of a few words each | A one-row `table`, or counts of your own process such as findings checked. |
+| What is covered, partly covered, and missing, such as requirements or test cases | `coverage` | A `table` with a "Status" column, or a list of the commands you ran. |
+| Long evidence or method that supports a claim but interrupts reading | `details` | Cutting the evidence. Content the reader needs to follow the argument, such as the options being decided, stays outside it. |
 | A message exchange over time between named parties | `seq` | `mermaid` with a `sequenceDiagram`, which is not interactive. |
 | A machine with states and transitions | `state` | `mermaid` with a `stateDiagram`. |
 | A main flow with optional parts the reader switches on, such as a cache or a retry path | `layers` | Several tiers that must all show at once. Only the first layer is visible until the reader toggles the others, so draw those with `mermaid` and a `flowchart`. |
 | A code change, old versus new | `ba` | Two `code` blocks. |
-| Algorithmic growth as input size rises | `bigo` | `scatter` with hand-computed points. |
-| A snippet the reader should read as code | `code` | A `p` with backticks. |
+| How cost grows as input or load rises, for an algorithm, a query, or a capacity estimate | `bigo` | A growth claim made only in prose, or `scatter` with hand-computed points. |
+| A snippet the reader should read as code, including the lines behind a claim about code | `code` | A file name and line number in a sentence, or a `p` with backticks. |
 | A diagram no other block covers (a flowchart of components, Gantt, class, mindmap, ER variants) | `mermaid` | Forcing the data into `layers` or `seq`. |
-| An equation | `math` | A `code` block with LaTeX in it. |
-| Tables, columns, keys, and their relationships | `erd` | `mermaid` with `erDiagram`, unless you need an ER feature this block lacks. |
+| An equation, with its variables explained and a worked example beside it | `math` | A `code` block with LaTeX in it. |
+| Tables, columns, keys, and their relationships, including any database design | `erd` | `mermaid` with `erDiagram`, unless you need an ER feature this block lacks. |
 | A value per cell across two labelled axes | `heatmap` | `table` full of numbers. |
-| A distribution across bins | `histogram` | `table` of counts. |
-| Points in two dimensions, possibly several series | `scatter` | `histogram`. |
+| A count or a share per category, such as where the time goes | `histogram` | `table` of counts. |
+| Points in two dimensions, such as latency against load or the measurements behind a fitted equation | `scatter` | `histogram`, or an equation with no points behind it. |
 | Points or a surface in three dimensions | `plot3d` | Two `scatter` blocks. |
 
 ## Validating the payload
@@ -112,7 +175,7 @@ It takes either the bare payload or the `{"payload": ...}` envelope, and it need
 A clean payload:
 
 ```text
-Valid. 4553 bytes, 3 section(s), 2 decision(s).
+Valid. 4582 bytes, 3 section(s), 2 decision(s), 0 readability hint(s).
 ```
 
 A broken one, one line per problem, exiting non-zero:
@@ -128,6 +191,15 @@ decisions.0.opts: Too small: expected array to have >=2 items
 Read a path literally: `sections.1.blocks.0.head` is the `head` field of the first block of the second section. Fix exactly the paths named, then re-run until it passes.
 
 Warnings are different from errors. A warning means the API will accept the payload but the field you wrote does nothing, because the schema strips keys it does not know. `sections.0.blocks.1.items.0.color` is a real example: the field is called `tone`, so a block with `color` publishes and renders with no colour at all. Treat a warning as a silently broken block, not as a nit.
+
+Hints are the third kind of line, and they never change the exit code. Each one names a pattern that makes the document hard to read for someone who did not follow the work: a paragraph over 400 characters, a table cell over 200, a stat label or hint over 50, a file path in running text, or markdown, which the reader shows as literal characters.
+
+```text
+hint     sections.1.blocks.0.text: 512 characters in one paragraph. Keep one point per paragraph: split it, or move the supporting detail into a table or a details block.
+hint     sections.2.blocks.1.text: File path in running text (apps/api/src/index.ts). Say what the file does instead; if the reader needs the path, put it in a table, a code block's filename, or a details block.
+```
+
+Fix each hint unless you can name the reason this document needs the exception, such as a setup guide where the path is the instruction.
 
 The validator reads `payload.schema.json`, which is generated from the same Zod schema the API validates with, and a test in the ENEmyr/brief repository fails if the two ever drift. So a payload this script accepts is a payload the API accepts.
 
@@ -209,6 +281,14 @@ When the document has decisions, design them so this loop closes in one pass. A 
 
 | Mistake | Reality |
 | --- | --- |
+| A file path, function name, or line number in a sentence | The reader does not know it. Say what the thing does. Put the path in a table column, a code block's `filename`, or a `details` block, and show the code itself when the claim is about code. |
+| An id the reader has never seen: a ticket, a card, a lane, an earlier document | Explain it in words or cut it. Each document stands alone. |
+| Telling the story of how you worked | The reader wants the result. Give the method one sentence, or a `details` block when it affects how far to trust the result. |
+| A performance or capacity document with no setup, no before and after, no complexity, or no money cost | See "What the reader needs". Those are the facts the reader came for. |
+| Handing the human a question you could settle | Decide it, say what you chose, and keep decisions for calls that turn on their priorities, money, risk, or taste. |
+| Writing in English and translating into Thai | The translation keeps English grammar, full stops, and calques. Write in Thai from the first draft. |
+| Backticks or `**` in text | They show as literal characters. Write names plainly; put code in a `code` block. |
+| A table cell or stat tile that holds a paragraph | Keep cells and tiles to a phrase. The explanation goes in a paragraph beside the block. |
 | Putting Mermaid source in a decision's `dia` | `dia` is a plain string label, rendered literally as `[diagram: <your string>]`. For a real diagram, put a `seq`, `state`, `layers`, or `mermaid` block in the section that sets the decision up. |
 | Including `"type": "table"` inside a decision's `cmp` | `cmp` is a table shape with the `type` key removed: `{ head, rows, caption? }`. |
 | Numbers in `table.rows` cells | Cells are strings. Write `"48120"`, not `48120`. |
@@ -220,10 +300,3 @@ When the document has decisions, design them so this loop closes in one pass. A 
 | Retrying a 429 in a loop | Ten creations per minute. Fix the payload offline, then POST once. |
 | POSTing without running `validate.mjs` | The script is offline and free; a rejected POST is not. Validate, then publish. |
 | Ignoring a warning from `validate.mjs` | A warning is a field the API strips and the reader never sees, such as `color` where the schema says `tone`. The block publishes silently broken. |
-
-## Writing rules for the document
-
-- Verified facts only. Cite file paths in the prose so the reader can check the evidence.
-- One topic per section, in reading order.
-- Plain language, plain ASCII. No emoji in payload text, and no em-dash or en-dash; use a plain hyphen.
-- Honest `detail` on every option. An option with no downside listed reads as a sales pitch, and it costs the reader their trust in the rest of the document.

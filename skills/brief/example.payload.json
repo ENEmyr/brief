@@ -10,13 +10,13 @@
   },
   "sections": [
     {
-      "id": "problem",
+      "id": "summary",
       "no": 1,
-      "title": "The problem",
+      "title": "Summary",
       "blocks": [
         {
           "type": "p",
-          "text": "The create-session handler in apps/api/src/features/session/index.ts already calls env.RATE_LIMITER, but the binding is optional and unset in the current wrangler config, so every deployment today accepts unbounded writes. A single client looping on POST /api/session exhausts the D1 daily write quota in about four minutes at 200 requests per second."
+          "text": "The endpoint that creates a document has no working rate limit. The check is written, but production never switched it on, so one client sending 200 requests per second would use up the database's free daily writes in about four minutes. I recommend Cloudflare's built-in limiter, which costs nothing per request. The decisions at the end ask you to confirm it and choose the rollout."
         },
         {
           "type": "stat",

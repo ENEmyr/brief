@@ -11,6 +11,11 @@
  *
  * Exit 0 means the payload passes every rule the API enforces. Exit 1 prints
  * one `path: message` line per problem, in the same shape as the API's 400.
+ *
+ * It also prints `hint` lines about readability: a paragraph too long to read
+ * in one pass, a table cell or stat tile holding a sentence, a file path in
+ * running text, markdown the reader shows as raw characters. Hints never
+ * change the exit code; the API does not check them.
  */
 import { readFileSync, realpathSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -182,6 +187,121 @@ export function validatePayload(value, schema) {
   return { errors, warnings }
 }
 
+const LONG_PROSE_CHARS = 400
+const LONG_CELL_CHARS = 200
+const LONG_STAT_CHARS = 50
+const PROSE_BLOCKS = new Set(['p', 'note', 'warn', 'good'])
+/** Fields whose string is code, not text the reader reads as prose. */
+const CODE_FIELDS = new Set(['code', 'before', 'after', 'latex'])
+const URL_PATTERN = /\bhttps?:\/\/\S+/g
+const PATH_PATTERN = /(?:~|\.{1,2}|[\w@.-]+)?(?:\/[\w@.-]+)+\/?/g
+const MARKUP_PATTERN = /`|\*\*|\[[^\]]+\]\([^)]+\)/
+
+/** Paths a reader would recognise as a location on disk. Slash-separated words
+ * such as "and/or", "TCP/IP", or "dev/staging/prod", dates such as 14/10/2026,
+ * and URLs written without a scheme are not paths, so a short token only
+ * counts when its last part has a file extension. */
+function isFilePath(token) {
+  if (/^(?:~|\.{1,2})\//.test(token)) return true
+  if (/^\/(?:home|mnt|etc|var|tmp|usr|opt|srv|root|Users)\//.test(token)) return true
+  const parts = token.split('/').filter(Boolean)
+  if (!parts.some((p) => /[A-Za-z]/.test(p))) return false
+  if (parts.length >= 2 && /\.[A-Za-z]\w{0,4}$/.test(parts.at(-1))) return true
+  const startsWithDomain = parts[0].includes('.')
+  return !token.startsWith('/') && !startsWithDomain && parts.length >= 4
+}
+
+function proseHints(text, path, hints) {
+  if (text.length > LONG_PROSE_CHARS) {
+    hints.push({
+      path,
+      message: `${text.length} characters in one paragraph. Keep one point per paragraph: split it, or move the supporting detail into a table or a details block.`,
+    })
+  }
+  const paths = (text.replace(URL_PATTERN, ' ').match(PATH_PATTERN) ?? []).filter(isFilePath)
+  if (paths.length > 0) {
+    hints.push({
+      path,
+      message: `File path in running text (${paths.join(', ')}). Say what the file does instead; if the reader needs the path, put it in a table, a code block's filename, or a details block.`,
+    })
+  }
+}
+
+function cellHints(rows, base, hints) {
+  rows.forEach((row, r) =>
+    row.forEach((cell, c) => {
+      if (cell.length > LONG_CELL_CHARS) {
+        hints.push({
+          path: `${base}.${r}.${c}`,
+          message: `${cell.length} characters in one table cell. A cell holds a phrase; put the explanation in a paragraph or a details block.`,
+        })
+      }
+    }),
+  )
+}
+
+function statHints(items, base, hints) {
+  items.forEach((item, k) => {
+    for (const field of ['label', 'hint']) {
+      if (item[field]?.length > LONG_STAT_CHARS) {
+        hints.push({
+          path: `${base}.${k}.${field}`,
+          message: `${item[field].length} characters on a stat tile. A tile holds a number and a few words; put the qualifiers in the paragraph beside it.`,
+        })
+      }
+    }
+  })
+}
+
+/**
+ * Readability checks the API does not enforce. Each hint names a pattern that
+ * makes a document hard to read for someone who did not follow the work.
+ * Expects a payload that already passed validatePayload.
+ *
+ * @returns {{path: string, message: string}[]}
+ */
+export function readabilityHints(payload) {
+  const hints = []
+
+  const visitBlocks = (blocks, base) => {
+    blocks.forEach((block, i) => {
+      const at = `${base}.${i}`
+      if (PROSE_BLOCKS.has(block.type)) proseHints(block.text, `${at}.text`, hints)
+      if (block.type === 'details') visitBlocks(block.blocks, `${at}.blocks`)
+      if (block.type === 'table') cellHints(block.rows, `${at}.rows`, hints)
+      if (block.type === 'stat') statHints(block.items, `${at}.items`, hints)
+    })
+  }
+  payload.sections.forEach((section, i) => visitBlocks(section.blocks, `sections.${i}.blocks`))
+  payload.decisions.forEach((decision, i) => {
+    if (decision.why) proseHints(decision.why, `decisions.${i}.why`, hints)
+    if (decision.cmp) cellHints(decision.cmp.rows, `decisions.${i}.cmp.rows`, hints)
+    decision.opts.forEach((opt, k) => {
+      if (opt.detail) proseHints(opt.detail, `decisions.${i}.opts.${k}.detail`, hints)
+    })
+  })
+
+  const visitStrings = (node, path) => {
+    if (typeof node === 'string') {
+      if (MARKUP_PATTERN.test(node)) {
+        hints.push({
+          path,
+          message: 'Brief renders text as typed, so this markdown shows as literal characters. Write names plainly and put code in a code block.',
+        })
+      }
+    } else if (Array.isArray(node)) {
+      node.forEach((item, i) => visitStrings(item, joinPath(path, i)))
+    } else if (node && typeof node === 'object') {
+      for (const [key, value] of Object.entries(node)) {
+        if (!CODE_FIELDS.has(key)) visitStrings(value, joinPath(path, key))
+      }
+    }
+  }
+  visitStrings(payload, '')
+
+  return hints
+}
+
 function main() {
   const file = process.argv[2]
   if (!file) {
@@ -214,7 +334,12 @@ function main() {
     process.exit(1)
   }
 
-  console.log(`Valid. ${bytes} bytes, ${payload.sections.length} section(s), ${payload.decisions.length} decision(s).`)
+  const hints = readabilityHints(payload)
+  for (const h of hints) console.error(`hint     ${h.path}: ${h.message}`)
+
+  console.log(
+    `Valid. ${bytes} bytes, ${payload.sections.length} section(s), ${payload.decisions.length} decision(s), ${hints.length} readability hint(s).`,
+  )
 }
 
 /** Compare real paths, not raw ones: a skill directory is often a symlink into
