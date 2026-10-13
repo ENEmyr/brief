@@ -13,8 +13,9 @@
  * one `path: message` line per problem, in the same shape as the API's 400.
  *
  * It also prints `hint` lines about readability: a paragraph too long to read
- * in one pass, a table cell or stat tile holding a sentence, a file path in
- * running text, markdown the reader shows as raw characters. Hints never
+ * in one pass, an English sentence over the ASD-STE100 limit, a table cell or
+ * stat tile holding a sentence, a file path in running text, markdown the
+ * reader shows as raw characters. Hints never
  * change the exit code; the API does not check them.
  */
 import { readFileSync, realpathSync } from 'node:fs'
@@ -188,12 +189,14 @@ export function validatePayload(value, schema) {
 }
 
 const LONG_PROSE_CHARS = 400
+const LONG_SENTENCE_WORDS = 25
 const LONG_CELL_CHARS = 200
 const LONG_STAT_CHARS = 50
 const PROSE_BLOCKS = new Set(['p', 'note', 'warn', 'good'])
 /** Fields whose string is code, not text the reader reads as prose. */
 const CODE_FIELDS = new Set(['code', 'before', 'after', 'latex'])
 const URL_PATTERN = /\bhttps?:\/\/\S+/g
+const THAI_PATTERN = /[\u0E00-\u0E7F]/
 /** The lookbehind stops a match from starting inside a word, which keeps the
  * scan linear on a long unbroken run such as a pasted hash. */
 const PATH_PATTERN = /(?<![\w@.\/~-])(?:~|[\w@.-]+)?(?:\/[\w@.-]+)+\/?/g
@@ -213,6 +216,22 @@ function isFilePath(token) {
   return !token.startsWith('/') && !startsWithDomain && parts.length >= 4
 }
 
+/** ASD-STE100 keeps a descriptive sentence to 25 words. Only sentences
+ * without Thai are counted: Thai has no spaces between words, so a word count
+ * needs a tokenizer this script does not have. */
+function sentenceHints(text, path, hints) {
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    if (THAI_PATTERN.test(sentence)) continue
+    const words = sentence.split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).length
+    if (words > LONG_SENTENCE_WORDS) {
+      hints.push({
+        path,
+        message: `${words} words in one sentence ("${sentence.slice(0, 40)}..."). ASD-STE100 keeps a description to 25 words and an instruction to 20. Split it.`,
+      })
+    }
+  }
+}
+
 function proseHints(text, path, hints) {
   if (text.length > LONG_PROSE_CHARS) {
     hints.push({
@@ -220,6 +239,7 @@ function proseHints(text, path, hints) {
       message: `${text.length} characters in one paragraph. Keep one point per paragraph: split it, or move the supporting detail into a table or a details block.`,
     })
   }
+  sentenceHints(text, path, hints)
   const paths = text.includes('/') ? (text.replace(URL_PATTERN, ' ').match(PATH_PATTERN) ?? []).filter(isFilePath) : []
   if (paths.length > 0) {
     hints.push({

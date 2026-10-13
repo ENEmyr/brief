@@ -165,7 +165,7 @@ Coverage item:
   "caption": "Test coverage of the flush path",
   "items": [
     { "label": "Buffer write", "status": "full" },
-    { "label": "Two-phase flush", "status": "partial", "note": "Happy path only; no test for a crash between phases." },
+    { "label": "Two-phase flush", "status": "partial", "note": "Only the normal case is tested. No test covers a crash between phases." },
     { "label": "Token revocation", "status": "missing" }
   ]
 }
@@ -574,17 +574,17 @@ Two fields that agents routinely get wrong:
   "id": "limiter-choice",
   "q": "Which rate limiter should we use for /api/session?",
   "multi": false,
-  "why": "The binding costs nothing to run and covers the abuse case we actually saw. The KV counter only pays off if we later need per-user quotas, which nothing in the current roadmap asks for.",
+  "why": "The Cloudflare limiter costs nothing to run and stops the abuse we saw. The KV counter is better only if we need a limit for each user, and the roadmap has no such need.",
   "opts": [
     {
       "id": "cf-binding",
       "label": "Cloudflare Rate Limiting binding",
-      "detail": "Ships today, no storage cost, but the key space is limited to what the binding exposes, so per-user quotas are out."
+      "detail": "It takes hours to ship and has no storage cost. It cannot set a limit for each user."
     },
     {
       "id": "custom-kv",
       "label": "Custom KV counter",
-      "detail": "Any key space we want, at one KV write per request and an eventual-consistency window that lets a burst through."
+      "detail": "It can set a limit for each user. It costs one KV write per request, and a short burst can get through."
     }
   ],
   "cmp": {

@@ -195,6 +195,19 @@ describe("the offline validator's readability hints", () => {
     ])
   })
 
+  it('flags an English sentence over the ASD-STE100 limit of 25 words', () => {
+    const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(' ')
+    expect(readabilityHints(paragraph(`${words(25)}.`))).toEqual([])
+    const hints = readabilityHints(paragraph(`Short one. ${words(26)}. Another short one.`))
+    expect(hints).toHaveLength(1)
+    expect(hints[0]!.message).toMatch(/^26 words in one sentence \("w0 w1 w2/)
+  })
+
+  it('leaves Thai sentences to the writer, since it cannot count Thai words', () => {
+    const thai = 'งานล้างข้อมูลลบแถวที่หมดอายุทุกวัน '.repeat(10)
+    expect(readabilityHints(paragraph(thai.trim()))).toEqual([])
+  })
+
   it('flags a table cell that holds a paragraph', () => {
     const hints = readabilityHints(withBlock({ type: 'table', head: ['Finding'], rows: [['a'.repeat(200)], ['b'.repeat(201)]] }))
     expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.1.0'])

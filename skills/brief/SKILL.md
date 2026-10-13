@@ -58,13 +58,13 @@ Three rules hold for every kind of work. A claim about code shows the few lines 
 ## Writing for the reader
 
 - **Lead with the point.** The first sentence of each section is its conclusion. Evidence and method follow it, and long evidence goes in a `details` block.
-- **One point per paragraph.** Two or three sentences. A paragraph that counts "first ..., second ..., third ..." is a `table` with one row per item. The validator hints at any paragraph over 400 characters.
+- **One topic per paragraph.** Six sentences at most, usually two or three, with the topic in the first sentence. A paragraph that counts "first ..., second ..., third ..." is a `table` with one row per item. The validator hints at any paragraph over 400 characters.
 - **Explain or cut every name the reader has not met.** That covers file paths, function and variable names, ticket and PR numbers, decision ids, and the labels you made up while working, such as lanes, phases, or cards. Say what the thing is or does in plain words: "the function that saves the host settings", not `config.SaveHost`. When the reader needs the exact path to act or to check, put it in a table column, a code block's `filename`, or a `details` block.
 - **Make the document stand alone.** If it follows an earlier document or conversation, restate in one sentence what that one found or decided. Never point to "the card" or "last round".
 - **Leave out how you worked.** Subagents, lanes, verifiers, worktrees, the commands you ran, and the folders your notes live in mean nothing to the reader. Give the result. If the method changes how far to trust it, say so in one sentence or put it in a `details` block.
 - **Say how facts relate.** The reader takes two facts placed side by side as cause and effect. If they are unrelated, say so, or keep them apart.
 - **Mark uncertainty once.** Say which numbers are estimates in one place, such as a stat hint or a `coverage` block of what was not checked. A parenthesis in every clause buries the result.
-- **Write in the reader's language, the way you would say it to a colleague.** If the human writes to you in Thai, write the document in Thai from the first draft. A translated English draft keeps English grammar and reads as a translation. See "Writing in Thai" below.
+- **Write in the language the human uses most with you, the way you would say it to a colleague.** If they mostly write Thai, write the document in Thai from the first draft, even when the code, your notes, and your own reasoning are in English. A translated English draft keeps English grammar and reads as a translation. See "Writing in Thai" below.
 - **Text shows exactly as typed.** The reader does not render markdown, so backticks, asterisks, and links appear as literal characters. Write names plainly and put code in a `code` block.
 - **No emoji, no em dash, no en dash.** Use a plain hyphen.
 - **Honest `detail` on every option.** An option with no downside listed reads as a sales pitch, and it costs the reader their trust in the rest of the document.
@@ -73,14 +73,35 @@ The same finding, written twice:
 
 | Written for someone who was in the session | Written for the reader |
 | --- | --- |
-| Per the chmod-test card I mounted the export at /tmp/pxx-nfs-test-docs and ran the probe as uid 102000. chmod returned EPERM, so mp0 cannot point at documents without a Hand Step. | Notes cannot be stored in the documents share as it is set up today. The NAS refuses permission changes there, and the notes app changes a file's permissions every time it saves, so the second save of any note fails. Each fix needs a setting changed on the NAS, which only you can do. |
+| Per the chmod-test card I mounted the export at /tmp/pxx-nfs-test-docs and ran the probe as uid 102000. chmod returned EPERM, so mp0 cannot point at documents without a Hand Step. | The notes app cannot save into the documents share as it is set up today. The NAS refuses permission changes there, and the app changes a file's permissions every time it saves. So the second save of any note fails. Each fix needs you to change a setting on the NAS. |
+
+### Sentences and words (ASD-STE100)
+
+Write every text field by the writing rules of ASD-STE100, Simplified Technical English (Issue 9, 2025), in the language of the document. The rules below are the ones that change a brief. The approved dictionary and the rules for English verb forms apply only to a document in English; they have no Thai equivalent.
+
+- **Keep sentences short.** An instruction has 20 words at most, and a description has 25. In Thai, count words as you would in English, and when และ, แต่, ซึ่ง, or เพราะ starts a second idea, make two sentences. The validator counts English sentences only.
+- **Write one instruction per sentence, as a command, with the condition first.** "If the build fails, run the tests again." In Thai, "ถ้า build ไม่ผ่าน ให้รันเทสต์อีกครั้ง".
+- **Start a warning with a command or a condition.** Then give the risk.
+- **Use the active voice and name who does the action.** Use the passive only when the actor is unknown. In Thai, do not copy the English passive with ถูก.
+- **Use one word for one meaning.** Give each thing one name, the name the product uses, and keep it to the end.
+- **Use three nouns in a row at most.** Break a longer chain with of, for, or a verb in English, and with ของ, ที่, or สำหรับ in Thai.
+- **Do not drop words to make a sentence shorter.** Keep the verbs, the articles, and Thai words such as ที่, ว่า, and ให้. A fragment or a chain of colons makes the reader rebuild the sentence.
+- **Put a complex list in a table with one row per item.** Brief has no list block.
+
+| Before | After ASD-STE100 |
+| --- | --- |
+| แถวที่หมดอายุจะถูกลบโดยงานที่รันทุกวัน ซึ่งถ้ามีคนเปิดก่อนก็จะถูกลบตอนนั้นแทน | งานล้างข้อมูลลบแถวที่หมดอายุทุกวัน ถ้ามีคนเปิดเอกสารที่หมดอายุก่อน API จะลบแถวนั้นทันที |
+| ควรจะมีการเปิด nesting ก่อนที่จะ deploy ถ้าใช้ Debian 13 | ถ้าเครื่องใช้ Debian 13 ให้เปิด nesting ก่อน deploy |
+| ระบบตรวจสอบสิทธิ์การเข้าถึงข้อมูลผู้ใช้ระดับโรงเรียน | ระบบที่ตรวจว่าผู้ใช้เปิดข้อมูลของโรงเรียนได้หรือไม่ |
+| ข้อเสีย: ลึกขึ้นหนึ่งชั้น | ข้อเสียคือโฟลเดอร์จะลึกขึ้นหนึ่งชั้น |
+| Log what would have been blocked, block nothing. | Log each request that the limit would stop. Do not stop any request. |
 
 ### Writing in Thai
 
 - Keep in English the terms Thai engineers say in English: API, PR, merge, branch, commit, deploy, migration, cache, endpoint, CPU, container, login, autosave. Use Thai for the rest: ข้อที่พบ, not finding; ผู้เขียน PR, not author; ตรวจแล้ว, not verify แล้ว.
 - End a Thai sentence with a space, not a full stop.
 - Use the words the product itself uses. If the screen says โลก, write โลก, not world.
-- Check words that change meaning in Thai. เทอม means a school term, so an equation term is ส่วนของสมการ. ค่าใช้จ่าย means money, so CPU overhead is ภาระ CPU.
+- Check words that change meaning in Thai. เทอม means a school term, so a term of an equation is พจน์. ค่าใช้จ่าย means money, so CPU overhead is ภาระ CPU.
 - Keep one voice. Use the same word for yourself from start to end, and call the reader คุณ.
 
 | Translated from English | Written in Thai |
@@ -192,7 +213,7 @@ Read a path literally: `sections.1.blocks.0.head` is the `head` field of the fir
 
 Warnings are different from errors. A warning means the API will accept the payload but the field you wrote does nothing, because the schema strips keys it does not know. `sections.0.blocks.1.items.0.color` is a real example: the field is called `tone`, so a block with `color` publishes and renders with no colour at all. Treat a warning as a silently broken block, not as a nit.
 
-Hints are the third kind of line, and they never change the exit code. Each one names a pattern that makes the document hard to read for someone who did not follow the work: a paragraph over 400 characters, a table cell over 200, a stat label or hint over 50, a file path in running text, or markdown, which the reader shows as literal characters.
+Hints are the third kind of line, and they never change the exit code. Each one names a pattern that makes the document hard to read for someone who did not follow the work: a paragraph over 400 characters, an English sentence over 25 words, a table cell over 200 characters, a stat label or hint over 50, a file path in running text, or markdown, which the reader shows as literal characters.
 
 ```text
 hint     sections.1.blocks.0.text: 512 characters in one paragraph. Keep one point per paragraph: split it, or move the supporting detail into a table or a details block.
@@ -287,6 +308,7 @@ When the document has decisions, design them so this loop closes in one pass. A 
 | A performance or capacity document with no setup, no before and after, no complexity, or no money cost | See "What the reader needs". Those are the facts the reader came for. |
 | Handing the human a question you could settle | Decide it, say what you chose, and keep decisions for calls that turn on their priorities, money, risk, or taste. |
 | Writing in English and translating into Thai | The translation keeps English grammar, full stops, and calques. Write in Thai from the first draft. |
+| A sentence that carries two ideas, or a passive copied from English | Split it, and name who does the action. ASD-STE100 keeps a description to 25 words and an instruction to 20. |
 | Backticks or `**` in text | They show as literal characters. Write names plainly; put code in a `code` block. |
 | A table cell or stat tile that holds a paragraph | Keep cells and tiles to a phrase. The explanation goes in a paragraph beside the block. |
 | Putting Mermaid source in a decision's `dia` | `dia` is a plain string label, rendered literally as `[diagram: <your string>]`. For a real diagram, put a `seq`, `state`, `layers`, or `mermaid` block in the section that sets the decision up. |
