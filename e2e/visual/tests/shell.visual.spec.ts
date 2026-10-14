@@ -8,7 +8,7 @@ import { expect, openReader, test } from '../lib/session'
 // and border (250), the dock 340 plus border (342).
 type Palette = Record<
   | 'card' | 'elev' | 'chip' | 'line' | 'line2' | 'text' | 'sub' | 'faint'
-  | 'accent' | 'accentText' | 'onAccent' | 'shareText' | 'transparent',
+  | 'accent' | 'accentText' | 'accentLine' | 'onAccent' | 'shareText' | 'transparent',
   string
 >
 const C: Record<Theme, Palette> = {
@@ -23,6 +23,7 @@ const C: Record<Theme, Palette> = {
     faint: 'rgb(124, 134, 143)',
     accent: 'rgb(197, 240, 90)',
     accentText: 'rgb(197, 240, 90)',
+    accentLine: 'rgb(197, 240, 90)',
     onAccent: 'rgb(11, 13, 15)',
     shareText: 'rgb(11, 13, 15)',
     transparent: 'rgba(0, 0, 0, 0)',
@@ -38,6 +39,7 @@ const C: Record<Theme, Palette> = {
     faint: 'rgb(106, 115, 123)',
     accent: 'rgb(197, 240, 90)',
     accentText: 'rgb(77, 122, 0)',
+    accentLine: 'rgb(94, 140, 16)',
     onAccent: 'rgb(15, 18, 20)',
     // B-Reader-Light:59 draws Share as text fill with white text (card), not page.
     shareText: 'rgb(255, 255, 255)',
@@ -226,6 +228,32 @@ test.describe('shell at 1440', () => {
   })
 })
 
+// S8, B-Reader .br-flash: border lime to line with a fading 4px glow over
+// 1.6s ease-out; under reduced motion a static lime (accent-line) border.
+test.describe('section flash', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+  })
+
+  test('a jump plays the 1.6s flash on the target card', async ({ page }) => {
+    await openReader(page)
+    await page.keyboard.press('j')
+    const s1 = page.locator('section#s1')
+    await expect(s1).toHaveAttribute('data-flash', /^[ab]$/)
+    await expectComputed(s1, { 'animation-duration': '1.6s', 'animation-timing-function': 'ease-out' })
+    await expect(s1).toHaveCSS('animation-name', /^section-flash-[ab]$/)
+  })
+
+  test('reduced motion: no animation, a static accent-line border', async ({ page, theme }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await openReader(page)
+    await page.keyboard.press('j')
+    const s1 = page.locator('section#s1')
+    await expect(s1).toHaveAttribute('data-flash', /^[ab]$/)
+    await expectComputed(s1, { 'animation-name': 'none', 'border-top-color': C[theme].accentLine })
+  })
+})
+
 test('at 1100 the dock moves under the document at full width', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 900 })
   await openReader(page)
@@ -291,6 +319,8 @@ test.describe('under 880 (B-Mobile)', () => {
     await expectComputed(dock, { 'border-top-left-radius': '16px' })
     // The sheet slides up (260ms); measure where it comes to rest.
     await expect.poll(async () => Math.round((await dock.boundingBox())!.y)).toBe(106)
+    const sheet = (await dock.boundingBox())!
+    expect(Math.round(sheet.y + sheet.height)).toBe(763)
     await expect(dock.getByRole('button', { name: 'Close dock' })).toBeVisible()
   })
 
