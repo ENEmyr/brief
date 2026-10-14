@@ -1,5 +1,5 @@
 import { expectBox, expectComputed } from '../lib/geometry'
-import type { Theme } from '../lib/regions'
+import { PHONE_VIEWPORT, type Theme } from '../lib/regions'
 import { expect, openReader, test } from '../lib/session'
 
 // Values measured on B-Reader / B-Reader-Light (1440, 1100, 880) and B-Mobile
@@ -279,7 +279,7 @@ test('at 880 the outline stays and the dock is under the document', async ({ pag
 })
 
 test.describe('under 880 (B-Mobile)', () => {
-  test.use({ viewport: { width: 388, height: 763 }, isMobile: true, hasTouch: true })
+  test.use({ viewport: PHONE_VIEWPORT, isMobile: true, hasTouch: true })
 
   test('top bar is 48 high with the section counter and 44px buttons', async ({ page, theme }) => {
     await openReader(page)
@@ -308,7 +308,7 @@ test.describe('under 880 (B-Mobile)', () => {
     const box = (await dock.boundingBox())!
     expect(box.x).toBe(0)
     expect(box.width).toBe(388)
-    expect(box.y + box.height).toBeCloseTo(763, 0)
+    expect(box.y + box.height).toBeCloseTo(PHONE_VIEWPORT.height, 0)
     const open = dock.getByRole('button', { name: 'Open dock' })
     await expectBox(open, { height: 44 })
     await expectComputed(open, { 'background-color': C[theme].accent, color: C[theme].onAccent })
@@ -320,7 +320,7 @@ test.describe('under 880 (B-Mobile)', () => {
     // The sheet slides up (260ms); measure where it comes to rest.
     await expect.poll(async () => Math.round((await dock.boundingBox())!.y)).toBe(106)
     const sheet = (await dock.boundingBox())!
-    expect(Math.round(sheet.y + sheet.height)).toBe(763)
+    expect(Math.round(sheet.y + sheet.height)).toBe(PHONE_VIEWPORT.height)
     await expect(dock.getByRole('button', { name: 'Close dock' })).toBeVisible()
   })
 
