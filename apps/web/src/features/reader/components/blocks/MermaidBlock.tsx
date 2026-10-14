@@ -34,10 +34,19 @@ function mermaidThemeVariables(theme: Theme) {
     lineColor: c.sub,
     secondaryColor: c['accent-soft'],
     tertiaryColor: c['code-bg'],
+    // Unset, mermaid tints edge label boxes from secondaryColor; the board's
+    // labels sit on the canvas with no box (B-Blocks2:107, :109).
+    edgeLabelBackground: c.card,
     fontFamily: readFontStack('sans'),
     fontSize: LABEL_FONT_SIZE,
   }
 }
+
+/** Mermaid draws its label boxes at half opacity, so a line would run through the text. */
+const THEME_CSS = '.edgeLabel rect { opacity: 1; }'
+
+/** B-Blocks2:104, :108, :110: node boxes have 6px corners; mermaid draws `[text]` square. */
+const NODE_RADIUS = '6'
 
 // Layout knobs. Left at mermaid's defaults, dagre gets one unwrapped line per
 // label (htmlLabels is off, so a label is a single SVG text run unless
@@ -58,6 +67,7 @@ const FLOWCHART_CONFIG = {
  * `width="100%"` and a `max-width` style, which leaves the svg no size of its
  * own inside a box that shrinks to fit (the viewer) or a box of fixed height
  * (the card). Width and height from the viewBox make it scale like an image.
+ * Square node boxes get the board's corners; shapes that set their own keep them.
  */
 function sanitizeAtNaturalSize(svg: string): string {
   const body = DOMPurify.sanitize(svg, {
@@ -70,6 +80,10 @@ function sanitizeAtNaturalSize(svg: string): string {
     root.setAttribute('width', String(box[2]))
     root.setAttribute('height', String(box[3]))
     root.style.removeProperty('max-width')
+  }
+  for (const box of body.querySelectorAll('g.node rect.label-container:not([rx])')) {
+    box.setAttribute('rx', NODE_RADIUS)
+    box.setAttribute('ry', NODE_RADIUS)
   }
   return body.innerHTML
 }
@@ -156,6 +170,7 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
         // See the component doc comment.
         htmlLabels: false,
         flowchart: FLOWCHART_CONFIG,
+        themeCSS: THEME_CSS,
       })
       try {
         const result = await mermaid.render(callId, escapeLabelGt(block.code))

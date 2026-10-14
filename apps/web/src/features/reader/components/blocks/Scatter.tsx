@@ -130,6 +130,12 @@ export function Scatter({ block, ...anchor }: { block: ScatterBlockType } & Bloc
     >
       <div className="px-4 py-3">
         <div ref={containerRef} className={`aspect-[520/220] w-full rounded-[4px] ${ready ? '' : 'sk'}`} />
+        {/* B-Blocks2:160. One series has nothing to tell apart. */}
+        {count > 1 ? (
+          <span className="block text-[12px] text-sub">
+            Series differ by shape and color, so grayscale and color-blind readers can tell them apart.
+          </span>
+        ) : null}
       </div>
     </BlockCard>
   )

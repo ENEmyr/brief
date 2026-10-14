@@ -25,6 +25,9 @@ const TIP_GAP = 1
 /** A transition to itself has the seq self-message's loop, 26 wide and 16 high (seqLayout.ts). */
 const SELF_LOOP = { width: 26, height: 16 }
 const PAD = 24
+/** B-Blocks2:30-37: the top row starts 72 into the 330 canvas; the bottom row ends 42 above its foot. */
+const PAD_TOP = 72
+const PAD_BOTTOM = 42
 
 interface Cell {
   col: number
@@ -255,7 +258,8 @@ function computeStateLayout(block: StateBlock, transitions: Transition[]): State
     return [{ ...base, points, label: above((x1 + bx) / 2, centerY) }]
   })
 
-  // Shift everything so the leftmost label or node sits PAD from the edge.
+  // Shift everything so the leftmost label or node sits PAD from the side and
+  // the highest one PAD_TOP from the top.
   const lefts = [...nodes.map((n) => n.x), ...edges.flatMap((e) => (e.label ? [e.label.left] : []))]
   const tops = [...nodes.map((n) => n.y), ...edges.flatMap((e) => (e.label ? [e.label.top] : []))]
   const rights = [
@@ -267,12 +271,12 @@ function computeStateLayout(block: StateBlock, transitions: Transition[]): State
     ...edges.flatMap((e) => (e.label ? [e.label.top + e.label.lines.length * LINE] : [])),
   ]
   const dx = PAD - Math.min(...lefts)
-  const dy = PAD - Math.min(...tops)
+  const dy = PAD_TOP - Math.min(...tops)
   const move = (p: Point) => ({ x: p.x + dx, y: p.y + dy })
 
   return {
     width: Math.ceil(Math.max(...rights) + dx + PAD),
-    height: Math.ceil(Math.max(...bottoms) + dy + PAD),
+    height: Math.ceil(Math.max(...bottoms) + dy + PAD_BOTTOM),
     nodeHeight,
     nodes: nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy })),
     edges: edges.map((e) => ({
