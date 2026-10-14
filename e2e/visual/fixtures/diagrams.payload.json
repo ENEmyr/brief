@@ -1,0 +1,575 @@
+{
+  "meta": {
+    "title": "Diagram blocks on the boards"
+  },
+  "sections": [
+    {
+      "id": "s1",
+      "no": 1,
+      "title": "seq",
+      "blocks": [
+        {
+          "type": "seq",
+          "title": "เส้นทางของ request",
+          "actors": [
+            "Client",
+            "Edge Worker",
+            "Limiter",
+            "Origin API"
+          ],
+          "steps": [
+            {
+              "from": "Client",
+              "to": "Edge Worker",
+              "label": "GET /orders"
+            },
+            {
+              "from": "Edge Worker",
+              "to": "Limiter",
+              "label": "take(key, 1)"
+            },
+            {
+              "from": "Limiter",
+              "to": "Edge Worker",
+              "label": "ok · เหลือ 41",
+              "note": "ถ้าเหลือ 0 จะกระโดดไปทาง 429 แทน ดู Fig 3.1"
+            },
+            {
+              "from": "Edge Worker",
+              "to": "Origin API",
+              "label": "forward"
+            },
+            {
+              "from": "Origin API",
+              "to": "Edge Worker",
+              "label": "200 OK"
+            },
+            {
+              "from": "Edge Worker",
+              "to": "Client",
+              "label": "200 · เหลือ 41"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "no": 2,
+      "title": "state",
+      "blocks": [
+        {
+          "type": "state",
+          "title": "สถานะของ request",
+          "initial": "recv",
+          "states": [
+            {
+              "id": "recv",
+              "label": "รับเข้า"
+            },
+            {
+              "id": "token",
+              "label": "ได้ token"
+            },
+            {
+              "id": "fwd",
+              "label": "ส่งต่อ origin"
+            },
+            {
+              "id": "done",
+              "label": "เสร็จ"
+            },
+            {
+              "id": "limited",
+              "label": "429 ถูกจำกัด"
+            }
+          ],
+          "transitions": [
+            {
+              "from": "recv",
+              "to": "token",
+              "label": "token ok"
+            },
+            {
+              "from": "recv",
+              "to": "limited",
+              "label": "bucket ว่าง"
+            },
+            {
+              "from": "token",
+              "to": "fwd",
+              "label": "forward"
+            },
+            {
+              "from": "fwd",
+              "to": "done",
+              "label": "200"
+            },
+            {
+              "from": "limited",
+              "to": "recv",
+              "label": "retry หลัง 30 วิ"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "no": 3,
+      "title": "layers",
+      "blocks": [
+        {
+          "type": "layers",
+          "title": "สถาปัตยกรรมหลังใส่ limiter",
+          "layers": [
+            {
+              "id": "edge",
+              "label": "edge",
+              "nodes": [
+                {
+                  "id": "client",
+                  "label": "Client"
+                },
+                {
+                  "id": "worker",
+                  "label": "Edge Worker"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "client",
+                  "to": "worker",
+                  "label": "HTTPS"
+                },
+                {
+                  "from": "worker",
+                  "to": "limiter",
+                  "label": "limit(key)"
+                },
+                {
+                  "from": "worker",
+                  "to": "origin",
+                  "label": "forward"
+                }
+              ]
+            },
+            {
+              "id": "control",
+              "label": "control",
+              "nodes": [
+                {
+                  "id": "limiter",
+                  "label": "Limiter"
+                }
+              ],
+              "edges": []
+            },
+            {
+              "id": "origin",
+              "label": "origin",
+              "nodes": [
+                {
+                  "id": "origin",
+                  "label": "Origin API"
+                },
+                {
+                  "id": "pg",
+                  "label": "Postgres"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "origin",
+                  "to": "pg",
+                  "label": "SQL"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "no": 4,
+      "title": "erd",
+      "blocks": [
+        {
+          "type": "erd",
+          "title": "ตารางที่เกี่ยวกับ limit",
+          "tables": [
+            {
+              "name": "rate_limit_rules",
+              "columns": [
+                {
+                  "name": "plan",
+                  "type": "text",
+                  "pk": true
+                },
+                {
+                  "name": "limit",
+                  "type": "int"
+                },
+                {
+                  "name": "period_s",
+                  "type": "int"
+                }
+              ]
+            },
+            {
+              "name": "customers",
+              "columns": [
+                {
+                  "name": "id",
+                  "type": "uuid",
+                  "pk": true
+                },
+                {
+                  "name": "name",
+                  "type": "text"
+                },
+                {
+                  "name": "plan",
+                  "type": "text",
+                  "fk": {
+                    "table": "rate_limit_rules",
+                    "column": "plan"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "api_keys",
+              "columns": [
+                {
+                  "name": "id",
+                  "type": "text",
+                  "pk": true
+                },
+                {
+                  "name": "customer_id",
+                  "type": "uuid",
+                  "fk": {
+                    "table": "customers",
+                    "column": "id"
+                  }
+                },
+                {
+                  "name": "revoked",
+                  "type": "bool"
+                },
+                {
+                  "name": "created_at",
+                  "type": "timestamptz"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "no": 5,
+      "title": "mermaid",
+      "blocks": [
+        {
+          "type": "mermaid",
+          "code": "flowchart LR\n  A[request] --> B{tokens > 0}\n  B -- yes --> C[serve]\n  B -- no --> D[429]\n  C --> E([done])"
+        },
+        {
+          "type": "mermaid",
+          "title": "top down",
+          "code": "flowchart TD\n  A[request] --> B{tokens > 0}\n  B -->|yes| C[serve]\n  B -->|no| D[429]\n  C --> E([done])"
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "no": 6,
+      "title": "charts",
+      "blocks": [
+        {
+          "type": "bigo",
+          "title": "ต้นทุนต่อ request เมื่อ n โต",
+          "series": [
+            {
+              "label": "O(n)",
+              "curve": "n"
+            },
+            {
+              "label": "O(log n)",
+              "curve": "logn"
+            },
+            {
+              "label": "O(1)",
+              "curve": "1"
+            }
+          ],
+          "maxN": 1000000
+        },
+        {
+          "type": "heatmap",
+          "title": "429 ต่อชั่วโมง / 7 วัน",
+          "xLabels": [
+            "00",
+            "02",
+            "04",
+            "06",
+            "08",
+            "10",
+            "12",
+            "14",
+            "16",
+            "18",
+            "20",
+            "22"
+          ],
+          "yLabels": [
+            "จ.",
+            "อ.",
+            "พ.",
+            "พฤ."
+          ],
+          "values": [
+            [
+              0,
+              0,
+              1,
+              1,
+              2,
+              1,
+              0,
+              1,
+              2,
+              1,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              1,
+              2,
+              3,
+              2,
+              1,
+              1,
+              2,
+              1,
+              0,
+              0
+            ],
+            [
+              1,
+              1,
+              2,
+              3,
+              4,
+              3,
+              2,
+              1,
+              2,
+              1,
+              1,
+              0
+            ],
+            [
+              0,
+              1,
+              1,
+              2,
+              2,
+              1,
+              0,
+              1,
+              1,
+              0,
+              0,
+              0
+            ]
+          ]
+        },
+        {
+          "type": "histogram",
+          "title": "latency ช่วง burst",
+          "bins": [
+            {
+              "label": "0.1",
+              "count": 38
+            },
+            {
+              "label": "0.3",
+              "count": 72
+            },
+            {
+              "label": "0.5",
+              "count": 100
+            },
+            {
+              "label": "0.8",
+              "count": 64
+            },
+            {
+              "label": "1.2",
+              "count": 40
+            },
+            {
+              "label": "2",
+              "count": 22
+            },
+            {
+              "label": "3",
+              "count": 14
+            },
+            {
+              "label": "5 s",
+              "count": 9
+            }
+          ]
+        },
+        {
+          "type": "scatter",
+          "title": "RPS เทียบ latency",
+          "xLabel": "rps",
+          "yLabel": "s",
+          "series": [
+            {
+              "label": "before",
+              "points": [
+                [
+                  500,
+                  0.2
+                ],
+                [
+                  1000,
+                  0.3
+                ],
+                [
+                  1600,
+                  0.5
+                ],
+                [
+                  2200,
+                  0.8
+                ],
+                [
+                  2800,
+                  1.2
+                ],
+                [
+                  3400,
+                  1.8
+                ],
+                [
+                  4000,
+                  2.5
+                ],
+                [
+                  4500,
+                  2.8
+                ]
+              ]
+            },
+            {
+              "label": "after",
+              "points": [
+                [
+                  500,
+                  0.15
+                ],
+                [
+                  1000,
+                  0.18
+                ],
+                [
+                  1600,
+                  0.2
+                ],
+                [
+                  2200,
+                  0.22
+                ],
+                [
+                  2800,
+                  0.25
+                ],
+                [
+                  3400,
+                  0.27
+                ],
+                [
+                  4000,
+                  0.29
+                ],
+                [
+                  4500,
+                  0.3
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "no": 7,
+      "title": "plot3d",
+      "blocks": [
+        {
+          "type": "plot3d",
+          "title": "latency by RPS and bucket size",
+          "kind": "surface",
+          "xLabel": "rps",
+          "yLabel": "bucket",
+          "zLabel": "ms",
+          "grid": [
+            [
+              30,
+              33,
+              42,
+              57,
+              78,
+              105
+            ],
+            [
+              26,
+              29,
+              38,
+              53,
+              74,
+              101
+            ],
+            [
+              22,
+              25,
+              34,
+              49,
+              70,
+              97
+            ],
+            [
+              18,
+              21,
+              30,
+              45,
+              66,
+              93
+            ],
+            [
+              14,
+              17,
+              26,
+              41,
+              62,
+              89
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "decisions": []
+}
