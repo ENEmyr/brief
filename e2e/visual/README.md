@@ -124,6 +124,19 @@ number belongs to: the top bar is 52 high inside a 55 px `header` (2 px progress
 line, 1 px border), the outline rows are 236 wide inside a 250 px panel, the dock
 is 340 wide inside a 342 px box.
 
+## Decision dock
+
+`tests/dock.visual.spec.ts` checks the dock, the B-Mobile sheet and the
+B-Overlays prompt review sheet. Board numbers were read relative to the dock (or
+sheet) box, with the board fonts fetched the way the renderer fetches them; a
+board measured with Google's default font files has different text widths. The
+spec pins `navigator.platform` to a Mac so the app draws the boards' ⌘ key
+chips. Every B-Reader decision has a context-chip row that waits on
+`decision.refs`, so positions below it are the board's minus 34 per row
+(`CHIPS`). The phone sheet opens with B-Mobile's own answers (D1 binding, D3 api),
+not the shared seed. Its pixel crops (`crop-reader-<theme>-dock-*`) cover the
+header, two option rows, a checkbox and the Copy button.
+
 ## Foundations
 
 `tests/foundations.visual.spec.ts` checks B-Foundations without a screenshot. It
