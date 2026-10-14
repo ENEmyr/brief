@@ -183,9 +183,11 @@ export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAncho
       <div className="p-3">
         <div ref={containerRef} className={`aspect-[540/200] w-full rounded-[4px] ${ready ? '' : 'sk'}`} />
       </div>
-      {/* The n slider (owner ruling D5); no board draws it, so it sits in the footer row. */}
+      {/* The n slider (owner ruling D5); no board draws it, so it takes the
+          footer's first row and the readouts wrap under it. The value keeps the
+          width of its longest form, so the track never resizes under the thumb. */}
       <DiagramFooter>
-        <label className="flex min-w-0 flex-1 items-center gap-2 font-mono">
+        <label className="flex w-full items-center gap-2 font-mono">
           n
           <input
             type="range"
@@ -196,7 +198,9 @@ export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAncho
             aria-label="n (log scale)"
             className="min-w-0 flex-1 accent-accent max-[880px]:min-h-11"
           />
-          <b className="text-text">{n.toLocaleString()}</b>
+          <b className="text-right text-text" style={{ minWidth: `${maxN.toLocaleString().length}ch` }}>
+            {n.toLocaleString()}
+          </b>
         </label>
         <span className="flex flex-wrap gap-x-4 gap-y-1 font-mono">
           {block.series.map((s) => (
