@@ -158,7 +158,7 @@ export function SaveModal({
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex justify-center bg-black/50 px-5 print:hidden"
+      className="fixed inset-0 z-[95] flex justify-center bg-[var(--c-scrim)] px-5 print:hidden"
       style={{ paddingTop: '14vh' }}
       onClick={dismiss}
     >
@@ -169,7 +169,7 @@ export function SaveModal({
         aria-label="Archive this doc"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="h-fit w-[min(92vw,440px)] rounded-[14px] border border-line bg-card p-5 shadow-[var(--shadow-card)]"
+        className="h-fit w-[min(92vw,440px)] rounded-[14px] border border-line bg-card p-5 shadow-[var(--shadow-overlay)]"
         style={{ animation: 'dc-pop .18s ease' }}
       >
         <div className="mb-1.5 flex items-center justify-between">
@@ -197,7 +197,7 @@ export function SaveModal({
             aria-label="Archive without a password"
             onClick={() => setMode('plain')}
             className={`max-[879px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
-              mode === 'plain' ? 'border-mauve bg-mauvesoft text-text' : 'border-line bg-card text-sub'
+              mode === 'plain' ? 'border-accent-line bg-accent-soft text-text' : 'border-line bg-card text-sub'
             }`}
           >
             <span aria-hidden="true" className="font-semibold">
@@ -209,7 +209,7 @@ export function SaveModal({
             aria-pressed={mode === 'encrypt'}
             onClick={() => setMode('encrypt')}
             className={`max-[879px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
-              mode === 'encrypt' ? 'border-mauve bg-mauvesoft text-text' : 'border-line bg-card text-sub'
+              mode === 'encrypt' ? 'border-accent-line bg-accent-soft text-text' : 'border-line bg-card text-sub'
             }`}
           >
             <span className="font-semibold">Archive with password</span>
@@ -228,7 +228,7 @@ export function SaveModal({
                 placeholder="Password"
                 className="w-full rounded-[9px] border border-line bg-elev px-3 py-[9px] text-[13px] text-text"
               />
-              {passwordTooShort && <p className="mt-1 text-[12px] text-red">Must be at least 8 characters</p>}
+              {passwordTooShort && <p className="mt-1 text-[12px] text-bad">Must be at least 8 characters</p>}
             </div>
             <div>
               <input
@@ -239,16 +239,16 @@ export function SaveModal({
                 placeholder="Confirm password"
                 className="w-full rounded-[9px] border border-line bg-elev px-3 py-[9px] text-[13px] text-text"
               />
-              {mismatch && <p className="mt-1 text-[12px] text-red">Passwords do not match</p>}
+              {mismatch && <p className="mt-1 text-[12px] text-bad">Passwords do not match</p>}
             </div>
-            <aside className="rounded-lg border-l-[3px] border-peach bg-[var(--callout-warn-bg)] px-[15px] py-[11px] text-[12.5px] leading-[1.6] text-text">
+            <aside className="rounded-lg border-l-[3px] border-warn bg-warn-soft px-[15px] py-[11px] text-[12.5px] leading-[1.6] text-text">
               The password never leaves this device. If you lose it, the content cannot be recovered.
             </aside>
           </div>
         )}
 
         {error && (
-          <p role="alert" className="mb-3 text-[12.5px] text-red">
+          <p role="alert" className="mb-3 text-[12.5px] text-bad">
             {error}
           </p>
         )}
@@ -258,7 +258,7 @@ export function SaveModal({
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="max-[879px]:min-h-11 flex-1 cursor-pointer rounded-[9px] border-0 bg-mauve px-4 py-[9px] text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="max-[879px]:min-h-11 flex-1 cursor-pointer rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy && mode === 'encrypt' ? 'Encrypting…' : 'Archive'}
           </button>

@@ -6,21 +6,21 @@ import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
-import { AXIS_FONT, PALETTES, seriesColors, useEChart } from '../../services/echarts'
+import { chartPalette, seriesColors, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type ScatterBlockType = Extract<Block, { type: 'scatter' }>
 
 export function buildScatterOption(block: ScatterBlockType, palette: Palette): EChartsOption {
   const colors = seriesColors(palette)
-  const nameTextStyle = { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 }
+  const nameTextStyle = { color: palette.sub, fontFamily: palette.font, fontSize: 10 }
 
   return {
     backgroundColor: 'transparent',
     animation: false,
     tooltip: {
       backgroundColor: palette.card,
-      textStyle: { color: palette.text, fontFamily: AXIS_FONT, fontSize: 11 },
+      textStyle: { color: palette.text, fontFamily: palette.font, fontSize: 11 },
       borderColor: palette.line2,
     },
     grid: {
@@ -36,7 +36,7 @@ export function buildScatterOption(block: ScatterBlockType, palette: Palette): E
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle,
-      axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
       axisLine: { lineStyle: { color: palette.sub } },
       splitLine: { lineStyle: { color: palette.line2 } },
     },
@@ -46,7 +46,7 @@ export function buildScatterOption(block: ScatterBlockType, palette: Palette): E
       nameLocation: 'middle',
       nameGap: 24,
       nameTextStyle,
-      axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
       axisLine: { lineStyle: { color: palette.sub } },
       splitLine: { lineStyle: { color: palette.line2 } },
     },
@@ -62,9 +62,8 @@ export function buildScatterOption(block: ScatterBlockType, palette: Palette): E
 
 export function Scatter({ block, ...anchor }: { block: ScatterBlockType } & BlockAnchor) {
   const { theme } = useTheme()
-  const palette = PALETTES[theme]
 
-  const { containerRef, chartRef } = useEChart(() => buildScatterOption(block, palette), [block, theme])
+  const { containerRef, chartRef } = useEChart(() => buildScatterOption(block, chartPalette(theme)), [block, theme])
 
   return (
     <DiagramCard
@@ -72,7 +71,7 @@ export function Scatter({ block, ...anchor }: { block: ScatterBlockType } & Bloc
       expandable={false}
       controls={
         <div className="flex justify-end">
-          <ChartExpandButton chartRef={chartRef} palette={palette} />
+          <ChartExpandButton chartRef={chartRef} theme={theme} />
         </div>
       }
     >

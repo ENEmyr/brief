@@ -1,11 +1,11 @@
 'use client'
 import { useCallback, useSyncExternalStore } from 'react'
 
-export type Theme = 'latte' | 'mocha'
+export type Theme = 'light' | 'dark'
 const listeners = new Set<() => void>()
 
 /**
- * Print-time palette override (bug: printing from mocha left mermaid/echarts
+ * Print-time palette override (bug: printing from dark left mermaid/echarts
  * unreadable). `useTheme()` is the single read path every JS-themed renderer
  * (echarts.ts's useEChart, MermaidBlock) goes through, so forcing the value
  * this returns -- rather than the `data-theme` DOM attribute the CSS cascade
@@ -18,8 +18,8 @@ let printOverride: Theme | null = null
 
 function current(): Theme {
   if (printOverride) return printOverride
-  if (typeof document === 'undefined') return 'latte'
-  return document.documentElement.dataset.theme === 'mocha' ? 'mocha' : 'latte'
+  if (typeof document === 'undefined') return 'light'
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
 }
 
 export function useTheme() {
@@ -29,10 +29,10 @@ export function useTheme() {
       return () => listeners.delete(cb)
     },
     current,
-    () => 'latte' as Theme,
+    () => 'light' as Theme,
   )
   const toggle = useCallback(() => {
-    const next: Theme = current() === 'latte' ? 'mocha' : 'latte'
+    const next: Theme = current() === 'light' ? 'dark' : 'light'
     document.documentElement.setAttribute('data-theme', next)
     try {
       localStorage.setItem('idocs:theme', next)

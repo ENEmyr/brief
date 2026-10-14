@@ -19,7 +19,7 @@ export function HowItWorks() {
         <ol className="mt-8 grid gap-4 min-[880px]:grid-cols-3">
           {STEPS.map((step) => (
             <li key={step.no} className="rounded-xl border border-line bg-card p-5">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-mauvesoft font-mono text-[13px] font-semibold text-mauve">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft font-mono text-[13px] font-semibold text-accent-text">
                 {step.no}
               </span>
               <h3 className="mt-3 text-[16px] font-semibold text-text">{step.title}</h3>

@@ -44,7 +44,10 @@ function hastFor(lines: string[]): Root {
       {
         type: 'element',
         tagName: 'pre',
-        properties: { class: 'shiki catppuccin-mocha', style: 'background-color:#1e1e2e;color:#cdd6f4' },
+        properties: {
+          class: 'shiki console',
+          style: 'background-color:var(--shiki-background);color:var(--shiki-foreground)',
+        },
         children: [{ type: 'element', tagName: 'code', properties: {}, children: codeChildren }],
       },
     ],

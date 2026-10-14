@@ -5,13 +5,11 @@ import type { Block } from '@brief/schema'
 import { DiagramCard } from '../DiagramCard'
 import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
-import { useTheme, beginThemedRender } from '@/features/theme'
+import { useTheme, beginThemedRender, readColorTokens, readFontStack } from '@/features/theme'
+import type { Theme } from '@/features/theme'
 
 type MermaidBlockType = Extract<Block, { type: 'mermaid' }>
 
-// Literal Catppuccin hex values (not getComputedStyle — mermaid renders into
-// its own detached temp DOM node before we ever see the resulting markup, so
-// CSS custom properties on the document wouldn't be visible to it anyway).
 // Mermaid's own default is 16px, which renders visibly heavier than the
 // hand-rolled SVG blocks next to it (Erd/Seq/StateMachine/Layers all label at
 // 9-11.5px inside a scaled viewBox). Note this belongs in themeVariables, not
@@ -19,26 +17,25 @@ type MermaidBlockType = Extract<Block, { type: 'mermaid' }>
 // themeVariables object, label sizing is read from here.
 const LABEL_FONT_SIZE = '12px'
 
-const THEME_VARIABLES = {
-  latte: {
-    background: '#ffffff',
-    primaryColor: '#f2ebfd',
-    primaryTextColor: '#4c4f69',
-    primaryBorderColor: '#8839ef',
-    lineColor: '#6c6f85',
-    fontFamily: 'IBM Plex Mono',
+/**
+ * The mermaid themeVariables listed on B-Blocks2, as resolved token values:
+ * mermaid computes colors and measures text in its own detached DOM, so it
+ * needs real values rather than var(). Effect-only (reads the DOM).
+ */
+function mermaidThemeVariables(theme: Theme) {
+  const c = readColorTokens(theme, ['card', 'elev', 'line2', 'text', 'sub', 'accent-soft', 'code-bg'])
+  return {
+    background: c.card,
+    primaryColor: c.elev,
+    primaryBorderColor: c.line2,
+    primaryTextColor: c.text,
+    lineColor: c.sub,
+    secondaryColor: c['accent-soft'],
+    tertiaryColor: c['code-bg'],
+    fontFamily: readFontStack('sans'),
     fontSize: LABEL_FONT_SIZE,
-  },
-  mocha: {
-    background: '#1e1e2e',
-    primaryColor: 'rgba(203, 166, 247, .14)',
-    primaryTextColor: '#cdd6f4',
-    primaryBorderColor: '#cba6f7',
-    lineColor: '#a6adc8',
-    fontFamily: 'IBM Plex Mono',
-    fontSize: LABEL_FONT_SIZE,
-  },
-} as const
+  }
+}
 
 // Layout knobs. Left at mermaid's defaults, dagre gets one unwrapped line per
 // label (htmlLabels is off, so a label is a single SVG text run unless
@@ -64,8 +61,8 @@ function cssId(id: string): string {
 /**
  * Mermaid-rendered diagram block. `mermaid` is imported lazily inside the
  * effect (never enters the first-load chunk). Re-initializes and re-renders
- * whenever the app theme flips, using a literal per-palette themeVariables
- * map (see THEME_VARIABLES above) rather than reading CSS custom properties.
+ * whenever the app theme flips, with that theme's token values (see
+ * mermaidThemeVariables above).
  *
  * `securityLevel: 'strict'` + `htmlLabels: false` keeps mermaid emitting
  * plain SVG text nodes instead of `<foreignObject>` HTML labels, so the
@@ -128,7 +125,7 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
         startOnLoad: false,
         securityLevel: 'strict',
         theme: 'base',
-        themeVariables: THEME_VARIABLES[theme],
+        themeVariables: mermaidThemeVariables(theme),
         // BOTH htmlLabels keys are required: mermaid 11 ignores the
         // flowchart-scoped one alone (labels stay foreignObject HTML and
         // DOMPurify's svg profile strips them to empty boxes) — the

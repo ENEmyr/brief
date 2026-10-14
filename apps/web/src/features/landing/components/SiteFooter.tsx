@@ -21,7 +21,7 @@ export function SiteFooter() {
               <dd className="mt-1.5">
                 <a
                   href={fact.href}
-                  className={`text-[14px] break-words text-text hover:text-mauve ${FOCUS_RING}`}
+                  className={`text-[14px] break-words text-text hover:text-accent-text ${FOCUS_RING}`}
                 >
                   {fact.detail}
                 </a>

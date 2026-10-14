@@ -79,11 +79,11 @@ export function UnlockCard({
         <button
           type="submit"
           disabled={busy || password.length === 0}
-          className="min-h-11 cursor-pointer rounded-[9px] border-0 bg-mauve px-4 py-[9px] text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 cursor-pointer rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? 'Decrypting…' : 'Unlock'}
         </button>
-        <p aria-live="polite" className="min-h-[1em] text-[12.5px] text-red">
+        <p aria-live="polite" className="min-h-[1em] text-[12.5px] text-bad">
           {error}
         </p>
       </form>

@@ -29,7 +29,7 @@ export function Details({
       <summary className="w-full flex items-center gap-[9px] text-[13.5px] font-semibold px-[15px] py-[11px] text-left cursor-pointer list-none [&::-webkit-details-marker]:hidden">
         <span
           aria-hidden="true"
-          className="text-mauve transition-transform duration-[180ms] group-open:rotate-90 inline-block"
+          className="text-accent-text transition-transform duration-[180ms] group-open:rotate-90 inline-block"
         >
           ▸
         </span>

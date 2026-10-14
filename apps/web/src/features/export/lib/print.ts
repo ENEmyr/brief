@@ -10,11 +10,11 @@ import { setThemePrintOverride, whenThemedRendersIdle } from '@/features/theme'
  * app/globals.css): light theme, no chrome, no pan/zoom transform, details
  * forced open. That CSS-only approach does not reach mermaid diagrams or
  * echarts charts, though -- both pick their colors in JS, keyed off the app
- * theme, and never see the print media query. Printed from the mocha theme
+ * theme, and never see the print media query. Printed from the dark theme
  * they came out with near-white text/gridlines on the page the print
  * stylesheet had just forced to white. See features/theme's
  * setThemePrintOverride/beginThemedRender for the mechanism this uses to
- * force those two renderers to the latte palette for the duration of one
+ * force those two renderers to the light palette for the duration of one
  * print.
  */
 
@@ -67,13 +67,13 @@ async function waitForThemedPrintRenders(): Promise<void> {
 }
 
 export async function printDocument(): Promise<void> {
-  const isMocha = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'mocha'
-  if (!isMocha) {
+  const isDark = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
+  if (!isDark) {
     window.print()
     return
   }
 
-  setThemePrintOverride('latte')
+  setThemePrintOverride('light')
   try {
     await waitForThemedPrintRenders()
     window.print()

@@ -4,13 +4,11 @@
  *
  * Two things every one of those blocks needs and none of them had:
  *
- * 1. A font stack that can actually draw the payload. The blocks hardcoded
- *    `font-family="'IBM Plex Mono', monospace"`, and IBM Plex Mono has no Thai
- *    coverage, so Thai labels dropped to whatever generic mono the OS picked.
- *    The stack below keeps Plex Mono first (Latin diagrams look unchanged) and
- *    puts IBM Plex Sans Thai behind it, so per-glyph fallback lands on a face
- *    that has the glyph. Note it is applied through the `style` prop on
- *    purpose: `var()` does not resolve inside an SVG presentation attribute.
+ * 1. A font stack that can actually draw the payload. Geist Mono has no Thai
+ *    coverage, so the stack below puts Noto Sans Thai behind it and per-glyph
+ *    fallback lands on a face that has the glyph. Note it is applied through
+ *    the `style` prop on purpose: `var()` does not resolve inside an SVG
+ *    presentation attribute.
  *
  * 2. A width estimate. There is no measurement API available during render, so
  *    labels are estimated from their advance-bearing character count. Thai
@@ -20,12 +18,12 @@
 import type { CSSProperties } from 'react'
 
 /**
- * `--font-plex-mono` and `--font-plex-sans` are the next/font variables defined
+ * `--font-geist-mono` and `--font-noto-thai` are the next/font variables defined
  * on <html> (see app/layout.tsx); the literal families are the fallback for any
  * context that renders this markup without those variables.
  */
 export const DIAGRAM_FONT_STACK =
-  "var(--font-plex-mono, 'IBM Plex Mono'), var(--font-plex-sans, 'IBM Plex Sans Thai'), 'IBM Plex Sans Thai', ui-monospace, monospace"
+  "var(--font-geist-mono, 'Geist Mono'), var(--font-noto-thai, 'Noto Sans Thai'), ui-monospace, monospace"
 
 /** Style for an SVG <text> node. Merges the diagram font stack with `extra`. */
 export function svgTextStyle(extra?: CSSProperties): CSSProperties {
@@ -38,20 +36,24 @@ const ZERO_ADVANCE = /[ัิ-ฺ็-๎̀-ͯ]/
 
 // The Thai script block (U+0E00-U+0E7F). Any label containing a Thai
 // character falls back off the first, monospace face in DIAGRAM_FONT_STACK
-// onto IBM Plex Sans Thai, a proportional face, so it needs the average +
-// slack treatment below. Text with no Thai renders entirely in IBM Plex
-// Mono, whose advance per character is fixed and known, not estimated.
+// onto Noto Sans Thai, a proportional face, so it needs the average + slack
+// treatment below. Text with no Thai renders entirely in Geist Mono, whose
+// advance per character is fixed and known, not estimated.
+//
+// The three constants below are measured in a browser with the real fonts by
+// e2e/visual/tests/foundations.visual.spec.ts, which fails when they drift.
+// Rerun it after any font change.
 const THAI_SCRIPT = /[฀-๿]/
 
-/** Average advance of one character in the proportional Thai fallback face,
- *  as a fraction of the font size. */
-const ADVANCE_EM = 0.62
+/** Average advance of one character in a Thai-containing label at weight 400,
+ *  as a fraction of the font size (measured mean 0.5592). */
+const ADVANCE_EM = 0.56
 
-/** Slack over the proportional estimate, since it is an average over
- *  variable-width glyphs and not a measure. */
-const WIDTH_SLACK = 1.25
+/** Slack over the average so the estimate covers the widest measured label,
+ *  bold included (measured max 0.6467 em at weight 700). */
+const WIDTH_SLACK = 1.16
 
-/** IBM Plex Mono's actual, fixed per-character advance. Latin/ASCII text
+/** Geist Mono's actual, fixed per-character advance. Latin/ASCII text
  *  always renders in this face, so this is exact, not an estimate, and
  *  carries no slack. */
 const MONO_ADVANCE_EM = 0.6

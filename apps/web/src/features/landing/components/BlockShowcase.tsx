@@ -38,7 +38,7 @@ export function BlockShowcase() {
           </dl>
           <a
             href={SKILL_DOCS_URL}
-            className={`mt-4 inline-flex min-h-11 items-center text-[14px] text-mauve hover:underline ${FOCUS_RING}`}
+            className={`mt-4 inline-flex min-h-11 items-center text-[14px] text-accent-text hover:underline ${FOCUS_RING}`}
           >
             Read the block reference
           </a>

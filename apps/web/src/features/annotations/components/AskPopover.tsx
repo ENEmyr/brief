@@ -8,7 +8,7 @@ import { buildAskPrompt, describeLocation } from '../lib/askPrompt'
 const QUOTE_MAX = 140
 
 /** Ask popover (prototype: Reader.dc.html lines 725-739), fixed bottom-right
- * over the reader -- mauve-bordered variant of NotePopover for question
+ * over the reader -- accent-bordered variant of NotePopover for question
  * highlights. Copy as prompt only fires once the question is non-empty;
  * "origin" for the copied URL is read from window.location at copy time
  * rather than being a prop, replacing the prototype's hardcoded
@@ -56,15 +56,15 @@ export function AskPopover({
   return (
     <div
       style={{ animation: 'dc-pop .18s ease' }}
-      className="fixed right-6 bottom-6 z-[82] w-[334px] rounded-xl border border-mauve bg-card p-[15px] shadow-[var(--shadow-card)]"
+      className="fixed right-6 bottom-6 z-[82] w-[334px] rounded-xl border border-accent-line bg-card p-[15px] shadow-[var(--shadow-overlay)]"
     >
       <div className="mb-[9px] flex flex-wrap items-center gap-[7px]">
-        <span className="rounded-md bg-mauvesoft px-2 py-0.5 font-mono text-[10.5px] font-semibold text-mauve">
+        <span className="rounded-md bg-accent-soft px-2 py-0.5 font-mono text-[10.5px] font-semibold text-accent-text">
           ? ASK
         </span>
         <span className="font-mono text-[11px] text-faint">{locationRef}</span>
       </div>
-      <div className="mb-[9px] max-h-16 overflow-auto border-l-2 border-mauve pl-2 text-xs italic text-sub">
+      <div className="mb-[9px] max-h-16 overflow-auto border-l-2 border-accent-line pl-2 text-xs italic text-sub">
         “{quote}”
       </div>
       <textarea
@@ -79,8 +79,8 @@ export function AskPopover({
           type="button"
           onClick={handleCopy}
           disabled={!ready}
-          className={`max-[879px]:min-h-11 rounded-lg border-0 px-3.5 py-2 font-[inherit] text-[12.5px] font-bold text-white ${
-            ready ? 'cursor-pointer bg-mauve' : 'cursor-default bg-line'
+          className={`max-[879px]:min-h-11 rounded-lg border-0 px-3.5 py-2 font-[inherit] text-[12.5px] font-bold ${
+            ready ? 'cursor-pointer bg-accent text-on-accent' : 'cursor-default bg-line text-[var(--c-disabled-text)]'
           }`}
         >
           ⧉ Copy as prompt
@@ -88,7 +88,7 @@ export function AskPopover({
         <button
           type="button"
           onClick={handleRemove}
-          className="max-[879px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-red"
+          className="max-[879px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-bad"
         >
           Remove
         </button>

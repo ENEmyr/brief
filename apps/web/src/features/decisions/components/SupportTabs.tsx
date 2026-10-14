@@ -7,7 +7,7 @@ type CmpTableData = NonNullable<Decision['cmp']>
 
 /** Support tabs for a decision's why/cmp/dia fields (Reader.dc.html
  * 799-828): a tab strip with only the tabs whose data is present on this
- * decision (active tab mauvesoft bg + mauve text), a body with elev
+ * decision (active tab accent-soft bg + accent text), a body with elev
  * background inside a rounded/line2-bordered container. Renders null when
  * the decision has none of why/cmp/dia.
  *
@@ -54,7 +54,7 @@ export function SupportTabs({ decision }: { decision: Decision }) {
             aria-selected={active === t.key}
             onClick={() => selectTab(t.key)}
             className={`max-[879px]:min-h-11 rounded-[7px] px-3 py-[5px] font-[inherit] text-[12.5px] ${
-              active === t.key ? 'bg-mauvesoft font-semibold text-mauve' : 'font-normal text-sub'
+              active === t.key ? 'bg-accent-soft font-semibold text-accent-text' : 'font-normal text-sub'
             }`}
           >
             {t.label}
@@ -74,7 +74,7 @@ export function SupportTabs({ decision }: { decision: Decision }) {
   )
 }
 
-/** Compact comparison table (Reader.dc.html's cmpTable): head cells mauve
+/** Compact comparison table (Reader.dc.html's cmpTable): head cells accent
  * semibold, first column of each body row rendered as a semibold `<th>`,
  * every other cell a `<td>`; header underline uses `line`, body row
  * separators use `line2`. Unlike the prototype's `cols` mock (which
@@ -91,7 +91,7 @@ function CmpTable({ cmp }: { cmp: CmpTableData }) {
             {cmp.head.map((cell, i) => (
               <th
                 key={i}
-                className="border-b border-line px-2.5 py-[7px] text-left font-semibold text-mauve"
+                className="border-b border-line px-2.5 py-[7px] text-left font-semibold text-accent-text"
               >
                 {cell}
               </th>

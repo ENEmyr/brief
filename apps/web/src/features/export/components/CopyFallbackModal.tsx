@@ -15,8 +15,8 @@ import { useDialogFocus } from '../hooks/useDialogFocus'
  * closes, on failure it stays open so the user still has the selected text
  * to hand-copy. Focus trap is shared with ShareModal via useDialogFocus
  * (follows Toc.tsx's drawer pattern). The textarea carries `data-code-panel`
- * for consistency with CodePre/PromptReview's identical `--code-bg` +
- * `#cdd6f4` pairing, though it is moot here in practice: this whole dialog
+ * for consistency with CodePre/PromptReview's identical `--c-code-bg` +
+ * `--c-text` pairing, though it is moot here in practice: this whole dialog
  * sits behind a `print:hidden` backdrop and never reaches the printed page.
  * Hint text uses a plain hyphen per the
  * task brief's literal wording (the prototype's own text uses an em dash in
@@ -47,7 +47,7 @@ export function CopyFallbackModal({
   return (
     <div
       className="fixed inset-0 z-[120] flex items-center justify-center p-5 print:hidden"
-      style={{ background: 'rgba(17,17,27,.55)' }}
+      style={{ background: 'var(--c-scrim)' }}
       onClick={onClose}
     >
       <div
@@ -57,7 +57,7 @@ export function CopyFallbackModal({
         aria-label="Copy manually"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-[min(94vw,560px)] rounded-[14px] border border-line bg-card p-[18px] shadow-[var(--shadow-card)]"
+        className="w-[min(94vw,560px)] rounded-[14px] border border-line bg-card p-[18px] shadow-[var(--shadow-overlay)]"
         style={{ animation: 'dc-pop .18s ease' }}
       >
         <div className="mb-2 flex items-center justify-between">
@@ -82,13 +82,13 @@ export function CopyFallbackModal({
           value={text}
           aria-label="Text to copy"
           className="min-h-[200px] w-full resize-y rounded-[10px] border border-line p-3.5 font-mono text-[12.5px] leading-[1.6]"
-          style={{ background: 'var(--code-bg)', color: '#cdd6f4' }}
+          style={{ background: 'var(--c-code-bg)', color: 'var(--c-text)' }}
         />
         <div className="mt-3 flex gap-2.5">
           <button
             type="button"
             onClick={handleTryAgain}
-            className="max-[879px]:min-h-11 cursor-pointer rounded-[9px] border-0 bg-mauve px-[18px] py-[9px] text-[13.5px] font-bold text-white"
+            className="max-[879px]:min-h-11 cursor-pointer rounded-[9px] border-0 bg-accent px-[18px] py-[9px] text-[13.5px] font-bold text-on-accent"
           >
             ⧉ Try copy again
           </button>

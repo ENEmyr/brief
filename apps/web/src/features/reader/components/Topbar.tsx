@@ -42,13 +42,12 @@ export function Topbar({
         <div className="flex min-w-0 items-center gap-2">
           <span
             aria-hidden="true"
-            className="h-[22px] w-[22px] shrink-0 rounded-[7px]"
-            style={{ background: 'linear-gradient(135deg, var(--ctp-mauve), var(--ctp-blue))' }}
+            className="h-[22px] w-[22px] shrink-0 rounded-[7px] bg-accent"
           />
           <span className="shrink-0 whitespace-nowrap text-[14px] font-semibold">Brief</span>
           {sessionId && (
             <span className="min-w-0 truncate rounded-md bg-chip px-2 py-0.5 font-mono text-[11px] text-sub">
-              session <b className="text-mauve">{sessionId}</b>
+              session <b className="text-accent-text">{sessionId}</b>
             </span>
           )}
           {savedLabel && (
@@ -83,7 +82,7 @@ export function Topbar({
               type="button"
               onClick={onSave}
               aria-label="Archive"
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border-0 bg-mauve px-2.5 py-[5px] text-[11.5px] font-semibold text-white transition hover:brightness-110 active:brightness-95 ${FOCUS_RING}`}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border-0 bg-accent px-2.5 py-[5px] text-[11.5px] font-semibold text-on-accent transition hover:brightness-110 active:brightness-95 ${FOCUS_RING}`}
             >
               <span className="text-[13px]">⛉</span>
               <span className="hidden min-[880px]:inline">Archive</span>
@@ -98,7 +97,7 @@ export function Topbar({
               aria-label="Share"
               className={GHOST_BUTTON}
             >
-              <span className="text-[13px] text-mauve">⇗</span>
+              <span className="text-[13px] text-accent-text">⇗</span>
               <span className="hidden min-[880px]:inline">Share</span>
             </button>
           )}

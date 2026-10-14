@@ -67,7 +67,7 @@ describe('BlockRenderer text family', () => {
   it('zebra-stripes odd body rows', () => {
     r({ type: 'table', head: ['name'], rows: [['a'], ['b']] })
     const rows = screen.getAllByRole('row').slice(1)
-    expect(rows[1]?.className).toContain('bg-[var(--row-zebra)]')
+    expect(rows[1]?.className).toContain('bg-[var(--c-table-zebra)]')
   })
 
   it('renders compare sides with a figcaption', () => {
@@ -81,7 +81,7 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('Comparison')).toBeInTheDocument()
   })
 
-  it('applies a toned pane background and border when a compare side has a tone', () => {
+  it('applies a toned pane border when a compare side has a tone', () => {
     r({
       type: 'compare',
       left: { title: 'A', tone: 'good', items: [{ text: 'fast', ok: true }] },
@@ -89,10 +89,11 @@ describe('BlockRenderer text family', () => {
     })
     const goodPane = screen.getByText('A').parentElement?.parentElement
     const badPane = screen.getByText('B').parentElement?.parentElement
-    expect(goodPane?.className).toContain('border-t-green')
-    expect(goodPane?.className).toContain('--compare-pane-good-bg')
-    expect(badPane?.className).toContain('border-t-red')
-    expect(badPane?.className).toContain('--compare-pane-bad-bg')
+    expect(goodPane?.className).toContain('border-t-good')
+    expect(badPane?.className).toContain('border-t-bad')
+    // B-Blocks draws both panes on the panel color; the tone lives in the rule and the tag.
+    expect(goodPane?.className).toContain('bg-card')
+    expect(badPane?.className).toContain('bg-card')
   })
 
   it('renders a tag pill on a compare side when tag is present', () => {
@@ -122,12 +123,12 @@ describe('BlockRenderer text family', () => {
 
   it('colors a stat value by tone using a static class map', () => {
     r({ type: 'stat', items: [{ label: 'files', value: '12', tone: 'green' }] })
-    expect(screen.getByText('12').className).toContain('text-green')
+    expect(screen.getByText('12').className).toContain('text-data-green')
   })
 
-  it('defaults an untoned stat value to mauve', () => {
+  it('defaults an untoned stat value to the mauve data hue', () => {
     r({ type: 'stat', items: [{ label: 'files', value: '12' }] })
-    expect(screen.getByText('12').className).toContain('text-mauve')
+    expect(screen.getByText('12').className).toContain('text-data-mauve')
   })
 
   it('renders coverage rows with a figcaption, accessible status, and full/partial/missing legend', () => {

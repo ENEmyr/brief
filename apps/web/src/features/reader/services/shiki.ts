@@ -12,9 +12,16 @@ let highlighterPromise: Promise<Highlighter> | null = null
 // 'text'/'plaintext' are shiki built-ins that never need loadLanguage.
 const loadedLanguages = new Set<string>(['text', 'plaintext'])
 
+// Token colors are CSS variables (--shiki-*, mapped to the Console tokens in
+// globals.css), so one highlight pass follows light, dark and print.
+const THEME_NAME = 'console'
+
 async function getHighlighter(): Promise<Highlighter> {
-  highlighterPromise ??= import('shiki').then(({ createHighlighter }) =>
-    createHighlighter({ themes: ['catppuccin-mocha'], langs: [] }),
+  highlighterPromise ??= import('shiki').then(({ createHighlighter, createCssVariablesTheme }) =>
+    createHighlighter({
+      themes: [createCssVariablesTheme({ name: THEME_NAME, variablePrefix: '--shiki-' })],
+      langs: [],
+    }),
   )
   return highlighterPromise
 }
@@ -40,13 +47,9 @@ export interface HighlightOptions {
 }
 
 /**
- * Highlights `code` as `lang` into a hast tree, using the Catppuccin Mocha
- * shiki theme (deliberately the SAME theme regardless of the app's own
- * light/dark setting — the prototype renders a dark code panel in both
- * themes; see globals.css `--code-bg` for how the panel shade itself still
- * differs between latte/mocha even though the syntax theme doesn't). Never
- * throws: an unrecognized language degrades to plaintext, and any other
- * failure degrades to a plain (uncolored) shiki plaintext render.
+ * Highlights `code` as `lang` into a hast tree with the css-variables theme
+ * above. Never throws: an unrecognized language degrades to plaintext, and
+ * any other failure degrades to a plain (uncolored) shiki plaintext render.
  *
  * Returns the hast tree rather than an HTML string (codeToHast, not
  * codeToHtml) so CodePre can render it as real React elements — see CodePre
@@ -70,7 +73,7 @@ export async function highlightToHast(
   const render = (renderLang: string) =>
     highlighter.codeToHast(code, {
       lang: renderLang as BundledLanguage,
-      theme: 'catppuccin-mocha',
+      theme: THEME_NAME,
       transformers: highlightSet.size ? [highlightLinesTransformer] : [],
     })
 
