@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { DEFAULT_HIGHLIGHT_PATH, useReaderActions } from '@/features/reader-state'
+import { useShortcuts } from '@/features/shortcuts'
 import { selectionRangeIn } from '../lib/offsets'
 import { defaultCopyText } from '../lib/clipboard'
 
@@ -16,6 +17,12 @@ type ToolbarState = {
 }
 
 const VIEWPORT_MARGIN = 8
+
+/** The center x that keeps a bar this wide inside the viewport margins, not just its center. */
+function centerKeepingBarOnScreen(x: number, width: number): number {
+  const lowest = VIEWPORT_MARGIN + width / 2
+  return Math.min(Math.max(x, lowest), Math.max(window.innerWidth - VIEWPORT_MARGIN - width / 2, lowest))
+}
 const TOOLBAR_RISE = 46
 const BELOW_SELECTION_GAP = 8
 const FLIP_BELOW_THRESHOLD = 56
@@ -26,12 +33,15 @@ function findHlBlock(node: Node | null): HTMLElement | null {
   return el instanceof Element ? el.closest<HTMLElement>('[data-hl]') : null
 }
 
-const buttonClass =
-  'inline-flex items-center gap-[5px] rounded-md border-0 bg-transparent px-[9px] py-[5px] font-[inherit] text-[12.5px] text-page cursor-pointer max-[880px]:min-h-11'
+// As on the board, only Highlight is a flex row (swatch, label, key); Note
+// and Ask set their key inline, on the label's baseline.
+const BUTTON =
+  'min-h-[30px] cursor-pointer rounded-ctrl border-0 bg-transparent px-[9px] font-[inherit] text-[13px] text-page transition-transform duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line max-[880px]:min-h-11'
+const KEY = 'font-mono text-[10px] text-[var(--c-inverse-sub)]'
 
-/** Floating pill toolbar (prototype: Reader.dc.html lines 707-713) shown on
- * text selection inside a [data-hl] block. Listens on document so it works
- * regardless of which paragraph the selection started in. */
+/** The inverted toolbar on a text selection inside a [data-hl] block
+ * (B-Components:146-151). Listens on document so it works regardless of
+ * which paragraph the selection started in. */
 export function SelectionToolbar({
   onRequestNote = () => {},
   onRequestAsk = () => {},
@@ -43,6 +53,14 @@ export function SelectionToolbar({
 }) {
   const [toolbar, setToolbar] = useState<ToolbarState | null>(null)
   const actions = useReaderActions()
+  const barRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const width = barRef.current?.offsetWidth
+    if (!toolbar || !width) return
+    const x = centerKeepingBarOnScreen(toolbar.x, width)
+    if (x !== toolbar.x) setToolbar({ ...toolbar, x })
+  }, [toolbar])
 
   useEffect(() => {
     function handleMouseUp() {
@@ -143,6 +161,12 @@ export function SelectionToolbar({
     finish()
   }
 
+  useShortcuts({
+    highlight: handleHighlight,
+    note: handleNote,
+    ask: handleAsk,
+  })
+
   if (!toolbar) return null
 
   return (
@@ -150,55 +174,69 @@ export function SelectionToolbar({
       // Styled inline, so `print:hidden` (a class) cannot beat its own
       // `display: flex`. The print stylesheet hides it by this attribute
       // instead, same idiom as ZoomControls' data-zbar.
+      ref={barRef}
       data-seltoolbar="1"
+      className="console-pop"
       style={{
         position: 'fixed',
         left: toolbar.x,
         top: toolbar.top,
-        transform: 'translateX(-50%)',
+        // `translate`, not `transform`, so console-pop's entry transform cannot undo the centering.
+        translate: '-50% 0',
         zIndex: 80,
         background: 'var(--c-text)',
-        borderRadius: 9,
-        padding: 4,
+        borderRadius: 6,
+        padding: 3,
         display: 'flex',
         gap: 2,
         boxShadow: 'var(--shadow-overlay)',
-        animation: 'dc-floatpop .16s ease',
+        lineHeight: 'normal',
       }}
     >
       <button
         type="button"
         aria-label="Highlight"
-        className={buttonClass}
+        aria-keyshortcuts="H"
+        className={`${BUTTON} flex items-center gap-[6px]`}
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleHighlight}
       >
-        <span className="text-warn">▮</span>Highlight
+        <span aria-hidden="true" className="size-[9px] rounded-[2px] bg-[var(--c-warn-fill)]" />
+        Highlight
+        <kbd aria-hidden="true" className={KEY}>
+          H
+        </kbd>
       </button>
-      <span style={{ width: 1, background: 'var(--c-faint)', margin: '4px 1px' }} />
       <button
         type="button"
         aria-label="Note"
-        className={buttonClass}
+        aria-keyshortcuts="N"
+        className={BUTTON}
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleNote}
       >
-        <span className="text-warn">✎</span>Note
+        Note
+        <kbd aria-hidden="true" className={`${KEY} ml-[6px]`}>
+          N
+        </kbd>
       </button>
       <button
         type="button"
         aria-label="Ask"
-        className={buttonClass}
+        aria-keyshortcuts="A"
+        className={BUTTON}
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleAsk}
       >
-        <span className="text-warn">?</span>Ask
+        Ask
+        <kbd aria-hidden="true" className={`${KEY} ml-[6px]`}>
+          A
+        </kbd>
       </button>
-      <span style={{ width: 1, background: 'var(--c-faint)', margin: '4px 1px' }} />
       <button
         type="button"
         aria-label="Copy"
-        className={buttonClass}
+        className={BUTTON}
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleCopy}
       >

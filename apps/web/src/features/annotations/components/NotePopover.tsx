@@ -27,8 +27,7 @@ export function NotePopover({ id, onClose }: { id: string; onClose: () => void }
   return (
     <div
       data-popover=""
-      style={{ animation: 'dc-pop .18s ease' }}
-      className="fixed right-6 bottom-6 z-[80] w-[300px] rounded-xl border border-line bg-card p-3.5 shadow-[var(--shadow-overlay)]"
+      className="console-pop fixed right-6 bottom-6 z-[80] w-[300px] rounded-overlay border border-line2 bg-card p-3.5 shadow-[var(--shadow-overlay)]"
     >
       <div className="mb-2 border-l-2 border-accent-line pl-2 text-xs italic text-faint">“{quote}”</div>
       <textarea
@@ -36,20 +35,20 @@ export function NotePopover({ id, onClose }: { id: string; onClose: () => void }
         value={h.note ?? ''}
         placeholder="Write a short note…"
         onChange={(ev) => actions.updateHighlight(id, { note: ev.target.value })}
-        className="min-h-[70px] w-full resize-y rounded-lg border border-line bg-elev px-[10px] py-2 font-[inherit] text-[13px] text-text"
+        className="min-h-[70px] w-full resize-y rounded-ctrl border border-line2 bg-page px-[10px] py-2 font-[inherit] text-[16px] leading-6 text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line"
       />
       <div className="mt-2 flex items-center justify-between">
         <button
           type="button"
           onClick={handleRemove}
-          className="max-[880px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-bad"
+          className="max-[880px]:min-h-11 min-h-8 cursor-pointer rounded-ctrl border-0 bg-transparent px-2 font-[inherit] text-[13px] text-bad focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line"
         >
           Remove highlight
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="max-[880px]:min-h-11 cursor-pointer rounded-[7px] border-0 bg-accent px-3.5 py-1.5 font-[inherit] text-[12.5px] font-semibold text-on-accent"
+          className="max-[880px]:min-h-11 min-h-8 cursor-pointer rounded-ctrl border-0 bg-accent px-3.5 font-[inherit] text-[13px] font-semibold text-on-accent transition-transform duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line"
         >
           Done
         </button>

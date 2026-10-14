@@ -6,6 +6,9 @@ export type ShortcutId =
   | 'nextDecision'
   | 'copyPrompt'
   | 'help'
+  | 'highlight'
+  | 'note'
+  | 'ask'
 
 /** One registry row = one line of the shortcut sheet. */
 export interface ShortcutRow {
@@ -23,6 +26,7 @@ interface Binding {
   key: string
   mod?: true
   inDock?: true
+  onSelection?: true
 }
 
 const SHORTCUTS: readonly (ShortcutRow & { bindings: readonly Binding[] })[] = [
@@ -41,6 +45,15 @@ const SHORTCUTS: readonly (ShortcutRow & { bindings: readonly Binding[] })[] = [
     bindings: ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => ({ id: 'pickOption' as const, key, inDock: true as const })),
   },
   { keys: ['N'], description: 'jump to next unanswered question', bindings: [{ id: 'nextDecision', key: 'n', inDock: true }] },
+  {
+    keys: ['H', 'N', 'A'],
+    description: 'highlight, note or ask on the selected text',
+    bindings: [
+      { id: 'highlight', key: 'h', onSelection: true },
+      { id: 'note', key: 'n', onSelection: true },
+      { id: 'ask', key: 'a', onSelection: true },
+    ],
+  },
   { keys: ['mod', 'Enter'], description: 'copy the prompt', bindings: [{ id: 'copyPrompt', key: 'enter', mod: true, inDock: true }] },
   { keys: ['?'], description: 'show all shortcuts', bindings: [{ id: 'help', key: '?' }] },
   // Each overlay handles Esc itself; the row is listed because it works in every one of them.
@@ -52,16 +65,17 @@ export const SHORTCUT_ROWS: readonly ShortcutRow[] = SHORTCUTS
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'])
 
 /** True when a single-key shortcut must not fire: a field, an overlay or the text selection owns the letter. */
-function isSingleKeyBlocked(target: Element | null, inDock: boolean): boolean {
-  if (document.querySelector('[data-seltoolbar]')) return true
+function isSingleKeyBlocked(target: Element | null, binding: Binding): boolean {
+  const selectionShown = document.querySelector('[data-seltoolbar]') !== null
+  if (selectionShown !== (binding.onSelection === true)) return true
   if (!target) return false
   const takesText =
     (target instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(target.type)) ||
     target instanceof HTMLTextAreaElement ||
     target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
-  const dialog = inDock ? '[role="dialog"]:not([data-dock])' : '[role="dialog"]'
-  return takesText || target.closest(`${dialog}, [role="menu"], [role="listbox"], [data-popover]`) !== null
+  const dialog = binding.inDock ? '[role="dialog"]:not([data-dock])' : '[role="dialog"]'
+  return takesText || target.closest(`${dialog}, [role="menu"], [role="listbox"], [data-popover], [data-seltoolbar]`) !== null
 }
 
 /** '⌘' on Apple platforms (Mac, iPhone, iPad), 'Ctrl' elsewhere. */
@@ -90,7 +104,7 @@ function matches(binding: Binding, event: KeyboardEvent, key: string): boolean {
     !event.altKey &&
     !event.isComposing &&
     !event.defaultPrevented &&
-    !isSingleKeyBlocked(document.activeElement, binding.inDock === true)
+    !isSingleKeyBlocked(document.activeElement, binding)
   )
 }
 
