@@ -57,7 +57,7 @@ export function ProgressBar() {
       className="absolute bottom-[-1px] left-0 h-[2.5px] print:hidden"
       style={{
         width: `${pct}%`,
-        background: 'linear-gradient(90deg, var(--ctp-mauve), var(--ctp-blue))',
+        background: 'var(--c-accent)',
         transition: 'width .1s linear',
       }}
     />

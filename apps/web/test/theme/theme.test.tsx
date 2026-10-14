@@ -11,7 +11,7 @@ import {
 describe('theme', () => {
   beforeEach(() => {
     localStorage.clear()
-    document.documentElement.setAttribute('data-theme', 'latte')
+    document.documentElement.setAttribute('data-theme', 'light')
   })
 
   afterEach(() => {
@@ -21,24 +21,24 @@ describe('theme', () => {
     act(() => setThemePrintOverride(null))
   })
 
-  it('toggles latte to mocha and persists', () => {
+  it('toggles light to dark and persists', () => {
     render(<ThemeToggle />)
     fireEvent.click(screen.getByRole('button', { name: /toggle theme/i }))
-    expect(document.documentElement.dataset.theme).toBe('mocha')
-    expect(localStorage.getItem('idocs:theme')).toBe('mocha')
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(localStorage.getItem('idocs:theme')).toBe('dark')
   })
 
   describe('setThemePrintOverride', () => {
     it('forces every useTheme() subscriber to the override, regardless of data-theme, until cleared', () => {
-      document.documentElement.setAttribute('data-theme', 'mocha')
+      document.documentElement.setAttribute('data-theme', 'dark')
       const { result } = renderHook(() => useTheme())
-      expect(result.current.theme).toBe('mocha')
+      expect(result.current.theme).toBe('dark')
 
-      act(() => setThemePrintOverride('latte'))
-      expect(result.current.theme).toBe('latte')
+      act(() => setThemePrintOverride('light'))
+      expect(result.current.theme).toBe('light')
 
       act(() => setThemePrintOverride(null))
-      expect(result.current.theme).toBe('mocha')
+      expect(result.current.theme).toBe('dark')
     })
   })
 

@@ -13,7 +13,7 @@ export function SiteHeader() {
         <nav className="ml-auto flex items-center gap-1">
           <a
             href={REPO_URL}
-            className={`flex min-h-11 items-center rounded-lg px-3 text-[14px] text-sub transition-colors hover:text-mauve ${FOCUS_RING}`}
+            className={`flex min-h-11 items-center rounded-lg px-3 text-[14px] text-sub transition-colors hover:text-accent-text ${FOCUS_RING}`}
           >
             GitHub
           </a>

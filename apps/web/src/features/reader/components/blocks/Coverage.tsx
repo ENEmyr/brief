@@ -3,15 +3,15 @@ import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
 
 const barFill = {
-  full: 'bg-green w-full',
-  partial: 'bg-peach w-1/2',
-  missing: 'bg-red w-[8%]',
+  full: 'bg-good w-full',
+  partial: 'bg-warn w-1/2',
+  missing: 'bg-bad w-[8%]',
 } as const
 
 const legend = [
-  { status: 'full', color: 'bg-green' },
-  { status: 'partial', color: 'bg-peach' },
-  { status: 'missing', color: 'bg-red' },
+  { status: 'full', color: 'bg-good' },
+  { status: 'partial', color: 'bg-warn' },
+  { status: 'missing', color: 'bg-bad' },
 ] as const
 
 export function Coverage({

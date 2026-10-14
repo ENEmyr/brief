@@ -22,13 +22,13 @@ export function CopyCommand({ command }: { command: string }) {
     <button
       type="button"
       onClick={onCopy}
-      className={`group flex min-h-11 items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 text-left transition-colors hover:border-mauve ${FOCUS_RING}`}
+      className={`group flex min-h-11 items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 text-left transition-colors hover:border-accent-line ${FOCUS_RING}`}
     >
       <span aria-hidden="true" className="font-mono text-[13px] text-faint">
         $
       </span>
       <code className="font-mono text-[13px] text-text">{command}</code>
-      <span className="ml-auto font-mono text-[11px] tracking-wide text-sub uppercase group-hover:text-mauve">
+      <span className="ml-auto font-mono text-[11px] tracking-wide text-sub uppercase group-hover:text-accent-text">
         {copied ? 'Copied' : 'Copy'}
       </span>
     </button>

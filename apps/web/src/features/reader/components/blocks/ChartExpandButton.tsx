@@ -3,12 +3,13 @@ import { useCallback, useId } from 'react'
 import type { RefObject } from 'react'
 import type { EChartsType } from 'echarts/core'
 import { useDiagramViewer } from '@/features/diagram-viewer'
-import type { Palette } from '../../services/echarts'
+import type { Theme } from '@/features/theme'
+import { chartPalette } from '../../services/echarts'
 import { HEADER_BUTTON_CLASS } from '../DiagramCard'
 
 export interface ChartExpandButtonProps {
   chartRef: RefObject<EChartsType | null>
-  palette: Palette
+  theme: Theme
   /**
    * Capture scale for `chart.getDataURL`. Defaults to 2 (crisper capture for
    * the canvas-rendered 2D charts). Plot3d must pass 1: echarts-gl cannot
@@ -29,18 +30,18 @@ export interface ChartExpandButtonProps {
  * One shared component so the expand wiring isn't duplicated across
  * BigO/Heatmap/Histogram/Scatter.
  */
-export function ChartExpandButton({ chartRef, palette, pixelRatio = 2 }: ChartExpandButtonProps) {
+export function ChartExpandButton({ chartRef, theme, pixelRatio = 2 }: ChartExpandButtonProps) {
   const ownerKey = useId()
   const { open } = useDiagramViewer()
 
   const onExpand = useCallback(() => {
     const chart = chartRef.current
     if (!chart) return
-    const dataUrl = chart.getDataURL({ pixelRatio, backgroundColor: palette.card })
+    const dataUrl = chart.getDataURL({ pixelRatio, backgroundColor: chartPalette(theme).card })
     // A React element, not an HTML string: the viewer renders it directly, so
     // the data URL never round-trips through an HTML sink.
     open(ownerKey, <img src={dataUrl} alt="chart" className="max-w-full" />)
-  }, [chartRef, palette, pixelRatio, open, ownerKey])
+  }, [chartRef, theme, pixelRatio, open, ownerKey])
 
   return (
     <button

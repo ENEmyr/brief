@@ -4,7 +4,7 @@ import type { RefObject } from 'react'
 import { useDialogFocus } from '@/features/export'
 import { FOCUS_RING, GHOST_BUTTON } from './topbarChrome'
 
-const MENU_ITEM = `flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12.5px] font-medium text-text transition-colors hover:bg-chip active:bg-mauvesoft ${FOCUS_RING}`
+const MENU_ITEM = `flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12.5px] font-medium text-text transition-colors hover:bg-chip active:bg-accent-soft ${FOCUS_RING}`
 
 export interface TopbarMenuItem {
   icon: string
@@ -113,7 +113,7 @@ function TopbarMenuPanel({
       aria-label={label}
       tabIndex={-1}
       onKeyDown={handleKeyDown}
-      className={`absolute right-0 top-[calc(100%+6px)] z-50 ${panelWidthClassName} rounded-xl border border-line bg-card p-1.5 shadow-[var(--shadow-card)] outline-none`}
+      className={`absolute right-0 top-[calc(100%+6px)] z-50 ${panelWidthClassName} rounded-xl border border-line bg-card p-1.5 shadow-[var(--shadow-overlay)] outline-none`}
       style={{ animation: 'dc-pop .18s ease' }}
     >
       {items.map((item, index) => (
@@ -133,7 +133,7 @@ function TopbarMenuPanel({
           }}
           className={MENU_ITEM}
         >
-          <span aria-hidden="true" className="text-[13px] text-mauve">
+          <span aria-hidden="true" className="text-[13px] text-accent-text">
             {item.icon}
           </span>
           {item.label}
@@ -185,7 +185,7 @@ export function TopbarMenu({
         aria-expanded={open}
         className={GHOST_BUTTON}
       >
-        <span aria-hidden="true" className="text-[13px] text-mauve">
+        <span aria-hidden="true" className="text-[13px] text-accent-text">
           {triggerIcon}
         </span>
         <span className="hidden min-[880px]:inline">{triggerLabel}</span>

@@ -57,9 +57,9 @@ describe('SectionView', () => {
     renderSection()
 
     const heading = screen.getByRole('heading', { name: '01 Intro' })
-    expect(heading).toHaveClass('text-[21px]', 'font-bold', 'border-b-2', 'border-mauvesoft')
+    expect(heading).toHaveClass('text-[21px]', 'font-bold', 'border-b-2', 'border-accent-soft')
     const numberSpan = heading.querySelector('span')
-    expect(numberSpan).toHaveClass('font-mono', 'text-mauve', 'text-[16px]')
+    expect(numberSpan).toHaveClass('font-mono', 'text-accent-text', 'text-[16px]')
   })
 
   it('renders the blocks inside the section', () => {

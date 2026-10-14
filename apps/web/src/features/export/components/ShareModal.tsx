@@ -29,7 +29,7 @@ export function ShareModal({
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex justify-center bg-black/50 px-5 print:hidden"
+      className="fixed inset-0 z-[95] flex justify-center bg-[var(--c-scrim)] px-5 print:hidden"
       style={{ paddingTop: '14vh' }}
       onClick={onClose}
     >
@@ -40,7 +40,7 @@ export function ShareModal({
         aria-label="Share this doc"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="h-fit w-[min(92vw,440px)] rounded-[14px] border border-line bg-card p-5 shadow-[var(--shadow-card)]"
+        className="h-fit w-[min(92vw,440px)] rounded-[14px] border border-line bg-card p-5 shadow-[var(--shadow-overlay)]"
         style={{ animation: 'dc-pop .18s ease' }}
       >
         <div className="mb-1.5 flex items-center justify-between">
@@ -59,13 +59,13 @@ export function ShareModal({
         </p>
         <div className="flex items-center gap-2">
           <div className="flex flex-1 items-center gap-2 overflow-hidden rounded-[9px] border border-line bg-elev px-3 py-[9px] font-mono text-[12.5px] text-text">
-            <span className="text-mauve">⎇</span>
+            <span className="text-accent-text">⎇</span>
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">{url}</span>
           </div>
           <button
             type="button"
             onClick={() => onCopy(url)}
-            className="max-[879px]:min-h-11 cursor-pointer whitespace-nowrap rounded-[9px] border-0 bg-mauve px-4 py-[9px] text-[13px] font-semibold text-white"
+            className="max-[879px]:min-h-11 cursor-pointer whitespace-nowrap rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent"
           >
             Copy
           </button>
