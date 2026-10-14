@@ -4,6 +4,7 @@ test.describe('export', () => {
   test('Download > Markdown writes a file with the doc title and highlights section', async ({
     page,
     createSession,
+    isMobile,
   }) => {
     const { id } = await createSession()
     await page.goto(`/s/${id}`)
@@ -17,15 +18,16 @@ test.describe('export', () => {
     await page.getByRole('button', { name: 'Highlight' }).click()
     await expect(page.locator(FIRST_PARAGRAPH_SELECTOR).locator('mark')).toBeVisible()
 
-    // Markdown and Print / PDF share one Download control now, so the export
-    // is two clicks: open the menu, then pick the item.
-    await page.getByRole('button', { name: 'Download' }).click()
+    // Markdown and Print / PDF share one Download control, so the export is
+    // two clicks: open the menu, then pick the item. Under 880 the wide
+    // controls live in B-Mobile's "More actions" menu instead.
+    await page.getByRole('button', { name: isMobile ? 'More actions' : 'Download' }).click()
 
     // Arm the listener before the click -- the download event fires the
     // instant the anchor's click() resolves (downloadMarkdown in
     // export/lib/download.ts), which can race a waiter set up afterward.
     const downloadPromise = page.waitForEvent('download')
-    await page.getByRole('menuitem', { name: 'Markdown (.md)' }).click()
+    await page.getByRole('menuitem', { name: 'Markdown', exact: true }).click()
     const download = await downloadPromise
 
     expect(download.suggestedFilename()).toBe(`brief-${id}.md`)
