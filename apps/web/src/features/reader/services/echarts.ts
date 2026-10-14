@@ -135,8 +135,15 @@ export function chartTooltip(palette: Palette) {
 // lazy library imports. echarts.use([...]) runs exactly once.
 let echartsPromise: Promise<typeof import('echarts/core')> | null = null
 
+/** A chunk that failed to load is asked for again by the next chart instead of failing from the cache. */
+function forgetOnFailure<T>(promise: Promise<T>, forget: () => void): Promise<T> {
+  promise.catch(forget)
+  return promise
+}
+
 export async function getECharts(): Promise<typeof import('echarts/core')> {
-  echartsPromise ??= (async () => {
+  echartsPromise ??= forgetOnFailure(
+    (async () => {
     const [echarts, chartsMod, componentsMod, renderersMod] = await Promise.all([
       import('echarts/core'),
       import('echarts/charts'),
@@ -160,7 +167,9 @@ export async function getECharts(): Promise<typeof import('echarts/core')> {
       renderersMod.CanvasRenderer,
     ])
     return echarts
-  })()
+  })(),
+    () => (echartsPromise = null),
+  )
   return echartsPromise
 }
 
@@ -175,10 +184,13 @@ export async function getECharts(): Promise<typeof import('echarts/core')> {
 let echartsGLPromise: Promise<typeof import('echarts/core')> | null = null
 
 export async function getEChartsGL(): Promise<typeof import('echarts/core')> {
-  echartsGLPromise ??= getECharts().then(async (ec) => {
-    await import('echarts-gl')
-    return ec
-  })
+  echartsGLPromise ??= forgetOnFailure(
+    getECharts().then(async (ec) => {
+      await import('echarts-gl')
+      return ec
+    }),
+    () => (echartsGLPromise = null),
+  )
   return echartsGLPromise
 }
 

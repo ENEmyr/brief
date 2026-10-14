@@ -16,6 +16,7 @@ import {
 import { buildHeatmapOption, Heatmap } from '@/features/reader/components/blocks/Heatmap'
 import { binReadout, buildHistogramOption, Histogram } from '@/features/reader/components/blocks/Histogram'
 import { buildScatterOption, Scatter } from '@/features/reader/components/blocks/Scatter'
+import { DiagramViewerProvider } from '@/features/diagram-viewer'
 
 const palette = LIGHT_PALETTE
 
@@ -409,12 +410,30 @@ describe('Heatmap/Histogram/Scatter components (useEChart mocked)', () => {
     const getDataURL = vi.fn(() => 'data:image/png;base64,x')
     useEChartMock.mockReturnValue({
       containerRef: { current: null },
-      chartRef: { current: { getDataURL } },
+      // getWidth and getHeight size the snapshot in the viewer.
+      chartRef: { current: { getDataURL, getWidth: () => 540, getHeight: () => 200 } },
       ready: true,
     })
     render(<Histogram block={block} />)
     fireEvent.click(screen.getByRole('button', { name: 'Open diagram full screen' }))
     expect(getDataURL).toHaveBeenCalledWith({ pixelRatio: 2, backgroundColor: 'light:card' })
+  })
+
+  it('shows the full-screen snapshot at the chart\'s own size, so the viewer can fit it before it decodes', () => {
+    useEChartMock.mockReturnValue({
+      containerRef: { current: null },
+      chartRef: { current: { getDataURL: () => 'data:image/png;base64,x', getWidth: () => 540, getHeight: () => 200 } },
+      ready: true,
+    })
+    render(
+      <DiagramViewerProvider>
+        <Histogram block={{ type: 'histogram', bins: [{ label: '0-10', count: 1 }] }} />
+      </DiagramViewerProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Open diagram full screen' }))
+    const img = screen.getByRole('dialog', { name: 'Diagram viewer' }).querySelector('img')
+    expect(img).toHaveAttribute('width', '540')
+    expect(img).toHaveAttribute('height', '200')
   })
 
   it('Scatter calls useEChart and shows its kind tag', () => {

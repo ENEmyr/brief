@@ -22,6 +22,8 @@ const EDGE_FONT_SIZE = 12
 /** Edge labels sit 12px off their edge (B-Blocks2:41, :44). */
 const LABEL_GAP = 12
 const TIP_GAP = 1
+/** A transition to itself has the seq self-message's loop, 26 wide and 16 high (seqLayout.ts). */
+const SELF_LOOP = { width: 26, height: 16 }
 const PAD = 24
 
 interface Cell {
@@ -159,8 +161,8 @@ function computeStateLayout(block: StateBlock, transitions: Transition[]): State
     const b = byId.get(t.to)
     const ca = cells.get(t.from)
     const cb = cells.get(t.to)
-    if (!a || !b || !ca || !cb || a === b) return []
-    const back = cb.col < ca.col || (cb.col === ca.col && cb.row < ca.row)
+    if (!a || !b || !ca || !cb) return []
+    const back = a === b || cb.col < ca.col || (cb.col === ca.col && cb.row < ca.row)
     const tone: EdgeTone = back ? 'warn' : b.final ? 'good' : 'sub'
     const paired = (pairCount.get([t.from, t.to].sort().join('\u0000')) ?? 0) > 1
     const vertical = ca.col === cb.col && ca.row !== cb.row
@@ -173,6 +175,20 @@ function computeStateLayout(block: StateBlock, transitions: Transition[]): State
       lines.length ? { lines, left: cx - width / 2, top: y + LABEL_GAP / 2, width, align: 'center' } : undefined
     const base = { from: t.from, to: t.to, tone, dashed: back }
     const centerY = a.y + nodeHeight / 2
+
+    // A transition to itself loops over the node's right third, a loop back like any other.
+    if (a === b) {
+      const x1 = a.x + (2 * NODE_WIDTH) / 3 + SELF_LOOP.width / 2
+      const x2 = x1 - SELF_LOOP.width
+      const y = a.y - SELF_LOOP.height
+      const points = [
+        { x: x1, y: a.y },
+        { x: x1, y },
+        { x: x2, y },
+        { x: x2, y: a.y - TIP_GAP },
+      ]
+      return [{ ...base, points, label: above((x1 + x2) / 2, y) }]
+    }
 
     // Neighbours in a row: a straight edge; a pair in both directions splits
     // above and below the center line.
@@ -325,9 +341,9 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
           />
         ))}
       </EdgeLayer>
-      {layout.nodes.map((n) => (
+      {layout.nodes.map((n, i) => (
         <div
-          key={n.id}
+          key={i}
           data-state-node={n.id}
           onPointerEnter={() => setHovered(n.id)}
           onPointerLeave={() => setHovered(null)}

@@ -97,10 +97,12 @@ export function ViewerOverlay({ content, heading, steps, onClose }: ViewerOverla
         const last = focusable[focusable.length - 1]
         if (!first || !last) return
 
-        if (event.shiftKey && document.activeElement === first) {
+        // Focus starts on the dialog itself, which is in neither end of the list.
+        const outside = !dialogRef.current.contains(document.activeElement) || document.activeElement === dialogRef.current
+        if (event.shiftKey && (outside || document.activeElement === first)) {
           event.preventDefault()
           last.focus()
-        } else if (!event.shiftKey && document.activeElement === last) {
+        } else if (!event.shiftKey && (outside || document.activeElement === last)) {
           event.preventDefault()
           first.focus()
         }

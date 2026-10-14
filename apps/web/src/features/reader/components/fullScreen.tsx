@@ -39,7 +39,13 @@ export function useChartCard(
     const chart = chartRef.current
     if (!chart) return
     const dataUrl = chart.getDataURL({ pixelRatio, backgroundColor: chartPalette(theme).card })
-    open(ownerKey, <img src={dataUrl} alt="chart" className="block" />, extras)
+    // Drawn at the chart's own size (the capture has pixelRatio times the
+    // pixels), and sized before it decodes so the viewer can fit it on open.
+    open(
+      ownerKey,
+      <img src={dataUrl} alt="chart" width={chart.getWidth()} height={chart.getHeight()} className="block" />,
+      extras,
+    )
   }, [chartRef, theme, pixelRatio, open, ownerKey, extras])
 
   if (failed) return { state: { status: 'error', message: 'Chart could not be drawn.' } }
