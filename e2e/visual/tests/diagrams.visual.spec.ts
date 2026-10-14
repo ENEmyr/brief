@@ -17,6 +17,7 @@ import { VISUAL_API_URL } from '../visual.config'
 const COLORS: Record<
   Theme,
   Record<
+    | 'card'
     | 'elev'
     | 'line'
     | 'line2'
@@ -41,6 +42,7 @@ const COLORS: Record<
   >
 > = {
   dark: {
+    card: 'rgb(17, 20, 23)',
     elev: 'rgb(23, 27, 31)',
     line: 'rgb(35, 41, 46)',
     line2: 'rgb(49, 57, 64)',
@@ -63,6 +65,7 @@ const COLORS: Record<
     viewerCanvas: 'rgb(8, 9, 10)',
   },
   light: {
+    card: 'rgb(255, 255, 255)',
     elev: 'rgb(249, 250, 250)',
     line: 'rgb(225, 228, 231)',
     line2: 'rgb(205, 210, 215)',
@@ -266,6 +269,14 @@ test.describe('at 1440', () => {
     ] as const) {
       expectNear(await rel(node(id), recv), { x: 256 * col, y: 160 * row, width: 160, height: 56 }, id)
     }
+    // B-Blocks2:30-37: the top row starts 72 into the canvas, the bottom row ends 42 above its foot.
+    const canvas = recv.locator('..')
+    const lowest = await rel(node('limited'), canvas)
+    expectNear(
+      { y: (await rel(recv, canvas)).y, height: (await rel(canvas, canvas)).height - lowest.y - lowest.height },
+      { y: 72, height: 42 },
+      'state canvas padding',
+    )
     await expectComputed(recv, { 'border-top-width': '2px', 'border-top-color': c.accentLine, 'border-radius': '6px' })
     await expectComputed(node('token'), {
       'border-top-width': '1px',
@@ -395,6 +406,18 @@ test.describe('at 1440', () => {
     expectNear(await rel(box, box), { height: 200 }, 'diagram box')
     await expectComputed(box.locator('..'), { 'padding-top': '20px', 'padding-left': '20px' })
     await expect(figure.locator('svg[id^="mm-"]')).toHaveCSS('font-size', '13px')
+    // B-Blocks2:104, :108, :110: square nodes have 6px corners; edge labels sit on the
+    // canvas color, not a tinted box (B-Blocks2:107, :109).
+    const squares = figure.locator('g.node rect.label-container')
+    await expect(squares).toHaveCount(3)
+    expect(await squares.evaluateAll((els) => els.map((e) => [e.getAttribute('rx'), e.getAttribute('ry')]))).toEqual([
+      ['6', '6'],
+      ['6', '6'],
+      ['6', '6'],
+    ])
+    const labelBoxes = figure.locator('.edgeLabel rect')
+    await expect(labelBoxes).toHaveCount(2)
+    for (const label of await labelBoxes.all()) await expectComputed(label, { fill: c.card, opacity: '1' })
   })
 
   test('charts: bigo, heatmap, histogram, scatter, plot3d bodies (B-Blocks:127-131, :179-187; B-Blocks2:132-182)', async ({
@@ -436,10 +459,17 @@ test.describe('at 1440', () => {
     const scatterBox = await rel(chartOf(scatter), chartOf(scatter))
     expect(Math.abs(scatterBox.width / scatterBox.height - 520 / 220)).toBeLessThan(0.01)
     await expectComputed(chartOf(scatter).locator('..'), { 'padding-top': '12px', 'padding-left': '16px' })
+    // B-Blocks2:160: the sentence under the plot, 12px sub.
+    const shapes = scatter.getByText(
+      'Series differ by shape and color, so grayscale and color-blind readers can tell them apart.',
+      { exact: true },
+    )
+    await expectComputed(shapes, { 'font-size': '12px', color: c.sub })
 
     // B-Blocks2:168-170: a code-bg pane padded 16; 36px zoom buttons 28 from
     // the left and 24 from the bottom, 6 apart.
     const plot3d = card(page, 'plot3d')
+    await expect(captionOf(plot3d)).toHaveText('latency by RPS and bucket size / surface')
     const pane = plot3d.getByRole('button', { name: 'Zoom in' }).locator('../..')
     await expectComputed(pane, { 'background-color': c.codeBg, 'padding-top': '16px' })
     const zoomIn = plot3d.getByRole('button', { name: 'Zoom in' })

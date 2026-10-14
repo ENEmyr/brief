@@ -368,6 +368,23 @@ describe('StateMachine block', () => {
     expect(screen.getByText('retry')).toBeInTheDocument()
   })
 
+  it('pads the canvas as the board: 72 over the highest node or label, 42 under the lowest (B-Blocks2:30-37)', () => {
+    const { container } = r(stateBlock)
+    const canvas = nodes(container)[0]!.parentElement!
+    expect(nodes(container).map((n) => n.style.top)).toEqual(['72px', '72px', '72px', '232px'])
+    expect(canvas.style.height).toBe('330px')
+
+    const loop: Extract<Block, { type: 'state' }> = {
+      type: 'state',
+      initial: 'a',
+      states: [{ id: 'a', label: 'A' }],
+      transitions: [{ from: 'a', to: 'a', label: 'retry' }],
+    }
+    const { container: looped } = r(loop)
+    expect(within(looped).getByText('retry').style.top).toBe('72px')
+    expect(nodes(looped)[0]!.style.top).toBe('116px')
+  })
+
   it('fits a long Thai or English label inside its node by wrapping it', () => {
     // evidence/u04 answer 6: labels ran out of a fixed 74px node.
     const block: Extract<Block, { type: 'state' }> = {

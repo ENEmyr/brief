@@ -72,10 +72,12 @@ describe('Plot3d option builder', () => {
   })
 
   it('builds surface data as [x,y,z] triples from the grid matrix (x=col idx, y=row idx)', () => {
+    // The surface is now the last series, kept for the hover readout; the
+    // board's wire lines draw it (next test).
     const option = buildPlot3dOption(surfaceBlock, palette)
     const series = option.series as unknown as Array<{ type: string; data: [number, number, number][] }>
-    expect(series[0]!.type).toBe('surface')
-    expect(series[0]!.data).toEqual([
+    expect(series.at(-1)!.type).toBe('surface')
+    expect(series.at(-1)!.data).toEqual([
       [0, 0, 1],
       [1, 0, 2],
       [0, 1, 3],
@@ -83,12 +85,52 @@ describe('Plot3d option builder', () => {
     ])
   })
 
-  it('draws the surface wireframe in the plot3d grid color', () => {
-    // Was hidden; B-Blocks2:177 draws the mesh lines in #2A3330 (--c-plot3d-grid).
+  it('draws the surface as wire lines: rows in the height ramp, columns in the plot3d grid color, no fill', () => {
+    // Was a filled surface with a grid-color wireframe; B-Blocks2:170-177
+    // draws only lines: one per row from #3B4A1C to #C5F05A by height, the
+    // cross lines in #2A3330 (--c-plot3d-grid).
     const option = buildPlot3dOption(surfaceBlock, palette)
-    const series = option.series as unknown as Array<{ wireframe: { show: boolean; lineStyle: { color: string } } }>
-    expect(series[0]!.wireframe.show).toBe(true)
-    expect(series[0]!.wireframe.lineStyle.color).toBe(palette.plot3dGrid)
+    const series = option.series as unknown as Array<{
+      type: string
+      data: number[][]
+      silent?: boolean
+      lineStyle?: { color?: string }
+      itemStyle?: { opacity: number }
+      wireframe?: { show: boolean }
+    }>
+    expect(series.map((s) => s.type)).toEqual(['line3D', 'line3D', 'line3D', 'line3D', 'surface'])
+    expect(series.slice(0, 2).map((s) => s.data)).toEqual([
+      [
+        [0, 0, 1],
+        [1, 0, 2],
+      ],
+      [
+        [0, 1, 3],
+        [1, 1, 4],
+      ],
+    ])
+    expect(series.slice(0, 2).map((s) => s.lineStyle?.color)).toEqual([undefined, undefined])
+    expect((option.visualMap as unknown as { seriesIndex: number[] }).seriesIndex).toEqual([0, 1])
+    expect(series.slice(2, 4).map((s) => [s.data, s.lineStyle?.color, s.silent])).toEqual([
+      [
+        [
+          [0, 0, 1],
+          [0, 1, 3],
+        ],
+        palette.plot3dGrid,
+        true,
+      ],
+      [
+        [
+          [1, 0, 2],
+          [1, 1, 4],
+        ],
+        palette.plot3dGrid,
+        true,
+      ],
+    ])
+    expect(series[4]!.itemStyle?.opacity).toBe(0)
+    expect(series[4]!.wireframe?.show).toBe(false)
   })
 
   it('sets a continuous visualMap over the z dimension, min/max from the data', () => {
@@ -234,5 +276,12 @@ describe('Plot3d component', () => {
     expect(screen.queryByText('3D plot')).not.toBeInTheDocument()
     rerender(<Plot3d block={{ ...scatterBlock, title: 'Loss surface' }} />)
     expect(screen.getByText('Loss surface')).toBeInTheDocument()
+  })
+
+  it('names the plot kind in the caption, after the title when there is one (B-Blocks2:166)', () => {
+    const { rerender } = render(<Plot3d block={{ ...scatterBlock, kind: 'surface' }} />)
+    expect(screen.getByText('plot3d').nextElementSibling).toHaveTextContent(/^surface$/)
+    rerender(<Plot3d block={{ ...scatterBlock, kind: 'surface', title: 'latency by RPS' }} />)
+    expect(screen.getByText('plot3d').nextElementSibling).toHaveTextContent(/^latency by RPS \/ surface$/)
   })
 })
