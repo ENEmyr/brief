@@ -24,7 +24,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element
   const mod = modKeyLabel()
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-start justify-center bg-[var(--c-scrim)] px-4 pt-16" onClick={onClose}>
+    <div className="console-fade fixed inset-0 z-[95] flex items-start justify-center bg-[var(--c-scrim)] px-4 pt-16" onClick={onClose}>
       <div
         ref={panelRef}
         role="dialog"
@@ -32,7 +32,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element
         aria-labelledby={titleId}
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="w-[440px] max-w-full rounded-overlay border border-line2 bg-card shadow-[var(--shadow-overlay)] outline-none"
+        className="console-pop w-[440px] max-w-full rounded-overlay border border-line2 bg-card shadow-[var(--shadow-overlay)] outline-none"
       >
         <div className="flex items-center gap-2.5 border-b border-line py-2.5 pl-[18px] pr-2.5">
           <span id={titleId} className="grow text-[15px] font-semibold">
@@ -42,7 +42,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="flex size-8 cursor-pointer items-center justify-center rounded-ctrl text-sub max-[880px]:min-h-11 max-[880px]:min-w-11"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-ctrl text-sub hover:bg-chip focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line max-[880px]:min-h-11 max-[880px]:min-w-11"
           >
             <svg
               width="14"
