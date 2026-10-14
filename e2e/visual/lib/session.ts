@@ -32,14 +32,14 @@ function json(route: Route, body: unknown, status = 200): Promise<void> {
   })
 }
 
-export function sessionEnvelope() {
+export function sessionEnvelope(payload: unknown = samplePayload) {
   return {
     id: SESSION_ID,
-    title: (samplePayload as { meta: { title: string } }).meta.title,
+    title: (payload as { meta: { title: string } }).meta.title,
     saved: false,
     encrypted: false,
     encParams: null,
-    payload: JSON.stringify(samplePayload),
+    payload: JSON.stringify(payload),
     createdAt: FIXED_NOW - 3_600_000,
     lastOpenedAt: FIXED_NOW,
     expiresAt: EXPIRES_AT,
@@ -66,6 +66,14 @@ export async function mockApi(page: Page, unexpected: string[]): Promise<void> {
     unexpected.push(`${req.method()} ${pathname}`)
     return route.abort('failed')
   })
+}
+
+/** Serves another payload under SESSION_ID; routes added later win over mockApi's. */
+export async function serveSession(page: Page, payload: unknown): Promise<void> {
+  const origin = new URL(VISUAL_API_URL).origin
+  await page.route(`${origin}/api/session/${SESSION_ID}`, (route) =>
+    route.request().method() === 'GET' ? json(route, sessionEnvelope(payload)) : route.fallback(),
+  )
 }
 
 export const test = base.extend<{ unexpectedApi: string[]; theme: Theme }>({
