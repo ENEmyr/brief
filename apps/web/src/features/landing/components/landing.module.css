@@ -1,5 +1,3 @@
-/* B-Landing motion (board lines 15-23): the hero rises in three steps and the
- * example link types itself once. Reduced motion shows the end state. */
 @keyframes rise {
   from {
     opacity: 0;
@@ -36,13 +34,12 @@
   animation-delay: 0.24s;
 }
 
-/* 34 steps: "brief.algoryth.me/s/" plus a 14-character id. */
 .type {
   display: inline-block;
   overflow: hidden;
   white-space: nowrap;
   vertical-align: bottom;
-  animation: type 0.9s steps(34) 0.5s both;
+  animation: type 0.9s steps(var(--type-steps)) 0.5s both;
 }
 
 .btn {

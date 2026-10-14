@@ -7,7 +7,6 @@ const RULE_HEADING = 'm-0 border-t-2 border-text pt-[14px] text-[21px] leading-[
 const CELL = 'border-b border-line2 px-2 py-[6px] align-top'
 const HEAD_CELL = 'border-b border-text px-2 py-[6px] text-left font-semibold'
 
-/** The title block of B-Print:21-23, which replaces the reader's header card on paper. */
 export function PrintHeader({
   payload,
   sessionId,
@@ -24,7 +23,7 @@ export function PrintHeader({
         {sessionLine(sessionId, payload, snapshot.state)}
       </p>
       <p className="m-0 font-mono text-[12px] leading-[18px] text-sub">
-        {printedLine(snapshot.printedAt, snapshot.url)}
+        {printedLine(snapshot.printedAt, snapshot.hostPath)}
       </p>
       {payload.meta.subtitle && (
         <p className="m-0 mt-[14px] text-[16px] leading-[1.6]">{payload.meta.subtitle}</p>
@@ -51,7 +50,6 @@ function Answer({ decision, state }: { decision: Decision; state: ReaderState })
   )
 }
 
-/** "Your answers" at the end of the printout (B-Print:87-97), every decision including open ones. */
 export function PrintAnswers({ decisions, state }: { decisions: Decision[]; state: ReaderState }) {
   if (decisions.length === 0) return null
   return (

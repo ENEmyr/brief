@@ -68,7 +68,7 @@ export async function mockApi(page: Page, unexpected: string[]): Promise<void> {
   })
 }
 
-/** Serves another payload under SESSION_ID; routes added later win over mockApi's. */
+/** Routes added later win over mockApi's. */
 export async function serveSession(page: Page, payload: unknown): Promise<void> {
   const origin = new URL(VISUAL_API_URL).origin
   await page.route(`${origin}/api/session/${SESSION_ID}`, (route) =>

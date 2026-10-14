@@ -43,7 +43,6 @@ interface Crop {
   hasNotText?: string
   /** Text the element must contain (case-insensitive); guards against the board changing under the map. */
   contains?: string
-  /** Snap the element to a whole pixel row first (snapToPixelRow); the spec must snap the app side too. */
   snap?: boolean
 }
 

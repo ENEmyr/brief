@@ -5,7 +5,6 @@ import { FOCUS_RING, H2, PAD } from '../lib/styles'
 import { CopyButton } from './CopyButton'
 import styles from './landing.module.css'
 
-/** Shell comments in the board's faint color, everything else in the text color. */
 function Snippet({ code }: { code: string }) {
   return code.split('\n').map((line, i) => (
     <span key={i}>

@@ -8,7 +8,6 @@ import { SiteHeader } from './SiteHeader'
 import { SmallThings } from './SmallThings'
 import { UsageExample } from './UsageExample'
 
-// leading-[normal]: B-Landing sets no line height outside its type styles.
 export function LandingPage() {
   return (
     <div className="min-h-screen bg-page leading-[normal] text-text">

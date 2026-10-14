@@ -7,7 +7,6 @@ export const ICON_SVG = path.join(WEB_DIR, 'src', 'app', 'icon.svg')
 export const FAVICON_ICO = path.join(WEB_DIR, 'public', 'favicon.ico')
 export const FAVICON_SIZES = [16, 32, 48] as const
 
-/** icon.svg drawn at size x size on a transparent background, at DPR 1. */
 export async function renderIcon(page: Page, size: number): Promise<Buffer> {
   const svg = fs.readFileSync(ICON_SVG).toString('base64')
   await page.setViewportSize({ width: size, height: size })
@@ -23,35 +22,46 @@ export interface IcoEntry {
   png: Buffer
 }
 
-/** The PNG images inside an .ico file (ICONDIR, then one 16-byte ICONDIRENTRY per image). */
+// ICONDIR is 6 bytes (reserved, type, count); each ICONDIRENTRY is 16.
+const DIR_COUNT = 4
+const DIR_SIZE = 6
+const ENTRY_SIZE = 16
+const ENTRY_WIDTH = 0
+const ENTRY_HEIGHT = 1
+const ENTRY_PALETTE = 2
+const ENTRY_RESERVED = 3
+const ENTRY_PLANES = 4
+const ENTRY_BITS = 6
+const ENTRY_BYTES = 8
+const ENTRY_OFFSET = 12
+const TYPE_ICON = 1
+
+const entryAt = (i: number) => DIR_SIZE + ENTRY_SIZE * i
+
 export function readIco(ico: Buffer): IcoEntry[] {
-  const count = ico.readUInt16LE(4)
-  return Array.from({ length: count }, (_, i) => {
-    const entry = 6 + 16 * i
-    const width = ico.readUInt8(entry) || 256
-    const bytes = ico.readUInt32LE(entry + 8)
-    const offset = ico.readUInt32LE(entry + 12)
-    return { size: width, png: ico.subarray(offset, offset + bytes) }
+  return Array.from({ length: ico.readUInt16LE(DIR_COUNT) }, (_, i) => {
+    const entry = entryAt(i)
+    const bytes = ico.readUInt32LE(entry + ENTRY_BYTES)
+    const offset = ico.readUInt32LE(entry + ENTRY_OFFSET)
+    return { size: ico.readUInt8(entry + ENTRY_WIDTH) || 256, png: ico.subarray(offset, offset + bytes) }
   })
 }
 
-/** An .ico holding each PNG as is, which every current browser reads. */
 export function writeIco(entries: IcoEntry[]): Buffer {
-  const header = Buffer.alloc(6 + 16 * entries.length)
-  header.writeUInt16LE(0, 0)
-  header.writeUInt16LE(1, 2)
-  header.writeUInt16LE(entries.length, 4)
+  const header = Buffer.alloc(entryAt(entries.length))
+  header.writeUInt16LE(TYPE_ICON, 2)
+  header.writeUInt16LE(entries.length, DIR_COUNT)
   let offset = header.length
   entries.forEach(({ size, png }, i) => {
-    const entry = 6 + 16 * i
-    header.writeUInt8(size >= 256 ? 0 : size, entry)
-    header.writeUInt8(size >= 256 ? 0 : size, entry + 1)
-    header.writeUInt8(0, entry + 2)
-    header.writeUInt8(0, entry + 3)
-    header.writeUInt16LE(1, entry + 4)
-    header.writeUInt16LE(32, entry + 6)
-    header.writeUInt32LE(png.length, entry + 8)
-    header.writeUInt32LE(offset, entry + 12)
+    const entry = entryAt(i)
+    header.writeUInt8(size >= 256 ? 0 : size, entry + ENTRY_WIDTH)
+    header.writeUInt8(size >= 256 ? 0 : size, entry + ENTRY_HEIGHT)
+    header.writeUInt8(0, entry + ENTRY_PALETTE)
+    header.writeUInt8(0, entry + ENTRY_RESERVED)
+    header.writeUInt16LE(1, entry + ENTRY_PLANES)
+    header.writeUInt16LE(32, entry + ENTRY_BITS)
+    header.writeUInt32LE(png.length, entry + ENTRY_BYTES)
+    header.writeUInt32LE(offset, entry + ENTRY_OFFSET)
     offset += png.length
   })
   return Buffer.concat([header, ...entries.map((e) => e.png)])

@@ -1,7 +1,6 @@
 import { STEPS } from '../lib/content'
 import { BAND, H2, PAD } from '../lib/styles'
 
-/** Three steps, in the order the round trip really happens (B-Landing:86-95). */
 export function HowItWorks() {
   return (
     <section id="how" className={`border-y border-line ${BAND}`}>

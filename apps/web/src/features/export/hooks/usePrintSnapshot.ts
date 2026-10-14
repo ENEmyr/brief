@@ -4,11 +4,8 @@ import type { ReaderStateStore } from '@/features/reader-state'
 import { insertPrintNotes, type PrintSnapshot } from '../lib/printSheet'
 
 /**
- * The print-only parts of the page exist only while the browser prints:
- * `beforeprint` takes a snapshot and `afterprint` drops it. The browser
- * renders the page for paper right after `beforeprint` returns, which is why
- * the render is flushed synchronously. Both the Print item and the browser's
- * own print command (Ctrl+P, Cmd+P) fire these events.
+ * The browser renders the page for paper right after `beforeprint` returns,
+ * which is why the render is flushed synchronously.
  */
 export function usePrintSnapshot(store: ReaderStateStore, sessionId: string): PrintSnapshot | null {
   const [snapshot, setSnapshot] = useState<PrintSnapshot | null>(null)
@@ -17,7 +14,8 @@ export function usePrintSnapshot(store: ReaderStateStore, sessionId: string): Pr
     let removeNotes = () => {}
     function beforePrint() {
       const state = store.getState()
-      flushSync(() => setSnapshot({ state, printedAt: new Date(), url: `${window.location.host}/s/${sessionId}` }))
+      const hostPath = `${window.location.host}/s/${sessionId}`
+      flushSync(() => setSnapshot({ state, printedAt: new Date(), hostPath }))
       removeNotes()
       removeNotes = insertPrintNotes(document, state.highlights)
     }

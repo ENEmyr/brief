@@ -364,15 +364,8 @@ body {
 }
 
 /*
- * Print / PDF (B-Print). The reader is an interactive dark-capable app; paper
- * is none of those things, so this is where the document stops being an app
- * and becomes a flow document. The dark theme is already withheld above (see
- * `@media not print`); the rest of the chrome hides itself with Tailwind's
- * `print:hidden`. The title block, the highlight notes and "Your answers" exist
- * only while printing (export/hooks/usePrintSnapshot.ts). What is left here is
- * everything a utility class cannot express: overrides of the screen layout,
- * inline styles, and page-fragmentation rules. These rules are unlayered, so
- * they win over Tailwind's utilities without !important.
+ * These rules are unlayered, so they win over Tailwind's utilities without
+ * !important.
  */
 @media print {
   @page {
@@ -389,17 +382,11 @@ body {
     box-shadow: none !important;
   }
 
-  /* The floating selection toolbar styles itself inline (`display: flex`),
-     so `print:hidden` -- a class -- would lose to it; that's why this needs
-     the !important. The diagram zoom bar (`data-zbar`) shares the rule. */
   [data-seltoolbar],
   [data-zbar] {
     display: none !important;
   }
 
-  /* One column at full page width: no outline, no dock (its answers print as
-     "Your answers" at the end), and the header card gives way to the print
-     title block. min-height would push the answers onto a page of their own. */
   .min-h-screen {
     min-height: 0;
     background: none;
@@ -426,7 +413,6 @@ body {
     text-wrap: pretty;
   }
 
-  /* Each section opens with a 2px rule, its number in mono before the title. */
   section[data-section] {
     border: 0;
     border-radius: 0;
@@ -440,7 +426,6 @@ body {
     border-top: 2px solid var(--c-text);
     border-bottom: 0;
   }
-  /* The number sits in the heading's 28px line, as an inline span would. */
   section[data-section] > div:first-child > span {
     font-size: 14px;
     line-height: 28px;
@@ -453,8 +438,6 @@ body {
     padding: 0;
   }
 
-  /* Highlights print as a 2px underline without fill or marker, and their
-     notes follow the text as "Note:". Marks set their fill inline. */
   mark {
     padding: 0;
     border-radius: 0;
@@ -478,8 +461,6 @@ body {
     white-space: normal;
   }
 
-  /* Code prints light and in one ink: no fill, a 1px rule around the listing
-     and under its file name. */
   :root {
     --shiki-token-keyword: var(--c-text);
     --shiki-token-constant: var(--c-text);
@@ -506,7 +487,6 @@ body {
     line-height: 18px;
     color: var(--c-text);
   }
-  /* Paper has no scrollbar: long lines wrap instead of running off the page. */
   pre.shiki,
   pre[data-code-panel] {
     overflow: visible;
@@ -516,7 +496,6 @@ body {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
-  /* A highlighted line keeps its light tint, its only emphasis on paper. */
   .shiki .hl-line {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
@@ -577,26 +556,17 @@ body {
     widows: 2;
   }
 
-  /* Tables print at 14/20 with a rule under the head and between rows. Paper
-     has no scrollbar: DataTable keeps header and first-column cells on one
-     line on screen, so with `table-layout: auto` one wide cell would push the
-     rightmost columns off the page and out of the PDF. `fixed` locks a table
-     to the page width and the cells wrap instead. The answers table sizes its
-     columns by content as the board does; a long token still wraps. */
-  table {
+  [data-reader-grid] table {
     table-layout: fixed;
-  }
-  [data-print-answers] table {
-    table-layout: auto;
   }
   th,
   td {
     padding: 6px 8px;
     border-bottom: 1px solid var(--c-line2);
     background: none;
-    font-size: 14px !important;
-    line-height: 20px !important;
-    white-space: normal !important;
+    font-size: 14px;
+    line-height: 20px;
+    white-space: normal;
     overflow-wrap: anywhere;
   }
   th {
@@ -606,7 +576,6 @@ body {
     border-bottom-color: var(--c-text);
   }
 
-  /* Keep a highlight's marking exact on paper. */
   mark {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
