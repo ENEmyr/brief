@@ -7,7 +7,7 @@ import { VISUAL_API_URL, VISUAL_WEB_URL } from '../visual.config'
 // The boards are dark only, so pixel crops run in dark.
 type Palette = Record<
   | 'page' | 'card' | 'chip' | 'line' | 'line2' | 'text' | 'sub' | 'faint' | 'accent' | 'accentLine'
-  | 'accentSoft' | 'onAccent' | 'bad' | 'badLine' | 'warn' | 'warnLine' | 'warnSoft' | 'warnFill' | 'inverseSub'
+  | 'accentSoft' | 'onAccent' | 'bad' | 'badLine' | 'warn' | 'warnLine' | 'warnSoft' | 'warnCallout' | 'warnFill' | 'inverseSub'
   | 'scrim' | 'overlayShadow' | 'toastShadow',
   string
 >
@@ -30,6 +30,7 @@ const C: Record<Theme, Palette> = {
     warn: 'rgb(244, 183, 64)',
     warnLine: 'rgb(74, 58, 22)',
     warnSoft: 'rgb(42, 34, 19)',
+    warnCallout: 'rgb(26, 23, 16)',
     warnFill: 'rgb(244, 183, 64)',
     inverseSub: 'rgb(76, 85, 93)',
     scrim: 'rgba(0, 0, 0, 0.55)',
@@ -54,6 +55,7 @@ const C: Record<Theme, Palette> = {
     warn: 'rgb(143, 90, 0)',
     warnLine: 'rgb(235, 203, 138)',
     warnSoft: 'rgb(251, 240, 218)',
+    warnCallout: 'rgb(251, 240, 218)',
     warnFill: 'rgb(184, 122, 10)',
     inverseSub: 'rgb(161, 170, 178)',
     scrim: 'rgba(15, 18, 20, 0.35)',
@@ -189,7 +191,7 @@ test.describe('dialogs at 1440', () => {
       'border-left-width': '3px',
       'border-left-color': c.warn,
       'border-top-color': c.warnLine,
-      'background-color': c.warnSoft,
+      'background-color': c.warnCallout,
     })
     await expectComputed(dialog.getByRole('button', { name: 'Archive', exact: true }), { opacity: '1', 'background-color': c.accent })
     // The board's frame shows the top 446 rows of this dialog (crops.json visibleHeight).
@@ -374,6 +376,15 @@ test.describe('empty states (B-States:113-135)', () => {
     await expectComputed(page.getByText('DECISIONS', { exact: true }), { 'font-size': '11px', 'letter-spacing': '0.66px', color: c.faint })
     const outline = page.getByRole('navigation', { name: 'Outline' })
     await expect(outline.getByText('NOTES 0')).toBeVisible()
+    const card = outline.getByText('NOTES 0').locator('..')
+    await expectComputed(card, {
+      'background-color': c.card,
+      'border-top-color': c.line,
+      'border-top-left-radius': '6px',
+      padding: '14px',
+      gap: '8px',
+    })
+    await expectComputed(outline.getByText('NOTES 0'), { 'font-size': '11px', color: c.faint })
     await expectComputed(outline.getByText('Select any text to highlight it, add a note, or ask the agent about it.'), {
       'font-size': '13px',
       'line-height': '20px',
@@ -429,6 +440,28 @@ test.describe('the 640 boundary', () => {
         'animation-name': sheet ? 'console-sheet' : 'console-enter',
       })
       await expect(share.locator(':scope > span').first()).toBeVisible({ visible: sheet })
+    })
+  }
+})
+
+test.describe('error toast over a bottom sheet', () => {
+  for (const width of [390, 639]) {
+    test(`stays clear of the Archive sheet at ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 })
+      await routeSave(page, 500)
+      await openReader(page)
+      const archive = await openFromBar(page, 'Archive')
+      const primary = archive.getByRole('button', { name: 'Archive', exact: true })
+      await primary.click()
+      const failed = await afterEnterAnimation(page.getByRole('alert').filter({ hasText: 'Could not archive. Nothing was changed.' }))
+
+      const toast = (await failed.boundingBox())!
+      const sheet = (await archive.boundingBox())!
+      const button = (await primary.boundingBox())!
+      expect(toast.y + toast.height, 'toast bottom above the sheet top').toBeLessThanOrEqual(sheet.y)
+      expect(toast.y, 'toast inside the viewport').toBeGreaterThanOrEqual(0)
+      expect(toast.y + toast.height).toBeLessThanOrEqual(button.y)
+      await failed.getByRole('button', { name: 'Dismiss' }).click()
     })
   }
 })
