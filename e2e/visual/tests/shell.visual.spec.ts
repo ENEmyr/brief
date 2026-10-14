@@ -211,7 +211,10 @@ test.describe('shell at 1440', () => {
       'font-size': '11px',
       'border-top-left-radius': '3px',
     })
-    await expect(hero.getByRole('link', { name: 'acme/api-gateway' })).toBeVisible()
+    // The fixture's repo is a shorthand, not a URL: a plain chip, as B-Reader:98 draws it.
+    const repo = hero.getByText('acme/api-gateway', { exact: true })
+    await expectComputed(repo, { color: C[theme].sub, 'border-top-color': C[theme].line2, 'font-size': '11px' })
+    await expect(hero.getByRole('link')).toHaveCount(0)
     await expectComputed(page.locator('h1'), {
       'font-size': '30px',
       'line-height': '36px',

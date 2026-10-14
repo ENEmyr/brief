@@ -88,6 +88,25 @@ describe('MetaHeader', () => {
     expect(repoLink).toHaveAttribute('href', 'https://github.com/example/repo')
   })
 
+  // meta.repo is a free string; a shorthand as a link would resolve against the
+  // reader's own URL and 404.
+  it.each(['acme/api-gateway', 'github.com/acme/api-gateway', 'ftp://example.com/repo', 'javascript:alert(1)'])(
+    'renders "%s" as a plain chip, not a link',
+    (repo) => {
+      render(<MetaHeader meta={{ ...baseMeta, author: 'Ada', repo }} />)
+      expect(screen.getByText(repo)).toBeInTheDocument()
+      expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    },
+  )
+
+  it('links an absolute http repo URL', () => {
+    render(<MetaHeader meta={{ ...baseMeta, repo: 'http://git.example.com/acme/api' }} />)
+    expect(screen.getByRole('link', { name: 'http://git.example.com/acme/api' })).toHaveAttribute(
+      'href',
+      'http://git.example.com/acme/api',
+    )
+  })
+
   it('does not render a session id anywhere', () => {
     render(<MetaHeader meta={{ ...baseMeta, author: 'Ada' }} />)
 

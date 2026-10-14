@@ -2,10 +2,19 @@ import type { Meta } from '@brief/schema'
 
 const CHIP = 'rounded-[3px] border border-line2 px-[6px] py-[2px]'
 
+function isWebUrl(value: string): boolean {
+  try {
+    const { protocol } = new URL(value)
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 /**
  * B-Reader's header card: the meta chips (doc id, author, role, date,
  * version, repo, read time), the title and the summary. The repo chip is a
- * link (owner ruling D5).
+ * link when it holds a web URL (owner ruling D5).
  */
 export function MetaHeader({ meta }: { meta: Meta }) {
   const chips: React.ReactNode[] = []
@@ -20,15 +29,21 @@ export function MetaHeader({ meta }: { meta: Meta }) {
   }
   if (meta.repo) {
     chips.push(
-      <a
-        key="repo"
-        href={meta.repo}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`${CHIP} text-sub no-underline transition-colors duration-[var(--dur-fast)] hover:text-text`}
-      >
-        {meta.repo}
-      </a>,
+      isWebUrl(meta.repo) ? (
+        <a
+          key="repo"
+          href={meta.repo}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${CHIP} text-sub no-underline transition-colors duration-[var(--dur-fast)] hover:text-text`}
+        >
+          {meta.repo}
+        </a>
+      ) : (
+        <span key="repo" className={CHIP}>
+          {meta.repo}
+        </span>
+      ),
     )
   }
   if (meta.readTime) chips.push(<span key="readtime" className={CHIP}>{meta.readTime}</span>)
