@@ -171,6 +171,30 @@
   }
 }
 
+mark[data-marker]::after {
+  position: relative;
+  top: -0.5em;
+  margin-left: 1px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 0;
+  color: var(--ctp-mauve);
+}
+
+/*
+ * The text after the slash is what assistive tech announces; the plain
+ * declaration before it is the fallback for engines without that syntax.
+ */
+mark[data-marker='note']::after {
+  content: '●';
+  content: '●' / 'note';
+}
+
+mark[data-marker='ask']::after {
+  content: '?';
+  content: '?' / 'question';
+}
+
 html,
 body {
   background: var(--ctp-page);

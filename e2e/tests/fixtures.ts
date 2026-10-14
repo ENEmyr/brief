@@ -7,8 +7,32 @@ export { API_URL }
 /** First section's first paragraph -- the only block the annotate flow targets. */
 export const FIRST_PARAGRAPH_SELECTOR = '[data-hl][data-sid="0"][data-bid="0"]'
 
+export const FIRST_CODE_LINE_SELECTOR = '[data-hl][data-sid="1"][data-bid="1"][data-path="code.0"]'
+
 /** How many characters of the first paragraph the annotate flow selects. */
 export const SELECTION_LENGTH = 20
+
+export async function dragAcross(page: Page, leafSelector: string, word: string): Promise<void> {
+  const leaf = page.locator(leafSelector)
+  await leaf.scrollIntoViewIfNeeded()
+  const box = await leaf.evaluate((el, needle) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent?.indexOf(needle) ?? -1
+      if (at < 0) continue
+      const range = document.createRange()
+      range.setStart(node, at)
+      range.setEnd(node, at + needle.length)
+      const rect = range.getBoundingClientRect()
+      return { left: rect.left, right: rect.right, y: (rect.top + rect.bottom) / 2 }
+    }
+    throw new Error(`"${needle}" is not in the leaf`)
+  }, word)
+  await page.mouse.move(box.left + 1, box.y)
+  await page.mouse.down()
+  await page.mouse.move(box.right - 1, box.y, { steps: 10 })
+  await page.mouse.up()
+}
 
 /**
  * Selects the first SELECTION_LENGTH characters of the first paragraph and
