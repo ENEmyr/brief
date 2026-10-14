@@ -43,6 +43,8 @@ beforeEach(() => {
   useEChartMock.mockReturnValue({
     containerRef: { current: null },
     chartRef: { current: null },
+    // useEChart reports when the chart has drawn; these tests run against a drawn chart.
+    ready: true,
   })
 })
 
@@ -300,16 +302,21 @@ describe('BigO component (useEChart mocked)', () => {
     expect(screen.getByText(expectedN.toLocaleString())).toBeInTheDocument()
   })
 
-  it('defaults the caption to "Big-O comparison", or uses the block title', () => {
+  it('shows the bigo kind tag, and the block title as caption when there is one', () => {
+    // The fallback caption is gone: the kind tag names the block (B-Blocks
+    // headers), and an untitled block shows no invented caption.
     const { rerender } = render(<BigO block={block} />)
-    expect(screen.getByText('Big-O comparison')).toBeInTheDocument()
+    expect(screen.getByText('bigo')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Big-O comparison')).not.toBeInTheDocument()
     rerender(<BigO block={{ ...block, title: 'Search complexity' }} />)
     expect(screen.getByText('Search complexity')).toBeInTheDocument()
   })
 })
 
 describe('Heatmap/Histogram/Scatter components (useEChart mocked)', () => {
-  it('Heatmap calls useEChart and defaults its caption', () => {
+  it('Heatmap calls useEChart and shows its kind tag', () => {
+    // The fallback caption is gone: the kind tag names the block (B-Blocks
+    // headers), and an untitled block shows no invented caption.
     const block: Extract<Block, { type: 'heatmap' }> = {
       type: 'heatmap',
       xLabels: ['a'],
@@ -318,23 +325,26 @@ describe('Heatmap/Histogram/Scatter components (useEChart mocked)', () => {
     }
     render(<Heatmap block={block} />)
     expect(useEChartMock).toHaveBeenCalled()
-    expect(screen.getByText('Heatmap')).toBeInTheDocument()
+    expect(screen.getByText('heatmap')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Heatmap')).not.toBeInTheDocument()
   })
 
-  it('Histogram calls useEChart and defaults its caption', () => {
+  it('Histogram calls useEChart and shows its kind tag', () => {
     const block: Extract<Block, { type: 'histogram' }> = {
       type: 'histogram',
       bins: [{ label: '0-10', count: 1 }],
     }
     render(<Histogram block={block} />)
     expect(useEChartMock).toHaveBeenCalled()
-    expect(screen.getByText('Histogram')).toBeInTheDocument()
+    expect(screen.getByText('histogram')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Histogram')).not.toBeInTheDocument()
   })
 
   it('Histogram still captures its expanded chart at the default pixelRatio 2', () => {
-    // Plot3d overrides ChartExpandButton's pixelRatio down to 1 (echarts-gl
-    // blanks the WebGL layer above 1) — the canvas-only 2D charts must keep
-    // the crisper 2x capture.
+    // Plot3d overrides the capture pixelRatio down to 1 (echarts-gl blanks
+    // the WebGL layer above 1) — the canvas-only 2D charts must keep the
+    // crisper 2x capture. The control is now the card header's full-screen
+    // button (B-Blocks2:28 label), which replaced the 'Expand chart' pill.
     const block: Extract<Block, { type: 'histogram' }> = {
       type: 'histogram',
       bins: [{ label: '0-10', count: 1 }],
@@ -343,19 +353,21 @@ describe('Heatmap/Histogram/Scatter components (useEChart mocked)', () => {
     useEChartMock.mockReturnValue({
       containerRef: { current: null },
       chartRef: { current: { getDataURL } },
+      ready: true,
     })
     render(<Histogram block={block} />)
-    fireEvent.click(screen.getByLabelText('Expand chart'))
+    fireEvent.click(screen.getByRole('button', { name: 'Open diagram full screen' }))
     expect(getDataURL).toHaveBeenCalledWith({ pixelRatio: 2, backgroundColor: 'light:card' })
   })
 
-  it('Scatter calls useEChart and defaults its caption', () => {
+  it('Scatter calls useEChart and shows its kind tag', () => {
     const block: Extract<Block, { type: 'scatter' }> = {
       type: 'scatter',
       series: [{ label: 'A', points: [[1, 2]] }],
     }
     render(<Scatter block={block} />)
     expect(useEChartMock).toHaveBeenCalled()
-    expect(screen.getByText('Scatter plot')).toBeInTheDocument()
+    expect(screen.getByText('scatter')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Scatter plot')).not.toBeInTheDocument()
   })
 })

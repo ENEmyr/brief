@@ -21,35 +21,3 @@ export interface BlockAnchor {
  * to build one from. See CardCaption.
  */
 export type CaptionAnchor = Omit<BlockAnchor, 'pathPrefix'>
-
-/** The caption half of DiagramCardProps: the string, and the leaf it came from. */
-export interface DiagramCaption extends CaptionAnchor {
-  caption: string
-  captionPath: string
-}
-
-/**
- * Caption for a diagram block, whose caption is always its own `title`. Both
- * halves are derived in one place, the string on screen and the leaf it anchors
- * to, so the two cannot drift apart.
- *
- * `title` is optional on every diagram block, and a block without one shows the
- * `fallback` chrome label instead ('Sequence', 'Diagram', '3D plot'). That label
- * is not in the payload, so it is deliberately NOT annotatable: an anchor at
- * path `title` would name a leaf that does not exist, and the label carries
- * nothing worth annotating anyway.
- */
-export function titleCaption(
-  { sid, bid, pathPrefix = '', annotatable = true, onMarkClick }: BlockAnchor,
-  title: string | undefined,
-  fallback: string,
-): DiagramCaption {
-  return {
-    caption: title ?? fallback,
-    captionPath: `${pathPrefix}title`,
-    sid,
-    bid,
-    annotatable: annotatable && title !== undefined,
-    onMarkClick,
-  }
-}

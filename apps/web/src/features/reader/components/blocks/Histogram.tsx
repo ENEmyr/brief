@@ -1,10 +1,9 @@
 'use client'
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
-import { ChartExpandButton } from './ChartExpandButton'
+import { useChartCard } from '../fullScreen'
 import { useTheme } from '@/features/theme'
 import { chartPalette, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
@@ -49,19 +48,19 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
 export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & BlockAnchor) {
   const { theme } = useTheme()
 
-  const { containerRef, chartRef } = useEChart(() => buildHistogramOption(block, chartPalette(theme)), [block, theme])
+  const { containerRef, chartRef, ready } = useEChart(() => buildHistogramOption(block, chartPalette(theme)), [block, theme])
+
+  const chartCard = useChartCard(chartRef, ready, theme)
 
   return (
-    <DiagramCard
-      {...titleCaption(anchor, block.title, 'Histogram')}
-      expandable={false}
-      controls={
-        <div className="flex justify-end">
-          <ChartExpandButton chartRef={chartRef} theme={theme} />
-        </div>
-      }
-    >
-      <div ref={containerRef} className="h-[260px] w-full" />
-    </DiagramCard>
+    <BlockCard {...cardHeader(block, anchor)} {...chartCard}>
+      <div className="px-4 pb-2.5 pt-4">
+        <div
+          ref={containerRef}
+          className={`h-[260px] w-full ${ready ? '' : 'sk'}`}
+          style={{ borderRadius: 4 }}
+        />
+      </div>
+    </BlockCard>
   )
 }

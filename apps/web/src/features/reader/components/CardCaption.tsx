@@ -10,11 +10,6 @@ export interface CardCaptionProps extends CaptionAnchor {
 }
 
 /**
- * The caption in a figure's header bar. DiagramCard's title, CodeBlock's
- * filename and BeforeAfter's side title all render through this, so the three
- * headers keep one look and one rule for when a caption is a leaf the reader
- * can annotate.
- *
  * The caption wraps rather than truncating. CSS truncation would keep the DOM
  * text intact, so the anchor offsets would still be honest, but a <mark> that
  * lands in the clipped tail would be invisible: a highlight the reader made and
@@ -30,7 +25,7 @@ export function CardCaption({
 }: CardCaptionProps) {
   return (
     <Annotatable
-      className="min-w-0 break-words font-mono text-[10.5px] tracking-[.04em] text-faint"
+      className="min-w-0 break-words"
       text={text}
       sid={sid}
       // A caption always belongs to a block, never to a section heading, so a

@@ -1,10 +1,9 @@
 'use client'
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
-import { ChartExpandButton } from './ChartExpandButton'
+import { useChartCard } from '../fullScreen'
 import { useTheme } from '@/features/theme'
 import { chartPalette, useEChart, getEChartsGL } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
@@ -149,28 +148,25 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
   // Hook is always called (rules of hooks) — when canRender is false the
   // container div below never mounts, so useEChart's effect finds
   // `containerRef.current` null and never initializes a chart instance.
-  const { containerRef, chartRef } = useEChart(() => buildPlot3dOption(block, chartPalette(theme)), [block, theme], getEChartsGL)
+  const { containerRef, chartRef, ready } = useEChart(() => buildPlot3dOption(block, chartPalette(theme)), [block, theme], getEChartsGL)
+  // pixelRatio 1: echarts-gl's WebGL layer captures blank at pixelRatio > 1
+  const chartCard = useChartCard(chartRef, ready, theme, 1)
 
   return (
-    <DiagramCard
-      {...titleCaption(anchor, block.title, '3D plot')}
-      expandable={false}
-      controls={
-        canRender ? (
-          <div className="flex justify-end">
-            {/* pixelRatio 1: echarts-gl's WebGL layer captures blank at pixelRatio > 1 */}
-            <ChartExpandButton chartRef={chartRef} theme={theme} pixelRatio={1} />
-          </div>
-        ) : undefined
-      }
-    >
-      {canRender ? (
-        <div ref={containerRef} className="h-[280px] w-full" />
-      ) : (
-        <FallbackNote
-          text={webGLAvailable ? 'No data for 3D plot' : 'WebGL unavailable - 3D plot cannot render'}
-        />
-      )}
-    </DiagramCard>
+    <BlockCard {...cardHeader(block, anchor)} {...(canRender ? chartCard : {})}>
+      <div className="p-3">
+        {canRender ? (
+          <div
+            ref={containerRef}
+            className={`h-[280px] w-full ${ready ? '' : 'sk'}`}
+            style={{ borderRadius: 4 }}
+          />
+        ) : (
+          <FallbackNote
+            text={webGLAvailable ? 'No data for 3D plot' : 'WebGL unavailable - 3D plot cannot render'}
+          />
+        )}
+      </div>
+    </BlockCard>
   )
 }
