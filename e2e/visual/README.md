@@ -119,6 +119,18 @@ number belongs to: the top bar is 52 high inside a 55 px `header` (2 px progress
 line, 1 px border), the outline rows are 236 wide inside a 250 px panel, the dock
 is 340 wide inside a 342 px box.
 
+## Foundations
+
+`tests/foundations.visual.spec.ts` checks B-Foundations without a screenshot. It
+reads `tokens.css` from `BRIEF_HANDOFF_DIR` and asserts, per theme, that every
+color, shadow and duration the running app resolves equals it, that the 13 D8
+board colors exist in both themes, that `globals.css` `@theme` is the
+`tokens.css` block, and that Geist, Geist Mono and Noto Sans Thai load. It also
+measures diagram label widths in the real fonts and fails when the constants in
+`apps/web/src/features/reader/lib/svgText.ts` would clip a Thai label of the
+fixture or carry more than rounding slack; the measured numbers print in the
+test output.
+
 ## Fixture and gaps
 
 `fixtures/brief-sample.payload.json` reproduces the sample brief of B-Reader with
