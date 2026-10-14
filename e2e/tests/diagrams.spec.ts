@@ -86,6 +86,7 @@ const payload: Payload = {
           title: 'cost',
           series: [
             { label: 'O(n)', curve: 'n' },
+            { label: 'O(log n)', curve: 'logn' },
             { label: 'O(1)', curve: '1' },
           ],
         },
@@ -330,6 +331,23 @@ test.describe('D5 removals and kept interactions', () => {
     await expect(open).toBeEnabled()
     await open.click()
     await expect(page.getByRole('dialog', { name: 'Diagram viewer' }).locator('img')).toBeVisible()
+  })
+
+  test('the bigo n slider keeps a usable width at every viewport', async ({ page, createSession, isMobile }) => {
+    test.skip(isMobile, 'each width is set on the desktop project')
+    const { id } = await createSession(payload)
+    for (const width of [388, 881, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(`/s/${id}`)
+      const figure = card(page, 'bigo', 'cost')
+      const slider = figure.getByRole('slider', { name: 'n (log scale)' })
+      await slider.scrollIntoViewIfNeeded()
+      const box = (await slider.boundingBox())!
+      const cardBox = (await figure.boundingBox())!
+      expect.soft(box.width, `slider width at ${width} in a ${cardBox.width} card`).toBeGreaterThanOrEqual(cardBox.width / 2)
+      // Touch targets are 44 under 880 (settled rule).
+      if (width < 880) expect.soft(box.height, `slider height at ${width}`).toBeGreaterThanOrEqual(44)
+    }
   })
 })
 
