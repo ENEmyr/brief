@@ -143,6 +143,11 @@ describe('Plot3d option builder', () => {
     expect(opt.xAxis3D.name).toBeUndefined()
   })
 
+  it('keeps echarts\' own tooltip, which escapes payload text itself (no formatter returns HTML)', () => {
+    const option = buildPlot3dOption(scatterBlock, palette)
+    expect((option.tooltip as { formatter?: unknown }).formatter).toBeUndefined()
+  })
+
   it('disables camera auto-rotate', () => {
     const option = buildPlot3dOption(scatterBlock, palette)
     const opt = option as unknown as { grid3D: { viewControl: { autoRotate: boolean } } }
