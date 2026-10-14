@@ -1,26 +1,30 @@
 'use client'
-import { useId } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type { Decision } from '@brief/schema'
 import { useReaderActions, useReaderState } from '@/features/reader-state'
 import { isAnswered } from '../lib/answers'
+import type { DockTarget } from './DecisionDock'
 import { OptionList } from './OptionList'
 import { SupportTabs } from './SupportTabs'
 
-const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
+const FOCUS_RING =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
 
 /**
  * The dock as B-Mobile's bottom sheet (B-Mobile:64-92): a chip per decision,
  * then the current one alone, then "Copy prompt for agent". The chips are 44
  * high where the board draws 36: every target under 880 is at least 44.
+ * `target` picks the question; a new `seq` (N, "Go to") also focuses it, a chip
+ * keeps focus on itself.
  */
 export function DecisionSheet({
   decisions,
-  currentId,
+  target,
   onSelect,
   onCopyPrompt,
 }: {
   decisions: Decision[]
-  currentId: string | undefined
+  target: DockTarget | null
   onSelect: (id: string) => void
   onCopyPrompt: () => void
 }) {
@@ -28,7 +32,19 @@ export function DecisionSheet({
   const actions = useReaderActions()
   const questionId = useId()
   const reasonId = useId()
-  const current = decisions.find((d) => d.id === currentId) ?? decisions[0]!
+  const answeredId = useId()
+  const bodyRef = useRef<HTMLDivElement>(null)
+  // A chip keeps the request number (0 before any), so only N and "Go to" move focus.
+  const handledSeq = useRef(target?.seq ?? 0)
+  const current = decisions.find((d) => d.id === target?.id) ?? decisions[0]!
+
+  useEffect(() => {
+    if (!target || target.seq === handledSeq.current) return
+    handledSeq.current = target.seq
+    bodyRef.current
+      ?.querySelector<HTMLElement>('[role="radio"][tabindex="0"], [role="checkbox"]')
+      ?.focus()
+  }, [target])
 
   return (
     <>
@@ -36,7 +52,9 @@ export function DecisionSheet({
         {decisions.map((d) => {
           const on = d.id === current.id
           const done = isAnswered(d, state)
-          let tone = done ? 'border-line2 bg-transparent text-text' : 'border-line2 bg-transparent text-sub'
+          let tone = done
+            ? 'border-line2 bg-transparent text-text'
+            : 'border-line2 bg-transparent text-sub'
           if (on) tone = 'border-accent-line bg-accent-soft text-accent-text'
           return (
             <button
@@ -44,6 +62,7 @@ export function DecisionSheet({
               type="button"
               aria-pressed={on}
               aria-label={`Question ${d.id}`}
+              aria-describedby={done ? answeredId : undefined}
               onClick={() => onSelect(d.id)}
               className={`min-h-11 shrink-0 rounded-[999px] border px-3 font-mono text-[12px] ${tone} ${FOCUS_RING}`}
             >
@@ -52,8 +71,11 @@ export function DecisionSheet({
             </button>
           )
         })}
+        <span id={answeredId} hidden>
+          answered
+        </span>
       </div>
-      <div className="min-h-0 grow overflow-y-auto px-[14px] pb-[14px] pt-[6px]">
+      <div ref={bodyRef} className="min-h-0 grow overflow-y-auto px-[14px] pb-[14px] pt-[6px]">
         <div
           key={current.id}
           role="group"

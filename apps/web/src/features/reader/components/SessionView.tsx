@@ -209,6 +209,8 @@ function SessionReady({
   }
 
   const showDecision = useCallback((id: string) => setDockTarget((prev) => ({ id, seq: (prev?.seq ?? 0) + 1 })), [])
+  // A sheet chip switches the question without taking focus off the chip.
+  const selectDecision = useCallback((id: string) => setDockTarget((prev) => ({ id, seq: prev?.seq ?? 0 })), [])
 
   function goToDecision(id: string) {
     showDecision(id)
@@ -387,8 +389,8 @@ function SessionReady({
                 sheet={
                   <DecisionSheet
                     decisions={payload.decisions}
-                    currentId={dockTarget?.id}
-                    onSelect={showDecision}
+                    target={dockTarget}
+                    onSelect={selectDecision}
                     onCopyPrompt={copyPrompt}
                   />
                 }

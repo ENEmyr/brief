@@ -51,7 +51,9 @@ export function coerceHighlights(raw: unknown): Highlight[] {
 
 function coerceStrings(raw: unknown): Record<string, string> {
   if (!isRecord(raw)) return {}
-  return Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+  return Object.fromEntries(
+    Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  )
 }
 
 export function coerceState(raw: unknown): ReaderState {
