@@ -27,7 +27,14 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Pixel 7 is Chromium-based (390x844 class, touch, mobile UA), so it runs
+    // on the browser the suite already installs. Specs that only make sense with
+    // a mouse and a wide window skip themselves on this project, each with a
+    // stated reason.
+    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+  ],
   webServer: [
     {
       // Local mode: skips RATE_LIMITER (guarded by `if (env.RATE_LIMITER)`
