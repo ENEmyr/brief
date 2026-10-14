@@ -29,7 +29,12 @@ export function UsageExample() {
       </div>
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex max-w-[380px] flex-[1_1_280px] flex-col gap-3">
-          <div role="tablist" aria-label="Integration path" className="flex flex-col gap-[6px]">
+          <div
+            role="tablist"
+            aria-label="Integration path"
+            aria-orientation="vertical"
+            className="flex flex-col gap-[6px]"
+          >
             {USAGE_TABS.map((candidate) => {
               const selected = candidate.id === active
               return (
@@ -39,7 +44,7 @@ export function UsageExample() {
                   role="tab"
                   id={`tab-${candidate.id}`}
                   aria-selected={selected}
-                  aria-controls={`panel-${candidate.id}`}
+                  aria-controls="usage-panel"
                   onClick={() => setActive(candidate.id)}
                   className={`${styles.btn} flex min-h-[52px] flex-col justify-center gap-[2px] rounded-[6px] border px-[14px] py-2 text-left text-text ${FOCUS_RING} ${
                     selected ? 'border-accent-line bg-accent-soft' : 'border-line bg-card'
@@ -57,7 +62,7 @@ export function UsageExample() {
         </div>
         <div
           role="tabpanel"
-          id={`panel-${tab.id}`}
+          id="usage-panel"
           aria-labelledby={`tab-${tab.id}`}
           className="min-w-0 flex-[999_1_482px] overflow-hidden rounded-[8px] border border-line bg-card"
         >

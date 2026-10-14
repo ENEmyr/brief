@@ -87,7 +87,10 @@
           "type": "code",
           "language": "ts",
           "filename": "src/limiter.ts",
-          "code": "export async function take(key: string) {\n  const b = await bucket(key)\n  if (b.tokens < 1) return deny(b.resetAt)\n  b.tokens -= 1\n  return allow(b.tokens)\n}"
+          "code": "export async function take(key: string) {\n  const b = await bucket(key)\n  if (b.tokens < 1) return deny(b.resetAt)\n  b.tokens -= 1\n  return allow(b.tokens)\n}",
+          "highlight": [
+            4
+          ]
         }
       ]
     },
