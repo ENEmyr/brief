@@ -133,7 +133,7 @@ function LayerChip({ label, on, disabled, onToggle }: LayerChipProps) {
       disabled={disabled}
       onClick={onToggle}
       aria-pressed={on}
-      className="rounded-[7px] border px-2.5 py-1 font-mono text-[12px] max-[879px]:min-h-11"
+      className="rounded-[7px] border px-2.5 py-1 font-mono text-[12px] max-[880px]:min-h-11"
       style={{
         color: on ? 'var(--c-text)' : 'var(--c-faint)',
         borderColor: on ? 'var(--c-line2)' : 'var(--c-line)',

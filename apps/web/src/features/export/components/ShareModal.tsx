@@ -49,7 +49,7 @@ export function ShareModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="max-[879px]:min-h-11 max-[879px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
+            className="max-[880px]:min-h-11 max-[880px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
           >
             ✕
           </button>
@@ -65,7 +65,7 @@ export function ShareModal({
           <button
             type="button"
             onClick={() => onCopy(url)}
-            className="max-[879px]:min-h-11 cursor-pointer whitespace-nowrap rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent"
+            className="max-[880px]:min-h-11 cursor-pointer whitespace-nowrap rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent"
           >
             Copy
           </button>

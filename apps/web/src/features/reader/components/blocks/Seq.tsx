@@ -26,7 +26,7 @@ interface SeqControlsProps {
 }
 
 function controlButtonClass(disabled: boolean): string {
-  const base = 'rounded-[7px] border px-3 py-[5px] text-[12.5px] font-sans max-[879px]:min-h-11'
+  const base = 'rounded-[7px] border px-3 py-[5px] text-[12.5px] font-sans max-[880px]:min-h-11'
   return disabled ? `${base} border-line bg-elev text-faint cursor-default` : `${base} border-line bg-card text-text cursor-pointer`
 }
 

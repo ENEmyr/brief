@@ -271,6 +271,6 @@ describe('SelectionToolbar', () => {
     const block = screen.getByText('Hello world')
     selectWithin(block)
     const button = screen.getByRole('button', { name: 'Highlight' })
-    expect(button).toHaveClass('max-[879px]:min-h-11')
+    expect(button).toHaveClass('max-[880px]:min-h-11')
   })
 })

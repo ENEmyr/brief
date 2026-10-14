@@ -8,7 +8,7 @@ import { CodePre } from './CodePre'
 type BeforeAfterBlock = Extract<Block, { type: 'ba' }>
 
 function segmentClass(active: boolean): string {
-  const base = 'rounded-md px-3 py-1 text-[12px] font-semibold max-[879px]:min-h-11'
+  const base = 'rounded-md px-3 py-1 text-[12px] font-semibold max-[880px]:min-h-11'
   return active ? `${base} bg-accent text-on-accent` : `${base} bg-transparent text-sub`
 }
 

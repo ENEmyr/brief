@@ -101,7 +101,7 @@ function StateControls({ current, events, onTransition, onReset }: StateControls
             key={`${t.from}-${t.to}-${i}`}
             type="button"
             onClick={() => onTransition(t.to)}
-            className="rounded-[7px] border border-accent-line bg-accent-soft px-[11px] py-1 text-[12px] text-accent-text max-[879px]:min-h-11"
+            className="rounded-[7px] border border-accent-line bg-accent-soft px-[11px] py-1 text-[12px] text-accent-text max-[880px]:min-h-11"
           >
             {t.label ?? `to ${t.to}`}
           </button>
@@ -110,7 +110,7 @@ function StateControls({ current, events, onTransition, onReset }: StateControls
         <button
           type="button"
           onClick={onReset}
-          className="rounded-[7px] border border-line bg-elev px-[11px] py-1 text-[12px] text-sub max-[879px]:min-h-11"
+          className="rounded-[7px] border border-line bg-elev px-[11px] py-1 text-[12px] text-sub max-[880px]:min-h-11"
         >
           ↺ reset
         </button>

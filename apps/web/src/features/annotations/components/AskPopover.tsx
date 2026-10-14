@@ -80,7 +80,7 @@ export function AskPopover({
           type="button"
           onClick={handleCopy}
           disabled={!ready}
-          className={`max-[879px]:min-h-11 rounded-lg border-0 px-3.5 py-2 font-[inherit] text-[12.5px] font-bold ${
+          className={`max-[880px]:min-h-11 rounded-lg border-0 px-3.5 py-2 font-[inherit] text-[12.5px] font-bold ${
             ready ? 'cursor-pointer bg-accent text-on-accent' : 'cursor-default bg-line text-[var(--c-disabled-text)]'
           }`}
         >
@@ -89,14 +89,14 @@ export function AskPopover({
         <button
           type="button"
           onClick={handleRemove}
-          className="max-[879px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-bad"
+          className="max-[880px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-bad"
         >
           Remove
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="max-[879px]:min-h-11 ml-auto cursor-pointer rounded-lg border border-line bg-elev px-3 py-2 font-[inherit] text-[12.5px] text-text"
+          className="max-[880px]:min-h-11 ml-auto cursor-pointer rounded-lg border border-line bg-elev px-3 py-2 font-[inherit] text-[12.5px] text-text"
         >
           Done
         </button>

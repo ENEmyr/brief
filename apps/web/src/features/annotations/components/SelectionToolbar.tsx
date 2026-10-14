@@ -27,7 +27,7 @@ function findHlBlock(node: Node | null): HTMLElement | null {
 }
 
 const buttonClass =
-  'inline-flex items-center gap-[5px] rounded-md border-0 bg-transparent px-[9px] py-[5px] font-[inherit] text-[12.5px] text-page cursor-pointer max-[879px]:min-h-11'
+  'inline-flex items-center gap-[5px] rounded-md border-0 bg-transparent px-[9px] py-[5px] font-[inherit] text-[12.5px] text-page cursor-pointer max-[880px]:min-h-11'
 
 /** Floating pill toolbar (prototype: Reader.dc.html lines 707-713) shown on
  * text selection inside a [data-hl] block. Listens on document so it works
