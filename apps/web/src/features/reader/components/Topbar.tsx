@@ -86,8 +86,9 @@ export function Topbar({
   const chipOnNarrow = saveStatus === 'device' || saveStatus === 'tab'
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-[var(--c-topbar)] leading-[normal] backdrop-blur-[8px] print:hidden">
-      <div className="flex h-[52px] items-center gap-[10px] pl-[14px] pr-2 max-[880px]:h-12 max-[880px]:gap-1 max-[880px]:pl-3 max-[880px]:pr-1">
+    <header className="sticky top-0 z-40 border-b border-line bg-[var(--c-topbar)] leading-[normal] backdrop-blur-[8px] print:hidden max-[880px]:border-b-0">
+      {/* B-Mobile:24 draws the line under the 48px row, above the progress line. */}
+      <div className="flex h-[52px] items-center gap-[10px] pl-[14px] pr-2 max-[880px]:box-content max-[880px]:h-12 max-[880px]:gap-1 max-[880px]:border-b max-[880px]:border-line max-[880px]:pl-3 max-[880px]:pr-1">
         {onOpenOutline && (
           <button
             type="button"

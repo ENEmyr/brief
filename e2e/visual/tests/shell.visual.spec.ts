@@ -288,19 +288,25 @@ test('at 880 the outline stays and the dock is under the document', async ({ pag
 test.describe('under 880 (B-Mobile)', () => {
   test.use({ viewport: PHONE_VIEWPORT, isMobile: true, hasTouch: true })
 
-  test('top bar is 48 high with the section counter and 44px buttons', async ({ page, theme }) => {
+  // B-Mobile:24-30: a 48 row with its 1px line under it (49 in all), then the
+  // 2px progress line; the 44 buttons are square (no radius on the board).
+  test('top bar is a 48 row with its line under it, the section counter and square 44px buttons', async ({ page, theme }) => {
     await openReader(page)
     const row = page.locator('header > :first-child')
-    await expectBox(row, { x: 0, y: 0, width: 388, height: 48 })
+    await expectBox(row, { x: 0, y: 0, width: 388, height: 49 })
+    await expectComputed(row, { 'border-bottom-width': '1px', 'border-bottom-color': C[theme].line })
+    await expectComputed(page.locator('header'), { 'border-bottom-width': '0px' })
     const counter = row.getByText(/^§\d{2} \/ \d{2}$/)
     await expect(counter).toBeVisible()
     await expectComputed(counter, { color: C[theme].faint, 'font-size': '12px' })
     for (const name of ['Open outline', 'Search', 'More actions']) {
-      await expectBox(row.getByRole('button', { name, exact: true }), { width: 44, height: 44 })
+      const button = row.getByRole('button', { name, exact: true })
+      await expectBox(button, { width: 44, height: 44 })
+      await expectComputed(button, { 'border-top-left-radius': '0px', 'border-bottom-right-radius': '0px' })
     }
     await expect(page.getByRole('tablist', { name: 'View' })).toBeHidden()
     await expect(page.locator('nav[aria-label="Outline"]')).toBeHidden()
-    await expectBox(page.getByRole('progressbar', { name: 'Reading progress' }), { y: 48, height: 2 })
+    await expectBox(page.getByRole('progressbar', { name: 'Reading progress' }), { y: 49, height: 2 })
   })
 
   test('the dock is a bottom sheet with a peek bar', async ({ page, theme }) => {
@@ -328,7 +334,9 @@ test.describe('under 880 (B-Mobile)', () => {
     await expect.poll(async () => Math.round((await dock.boundingBox())!.y)).toBe(106)
     const sheet = (await dock.boundingBox())!
     expect(Math.round(sheet.y + sheet.height)).toBe(PHONE_VIEWPORT.height)
-    await expect(dock.getByRole('button', { name: 'Close dock' })).toBeVisible()
+    const close = dock.getByRole('button', { name: 'Close dock' })
+    await expect(close).toBeVisible()
+    await expectComputed(close, { 'border-top-left-radius': '0px' })
   })
 
   test('the section counter reads §04 / 04 at the bottom of the page', async ({ page }) => {
