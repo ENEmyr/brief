@@ -128,6 +128,10 @@
    * the text value #8F5A00. Dark is the warn token. */
   --c-warn-fill: #b87a0a;
 
+  /* Archive dialog's warn callout: B-Overlays draws #1A1710 in dark, not
+   * --c-warn-soft. Light keeps the warn-soft token value (D8 style). */
+  --c-warn-callout: #fbf0da;
+
   /* The dock's first open decision (B-Reader:261, B-Reader-Light:261) and the
    * prompt review sheet's leftward shadow (B-Overlays:119, light from
    * tools/lightify.py). Board values with no token in tokens.css. */
@@ -210,6 +214,7 @@
     --c-disabled-text: #4b545c;
 
     --c-warn-fill: #f4b740;
+    --c-warn-callout: #1a1710;
 
     --c-dock-current: #141a12;
     --shadow-sheet: -16px 0 48px rgba(0, 0, 0, 0.45);
@@ -322,6 +327,21 @@ body {
 @media (width < 640px) {
   .console-dialog {
     animation: console-sheet var(--dur-slow) var(--ease-console) both;
+  }
+}
+/* A bottom sheet ends its actions at the viewport's bottom edge, where the
+ * toast sits. While one is open the toast moves to the top edge: a dialog
+ * sheet stops 64 below it (max-h 100dvh - 64) and the dock sheet 106 below. */
+@media (width < 640px) {
+  body:has([aria-modal='true']) .console-toast {
+    top: 16px;
+    bottom: auto;
+  }
+}
+@media (width < 880px) {
+  body:has(#dock[aria-modal='true']) .console-toast {
+    top: 16px;
+    bottom: auto;
   }
 }
 .console-pop {

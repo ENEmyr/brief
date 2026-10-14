@@ -280,7 +280,7 @@ export function SaveModal({
               error={mismatch ? 'Passwords do not match' : null}
               inputRef={confirmRef}
             />
-            <aside className="rounded-ctrl border border-l-[3px] border-warn-line border-l-warn bg-warn-soft px-[10px] py-2 text-[12px] leading-[18px] text-text">
+            <aside className="rounded-ctrl border border-l-[3px] border-warn-line border-l-warn bg-[var(--c-warn-callout)] px-[10px] py-2 text-[12px] leading-[18px] text-text">
               The password never leaves this device. If you lose it, the content cannot be recovered.
             </aside>
           </div>
