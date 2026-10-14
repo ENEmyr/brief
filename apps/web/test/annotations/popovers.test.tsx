@@ -261,7 +261,7 @@ describe('AskPopover', () => {
 
   it('live-edits the question into the store', () => {
     renderPopover({}, [{ ...highlight, question: '' }])
-    const textarea = screen.getByPlaceholderText(/คำถาม/)
+    const textarea = screen.getByPlaceholderText('Type a question about this part…')
     fireEvent.change(textarea, { target: { value: 'what happens on retry?' } })
     expect(textarea).toHaveValue('what happens on retry?')
     const probe = JSON.parse(screen.getByTestId('probe').textContent ?? '[]')
