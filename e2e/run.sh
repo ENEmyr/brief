@@ -18,9 +18,9 @@ unset CDPATH
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-API_URL="${API_URL:-http://localhost:8787}"
-WEB_URL="${WEB_URL:-http://localhost:8788}"
-export API_URL WEB_URL
+# Ports come from ports.ts so run.sh and the Playwright config always agree.
+eval "$(bun "${SCRIPT_DIR}/ports.ts")"
+echo "==> Ports: api ${API_URL}, web ${WEB_URL} (E2E_PORT_BASE=${E2E_PORT_BASE})"
 
 echo "==> Building apps/web (NEXT_PUBLIC_API_URL=${API_URL})"
 (cd "${ROOT_DIR}/apps/web" && NEXT_PUBLIC_API_URL="${API_URL}" bun run build)

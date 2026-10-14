@@ -9,8 +9,9 @@ unset CDPATH
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-API_URL="${API_URL:-http://localhost:8787}"
-export API_URL
+# Ports come from ports.ts so run.sh and visual.config.ts always agree.
+eval "$(bun "${SCRIPT_DIR}/../ports.ts")"
+echo "==> Ports: visual web ${VISUAL_WEB_URL}, baked API ${API_URL} (E2E_PORT_BASE=${E2E_PORT_BASE})"
 
 mode="visual"
 if [ "${1:-}" = "refs" ]; then
