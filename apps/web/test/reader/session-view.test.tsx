@@ -209,7 +209,7 @@ describe('SessionPage / SessionView', () => {
     // The doc must still be rendered -- encrypt/plain save must never blank the reader.
     expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument()
     expect(screen.getByText('Hello world')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Archive' })).toHaveAttribute('title', 'Archived')
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute('title', 'Archived')
   })
 
   it('an encrypt save keeps the CURRENT decrypted payload on screen (does not drop to the protected-session card)', async () => {
@@ -234,7 +234,7 @@ describe('SessionPage / SessionView', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument()
     expect(screen.getByText('Hello world')).toBeInTheDocument()
     expect(screen.queryByText(/Protected session/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Archive' })).toHaveAttribute('title', 'Archived')
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute('title', 'Archived')
     // State is memory-only from here on (bug-250), and the save chip says so.
     await waitFor(() =>
       expect(within(screen.getByRole('banner')).getByRole('status')).toHaveTextContent('this tab only'),

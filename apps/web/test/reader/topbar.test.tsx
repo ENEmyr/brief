@@ -43,11 +43,15 @@ describe('Topbar', () => {
     expect(onSave).toHaveBeenCalledTimes(1)
   })
 
-  it('fills the Archive icon and titles it "Archived" once the doc is archived', () => {
-    render(<Topbar sessionId="sess1" onSave={vi.fn()} archived />)
-    const archive = screen.getByRole('button', { name: 'Archive' })
-    expect(archive).toHaveAttribute('title', 'Archived')
-    expect(archive.querySelector('svg')).toHaveAttribute('fill', 'currentColor')
+  it('fills the Archive icon and names it "Archived" once the doc is archived, so assistive tech hears the state', () => {
+    const { rerender } = render(<Topbar sessionId="sess1" onSave={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Archive' }).querySelector('svg')).toHaveAttribute('fill', 'none')
+
+    rerender(<Topbar sessionId="sess1" onSave={vi.fn()} archived />)
+    expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
+    const archived = screen.getByRole('button', { name: 'Archived' })
+    expect(archived).toHaveAttribute('title', 'Archived')
+    expect(archived.querySelector('svg')).toHaveAttribute('fill', 'currentColor')
   })
 
   it('the theme button names the current theme and switches it', () => {

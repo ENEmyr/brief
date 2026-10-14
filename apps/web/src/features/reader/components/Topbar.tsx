@@ -58,7 +58,7 @@ export function Topbar({
   paletteHint?: string
   onOpenPalette?: () => void
   saveStatus?: SaveStatus
-  /** Fills the Archive icon once the doc is archived. */
+  /** Fills the Archive icon and renames it "Archived" once the doc is archived. */
   archived?: boolean
   onOpenOutline?: () => void
   onSave?: () => void
@@ -148,7 +148,7 @@ export function Topbar({
             <button
               type="button"
               onClick={onSave}
-              aria-label="Archive"
+              aria-label={archived ? 'Archived' : 'Archive'}
               title={archived ? 'Archived' : undefined}
               className={ICON_BUTTON}
             >
