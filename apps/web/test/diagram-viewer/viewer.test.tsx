@@ -323,5 +323,31 @@ describe('ViewerOverlay', () => {
     render(<ViewerOverlay content={big} onClose={vi.fn()} />)
     expect(getTransformHost().style.transform).toBe('translate(0px, 0px) scale(0.5)')
   })
-})
 
+  it('does not zoom on a sideways trackpad swipe (deltaY 0)', () => {
+    render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
+    const host = getTransformHost()
+    act(() => {
+      fireEvent.wheel(host.parentElement as HTMLElement, { deltaX: -100, deltaY: 0 })
+    })
+    expect(host.style.transform).toBe('translate(0px, 0px) scale(1)')
+  })
+
+  it('keeps Tab and Shift+Tab inside the dialog when focus is on the dialog itself', () => {
+    render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
+    const dialog = screen.getByRole('dialog', { name: 'Diagram viewer' })
+    const buttons = within(dialog).getAllByRole('button')
+    expect(dialog).toHaveFocus()
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }))
+    })
+    expect(buttons[buttons.length - 1]).toHaveFocus()
+
+    act(() => dialog.focus())
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    })
+    expect(buttons[0]).toHaveFocus()
+  })
+})

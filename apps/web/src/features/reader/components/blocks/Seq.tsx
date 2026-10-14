@@ -127,9 +127,9 @@ function SeqDiagram({ block, cursor }: SeqDiagramProps) {
       style={{ width: layout.width, height: layout.height }}
     >
       <EdgeLayer width={layout.width} height={layout.height}>
-        {layout.actors.map((actor) => (
+        {layout.actors.map((actor, i) => (
           <path
-            key={actor.name}
+            key={i}
             d={`M${actor.x} ${layout.actorHeight} V${layout.lifelineBottom}`}
             fill="none"
             strokeWidth={1.5}
@@ -161,11 +161,11 @@ function SeqDiagram({ block, cursor }: SeqDiagramProps) {
           )
         })}
       </EdgeLayer>
-      {layout.actors.map((actor) => {
+      {layout.actors.map((actor, i) => {
         const active = current !== undefined && (current.from === actor.name || current.to === actor.name)
         return (
           <div
-            key={actor.name}
+            key={i}
             data-actor=""
             className={`absolute top-0 box-border flex items-center justify-center rounded-[4px] border bg-elev px-1.5 text-center font-sans text-[13px] font-medium text-text print:border-text! ${
               active ? 'border-accent-line' : 'border-line2'
@@ -211,7 +211,10 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
   const count = steps.length
 
   const reducer = useMemo(() => playbackReducer(count), [count])
-  const [{ cursor, playing }, dispatch] = useReducer(reducer, { cursor: null, playing: false })
+  const [state, dispatch] = useReducer(reducer, { cursor: null, playing: false })
+  // A live edit can drop steps under the cursor; it then stands on the last one.
+  const cursor = state.cursor === null || count === 0 ? null : Math.min(state.cursor, count)
+  const playing = state.playing && count > 0
 
   useEffect(() => {
     if (!playing) return
@@ -221,7 +224,7 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
 
   const currentStep = cursor === null ? undefined : steps[cursor - 1]
   const canPrev = cursor !== null && cursor > 1
-  const canNext = cursor === null || cursor < count
+  const canNext = count > 0 && (cursor === null || cursor < count)
 
   const diagram = <SeqDiagram block={drawn} cursor={cursor} />
   const onFullScreen = useDiagramFullScreen(diagram, {
@@ -235,7 +238,7 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
   })
 
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (event.metaKey || event.ctrlKey || event.altKey) return
+    if (count === 0 || event.metaKey || event.ctrlKey || event.altKey) return
     const action =
       event.key === 'ArrowLeft'
         ? 'prev'
@@ -276,6 +279,7 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
       <button
         type="button"
         aria-label={playing ? 'Pause' : 'Play sequence'}
+        disabled={count === 0}
         onClick={() => dispatch(playing ? 'pause' : 'play')}
         className={`${CONTROL} ${FILLED} max-[880px]:hidden`}
       >

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 export const MIN_ZOOM = 0.3
 export const MAX_ZOOM = 6
 /** The zoom buttons and keys move in 25-point steps (B-Overlays:229-230). */
-export const ZOOM_STEP = 0.25
-export const WHEEL_ZOOM_FACTOR = 1.15
+const ZOOM_STEP = 0.25
+const WHEEL_ZOOM_FACTOR = 1.15
 
 interface Point {
   x: number
@@ -112,6 +112,8 @@ export function usePanZoom(enabled = true): PanZoomApi {
 
     function handleWheel(event: WheelEvent) {
       event.preventDefault()
+      // A sideways trackpad swipe has no vertical part and must not zoom.
+      if (event.deltaY === 0) return
       zoomTo((prev) => prev * (event.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR))
     }
 

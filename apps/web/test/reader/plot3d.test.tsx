@@ -216,7 +216,8 @@ describe('Plot3d component', () => {
     const getDataURL = vi.fn(() => 'data:image/png;base64,x')
     useEChartMock.mockReturnValue({
       containerRef: { current: null },
-      chartRef: { current: { getDataURL } },
+      // getWidth and getHeight size the snapshot in the viewer.
+      chartRef: { current: { getDataURL, getWidth: () => 540, getHeight: () => 200 } },
       ready: true,
     })
     render(<Plot3d block={scatterBlock} />)
