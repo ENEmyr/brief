@@ -5,6 +5,9 @@ export type SaveRequestBody = { mode: 'plain' } | { mode: 'encrypt'; ciphertext:
 
 export type SaveApiResult = { ok: true } | { ok: false; error: string; status: number }
 
+/** B-States error toast copy for a failure with no more specific reason. */
+export const ARCHIVE_FAILED = 'Could not archive. Nothing was changed.'
+
 function mapErrorStatus(status: number): string {
   switch (status) {
     case 409:
@@ -14,7 +17,7 @@ function mapErrorStatus(status: number): string {
     case 429:
       return 'Too many attempts - try again in a minute'
     default:
-      return 'Archive failed'
+      return ARCHIVE_FAILED
   }
 }
 
@@ -27,7 +30,7 @@ export async function saveSession(sessionId: string, body: SaveRequestBody): Pro
       body: JSON.stringify(body),
     })
   } catch {
-    return { ok: false, error: 'Archive failed', status: 0 }
+    return { ok: false, error: ARCHIVE_FAILED, status: 0 }
   }
   if (res.ok) return { ok: true }
   return { ok: false, error: mapErrorStatus(res.status), status: res.status }

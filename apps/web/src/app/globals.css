@@ -52,6 +52,10 @@
   --ease-console: cubic-bezier(0.3, 0.8, 0.3, 1);
 }
 
+/* Under 640 every dialog becomes a bottom sheet (interactions.md, B-Overlays
+ * SHELL). */
+@custom-variant sheet (@media (width < 640px));
+
 /* The light set is the :root default and the dark set lives inside
  * @media not print, so printing is always light without extra work. The
  * no-flash script in layout.tsx picks the theme before paint (stored choice,
@@ -309,6 +313,20 @@ body {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
 }
+/* B-Overlays MOTION. */
+@keyframes console-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.console-dialog,
+.console-toast {
+  animation: console-enter var(--dur-base) var(--ease-console) both;
+}
+@media (width < 640px) {
+  .console-dialog {
+    animation: console-sheet var(--dur-slow) var(--ease-console) both;
+  }
+}
 .console-pop {
   animation: console-drop var(--dur-base) var(--ease-console) both;
 }
@@ -359,6 +377,10 @@ body {
   [data-flash] {
     animation: none;
     border-color: var(--c-accent-line);
+  }
+  .console-dialog,
+  .console-toast {
+    animation: console-in var(--dur-base) ease both;
   }
 }
 

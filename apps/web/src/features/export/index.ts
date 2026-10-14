@@ -1,6 +1,7 @@
 export { ExportProvider, useExport } from './components/ExportProvider'
 export type { ExportContextValue } from './components/ExportProvider'
 export { Toast } from './components/Toast'
+export { Dialog, DialogActions, DialogIcon, PRIMARY_BUTTON, SECONDARY_BUTTON } from './components/Dialog'
 export { ShareModal } from './components/ShareModal'
 export { CopyFallbackModal } from './components/CopyFallbackModal'
 export { copyText } from './lib/copy'

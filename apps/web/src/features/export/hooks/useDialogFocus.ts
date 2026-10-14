@@ -1,4 +1,4 @@
-import { useEffect, useId } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type { RefObject } from 'react'
 
 /**
@@ -11,17 +11,38 @@ import type { RefObject } from 'react'
  * comparison.
  */
 const dialogStack: string[] = []
+let lockCount = 0
+let stylesBeforeLock = { overflow: '', gutter: '' }
+
+function lockScroll() {
+  const root = document.documentElement
+  stylesBeforeLock = { overflow: document.body.style.overflow, gutter: root.style.getPropertyValue('scrollbar-gutter') }
+  // A classic scrollbar leaves its gutter behind, so the page does not shift sideways when it goes.
+  if (window.innerWidth > root.clientWidth) root.style.setProperty('scrollbar-gutter', 'stable')
+  document.body.style.overflow = 'hidden'
+}
+
+function unlockScroll() {
+  document.body.style.overflow = stylesBeforeLock.overflow
+  document.documentElement.style.setProperty('scrollbar-gutter', stylesBeforeLock.gutter)
+}
+
+/** Safari before 17.4 has no checkVisibility; an element with no layout box has no client rects either. */
+const isRendered = (el: HTMLElement): boolean =>
+  typeof el.checkVisibility === 'function' ? el.checkVisibility() : el.getClientRects().length > 0
+
+/** A roving-tabindex radio that is not checked has tabIndex -1. */
+const isTabStop = (el: HTMLElement): boolean => el.tabIndex >= 0 && !el.matches(':disabled') && isRendered(el)
 
 /**
- * Shared dialog focus-trap/-restore behavior for ShareModal and
- * CopyFallbackModal (both true `role="dialog" aria-modal` overlays, prototype
- * shareModal/copyModalView) -- extracted since both need the identical
- * remember-focus / move-focus-in / contain-Tab / close-on-Escape /
- * restore-focus-on-close sequence, matching the same pattern already used
- * (inline, not shared) by Toc.tsx's mobile drawer. `initialFocusRef` lets a
- * caller focus a specific element (CopyFallbackModal's textarea, so it's
- * also pre-selected) instead of the panel root itself. Escape only closes
- * this dialog when it is the topmost open dialog (see dialogStack above).
+ * Shared modal behavior for every dialog and sheet (interactions.md): move
+ * focus in, contain Tab, close the topmost one on Escape, lock body scroll
+ * while a modal is open, and restore focus on close. The Tab loop also reaches
+ * a toast's buttons, so the Retry on an error toast raised over a dialog is
+ * not out of reach. `initialFocusRef` names the element that takes
+ * focus (the first field, or the primary action); without it the panel root
+ * does. A textarea that takes focus is also selected. `onClose` is read when
+ * Escape is pressed, so a caller may pass a new function on every render.
  */
 export function useDialogFocus(
   panelRef: RefObject<HTMLElement | null>,
@@ -29,8 +50,14 @@ export function useDialogFocus(
   initialFocusRef?: RefObject<HTMLElement | null>,
 ) {
   const dialogId = useId()
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
 
   useEffect(() => {
+    const modal = panelRef.current?.getAttribute('aria-modal') === 'true'
+    if (modal && lockCount++ === 0) lockScroll()
     dialogStack.push(dialogId)
     const previouslyFocused = document.activeElement as HTMLElement | null
     const initial = initialFocusRef?.current ?? panelRef.current
@@ -39,22 +66,25 @@ export function useDialogFocus(
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        if (dialogStack[dialogStack.length - 1] === dialogId) onClose()
+        if (dialogStack[dialogStack.length - 1] === dialogId) onCloseRef.current()
         return
       }
 
-      if (event.key === 'Tab' && panelRef.current) {
-        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        )
+      if (event.key === 'Tab' && panelRef.current && dialogStack[dialogStack.length - 1] === dialogId) {
+        const selector = 'button, [href], input, select, textarea, [tabindex]'
+        const focusable = [
+          ...panelRef.current.querySelectorAll<HTMLElement>(selector),
+          ...document.querySelectorAll<HTMLElement>(`[data-toast] :is(${selector})`),
+        ].filter(isTabStop)
         const first = focusable[0]
         const last = focusable[focusable.length - 1]
         if (!first || !last) return
 
-        if (event.shiftKey && document.activeElement === first) {
+        const at = focusable.indexOf(document.activeElement as HTMLElement)
+        if (event.shiftKey && at <= 0) {
           event.preventDefault()
           last.focus()
-        } else if (!event.shiftKey && document.activeElement === last) {
+        } else if (!event.shiftKey && (at === -1 || at === focusable.length - 1)) {
           event.preventDefault()
           first.focus()
         }
@@ -65,8 +95,9 @@ export function useDialogFocus(
     return () => {
       const at = dialogStack.indexOf(dialogId)
       if (at !== -1) dialogStack.splice(at, 1)
+      if (modal && --lockCount === 0) unlockScroll()
       document.removeEventListener('keydown', handleKeyDown)
       previouslyFocused?.focus()
     }
-  }, [onClose, panelRef, initialFocusRef, dialogId])
+  }, [panelRef, initialFocusRef, dialogId])
 }
