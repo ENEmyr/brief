@@ -339,7 +339,7 @@ describe('DecisionDock', () => {
     expect(screen.getByText('Includes answers, reasons and 0 notes')).toBeInTheDocument()
   })
 
-  it('a new target scrolls its question into view and focuses its tab stop', () => {
+  it('a new target scrolls its question, then its tab stop, into view and focuses the tab stop', () => {
     const { rerender } = renderDock()
     expect(scrollIntoView).not.toHaveBeenCalled()
     rerender(
@@ -347,9 +347,10 @@ describe('DecisionDock', () => {
         <DecisionDock decisions={decisions} target={{ id: 'd2', seq: 1 }} onCopyPrompt={() => {}} />
       </ReaderStateProvider>,
     )
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
-    expect(scrollIntoView.mock.contexts).toEqual([question('d2')])
-    expect(screen.getByRole('checkbox', { name: 'US' })).toHaveFocus()
+    const tabStop = screen.getByRole('checkbox', { name: 'US' })
+    expect(scrollIntoView.mock.calls).toEqual([[{ block: 'nearest' }], [{ block: 'nearest' }]])
+    expect(scrollIntoView.mock.contexts).toEqual([question('d2'), tabStop])
+    expect(tabStop).toHaveFocus()
   })
 
   it('renders no support tab strip when no question has why/cmp/dia', () => {

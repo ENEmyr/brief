@@ -92,11 +92,19 @@ export function DecisionDock({
     const row = [...(rootRef.current?.querySelectorAll<HTMLElement>('[data-decision]') ?? [])].find(
       (el) => el.dataset.decision === target.id,
     )
-    if (!row) return
-    row.scrollIntoView({ block: 'nearest' })
-    row
-      .querySelector<HTMLElement>('[role="radio"][tabindex="0"], [role="checkbox"]')
-      ?.focus({ preventScroll: true })
+    if (!row?.parentElement) return
+    const list = row.parentElement
+    // 'nearest' aligns the bottom of a row taller than the list, which leaves its question
+    // and first options above the list's top edge; show such a row from its top instead.
+    // Only the list scrolls: scrollIntoView would also move the page under the sticky dock.
+    if (row.offsetHeight > list.clientHeight) {
+      list.scrollTop += row.getBoundingClientRect().top - list.getBoundingClientRect().top
+    } else {
+      row.scrollIntoView({ block: 'nearest' })
+    }
+    const option = row.querySelector<HTMLElement>('[role="radio"][tabindex="0"], [role="checkbox"]')
+    option?.scrollIntoView({ block: 'nearest' })
+    option?.focus({ preventScroll: true })
   }, [target])
 
   if (decisions.length === 0) return null
