@@ -32,8 +32,12 @@ export type Highlight = {
 
 export type ReaderState = {
   highlights: Highlight[]
-  dsel: Record<string, string[]> // decision id -> selected option IDs (always array; single-select = length 1)
-  dnote: Record<string, string> // decision id -> free text note
+  dsel: Record<string, string[]> // decision id -> the agent's option IDs picked (always array; single-select = length 1)
+  dnote: Record<string, string> // decision id -> reason / extra context
+  // decision id -> the reader's own answer. A key means "Other" is picked, even
+  // before any text is typed, so Other never needs an option id that could
+  // collide with one of the agent's.
+  dother: Record<string, string>
 }
 
 export interface ReaderStateActions {
@@ -41,6 +45,8 @@ export interface ReaderStateActions {
   updateHighlight(id: string, patch: Partial<Pick<Highlight, 'note' | 'question'>>): void
   removeHighlight(id: string): void
   pickOption(decisionId: string, optionId: string, multi: boolean): void
+  pickOther(decisionId: string, multi: boolean): void
+  setOtherText(decisionId: string, text: string): void
   setDecisionNote(decisionId: string, text: string): void
   resetDecisions(): void
   hydrate(state: ReaderState): void
@@ -58,7 +64,11 @@ export interface ReaderStateStore {
   stopPersistence(): void
 }
 
-const EMPTY_STATE: ReaderState = { highlights: [], dsel: {}, dnote: {} }
+const EMPTY_STATE: ReaderState = { highlights: [], dsel: {}, dnote: {}, dother: {} }
+
+function without<T>(record: Record<string, T>, key: string): Record<string, T> {
+  return Object.fromEntries(Object.entries(record).filter(([k]) => k !== key))
+}
 
 /** Creates an in-memory reader-state store for one session, seeded from
  * localStorage if a persisted entry exists. The returned shape matches
@@ -110,21 +120,33 @@ export function createReaderStateStore(
     },
     pickOption(decisionId, optionId, multi) {
       const current = state.dsel[decisionId] ?? []
-      let next: string[]
       if (!multi) {
-        next = [optionId]
-      } else if (current.includes(optionId)) {
-        next = current.filter((o) => o !== optionId)
-      } else {
-        next = [...current, optionId]
+        // A single-select holds one answer: the agent's option replaces Other.
+        commit({ ...state, dsel: { ...state.dsel, [decisionId]: [optionId] }, dother: without(state.dother, decisionId) })
+        return
       }
+      const next = current.includes(optionId) ? current.filter((o) => o !== optionId) : [...current, optionId]
       commit({ ...state, dsel: { ...state.dsel, [decisionId]: next } })
+    },
+    pickOther(decisionId, multi) {
+      const picked = Object.hasOwn(state.dother, decisionId)
+      if (multi) {
+        const dother = picked ? without(state.dother, decisionId) : { ...state.dother, [decisionId]: '' }
+        commit({ ...state, dother })
+        return
+      }
+      // Like any radio, picking Other again leaves it picked.
+      if (picked) return
+      commit({ ...state, dsel: without(state.dsel, decisionId), dother: { ...state.dother, [decisionId]: '' } })
+    },
+    setOtherText(decisionId, text) {
+      commit({ ...state, dother: { ...state.dother, [decisionId]: text } })
     },
     setDecisionNote(decisionId, text) {
       commit({ ...state, dnote: { ...state.dnote, [decisionId]: text } })
     },
     resetDecisions() {
-      commit({ ...state, dsel: {}, dnote: {} })
+      commit({ ...state, dsel: {}, dnote: {}, dother: {} })
     },
     hydrate(next) {
       commit(next)

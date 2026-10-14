@@ -6,7 +6,7 @@ import { ReaderStateProvider } from '@/features/reader-state'
 import { DecisionSection, SupportTabs, PromptReview, buildReplyPrompt } from '@/features/decisions'
 
 function emptyState(overrides: Partial<ReaderState> = {}): ReaderState {
-  return { highlights: [], dsel: {}, dnote: {}, ...overrides }
+  return { highlights: [], dsel: {}, dnote: {}, dother: {}, ...overrides }
 }
 
 describe('buildReplyPrompt', () => {
@@ -59,6 +59,39 @@ describe('buildReplyPrompt', () => {
     // opts order is us, eu, apac -- selection was [apac, us], so the joined
     // choice must still read "US; APAC", not "APAC; US".
     expect(text).toContain('  - Choice: US; APAC')
+  })
+
+  it('prints a single-select Other answer as "Other: <text>"', () => {
+    const text = buildReplyPrompt(decisions, emptyState({ dother: { d1: '  Redis  ' } }), 'Doc', 's1')
+    expect(text).toContain('[d1] Which cache?\n  - Choice: Other: Redis\n')
+  })
+
+  it('joins a multi-select Other answer after the agent options', () => {
+    const state = emptyState({ dsel: { d2: ['eu', 'us'] }, dother: { d2: 'LATAM' } })
+    const text = buildReplyPrompt(decisions, state, 'Doc', 's1')
+    expect(text).toContain('  - Choice: US; EU; Other: LATAM')
+  })
+
+  it('prints Other picked with no text yet as "Other:"', () => {
+    const text = buildReplyPrompt(decisions, emptyState({ dother: { d1: '' } }), 'Doc', 's1')
+    expect(text).toContain('  - Choice: Other:\n')
+  })
+
+  it('builds the prompt with open questions: answered ones resolved, open ones "(not answered)"', () => {
+    const text = buildReplyPrompt(decisions, emptyState({ dother: { d1: 'Redis' } }), 'Doc', 's1')
+    expect(text).toBe(
+      [
+        'Reply to the "Doc" doc (session s1) - my decisions:',
+        '',
+        '[d1] Which cache?',
+        '  - Choice: Other: Redis',
+        '',
+        '[d2] Which regions?',
+        '  - Choice: (not answered)',
+        '',
+        'Please act on the answers above; consider the extra context for any item that has a note',
+      ].join('\n'),
+    )
   })
 
   it('includes a Note line only when the note is non-empty after trimming', () => {

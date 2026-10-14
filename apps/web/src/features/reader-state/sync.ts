@@ -61,8 +61,8 @@ export function startKvSync(
   }
 
   function pushState(): void {
-    const { highlights, dsel, dnote } = store.getState()
-    const body = JSON.stringify({ state: JSON.stringify({ dsel, dnote, highlights }) })
+    const { highlights, dsel, dnote, dother } = store.getState()
+    const body = JSON.stringify({ state: JSON.stringify({ dsel, dnote, dother, highlights }) })
     const put = ++lastPut
     fetch(stateUrl(sessionId), {
       method: 'PUT',
