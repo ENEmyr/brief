@@ -1,0 +1,175 @@
+{
+  "meta": {
+    "title": "Console blocks"
+  },
+  "sections": [
+    {
+      "id": "blocks",
+      "no": 1,
+      "title": "Blocks",
+      "blocks": [
+        {
+          "type": "note",
+          "text": "เป้าหมายไม่ใช่การปฏิเสธผู้ใช้ แต่คือการปรับให้เรียบเพื่อให้ตอบสนองได้สม่ำเสมอ"
+        },
+        {
+          "type": "warn",
+          "text": "KV เป็น eventually consistent ตัวนับข้าม region คลาดได้ราว 60 วินาที"
+        },
+        {
+          "type": "good",
+          "text": "ทดสอบ burst 10 เท่าแล้ว origin ไม่ล้ม"
+        },
+        {
+          "type": "stat",
+          "items": [
+            {
+              "label": "Peak RPS",
+              "value": "4,800"
+            },
+            {
+              "label": "p95 latency",
+              "value": "2.4 s",
+              "tone": "red",
+              "hint": "▲ 8× จากเป้า 300 ms"
+            },
+            {
+              "label": "5xx rate",
+              "value": "11%",
+              "tone": "red",
+              "hint": "ช่วง burst"
+            },
+            {
+              "label": "หลังใส่ limiter",
+              "value": "0.2%",
+              "tone": "green",
+              "hint": "▼ 98% ใน load test"
+            }
+          ]
+        },
+        {
+          "type": "compare",
+          "caption": "เทียบสถาปัตยกรรม",
+          "left": {
+            "title": "ไม่มีตัวคุมอัตรา",
+            "tone": "bad",
+            "tag": "เสี่ยง",
+            "items": [
+              {
+                "text": "burst ทะลุถึง downstream",
+                "ok": false
+              },
+              {
+                "text": "ล้มลูกโซ่เมื่อโหลดพุ่ง",
+                "ok": false
+              },
+              {
+                "text": "ไม่มีสัญญาณให้ client ชะลอ",
+                "ok": false
+              }
+            ]
+          },
+          "right": {
+            "title": "มีตัวคุมอัตรา",
+            "tone": "good",
+            "tag": "ปลอดภัย",
+            "items": [
+              {
+                "text": "traffic เรียบก่อนถึง API",
+                "ok": true
+              },
+              {
+                "text": "ตอบ 429 + Retry-After",
+                "ok": true
+              },
+              {
+                "text": "ล้มเฉพาะ request ส่วนเกิน",
+                "ok": true
+              }
+            ]
+          }
+        },
+        {
+          "type": "coverage",
+          "caption": "การทดสอบ",
+          "items": [
+            {
+              "label": "Burst 10 เท่า",
+              "status": "full"
+            },
+            {
+              "label": "Multi-region",
+              "status": "partial"
+            },
+            {
+              "label": "Key rotation",
+              "status": "partial"
+            },
+            {
+              "label": "Retry storm",
+              "status": "missing"
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "caption": "ต้นทุนของแต่ละแนวทาง",
+          "head": ["ตัวเลือก", "ความแม่น", "latency", "ค่าใช้จ่าย"],
+          "rows": [
+            ["Rate limiting binding", "±5%", "<1 ms", "รวมใน plan"],
+            ["KV counter", "±20%", "5–30 ms", "ต่อ read/write"],
+            ["Durable Object", "exact", "10–40 ms", "ต่อ request"]
+          ]
+        },
+        {
+          "type": "ba",
+          "language": "ts",
+          "before": "export async function handle(req) {\n  return fetch(req.url)\n}",
+          "after": "export async function handle(req, env) {\n  const key = resolveKey(req)\n  const { success } = await env.LIMITER.limit({ key })\n  if (!success) return tooMany(30)\n  return fetch(origin(req))\n}"
+        },
+        {
+          "type": "details",
+          "summary": "วิธีคำนวณ refill rate",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "เติม r token ต่อวินาที เก็บได้มากสุด C"
+            },
+            {
+              "type": "math",
+              "latex": "tokens(t) = \\min(C, tokens_0 + r \\cdot \\Delta t)"
+            }
+          ]
+        },
+        {
+          "type": "details",
+          "summary": "ทำไมไม่ใช้ fixed window",
+          "blocks": [
+            {
+              "type": "p",
+              "text": "fixed window ปล่อย burst สองเท่าที่รอยต่อของหน้าต่าง"
+            }
+          ]
+        },
+        {
+          "type": "math",
+          "latex": "a + b\n\\foo{x}\nc"
+        },
+        {
+          "type": "p",
+          "text": "ย่อหน้าธรรมดา ไม่มีกรอบ ตาม B-Reader"
+        },
+        {
+          "type": "stat",
+          "items": [
+            {
+              "label": "below the fold",
+              "value": "1,250"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "decisions": []
+}
