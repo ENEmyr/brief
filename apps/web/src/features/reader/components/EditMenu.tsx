@@ -1,6 +1,8 @@
 'use client'
 import { TopbarMenu } from './TopbarMenu'
 import type { TopbarMenuItem } from './TopbarMenu'
+import { EditIcon } from './icons'
+import { ICON_BUTTON } from './topbarChrome'
 
 /**
  * Edit control, built on the same TopbarMenu shell as Download. Ships with
@@ -13,9 +15,7 @@ import type { TopbarMenuItem } from './TopbarMenu'
  */
 export function EditMenu({ onCopyPrompt }: { onCopyPrompt?: () => void }) {
   const items: TopbarMenuItem[] = []
-  if (onCopyPrompt) items.push({ icon: '⧉', label: 'Copy edit prompt', run: onCopyPrompt })
+  if (onCopyPrompt) items.push({ label: 'Copy edit prompt', run: onCopyPrompt })
 
-  return (
-    <TopbarMenu triggerIcon="✎" triggerLabel="Edit" items={items} panelWidthClassName="w-[220px]" />
-  )
+  return <TopbarMenu icon={<EditIcon />} triggerLabel="Edit" triggerClassName={ICON_BUTTON} items={items} />
 }

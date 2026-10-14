@@ -15,10 +15,12 @@ describe('MetaHeader', () => {
     expect(screen.queryByText(/DOC-/)).not.toBeInTheDocument()
   })
 
-  it('renders the kicker only when docId is present', () => {
-    render(<MetaHeader meta={{ ...baseMeta, docId: 'DOC-018' }} />)
+  // B-Reader's header card has no kicker line; the doc id joins the meta chips.
+  it('shows the doc id as the first meta chip only when docId is present', () => {
+    render(<MetaHeader meta={{ ...baseMeta, docId: 'DOC-018', author: 'Ada' }} />)
 
-    expect(screen.getByText('DOC-018')).toBeInTheDocument()
+    const chip = screen.getByText('DOC-018')
+    expect(chip.parentElement?.firstElementChild).toBe(chip)
   })
 
   it('renders the subtitle only when present', () => {
@@ -33,23 +35,37 @@ describe('MetaHeader', () => {
     expect(screen.getByText('Token Bucket vs Sliding Window')).toBeInTheDocument()
   })
 
-  it('shows an avatar with the first character of the author when author is present', () => {
+  // B-Reader shows the author as a plain meta chip ("Claude Code"); the avatar circle is gone.
+  it('shows the author as a meta chip, with no avatar', () => {
     render(<MetaHeader meta={{ ...baseMeta, author: 'Ada' }} />)
 
-    expect(screen.getByText('A')).toBeInTheDocument()
     expect(screen.getByText('Ada')).toBeInTheDocument()
-  })
-
-  it('omits the avatar and author block entirely when author is absent', () => {
-    render(<MetaHeader meta={baseMeta} />)
-
     expect(screen.queryByText('A')).not.toBeInTheDocument()
   })
 
   it('renders role only alongside a present author', () => {
-    render(<MetaHeader meta={{ ...baseMeta, author: 'Ada', role: 'Backend' }} />)
+    const { rerender } = render(<MetaHeader meta={{ ...baseMeta, author: 'Ada', role: 'Backend' }} />)
+    expect(screen.getByText('Backend')).toBeInTheDocument()
 
-    expect(screen.getByText(/Backend/)).toBeInTheDocument()
+    rerender(<MetaHeader meta={{ ...baseMeta, role: 'Backend' }} />)
+    expect(screen.queryByText('Backend')).not.toBeInTheDocument()
+  })
+
+  it('orders the chips as B-Reader does: author, role, date, version, repo, read time', () => {
+    render(
+      <MetaHeader
+        meta={{ ...baseMeta, author: 'Claude Code', role: 'backend review', date: '2026-10-14', version: 'v1.3', repo: 'acme/api-gateway', readTime: '8 min' }}
+      />,
+    )
+    const row = screen.getByText('Claude Code').parentElement!
+    expect([...row.children].map((c) => c.textContent)).toEqual([
+      'Claude Code',
+      'backend review',
+      '2026-10-14',
+      'v1.3',
+      'acme/api-gateway',
+      '8 min',
+    ])
   })
 
   it('renders date, version, repo, and readTime when present, and links the repo', () => {
@@ -70,6 +86,25 @@ describe('MetaHeader', () => {
     expect(screen.getByText('5 min')).toBeInTheDocument()
     const repoLink = screen.getByRole('link', { name: /github\.com\/example\/repo/ })
     expect(repoLink).toHaveAttribute('href', 'https://github.com/example/repo')
+  })
+
+  // meta.repo is a free string; a shorthand as a link would resolve against the
+  // reader's own URL and 404.
+  it.each(['acme/api-gateway', 'github.com/acme/api-gateway', 'ftp://example.com/repo', 'javascript:alert(1)'])(
+    'renders "%s" as a plain chip, not a link',
+    (repo) => {
+      render(<MetaHeader meta={{ ...baseMeta, author: 'Ada', repo }} />)
+      expect(screen.getByText(repo)).toBeInTheDocument()
+      expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    },
+  )
+
+  it('links an absolute http repo URL', () => {
+    render(<MetaHeader meta={{ ...baseMeta, repo: 'http://git.example.com/acme/api' }} />)
+    expect(screen.getByRole('link', { name: 'http://git.example.com/acme/api' })).toHaveAttribute(
+      'href',
+      'http://git.example.com/acme/api',
+    )
   })
 
   it('does not render a session id anywhere', () => {

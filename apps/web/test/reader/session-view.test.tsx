@@ -37,6 +37,8 @@ afterEach(() => {
   window.localStorage.clear()
 })
 
+// The doc title now also appears in the top bar (B-Reader), so the loaded
+// reader is identified by its h1 rather than by the title text alone.
 describe('SessionPage / SessionView', () => {
   it('renders skeleton first, then title, section heading and paragraph after resolve', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
@@ -44,9 +46,9 @@ describe('SessionPage / SessionView', () => {
 
     render(<SessionPage />)
 
-    expect(screen.queryByText('Test Doc')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1, name: 'Test Doc' })).not.toBeInTheDocument()
 
-    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
     expect(screen.getByRole('heading', { name: /Intro/ })).toBeInTheDocument()
     expect(screen.getByText('Hello world')).toBeInTheDocument()
   })
@@ -65,7 +67,9 @@ describe('SessionPage / SessionView', () => {
     )
   })
 
-  it('renders the Decisions section and its TOC entry when the payload has decisions', async () => {
+  // The decisions moved from the end of the document into the decision dock,
+  // and the outline lists only payload sections (B-Reader has no Decisions row).
+  it('renders the Decisions section inside the decision dock, with no outline entry for it', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
     const withDecisions = {
       ...validPayload,
@@ -83,13 +87,12 @@ describe('SessionPage / SessionView', () => {
 
     render(<SessionPage />)
 
-    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
-    expect(screen.getByRole('heading', { name: '02 Decisions' })).toBeInTheDocument()
-    const el = document.getElementById('decide')
-    expect(el).not.toBeNull()
-    expect(el).toHaveAttribute('data-section', 'decide')
-    // TOC gets an appended "Decisions" entry pointing at the same section.
-    expect(screen.getAllByText('Decisions').length).toBeGreaterThan(1)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
+    const dock = screen.getByRole('complementary', { name: 'Decision dock' })
+    expect(within(dock).getByRole('heading', { name: '02 Decisions' })).toBeInTheDocument()
+    const outline = screen.getByRole('navigation', { name: 'Outline' })
+    expect(within(outline).queryByText('Decisions')).not.toBeInTheDocument()
+    expect(within(outline).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['#s1'])
   })
 
   it('shows the UnlockCard password form for encrypted sessions (no stub text)', async () => {
@@ -110,7 +113,8 @@ describe('SessionPage / SessionView', () => {
     expect(screen.queryByText(/arrives in a later release/i)).not.toBeInTheDocument()
   })
 
-  it('unlocking a protected session (real WebCrypto round trip) renders the ready view with the decrypted payload, no Archive button, and a "protected" chip', async () => {
+  // The "protected" chip became the save chip's "this tab only" state (B-States).
+  it('unlocking a protected session (real WebCrypto round trip) renders the ready view with the decrypted payload, no Archive button, and "this tab only"', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
     const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
     const encEnvelope = {
@@ -128,10 +132,10 @@ describe('SessionPage / SessionView', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-horse' } })
     fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
 
-    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
     expect(screen.getByText('Hello world')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
-    expect(screen.getByText('protected')).toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).getByRole('status')).toHaveTextContent('this tab only')
   })
 
   it('unlocked protected session runs reader state memory-only: no state-endpoint calls, leftover localStorage entry removed', async () => {
@@ -154,7 +158,7 @@ describe('SessionPage / SessionView', () => {
 
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-horse' } })
     fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
-    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
 
     // Zero-knowledge: the unauthenticated KV state endpoint must never be
     // touched for a protected session -- not even the mount-time GET.
@@ -184,16 +188,17 @@ describe('SessionPage / SessionView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
 
     await waitFor(() => expect(screen.getByText('Wrong password or corrupted data.')).toBeInTheDocument())
-    expect(screen.queryByText('Test Doc')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1, name: 'Test Doc' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toHaveValue('')
   })
 
-  it('Archive button opens SaveModal, and a plain save shows the archived chip without losing the doc', async () => {
+  // The "archived" chip is gone from the top bar (B-Reader); the Archive icon fills and reads "Archived" instead.
+  it('Archive button opens SaveModal, and a plain save marks the Archive button archived without losing the doc', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
 
     render(<SessionPage />)
-    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
@@ -202,9 +207,9 @@ describe('SessionPage / SessionView', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Archive this doc' })).not.toBeInTheDocument())
     // The doc must still be rendered -- encrypt/plain save must never blank the reader.
-    expect(screen.getByText('Test Doc')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument()
     expect(screen.getByText('Hello world')).toBeInTheDocument()
-    expect(screen.getByText('archived')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute('title', 'Archived')
   })
 
   it('an encrypt save keeps the CURRENT decrypted payload on screen (does not drop to the protected-session card)', async () => {
@@ -212,7 +217,7 @@ describe('SessionPage / SessionView', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
 
     render(<SessionPage />)
-    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
@@ -226,10 +231,14 @@ describe('SessionPage / SessionView', () => {
       expect(screen.queryByRole('dialog', { name: 'Archive this doc' })).not.toBeInTheDocument(),
     )
     // Must still show the live document, never the "Protected session" placeholder.
-    expect(screen.getByText('Test Doc')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument()
     expect(screen.getByText('Hello world')).toBeInTheDocument()
     expect(screen.queryByText(/Protected session/i)).not.toBeInTheDocument()
-    expect(screen.getByText('archived')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Archived' })).toHaveAttribute('title', 'Archived')
+    // State is memory-only from here on (bug-250), and the save chip says so.
+    await waitFor(() =>
+      expect(within(screen.getByRole('banner')).getByRole('status')).toHaveTextContent('this tab only'),
+    )
   })
 
   it('a highlight added after an in-view encrypt save does not resync plaintext to the state endpoint (bug-250)', async () => {
@@ -246,7 +255,7 @@ describe('SessionPage / SessionView', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<SessionPage />)
-    await waitFor(() => expect(screen.getByText('Test Doc')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })

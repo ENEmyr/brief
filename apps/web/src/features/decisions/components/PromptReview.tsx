@@ -41,7 +41,7 @@ export function PromptReview({
           type="button"
           onClick={onClose}
           aria-label="Close prompt review"
-          className="max-[879px]:min-h-11 max-[879px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent font-[inherit] text-base text-sub"
+          className="max-[880px]:min-h-11 max-[880px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent font-[inherit] text-base text-sub"
         >
           ✕
         </button>
@@ -62,14 +62,14 @@ export function PromptReview({
           <button
             type="button"
             onClick={handleCopy}
-            className="max-[879px]:min-h-11 rounded-[9px] border-0 bg-accent px-5 py-2.5 font-[inherit] text-[14px] font-bold text-on-accent"
+            className="max-[880px]:min-h-11 rounded-[9px] border-0 bg-accent px-5 py-2.5 font-[inherit] text-[14px] font-bold text-on-accent"
           >
             ⧉ Copy prompt
           </button>
           <button
             type="button"
             onClick={onRebuild}
-            className="max-[879px]:min-h-11 rounded-[9px] border border-line bg-card px-4 py-2.5 font-[inherit] text-[13.5px] text-sub"
+            className="max-[880px]:min-h-11 rounded-[9px] border border-line bg-card px-4 py-2.5 font-[inherit] text-[13.5px] text-sub"
           >
             ↻ Rebuild from answers
           </button>

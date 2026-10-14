@@ -50,6 +50,7 @@ export function HighlightedText({
     out.push(
       <mark
         key={h.id}
+        data-mark-id={h.id}
         onClick={() => onMarkClick(h)}
         className={
           isAsk

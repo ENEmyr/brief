@@ -4,9 +4,14 @@ test.describe('decide', () => {
   test('answering both decisions unlocks a reply prompt containing "Reply to"', async ({
     page,
     createSession,
+    isMobile,
   }) => {
     const { id } = await createSession()
     await page.goto(`/s/${id}`)
+
+    // Under 880 the decision dock is a bottom sheet behind its peek bar
+    // (B-Mobile), so the questions are reached through "Open dock".
+    if (isMobile) await page.getByRole('button', { name: 'Open dock' }).click()
 
     const [d1, d2] = testPayload.decisions
     if (!d1 || !d2) throw new Error('fixture payload changed shape')

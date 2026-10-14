@@ -118,6 +118,11 @@
   --c-viewer-canvas: #eef0f2;
   --c-skeleton-mid: #eef0f2;
   --c-disabled-text: #a1aab2;
+
+  /* Warn as a fill or a bar (highlight swatch, open-decision segment and dot).
+   * B-Reader-Light draws it #B87A0A (lines 88, 198, 286); tokens.css has only
+   * the text value #8F5A00. Dark is the warn token. */
+  --c-warn-fill: #b87a0a;
 }
 
 @media not print {
@@ -178,6 +183,8 @@
     --c-viewer-canvas: #08090a;
     --c-skeleton-mid: #1f252a;
     --c-disabled-text: #4b545c;
+
+    --c-warn-fill: #f4b740;
   }
 }
 
@@ -250,6 +257,78 @@ body {
   100% { opacity: 1; transform: scale(1); }
 }
 
+/* B-Reader motion: the palette drops in, overlays fade, the header card rises
+ * once, the save chip pulses while saving. Reduced motion keeps only the end
+ * state (interactions.md). */
+@keyframes console-drop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes console-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes console-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes console-sheet {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes save-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.console-pop {
+  animation: console-drop var(--dur-base) var(--ease-console) both;
+}
+.console-fade {
+  animation: console-in var(--dur-base) ease both;
+}
+.console-rise {
+  animation: console-rise var(--dur-slow) var(--ease-console) both;
+}
+.console-sheet {
+  animation: console-sheet var(--dur-slow) var(--ease-console) both;
+}
+.save-pulse {
+  animation: save-pulse 1.2s ease-in-out infinite;
+}
+
+/* Section flash (S8): after a jump the card border goes from lime back to
+ * its own color (line; transparent under 880, where sections sit flush) with a
+ * fading 4px glow. Two identical animations so a second jump to the same
+ * section restarts it (SectionView flips data-flash). */
+@keyframes section-flash-a {
+  0% { border-color: var(--c-accent-line); box-shadow: var(--shadow-accent-glow); }
+  100% { box-shadow: 0 0 0 4px transparent; }
+}
+@keyframes section-flash-b {
+  0% { border-color: var(--c-accent-line); box-shadow: var(--shadow-accent-glow); }
+  100% { box-shadow: 0 0 0 4px transparent; }
+}
+[data-flash='a'] {
+  animation: section-flash-a 1.6s ease-out both;
+}
+[data-flash='b'] {
+  animation: section-flash-b 1.6s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console-pop,
+  .console-fade,
+  .console-rise,
+  .console-sheet,
+  .save-pulse {
+    animation: none;
+  }
+  [data-flash] {
+    animation: none;
+    border-color: var(--c-accent-line);
+  }
+}
+
 @keyframes sk-shimmer {
   0% { background-position: -480px 0; }
   100% { background-position: 480px 0; }
@@ -302,10 +381,26 @@ body {
     display: none !important;
   }
 
-  /* TOC is hidden, so its 188px grid column would otherwise print as a blank
-     left gutter on every page. */
+  /* The outline does not print; a block layout puts the document and then
+     the decisions one under the other at full page width. Paper is narrower
+     than 880px, so the dock's bottom-sheet rules would otherwise apply: undo
+     them so the decisions print in flow. */
   [data-reader-grid] {
     display: block !important;
+  }
+  [data-reader-grid] > * {
+    margin-bottom: 16px;
+  }
+  [data-dock] {
+    position: static !important;
+    border: 1px solid var(--c-line) !important;
+    border-radius: 6px !important;
+  }
+  [data-dock-body] {
+    display: block !important;
+  }
+  [data-dock-chrome] {
+    display: none !important;
   }
 
   /* Reset any pan/zoom the reader left on a diagram: the transform is inline,
