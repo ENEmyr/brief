@@ -110,12 +110,32 @@ describe('CodeBlock', () => {
     await waitFor(() => expect(screen.getByText('HIGHLIGHTED')).toBeInTheDocument())
   })
 
-  it('passes block.highlight line numbers through to the highlight call', () => {
+  it('tints the rows of block.highlight lines from the first paint', () => {
+    // block.highlight used to go to shiki, which classed the line span once it
+    // resolved. The tint is now the row's (B-Reader:157), drawn from
+    // block.highlight directly, so it shows before shiki does and shiki is
+    // asked for the code alone.
     highlightMock.mockReturnValue(new Promise(() => {}))
 
     r({ type: 'code', language: 'ts', code: 'a\nb', highlight: [2] })
 
-    expect(highlightMock).toHaveBeenCalledWith('a\nb', 'ts', { highlightLines: [2] })
+    expect(highlightMock).toHaveBeenCalledWith('a\nb', 'ts')
+    const rows = document.querySelectorAll('code > span')
+    expect(rows[0]?.className).not.toContain('bg-[var(--c-code-line)]')
+    expect(rows[1]?.className).toContain('bg-[var(--c-code-line)]')
+  })
+
+  it('numbers each line in a gutter outside the line leaf', async () => {
+    highlightMock.mockReturnValue(Promise.resolve(hastFor(['first', 'second'])))
+
+    r({ type: 'code', language: 'ts', code: 'first\nsecond' })
+
+    await waitFor(() => expect(screen.getByText('second')).toBeInTheDocument())
+    const gutter = screen.getByText('2')
+    expect(gutter).toHaveAttribute('aria-hidden', 'true')
+    expect(gutter).toHaveClass('select-none', 'w-[26px]', 'text-faint')
+    expect(gutter.closest('[data-hl]')).toBeNull()
+    expect(anchorOf(screen.getByText('second'))?.textContent).toBe('second')
   })
 
   it('does not throw when the highlight call rejects (unknown language resilience)', async () => {
@@ -136,8 +156,11 @@ describe('CodeBlock', () => {
 
     // The empty line renders as an empty `<span class="line">` with no text
     // to query by, so assert on the DOM directly: it must carry no data-hl.
-    const lineSpans = document.querySelectorAll('code > span')
+    // Each line now sits in a row after its gutter, so the line span is the
+    // row's last child.
+    const lineSpans = document.querySelectorAll('code > span > span:last-child')
     expect(lineSpans).toHaveLength(3)
+    expect(lineSpans[1]).toHaveClass('line')
     expect(lineSpans[1]).not.toHaveAttribute('data-hl')
   })
 
@@ -159,29 +182,33 @@ describe('CodeBlock', () => {
 })
 
 describe('BeforeAfter', () => {
-  it('defaults to showing Before code and caption', () => {
+  // The Before/After segmented toggle showed one side at a time. B-Blocks:141-160
+  // draws Split and Unified, with both sides in view and the changed lines tinted.
+
+  it('defaults to Split, showing both sides under their before and after labels', () => {
     highlightMock.mockReturnValue(new Promise(() => {}))
 
     r({ type: 'ba', language: 'ts', before: 'BEFORE_CODE', after: 'AFTER_CODE' })
 
     expect(screen.getByText('BEFORE_CODE')).toBeInTheDocument()
-    // "Before" appears both as the header caption and the segment button.
-    expect(screen.getAllByText('Before').length).toBe(2)
-    expect(screen.queryByText('AFTER_CODE')).not.toBeInTheDocument()
+    expect(screen.getByText('AFTER_CODE')).toBeInTheDocument()
+    expect(screen.getByText('before')).toBeInTheDocument()
+    expect(screen.getByText('after')).toBeInTheDocument()
   })
 
-  it('the segmented toggle switches which code is shown', () => {
+  it('Unified shows one listing in diff order', () => {
     highlightMock.mockReturnValue(new Promise(() => {}))
 
-    r({ type: 'ba', language: 'ts', before: 'BEFORE_CODE', after: 'AFTER_CODE' })
+    r({ type: 'ba', language: 'ts', before: 'keep\nold', after: 'keep\nnew' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'After' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Unified' }))
 
-    expect(screen.getByText('AFTER_CODE')).toBeInTheDocument()
-    expect(screen.queryByText('BEFORE_CODE')).not.toBeInTheDocument()
+    const rows = [...document.querySelectorAll('code > span')].map((row) => row.textContent)
+    expect(rows).toEqual(['1keep', '2old', '2new'])
+    expect(screen.getByText('before / after')).toBeInTheDocument()
   })
 
-  it('uses titleBefore/titleAfter as the caption when provided', () => {
+  it('uses titleBefore/titleAfter as the side labels when provided', () => {
     highlightMock.mockReturnValue(new Promise(() => {}))
 
     r({
@@ -194,22 +221,22 @@ describe('BeforeAfter', () => {
     })
 
     expect(screen.getByText('Vulnerable')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'After' }))
     expect(screen.getByText('Rate limited')).toBeInTheDocument()
+    expect(screen.queryByText('before')).not.toBeInTheDocument()
   })
 
-  it('marks the active segment with aria-pressed, matching the Layers chip convention', () => {
+  it('marks the active view with aria-pressed', () => {
     highlightMock.mockReturnValue(new Promise(() => {}))
 
     r({ type: 'ba', language: 'ts', before: 'BEFORE_CODE', after: 'AFTER_CODE' })
 
-    expect(screen.getByRole('button', { name: 'Before' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'After' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Split' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Unified' })).toHaveAttribute('aria-pressed', 'false')
 
-    fireEvent.click(screen.getByRole('button', { name: 'After' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Unified' }))
 
-    expect(screen.getByRole('button', { name: 'Before' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'After' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Split' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Unified' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('anchors each side at its own field, so before/after lines never collide', async () => {
@@ -219,9 +246,25 @@ describe('BeforeAfter', () => {
 
     await waitFor(() => expect(screen.getByText('BEFORE_CODE')).toBeInTheDocument())
     expect(anchorOf(screen.getByText('BEFORE_CODE'))).toHaveAttribute('data-path', 'before.0')
-
-    fireEvent.click(screen.getByRole('button', { name: 'After' }))
-    await waitFor(() => expect(screen.getByText('AFTER_CODE')).toBeInTheDocument())
     expect(anchorOf(screen.getByText('AFTER_CODE'))).toHaveAttribute('data-path', 'after.0')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unified' }))
+    expect(anchorOf(screen.getByText('BEFORE_CODE'))).toHaveAttribute('data-path', 'before.0')
+    expect(anchorOf(screen.getByText('AFTER_CODE'))).toHaveAttribute('data-path', 'after.0')
+  })
+
+  it('tints removed lines bad and added lines good, with the number in the same color', () => {
+    highlightMock.mockReturnValue(new Promise(() => {}))
+
+    r({ type: 'ba', language: 'ts', before: 'same\ngone', after: 'same\ncame' })
+
+    const rowOf = (text: string) => screen.getByText(text).closest('code > span')!
+    expect(rowOf('gone')).toHaveClass('bg-bad-soft')
+    expect(rowOf('came')).toHaveClass('bg-good-soft')
+    expect(rowOf('gone').firstElementChild).toHaveClass('text-bad')
+    expect(rowOf('came').firstElementChild).toHaveClass('text-good')
+    for (const row of screen.getAllByText('same').map((el) => el.closest('code > span')!)) {
+      expect(row.className).not.toMatch(/bg-(bad|good)-soft/)
+    }
   })
 })

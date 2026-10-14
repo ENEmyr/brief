@@ -54,6 +54,25 @@ describe('extractLineNodes / lineText (anchor invariant)', () => {
   })
 })
 
+describe('extractLineNodes token colors', () => {
+  it('keeps the constant color for numbers only, as the boards draw code (B-Reader:155-158)', async () => {
+    const code =
+      'const key = resolveKey(req)\nconst { success } = await env.LIMITER.limit({ key })\nif (!success) return tooMany(30)\nconst retries = 3, sizes = [1, 2]'
+    const lines = extractLineNodes(await highlightToHast(code, 'ts'))
+    const constantTokens = lines.flatMap(function walk(node: ElementContent): string[] {
+      if (node.type !== 'element') return []
+      const style = node.properties?.style
+      const own =
+        typeof style === 'string' && style.includes('--shiki-token-constant')
+          ? [lineText(node)]
+          : []
+      return [...own, ...node.children.flatMap(walk)]
+    })
+    expect(constantTokens.map((t) => t.trim())).toEqual(['30', '3', '1', '2'])
+    expect(lines.map(lineText)).toEqual(code.split('\n'))
+  })
+})
+
 describe('renderLineChildren', () => {
   const line: Element = {
     type: 'element',

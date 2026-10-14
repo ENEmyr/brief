@@ -31,18 +31,23 @@ export function DataTable({
   }
 
   return (
-    <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
-      <div className="overflow-x-auto rounded-b-[6px]">
-        <table className="w-full border-collapse text-[13px]">
+    <BlockCard
+      {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}
+      meta={
+        <span className="shrink-0">
+          {block.rows.length === 1 ? '1 row' : `${block.rows.length} rows`}
+        </span>
+      }
+    >
+      {/* B-Blocks:114-122: an elev header row in sub, then rows on a line rule
+          with every second one on the zebra fill. The first column stays a row
+          header for screen readers but looks like any other cell. */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-[13px] leading-5">
           <thead>
-            <tr>
+            <tr className="bg-elev text-left text-sub">
               {block.head.map((cell, i) => (
-                <th
-                  key={i}
-                  className={`text-left px-3.5 py-2.5 font-semibold border-b-2 border-accent-soft bg-elev whitespace-nowrap ${
-                    i === 0 ? 'text-faint text-[11.5px] uppercase' : 'text-accent-text text-[13px]'
-                  }`}
-                >
+                <th key={i} className="px-3 py-2 text-left font-medium">
                   <Annotatable {...anchor} text={cell} path={`${pathPrefix}head.${i}`} />
                 </th>
               ))}
@@ -50,7 +55,10 @@ export function DataTable({
           </thead>
           <tbody>
             {block.rows.map((row, i) => (
-              <tr key={i} className={i % 2 === 1 ? 'bg-[var(--c-table-zebra)]' : undefined}>
+              <tr
+                key={i}
+                className={`border-t border-line ${i % 2 === 1 ? 'bg-[var(--c-table-zebra)]' : ''}`}
+              >
                 {row.map((cell, j) => {
                   const content = (
                     <Annotatable {...anchor} text={cell} path={`${pathPrefix}rows.${i}.${j}`} />
@@ -59,12 +67,12 @@ export function DataTable({
                     <th
                       key={j}
                       scope="row"
-                      className="px-3.5 py-[9px] border-b border-line2 text-left font-semibold text-text whitespace-nowrap"
+                      className="px-3 py-[9px] text-left font-normal text-text"
                     >
                       {content}
                     </th>
                   ) : (
-                    <td key={j} className="px-3.5 py-[9px] border-b border-line2 text-left text-sub">
+                    <td key={j} className="px-3 py-[9px] text-left text-text">
                       {content}
                     </td>
                   )

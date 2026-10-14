@@ -1,3 +1,5 @@
+'use client'
+import { useState } from 'react'
 import type { Block } from '@brief/schema'
 import type { Highlight } from '@/features/reader-state'
 import { BlockRenderer } from '../BlockRenderer'
@@ -9,6 +11,10 @@ import { BlockCard, cardHeader } from '../BlockCard'
  * of its own, so a defaulted index would have aliased another block's
  * highlights. A leaf path solves it: the nested block's leaves are addressed
  * under `blocks.<i>.`, within the details block's own bid.
+ *
+ * The marker is the only open or closed signal (bug-108), so it is two glyphs
+ * driven by the element's own toggle event, not one glyph turned by CSS:
+ * ▾ in accent when open, ▸ in faint when closed (B-Blocks:166, :173).
  */
 export function Details({
   block,
@@ -25,20 +31,29 @@ export function Details({
   annotatable?: boolean
   onMarkClick?: (highlight: Highlight) => void
 }) {
+  const [open, setOpen] = useState(false)
+
   return (
     <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
       <div className="p-2">
-        <details className="group border border-line rounded-[10px] bg-elev overflow-hidden">
-          <summary className="w-full flex items-center gap-[9px] text-[13.5px] font-semibold px-[15px] py-[11px] text-left cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <details
+          open={open}
+          onToggle={(event) => setOpen(event.currentTarget.open)}
+          className={`rounded-[4px] ${open ? 'bg-elev' : ''}`}
+        >
+          <summary
+            className={`flex min-h-10 cursor-pointer list-none items-center gap-2.5 px-3 text-[14px] font-medium leading-[normal] max-[880px]:min-h-11 [&::-webkit-details-marker]:hidden ${open ? 'text-text' : 'text-sub'}`}
+          >
             <span
               aria-hidden="true"
-              className="text-accent-text transition-transform duration-[180ms] group-open:rotate-90 inline-block"
+              data-details-marker
+              className={`font-mono ${open ? 'text-accent-text' : 'text-faint'}`}
             >
-              ▸
+              {open ? '▾' : '▸'}
             </span>
             <span>{block.summary}</span>
           </summary>
-          <div className="pl-[35px] pr-[15px] pb-[13px] text-[13.5px] leading-[1.75] text-sub">
+          <div className="flex flex-col gap-2.5 pb-3 pl-8 pr-3 [&>p]:text-[14px] [&>p]:leading-[22px] [&>p]:text-sub">
             {block.blocks.map((b, i) => (
               <BlockRenderer
                 key={i}

@@ -3,17 +3,34 @@ import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
 import { BlockCard, cardHeader } from '../BlockCard'
 
-const barFill = {
-  full: 'bg-good w-full',
-  partial: 'bg-warn w-1/2',
-  missing: 'bg-bad w-[8%]',
-} as const
+type Status = Extract<Block, { type: 'coverage' }>['items'][number]['status']
 
-const legend = [
-  { status: 'full', color: 'bg-good' },
-  { status: 'partial', color: 'bg-warn' },
-  { status: 'missing', color: 'bg-bad' },
-] as const
+const FILLED = 'bg-good'
+const PART = 'bg-[var(--c-warn-fill)]'
+const EMPTY = 'bg-line'
+const NONE = 'box-border border border-dashed border-bad'
+
+/**
+ * B-Blocks:67-70. Each status has its own bar of four segments and its own
+ * word, so no two statuses look alike (bug-093, bug-094: every row once drew
+ * the same full bar). The percent in the header counts full as 1 and part as
+ * one half (owner decision D3: derived, no field).
+ */
+const STATUS: Record<
+  Status,
+  { word: string; color: string; segments: readonly string[]; weight: number }
+> = {
+  full: { word: 'full', color: 'text-good', segments: [FILLED, FILLED, FILLED, FILLED], weight: 1 },
+  partial: { word: 'part', color: 'text-warn', segments: [PART, PART, EMPTY, EMPTY], weight: 0.5 },
+  missing: { word: 'none', color: 'text-bad', segments: [NONE, NONE, NONE, NONE], weight: 0 },
+}
+
+function coveragePercent(statuses: readonly Status[]): number {
+  if (statuses.length === 0) return 0
+  return Math.round(
+    (statuses.reduce((sum, s) => sum + STATUS[s].weight, 0) / statuses.length) * 100,
+  )
+}
 
 export function Coverage({
   block,
@@ -38,45 +55,53 @@ export function Coverage({
   }
 
   return (
-    <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
-      <div className="p-3">
-        {block.items.map((item, i) => (
-          <div
-            key={i}
-            className="grid grid-cols-1 min-[880px]:grid-cols-[minmax(0,190px)_1fr_minmax(0,160px)] items-center gap-2.5 mb-2 text-[12.5px]"
-          >
-            <Annotatable
-              {...anchor}
-              className="break-words font-semibold text-text"
-              text={item.label}
-              path={`${pathPrefix}items.${i}.label`}
-            />
+    <BlockCard
+      {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}
+      meta={
+        <span className="shrink-0 text-sub">
+          {coveragePercent(block.items.map((item) => item.status))}%
+        </span>
+      }
+    >
+      <div className="py-1.5">
+        {block.items.map((item, i) => {
+          const status = STATUS[item.status]
+          return (
             <div
-              role="img"
-              aria-label={`${item.label}: ${item.status}`}
-              className="flex h-4 rounded-md overflow-hidden bg-chip"
+              key={i}
+              className="grid grid-cols-[minmax(0,1fr)_120px_44px] items-center gap-3 px-3.5 py-[7px] text-[14px] leading-[normal]"
             >
-              <div className={`h-full ${barFill[item.status]}`} />
+              <div className="min-w-0">
+                <Annotatable
+                  {...anchor}
+                  className="break-words"
+                  text={item.label}
+                  path={`${pathPrefix}items.${i}.label`}
+                />
+                {/* No board draws the note; it sits under its label as small sub text. */}
+                {item.note ? (
+                  <Annotatable
+                    {...anchor}
+                    as="div"
+                    className="mt-0.5 break-words text-[12px] text-sub"
+                    text={item.note}
+                    path={`${pathPrefix}items.${i}.note`}
+                  />
+                ) : null}
+              </div>
+              <span
+                role="img"
+                aria-label={`${item.label}: ${item.status}`}
+                className="flex gap-0.5"
+              >
+                {status.segments.map((segment, j) => (
+                  <span key={j} className={`h-2.5 flex-1 ${segment}`} />
+                ))}
+              </span>
+              <span className={`font-mono text-[12px] ${status.color}`}>{status.word}</span>
             </div>
-            {/* No whitespace-nowrap: a long note (an unspaced Thai run, say) has
-              nowhere to go in a fixed column and paints straight out of the
-              figure. Let it wrap, and break the run if it has no break points. */}
-            <Annotatable
-              {...anchor}
-              className="hidden break-words min-[880px]:block font-mono text-[11px] text-sub text-right"
-              text={item.note ?? ''}
-              path={`${pathPrefix}items.${i}.note`}
-            />
-          </div>
-        ))}
-        <div className="flex gap-3.5 mt-2 text-[11px] text-faint">
-          {legend.map((l) => (
-            <span key={l.status} className="flex items-center gap-1">
-              <span className={`inline-block w-[9px] h-[9px] rounded-sm ${l.color}`} />
-              {l.status}
-            </span>
-          ))}
-        </div>
+          )
+        })}
       </div>
     </BlockCard>
   )
