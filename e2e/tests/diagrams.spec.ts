@@ -161,6 +161,42 @@ test.describe('seq playback (B4)', () => {
     await figure.getByRole('button', { name: 'Next step' }).tap()
     await expect(figure.getByText('step 2 of 4', { exact: true })).toBeVisible()
     await expect(rows.nth(1)).toHaveAttribute('aria-current', 'step')
+    await expect(rows.nth(1).getByText('one token per request', { exact: true })).toBeVisible()
+  })
+
+  test('the step list wraps beside the diagram as the board does', async ({ page, createSession, isMobile }) => {
+    test.skip(isMobile, 'each width is set on the desktop project')
+    const { id } = await createSession(payload)
+    // B-Blocks:76-101: the pane grows from 660 and the list from 300, so they
+    // share a row only when the card is 960 wide or more. Under 880 the list
+    // replaces the diagram (B-Mobile:35-41).
+    for (const [width, place] of [
+      [1440, 'beside'],
+      [1100, 'below'],
+      [880, 'below'],
+      [388, 'list only'],
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(`/s/${id}`)
+      const figure = card(page, 'seq', 'Request path')
+      await figure.getByRole('group', { name: 'Sequence steps' }).press('ArrowRight')
+      const list = figure.getByRole('list')
+      await expect(list).toBeVisible()
+      const actor = figure.locator('[data-actor]').first()
+      if (place === 'list only') {
+        await expect(actor, `diagram at ${width}`).toBeHidden()
+        continue
+      }
+      const pane = (await actor.locator('../..').boundingBox())!
+      const rows = (await list.boundingBox())!
+      if (place === 'beside') {
+        expect.soft(rows.x, `list left at ${width}`).toBeGreaterThanOrEqual(pane.x + pane.width)
+        expect.soft(rows.y, `list top at ${width}`).toBe(pane.y)
+      } else {
+        expect.soft(rows.y, `list top at ${width}`).toBeGreaterThanOrEqual(pane.y + pane.height)
+        expect.soft(rows.x, `list left at ${width}`).toBe(pane.x)
+      }
+    }
   })
 
   test('prints every step, numbered, with the list left out', async ({ page, createSession }) => {
