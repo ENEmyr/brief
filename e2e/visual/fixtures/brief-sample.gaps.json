@@ -11,15 +11,14 @@
     { "where": "section 04 header", "board": "'62%' on the right of the section title", "needs": "derived from coverage items, no field (owner decision D3)" },
     { "where": "section 04 coverage block", "board": "4 segments per row (4 filled, 2 filled, 0 filled dashed red) and the words full, part, none", "needs": "renderer work; status enum has full, partial, missing" },
     { "where": "section 04 warn block", "board": "label 'WARN' inside the callout", "needs": "renderer work" },
-    { "where": "decision D2", "board": "Other option ('อื่นๆ พิมพ์เอง') appended to every decision, empty text input", "needs": "dother in reader state, Phase 3" },
-    { "where": "decision options", "board": "an 'Other' option on every decision (D1 to D4)", "needs": "renderer work, Phase 3" },
     { "where": "header", "board": "top bar session prefix 'k2p9x4 /'", "needs": "derived from the session id, renderer work" },
     { "where": "outline", "board": "'Agent trail 3 flags' row", "needs": "trajectory block [P8]; the three flags are not enumerated on the board" }
   ],
   "readerState": [
-    { "board": "D2 selected 'other'", "seed": "dsel.D2 is ['other'], an option id the app does not know yet; the seed spec checks the reader loads without a page error with it present" },
+    { "board": "D2 selected 'other'", "seed": "dother.D2 is '' (Other picked, nothing typed yet), so D2 counts as answered and its 'Your answer' field shows empty, as on the board" },
     { "board": "second 'Your marks' row 'burst allowance สำหรับ webhook' (outline only, no body text anchors it)", "seed": "not seeded; there is no text in the document for it to mark" },
-    { "board": "outline 'Your marks' lime outline swatch and footer 'note 2 รายการ'", "seed": "only one highlight is seeded, so the count is 1" },
+    { "board": "outline 'Your marks' lime outline swatch", "seed": "only one highlight is seeded, so the outline lists one mark" },
+    { "board": "dock footer 'note 2 รายการ'", "seed": "the app counts reasons there, the Note lines the prompt prints (B-Overlays shows 2 notes beside 2 Note lines); the seed has no reason, so it reads 'Includes answers, reasons and 0 notes'" },
     { "board": "reading progress line at 490px (section 02 current)", "seed": "scroll position is not seeded; it depends on the scroll state of the page" }
   ]
 }
