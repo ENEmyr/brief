@@ -15,10 +15,18 @@ const LOOK = {
  * be unpicked, so this is the only way back to unanswered. Shown once
  * anything is answered or noted.
  */
-export function ResetAnswers({ decisions, variant }: { decisions: Decision[]; variant: keyof typeof LOOK }) {
+export function ResetAnswers({
+  decisions,
+  variant,
+}: {
+  decisions: Decision[]
+  variant: keyof typeof LOOK
+}) {
   const state = useReaderState()
   const { resetDecisions } = useReaderActions()
-  const touched = decisions.some((d) => isAnswered(d, state) || (state.dnote[d.id] ?? '') !== '')
+  const touched = decisions.some(
+    (d) => isAnswered(d, state) || (state.dnote[d.id] ?? '').trim() !== '',
+  )
   if (!touched) return null
   return (
     <button

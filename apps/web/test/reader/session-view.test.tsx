@@ -423,6 +423,61 @@ describe('decision dock in the reader', () => {
     expect(screen.getByRole('dialog', { name: 'Review prompt before copying' })).toBeInTheDocument()
   })
 
+  describe('under 880, in the dock sheet', () => {
+    // Narrow for any query on the 880 breakpoint, whichever way it is written.
+    beforeEach(() => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: /\b(879|880)(\.\d+)?px/.test(query),
+        media: query,
+        addEventListener() {},
+        removeEventListener() {},
+      }))
+    })
+
+    async function openSheet() {
+      await openReader()
+      fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
+      return screen.getByRole('dialog', { name: 'Decision dock' })
+    }
+
+    it('Escape closes the review first, then the sheet under it', async () => {
+      const sheet = await openSheet()
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Copy prompt for agent' }))
+      expect(screen.getByRole('dialog', { name: 'Review prompt before copying' })).toBeInTheDocument()
+
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+      expect(screen.queryByRole('dialog', { name: 'Review prompt before copying' })).not.toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Decision dock' })).toBeInTheDocument()
+
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+      expect(screen.queryByRole('dialog', { name: 'Decision dock' })).not.toBeInTheDocument()
+    })
+
+    it('Go to Dn shows that question in the sheet and focuses it', async () => {
+      const sheet = await openSheet()
+      fireEvent.click(within(question('d1')).getByRole('radio', { name: 'KV' }))
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Copy prompt for agent' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Go to d2' }))
+
+      expect(screen.queryByRole('dialog', { name: 'Review prompt before copying' })).not.toBeInTheDocument()
+      expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
+    })
+
+    it('N, a number and Cmd or Ctrl Enter work inside the sheet', async () => {
+      await openSheet()
+      within(question('d1')).getByRole('radio', { name: 'KV' }).focus()
+      fireEvent.keyDown(document.activeElement!, { key: '2', code: 'Digit2' })
+      expect(within(question('d1')).getByRole('radio', { name: 'None' })).toHaveAttribute('aria-checked', 'true')
+
+      fireEvent.keyDown(document.activeElement!, { key: 'n', code: 'KeyN' })
+      expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
+
+      fireEvent.keyDown(document.activeElement!, { key: 'Enter', ctrlKey: true })
+      expect(document.execCommand).toHaveBeenCalledWith('copy')
+      expect(screen.getByRole('dialog', { name: 'Review prompt before copying' })).toBeInTheDocument()
+    })
+  })
+
   it('a reload keeps an Other answer', async () => {
     const first = await openReader()
     fireEvent.click(within(question('d3')).getByRole('radio', { name: 'Other, type your own' }))

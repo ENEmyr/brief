@@ -63,6 +63,10 @@ export function DockSlot({
           className="console-fade fixed inset-0 z-[60] bg-[var(--c-scrim)] min-[880px]:hidden"
         />
       )}
+      {/* From 1101 the dock sticks at 64 and ends 16 above the viewport's bottom
+          edge (B-Reader's page padding); 82 counts its 2 px of border. Taller
+          content scrolls inside the decision list, so a question that N or
+          "Go to" focuses, and the Copy button, stay on screen. */}
       <aside
         ref={asideRef}
         id="dock"
@@ -71,7 +75,7 @@ export function DockSlot({
         aria-modal={sheet ? true : undefined}
         tabIndex={sheet ? -1 : undefined}
         data-dock=""
-        className={`box-content flex min-w-0 flex-[0_0_340px] flex-col rounded-[6px] border border-line bg-card scroll-mt-[72px] outline-none min-[1101px]:sticky min-[1101px]:top-16 max-[1101px]:flex-[1_1_100%] max-[880px]:fixed max-[880px]:inset-x-0 max-[880px]:bottom-0 max-[880px]:box-border max-[880px]:rounded-b-none max-[880px]:border-x-0 max-[880px]:border-b-0 max-[880px]:border-t-line2 ${
+        className={`box-content flex min-w-0 flex-[0_0_340px] flex-col rounded-[6px] border border-line bg-card scroll-mt-[72px] outline-none min-[1101px]:sticky min-[1101px]:top-16 min-[1101px]:max-h-[calc(100dvh-82px)] max-[1101px]:flex-[1_1_100%] max-[880px]:fixed max-[880px]:inset-x-0 max-[880px]:bottom-0 max-[880px]:box-border max-[880px]:rounded-b-none max-[880px]:border-x-0 max-[880px]:border-b-0 max-[880px]:border-t-line2 ${
           sheet
             ? 'console-sheet max-[880px]:top-[106px] max-[880px]:z-[60] max-[880px]:rounded-t-[16px]'
             : 'max-[880px]:z-40 max-[880px]:rounded-t-[14px]'

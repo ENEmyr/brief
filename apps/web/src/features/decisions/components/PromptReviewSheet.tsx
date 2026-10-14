@@ -7,7 +7,8 @@ import { modKeyLabel } from '@/features/shortcuts'
 import { decisionCounts, isAnswered } from '../lib/answers'
 import { buildReplyPrompt } from '../lib/replyPrompt'
 
-const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
+const FOCUS_RING =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
 const CHIP = 'rounded-[3px] px-[6px] py-[2px]'
 const BUTTON = `min-h-9 whitespace-nowrap rounded-[4px] px-[14px] text-[13px] transition-transform duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none max-[880px]:min-h-11 ${FOCUS_RING}`
 
@@ -69,7 +70,10 @@ export function PromptReviewSheet({
   }
 
   return (
-    <div className="console-fade fixed inset-0 z-[95] bg-[var(--c-scrim)] print:hidden" onClick={onClose}>
+    <div
+      className="console-fade fixed inset-0 z-[95] bg-[var(--c-scrim)] print:hidden"
+      onClick={onClose}
+    >
       <aside
         ref={panelRef}
         role="dialog"
@@ -86,7 +90,9 @@ export function PromptReviewSheet({
             <span id={titleId} className="text-[15px] font-semibold">
               Review prompt before copying
             </span>
-            <span className="text-[12px] text-sub">Edit freely. This text goes back to the agent.</span>
+            <span className="text-[12px] text-sub">
+              Edit freely. This text goes back to the agent.
+            </span>
           </span>
           <button
             type="button"
@@ -94,7 +100,16 @@ export function PromptReviewSheet({
             onClick={onClose}
             className={`flex size-8 shrink-0 items-center justify-center rounded-[4px] border-0 bg-transparent text-sub transition-[background-color,transform] duration-[var(--dur-fast)] hover:bg-chip active:scale-[.97] motion-reduce:transition-none max-[880px]:size-11 ${FOCUS_RING}`}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>

@@ -122,22 +122,34 @@ export function createReaderStateStore(
       const current = state.dsel[decisionId] ?? []
       if (!multi) {
         // A single-select holds one answer: the agent's option replaces Other.
-        commit({ ...state, dsel: { ...state.dsel, [decisionId]: [optionId] }, dother: without(state.dother, decisionId) })
+        commit({
+          ...state,
+          dsel: { ...state.dsel, [decisionId]: [optionId] },
+          dother: without(state.dother, decisionId),
+        })
         return
       }
-      const next = current.includes(optionId) ? current.filter((o) => o !== optionId) : [...current, optionId]
+      const next = current.includes(optionId)
+        ? current.filter((o) => o !== optionId)
+        : [...current, optionId]
       commit({ ...state, dsel: { ...state.dsel, [decisionId]: next } })
     },
     pickOther(decisionId, multi) {
       const picked = Object.hasOwn(state.dother, decisionId)
       if (multi) {
-        const dother = picked ? without(state.dother, decisionId) : { ...state.dother, [decisionId]: '' }
+        const dother = picked
+          ? without(state.dother, decisionId)
+          : { ...state.dother, [decisionId]: '' }
         commit({ ...state, dother })
         return
       }
       // Like any radio, picking Other again leaves it picked.
       if (picked) return
-      commit({ ...state, dsel: without(state.dsel, decisionId), dother: { ...state.dother, [decisionId]: '' } })
+      commit({
+        ...state,
+        dsel: without(state.dsel, decisionId),
+        dother: { ...state.dother, [decisionId]: '' },
+      })
     },
     setOtherText(decisionId, text) {
       commit({ ...state, dother: { ...state.dother, [decisionId]: text } })

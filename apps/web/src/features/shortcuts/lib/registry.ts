@@ -13,11 +13,16 @@ export interface ShortcutRow {
   description: string
 }
 
-/** `key` is lower case. With `mod`, Cmd or Ctrl must be held; without it the binding is a single-key shortcut. */
+/**
+ * `key` is lower case. With `mod`, Cmd or Ctrl must be held; without it the
+ * binding is a single-key shortcut. `inDock` keeps it working inside the dock's
+ * own sheet under 880, which is a modal dialog like any other.
+ */
 interface Binding {
   id: ShortcutId
   key: string
   mod?: true
+  inDock?: true
 }
 
 const SHORTCUTS: readonly (ShortcutRow & { bindings: readonly Binding[] })[] = [
@@ -33,10 +38,10 @@ const SHORTCUTS: readonly (ShortcutRow & { bindings: readonly Binding[] })[] = [
   {
     keys: ['1', '9'],
     description: 'pick an option in the focused question',
-    bindings: ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => ({ id: 'pickOption' as const, key })),
+    bindings: ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => ({ id: 'pickOption' as const, key, inDock: true as const })),
   },
-  { keys: ['N'], description: 'jump to next unanswered question', bindings: [{ id: 'nextDecision', key: 'n' }] },
-  { keys: ['mod', 'Enter'], description: 'copy the prompt', bindings: [{ id: 'copyPrompt', key: 'enter', mod: true }] },
+  { keys: ['N'], description: 'jump to next unanswered question', bindings: [{ id: 'nextDecision', key: 'n', inDock: true }] },
+  { keys: ['mod', 'Enter'], description: 'copy the prompt', bindings: [{ id: 'copyPrompt', key: 'enter', mod: true, inDock: true }] },
   { keys: ['?'], description: 'show all shortcuts', bindings: [{ id: 'help', key: '?' }] },
   // Each overlay handles Esc itself; the row is listed because it works in every one of them.
   { keys: ['Esc'], description: 'close and return focus to the trigger', bindings: [] },
@@ -47,7 +52,7 @@ export const SHORTCUT_ROWS: readonly ShortcutRow[] = SHORTCUTS
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'])
 
 /** True when a single-key shortcut must not fire: a field, an overlay or the text selection owns the letter. */
-export function isSingleKeyBlocked(target: Element | null): boolean {
+function isSingleKeyBlocked(target: Element | null, inDock: boolean): boolean {
   if (document.querySelector('[data-seltoolbar]')) return true
   if (!target) return false
   const takesText =
@@ -55,7 +60,8 @@ export function isSingleKeyBlocked(target: Element | null): boolean {
     target instanceof HTMLTextAreaElement ||
     target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
-  return takesText || target.closest('[role="dialog"], [role="menu"], [role="listbox"], [data-popover]') !== null
+  const dialog = inDock ? '[role="dialog"]:not([data-dock])' : '[role="dialog"]'
+  return takesText || target.closest(`${dialog}, [role="menu"], [role="listbox"], [data-popover]`) !== null
 }
 
 /** '⌘' on Apple platforms (Mac, iPhone, iPad), 'Ctrl' elsewhere. */
@@ -74,14 +80,17 @@ function pressedKey(event: KeyboardEvent): string {
 
 function matches(binding: Binding, event: KeyboardEvent, key: string): boolean {
   if (key !== binding.key) return false
-  if (binding.mod) return (event.metaKey || event.ctrlKey) && !document.querySelector('[aria-modal="true"]')
+  if (binding.mod) {
+    const modal = binding.inDock ? '[aria-modal="true"]:not([data-dock])' : '[aria-modal="true"]'
+    return (event.metaKey || event.ctrlKey) && !document.querySelector(modal)
+  }
   return (
     !event.ctrlKey &&
     !event.metaKey &&
     !event.altKey &&
     !event.isComposing &&
     !event.defaultPrevented &&
-    !isSingleKeyBlocked(document.activeElement)
+    !isSingleKeyBlocked(document.activeElement, binding.inDock === true)
   )
 }
 

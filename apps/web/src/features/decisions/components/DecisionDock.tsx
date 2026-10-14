@@ -9,7 +9,8 @@ import { OptionList } from './OptionList'
 import { ResetAnswers } from './ResetAnswers'
 import { SupportTabs } from './SupportTabs'
 
-const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
+const FOCUS_RING =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
 
 /** Which decision the shell asked to show; `seq` repeats a request for the same one. */
 export interface DockTarget {
@@ -36,7 +37,7 @@ function DockDecision({ decision, current }: { decision: Decision; current: bool
       role="group"
       aria-label={`Question ${decision.id}`}
       data-decision={decision.id}
-      className={`flex flex-col gap-2 border-b border-line px-[14px] py-3 ${current ? 'bg-[var(--c-dock-current)]' : ''}`}
+      className={`flex flex-col gap-2 border-b border-line px-[14px] py-3 max-[1101px]:scroll-mt-[72px] ${current ? 'bg-[var(--c-dock-current)]' : ''}`}
     >
       <div className="flex items-baseline gap-2">
         <span className="font-mono text-[11px] text-accent-text">{decision.id}</span>
@@ -54,7 +55,7 @@ function DockDecision({ decision, current }: { decision: Decision; current: bool
         onChange={(event) => actions.setDecisionNote(decision.id, event.target.value)}
         aria-label={`${decision.id} Reason`}
         placeholder="Reason / extra context (optional)"
-        className={`block min-h-[34px] resize-none rounded-[4px] border border-line bg-[var(--c-code-bg)] px-[10px] py-0 text-[16px] leading-8 text-text outline-none [field-sizing:content] ${FOCUS_RING}`}
+        className={`block min-h-[34px] resize-none rounded-[4px] border border-line bg-[var(--c-code-bg)] px-[10px] py-1 text-[16px] leading-6 text-text outline-none [field-sizing:content] ${FOCUS_RING}`}
       />
       <SupportTabs decision={decision} />
     </div>
@@ -93,7 +94,9 @@ export function DecisionDock({
     )
     if (!row) return
     row.scrollIntoView({ block: 'nearest' })
-    row.querySelector<HTMLElement>('[role="radio"][tabindex="0"], [role="checkbox"]')?.focus({ preventScroll: true })
+    row
+      .querySelector<HTMLElement>('[role="radio"][tabindex="0"], [role="checkbox"]')
+      ?.focus({ preventScroll: true })
   }, [target])
 
   if (decisions.length === 0) return null
@@ -109,7 +112,7 @@ export function DecisionDock({
         </div>
         <DecisionSegments decisions={decisions} state={state} />
       </div>
-      <div className="flex flex-col">
+      <div className="flex min-h-0 flex-col overflow-y-auto">
         {decisions.map((d) => (
           <DockDecision key={d.id} decision={d} current={d === firstOpen} />
         ))}
@@ -123,7 +126,9 @@ export function DecisionDock({
           Copy prompt for agent
           <kbd className="font-mono text-[11px] opacity-70">{mod === '⌘' ? '⌘↵' : 'Ctrl ↵'}</kbd>
         </button>
-        <span className="text-center text-[12px] leading-[18px] text-faint">{includesLine(notes)}</span>
+        <span className="text-center text-[12px] leading-[18px] text-faint">
+          {includesLine(notes)}
+        </span>
         <ResetAnswers decisions={decisions} variant="dock" />
       </div>
     </div>

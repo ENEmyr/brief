@@ -10,9 +10,26 @@ import { expect, openReader, test } from '../lib/session'
 // app's next/font files). The boards size kbd and input elements as content
 // boxes, so a "height: 18px" kbd renders 20 and a "min-height: 32px" input 34.
 type Palette = Record<
-  | 'page' | 'card' | 'codeBg' | 'line' | 'line2' | 'text' | 'sub' | 'faint' | 'accent' | 'accentText'
-  | 'accentLine' | 'accentSoft' | 'onAccent' | 'good' | 'goodSoft' | 'warn' | 'warnSoft' | 'warnFill'
-  | 'dockCurrent' | 'transparent',
+  | 'page'
+  | 'card'
+  | 'codeBg'
+  | 'line'
+  | 'line2'
+  | 'text'
+  | 'sub'
+  | 'faint'
+  | 'accent'
+  | 'accentText'
+  | 'accentLine'
+  | 'accentSoft'
+  | 'onAccent'
+  | 'good'
+  | 'goodSoft'
+  | 'warn'
+  | 'warnSoft'
+  | 'warnFill'
+  | 'dockCurrent'
+  | 'transparent',
   string
 >
 const C: Record<Theme, Palette> = {
@@ -64,6 +81,15 @@ const C: Record<Theme, Palette> = {
 
 /** Each B-Reader decision has a context-chip row (26 plus the 8 gap) that waits on decision.refs (P1). */
 const CHIPS = 34
+/**
+ * B-Reader draws the dock 1297 high in flow. The app caps it at the viewport
+ * less 64 (sticky top) and 16 (page padding) so its list scrolls, which puts
+ * the footer at the dock's bottom edge: 900 - 80 high at 1440x900.
+ */
+const DOCK_H = 900 - 80
+const BOARD_DOCK_H = 1297
+/** Reset (owner ruling D5, no board) under the includes line: 36 plus the 8 gap. */
+const RESET = 44
 
 interface Rel {
   x?: number
@@ -81,13 +107,18 @@ async function expectRel(locator: Locator, origin: Locator, expected: Rel): Prom
   for (const key of ['x', 'y', 'width', 'height'] as const) {
     const want = expected[key]
     if (want === undefined) continue
-    baseExpect(Math.abs(got[key] - want), `${key}: got ${got[key]}, board has ${want}`).toBeLessThanOrEqual(1)
+    baseExpect(
+      Math.abs(got[key] - want),
+      `${key}: got ${got[key]}, board has ${want}`,
+    ).toBeLessThanOrEqual(1)
   }
 }
 
 /** The boards draw the Apple key glyphs; pin the platform so the app draws them too. */
 async function asApple(page: Page): Promise<void> {
-  await page.addInitScript(() => Object.defineProperty(Navigator.prototype, 'platform', { get: () => 'MacIntel' }))
+  await page.addInitScript(() =>
+    Object.defineProperty(Navigator.prototype, 'platform', { get: () => 'MacIntel' }),
+  )
 }
 
 test.describe('dock at 1440', () => {
@@ -98,16 +129,25 @@ test.describe('dock at 1440', () => {
   })
 
   const dockOf = (page: Page) => page.locator('aside[aria-label="Decision dock"]')
-  const row = (page: Page, id: string) => dockOf(page).getByRole('group', { name: `Question ${id}` })
+  const row = (page: Page, id: string) =>
+    dockOf(page).getByRole('group', { name: `Question ${id}` })
 
   test('header: DECISIONS, the count and one segment per decision', async ({ page, theme }) => {
     const dock = dockOf(page)
     const label = dock.getByText('DECISIONS', { exact: true })
     const header = label.locator('xpath=../..')
     await expectRel(header, dock, { x: 1, y: 1, width: 340, height: 53 })
-    await expectComputed(header, { 'padding-top': '12px', 'padding-left': '14px', 'border-bottom-color': C[theme].line })
+    await expectComputed(header, {
+      'padding-top': '12px',
+      'padding-left': '14px',
+      'border-bottom-color': C[theme].line,
+    })
     await expectRel(label, dock, { x: 15, y: 14, height: 14 })
-    await expectComputed(label, { 'font-size': '11px', 'letter-spacing': '0.66px', color: C[theme].faint })
+    await expectComputed(label, {
+      'font-size': '11px',
+      'letter-spacing': '0.66px',
+      color: C[theme].faint,
+    })
     const count = dock.getByText('3/4', { exact: true })
     await expectRel(count, dock, { x: 306, y: 13 })
     await expectComputed(count, { 'font-size': '12px', color: C[theme].accentText })
@@ -117,11 +157,17 @@ test.describe('dock at 1440', () => {
     const tones = [C[theme].accent, C[theme].accent, C[theme].accent, C[theme].warnFill]
     for (const [i, tone] of tones.entries()) {
       await expectRel(segments.nth(i), dock, { y: 37, height: 4, width: 75.75 })
-      await expectComputed(segments.nth(i), { 'background-color': tone, 'border-top-left-radius': '2px' })
+      await expectComputed(segments.nth(i), {
+        'background-color': tone,
+        'border-top-left-radius': '2px',
+      })
     }
   })
 
-  test('decision rows: id, question, state word; the first open one on the highlight fill', async ({ page, theme }) => {
+  test('decision rows: id, question, state word; the first open one on the highlight fill', async ({
+    page,
+    theme,
+  }) => {
     const dock = dockOf(page)
     const d1 = row(page, 'D1')
     await expectRel(d1, dock, { x: 1, y: 54, width: 340, height: 277 - CHIPS })
@@ -149,15 +195,24 @@ test.describe('dock at 1440', () => {
     const d4 = row(page, 'D4')
     await expectComputed(d4, { 'background-color': C[theme].dockCurrent })
     await expectComputed(d4.getByText('open', { exact: true }), { color: C[theme].warn })
-    for (const id of ['D2', 'D3']) await expectComputed(row(page, id), { 'background-color': C[theme].transparent })
+    for (const id of ['D2', 'D3'])
+      await expectComputed(row(page, id), { 'background-color': C[theme].transparent })
   })
 
-  test('options: 34 high, numbered kbd 20, picked and idle states, then the reason field', async ({ page, theme }) => {
+  test('options: 34 high, numbered kbd 20, picked and idle states, then the reason field', async ({
+    page,
+    theme,
+  }) => {
     const dock = dockOf(page)
     const options = row(page, 'D1').getByRole('radio')
     await expect(options).toHaveCount(4)
     for (let i = 0; i < 4; i++) {
-      await expectRel(options.nth(i), dock, { x: 15, y: 128 - CHIPS + 38 * i, width: 312, height: 34 })
+      await expectRel(options.nth(i), dock, {
+        x: 15,
+        y: 128 - CHIPS + 38 * i,
+        width: 312,
+        height: 34,
+      })
     }
     const picked = options.nth(0)
     await expect(picked).toHaveAttribute('aria-checked', 'true')
@@ -200,7 +255,10 @@ test.describe('dock at 1440', () => {
     })
   })
 
-  test('Other: last option, "Your answer" open under the group, multi uses checkboxes', async ({ page, theme }) => {
+  test('Other: last option, "Your answer" open under the group, multi uses checkboxes', async ({
+    page,
+    theme,
+  }) => {
     const dock = dockOf(page)
     const d2 = row(page, 'D2')
     await expectRel(d2, dock, { y: 331 - CHIPS })
@@ -218,14 +276,29 @@ test.describe('dock at 1440', () => {
 
     const d3 = row(page, 'D3')
     await expect(d3.getByRole('checkbox')).toHaveCount(4)
-    await expect(d3.getByRole('checkbox', { name: 'API key' })).toHaveAttribute('aria-checked', 'true')
-    await expect(d3.getByRole('checkbox', { name: 'User ID' })).toHaveAttribute('aria-checked', 'true')
+    await expect(d3.getByRole('checkbox', { name: 'API key' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await expect(d3.getByRole('checkbox', { name: 'User ID' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
   })
 
-  test('footer: Copy prompt for agent 40 with its key chip, and the includes line', async ({ page, theme }) => {
+  test('footer: Copy prompt for agent 40 with its key chip, and the includes line', async ({
+    page,
+    theme,
+  }) => {
     const dock = dockOf(page)
     const copy = dock.getByRole('button', { name: /^Copy prompt for agent/ })
-    await expectRel(copy, dock, { x: 15, y: 1218 - 4 * CHIPS, width: 312, height: 40 })
+    await expectBox(dock, { height: DOCK_H })
+    await expectRel(copy, dock, {
+      x: 15,
+      y: DOCK_H - (BOARD_DOCK_H - 1218) - RESET,
+      width: 312,
+      height: 40,
+    })
     await expectComputed(copy, {
       'background-color': C[theme].accent,
       color: C[theme].onAccent,
@@ -238,29 +311,92 @@ test.describe('dock at 1440', () => {
     await expectRel(chip, dock, { x: 246, width: 14 })
     await expectComputed(chip, { 'font-size': '11px', opacity: '0.7' })
     const line = dock.getByText('Includes answers, reasons and 0 notes', { exact: true })
-    await expectRel(line, dock, { x: 15, y: 1266 - 4 * CHIPS, width: 312, height: 18 })
-    await expectComputed(line, { 'font-size': '12px', 'line-height': '18px', color: C[theme].faint, 'text-align': 'center' })
+    await expectRel(line, dock, {
+      x: 15,
+      y: DOCK_H - (BOARD_DOCK_H - 1266) - RESET,
+      width: 312,
+      height: 18,
+    })
+    await expectComputed(line, {
+      'font-size': '12px',
+      'line-height': '18px',
+      color: C[theme].faint,
+      'text-align': 'center',
+    })
+  })
+
+  test('N and "Go to" focus a question below the fold, with Copy on screen', async ({ page }) => {
+    const focusInView = () =>
+      page.evaluate(() => {
+        const box = document.activeElement!.getBoundingClientRect()
+        return box.top >= 0 && box.bottom <= window.innerHeight
+      })
+    const copy = dockOf(page).getByRole('button', { name: /^Copy prompt for agent/ })
+    const d4 = row(page, 'D4').getByRole('radio', { name: '429 + Retry-After' })
+    const listTop = () =>
+      page.evaluate(() => {
+        document.querySelector('[data-decision="D1"]')!.parentElement!.scrollTop = 0
+      })
+
+    await expectBox(copy, { height: 40 })
+    expect(
+      await copy.evaluate((el) => el.getBoundingClientRect().bottom <= window.innerHeight),
+    ).toBe(true)
+
+    await page.keyboard.press('n')
+    await expect(d4).toBeFocused()
+    expect(await focusInView()).toBe(true)
+
+    await listTop()
+    await copy.click()
+    await page
+      .getByRole('dialog', { name: 'Review prompt before copying' })
+      .getByRole('button', { name: 'Go to D4' })
+      .click()
+    await expect(d4).toBeFocused()
+    expect(await focusInView()).toBe(true)
   })
 
   // Pixel crops of the parts whose content matches the board: the header,
   // two option rows, a checkbox and the Copy button.
   for (const [crop, find] of [
-    ['dock-header', (page: Page) => dockOf(page).getByText('DECISIONS', { exact: true }).locator('xpath=../..')],
-    ['dock-option-picked', (page: Page) => row(page, 'D1').getByRole('radio', { name: 'Rate limiting binding' })],
-    ['dock-option-idle', (page: Page) => row(page, 'D1').getByRole('radio', { name: 'KV counter' })],
-    ['dock-checkbox-picked', (page: Page) => row(page, 'D3').getByRole('checkbox', { name: 'API key' })],
-    ['dock-copy', (page: Page) => dockOf(page).getByRole('button', { name: /^Copy prompt for agent/ })],
+    [
+      'dock-header',
+      (page: Page) => dockOf(page).getByText('DECISIONS', { exact: true }).locator('xpath=../..'),
+    ],
+    [
+      'dock-option-picked',
+      (page: Page) => row(page, 'D1').getByRole('radio', { name: 'Rate limiting binding' }),
+    ],
+    [
+      'dock-option-idle',
+      (page: Page) => row(page, 'D1').getByRole('radio', { name: 'KV counter' }),
+    ],
+    [
+      'dock-checkbox-picked',
+      (page: Page) => row(page, 'D3').getByRole('checkbox', { name: 'API key' }),
+    ],
+    [
+      'dock-copy',
+      (page: Page) => dockOf(page).getByRole('button', { name: /^Copy prompt for agent/ }),
+    ],
   ] as const) {
     test(`crop ${crop}`, async ({ page, theme }) => {
       const locator = find(page)
       await expect(locator).toBeVisible()
-      await expect(page).toHaveScreenshot(`crop-reader-${theme}-${crop}.png`, { fullPage: true, clip: await clipOf(locator) })
+      await expect(page).toHaveScreenshot(`crop-reader-${theme}-${crop}.png`, {
+        fullPage: true,
+        clip: await clipOf(locator),
+      })
     })
   }
 })
 
 test.describe('prompt review sheet at 1440', () => {
-  test('a 501 right sheet with title, chips, Go to, the text, Copy prompt and Rebuild', async ({ page, theme }) => {
+  test('a 501 right sheet with title, chips, Go to, the text, Copy prompt and Rebuild', async ({
+    page,
+    theme,
+  }) => {
     await asApple(page)
     await page.setViewportSize({ width: 1440, height: 900 })
     await openReader(page)
@@ -328,8 +464,15 @@ test.describe('prompt review sheet at 1440', () => {
     await expectRel(chip, sheet, { width: 52, height: 15 })
     const rebuild = sheet.getByRole('button', { name: 'Rebuild from answers' })
     await expectRel(rebuild, sheet, { x: 198, width: 159, height: 36 })
-    await expectComputed(rebuild, { color: C[theme].text, 'border-top-color': C[theme].line2, 'font-size': '13px' })
-    await expectComputed(sheet.getByText(/^\d+ chars$/), { 'font-size': '11px', color: C[theme].faint })
+    await expectComputed(rebuild, {
+      color: C[theme].text,
+      'border-top-color': C[theme].line2,
+      'font-size': '13px',
+    })
+    await expectComputed(sheet.getByText(/^\d+ chars$/), {
+      'font-size': '11px',
+      color: C[theme].faint,
+    })
   })
 })
 
@@ -337,7 +480,12 @@ test.describe('phone sheet', () => {
   test.use({ viewport: PHONE_VIEWPORT, isMobile: true, hasTouch: true })
 
   // B-Mobile's own answers: D1 binding, D3 api. The sheet opens on D2, the first open one.
-  const mobileSeed = { dsel: { D1: ['binding'], D3: ['api'] }, dnote: {}, dother: {}, highlights: [] }
+  const mobileSeed = {
+    dsel: { D1: ['binding'], D3: ['api'] },
+    dnote: {},
+    dother: {},
+    highlights: [],
+  }
 
   async function openSheet(page: Page) {
     await openReader(page, mobileSeed)
@@ -347,11 +495,16 @@ test.describe('phone sheet', () => {
     return sheet
   }
 
-  test('chips, the current question, 48 options, the reason field and the footer', async ({ page, theme }) => {
+  test('chips, the current question, 48 options, the reason field and the footer', async ({
+    page,
+    theme,
+  }) => {
     const sheet = await openSheet(page)
     await expect(sheet.getByText('DECISIONS / 2/4', { exact: true })).toBeVisible()
     // Touch targets under 880 are 44: the board's 36 chips grow by 8.
-    const chips = ['D1', 'D2', 'D3', 'D4'].map((id) => sheet.getByRole('button', { name: `Question ${id}` }))
+    const chips = ['D1', 'D2', 'D3', 'D4'].map((id) =>
+      sheet.getByRole('button', { name: `Question ${id}` }),
+    )
     for (const chip of chips) {
       await expectRel(chip, sheet, { y: 88, height: 44 })
       await expectComputed(chip, { 'border-top-left-radius': '999px', 'font-size': '12px' })
@@ -368,13 +521,22 @@ test.describe('phone sheet', () => {
 
     const question = sheet.getByText('ค่า default limit ต่อผู้ใช้', { exact: true })
     await expectRel(question, sheet, { x: 14, y: 140 + 8 })
-    await expectComputed(question, { 'font-size': '18px', 'line-height': '26px', 'font-weight': '600' })
+    await expectComputed(question, {
+      'font-size': '18px',
+      'line-height': '26px',
+      'font-weight': '600',
+    })
 
     // B-Mobile has a context link (38 plus the 10 gap, less its -4 margin) above the options: refs are P1.
     const options = sheet.getByRole('group', { name: 'Question D2' }).getByRole('radio')
     await expect(options).toHaveCount(4)
     for (let i = 0; i < 4; i++) {
-      await expectRel(options.nth(i), sheet, { x: 14, y: 220 + 8 - 44 + 54 * i, width: 360, height: 48 })
+      await expectRel(options.nth(i), sheet, {
+        x: 14,
+        y: 220 + 8 - 44 + 54 * i,
+        width: 360,
+        height: 48,
+      })
     }
     await expectComputed(options.nth(0), {
       'background-color': C[theme].codeBg,
@@ -384,7 +546,10 @@ test.describe('phone sheet', () => {
       'border-top-left-radius': '6px',
     })
     await expectRel(options.nth(0).locator('kbd'), sheet, { x: 27, width: 24, height: 24 })
-    await expectComputed(options.nth(0).locator('kbd'), { 'font-size': '12px', 'border-top-left-radius': '4px' })
+    await expectComputed(options.nth(0).locator('kbd'), {
+      'font-size': '12px',
+      'border-top-left-radius': '4px',
+    })
     await expectRel(options.nth(0).locator(':scope > span'), sheet, { x: 63 })
 
     const label = sheet.getByText('Reason / extra context', { exact: true })
