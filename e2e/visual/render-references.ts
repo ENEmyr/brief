@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
+import { FAVICON_SIZES, renderIcon } from './lib/favicon'
 import { BOARD_FONTS, assertFontsLoaded } from './lib/fonts'
 import {
   BOARDS_DIR,
@@ -184,6 +185,15 @@ test('landing dark and light, print', async ({ browser }) => {
 
   await openBoard(page, 'B-Print', boardWidth('B-Print'))
   await save(page, 'print')
+})
+
+test('favicon sizes from icon.svg', async ({ browser }) => {
+  const page = await newPage(browser)
+  for (const size of FAVICON_SIZES) {
+    const file = path.join(REFERENCE_DIR, `favicon-${size}.png`)
+    fs.writeFileSync(file, await renderIcon(page, size))
+    written.push(file)
+  }
 })
 
 test('element crops from crops.json', async ({ browser }) => {
