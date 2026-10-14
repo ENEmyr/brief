@@ -101,7 +101,7 @@ describe('startKvSync debounce', () => {
     stop()
   })
 
-  it('silently swallows PUT failures', async () => {
+  it('sends the PUT and does not throw when it is rejected', async () => {
     const mockFetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ state: null })))
     mockFetch.mockRejectedValueOnce(new Error('network down'))
     vi.stubGlobal('fetch', mockFetch)
