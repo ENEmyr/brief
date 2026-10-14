@@ -82,7 +82,7 @@ const ROW_CLASS: Record<Phase, string> = {
   rest: 'px-2.5 py-2 text-sub max-[880px]:p-0',
   past: 'px-2.5 py-2 text-sub max-[880px]:p-0',
   current:
-    'flex-col gap-1 rounded-[4px] border border-[var(--c-step-line)] bg-accent-soft px-2.5 py-2 text-text max-[880px]:flex-row max-[880px]:gap-2 max-[880px]:px-2 max-[880px]:py-1.5',
+    'rounded-[4px] border border-[var(--c-step-line)] bg-accent-soft px-2.5 py-2 text-text max-[880px]:px-2 max-[880px]:py-1.5',
   future: 'px-2.5 py-2 text-faint max-[880px]:p-0',
 }
 
@@ -123,7 +123,7 @@ function SeqDiagram({ block, cursor }: SeqDiagramProps) {
 
   return (
     <div
-      className="relative mx-auto font-mono text-[12px] leading-4"
+      className={`relative font-mono text-[12px] leading-4 ${cursor === null ? 'mx-auto' : ''}`}
       style={{ width: layout.width, height: layout.height }}
     >
       <EdgeLayer width={layout.width} height={layout.height}>
@@ -193,10 +193,12 @@ function SeqDiagram({ block, cursor }: SeqDiagramProps) {
 /**
  * Sequence diagram block with playback (features.md B4, B-Blocks:74-110).
  *
- * At rest every message is drawn (B-Reader:126-139). Play, or a step, starts
- * playback: the current message is lime, earlier ones faint, later ones line2,
- * and a step list sits under the diagram. On phones the list replaces the
- * diagram, and the full-screen button opens the full picture (B-Mobile:35-42).
+ * At rest every message is drawn, centered (B-Reader:126-139). Play, or a
+ * step, starts playback: the current message is lime, earlier ones faint,
+ * later ones line2, and the step list wraps beside the left-aligned diagram,
+ * under it when the card is too narrow for both (B-Blocks:76-101). On phones
+ * the list replaces the diagram, and the full-screen button opens the full
+ * picture (B-Mobile:35-42).
  * Paper prints every message at once, numbered (B-Print:41-53).
  *
  * Steps referencing an actor name not present in `actors` are dropped
@@ -307,35 +309,37 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
       fullScreen={onFullScreen}
     >
       <div role="group" aria-label="Sequence steps" tabIndex={0} onKeyDown={onKeyDown} className={`outline-none ${FOCUS_RING}`}>
-        <div
-          className={`overflow-x-auto max-[880px]:hidden print:block! ${atRest ? 'py-4' : 'px-2.5 py-5'}`}
-        >
-          {diagram}
-        </div>
-        <ol
-          className={`m-0 list-none flex-col gap-1 border-t border-line p-2.5 text-[13px] leading-[normal] print:hidden! max-[880px]:flex max-[880px]:gap-1.5 max-[880px]:border-t-0 max-[880px]:p-3 ${
-            atRest ? 'hidden' : 'flex'
-          }`}
-        >
-          {steps.map((s, i) => {
-            const phase = phaseOf(i, cursor)
-            return (
-              <li
-                key={i}
-                aria-current={phase === 'current' ? 'step' : undefined}
-                className={`flex gap-2.5 max-[880px]:gap-2 ${ROW_CLASS[phase]}`}
-              >
-                <span className="flex gap-2.5 max-[880px]:gap-2">
+        {/* The 1px gap shows the line color: the board's rule between the pane
+            and the list, whether they share a row or the list wraps under. */}
+        <div className="flex flex-wrap gap-px bg-line">
+          <div
+            className={`min-w-0 flex-[1_1_660px] overflow-x-auto bg-card max-[880px]:hidden print:block! ${atRest ? 'py-4' : 'px-2.5 py-5'}`}
+          >
+            {diagram}
+          </div>
+          <ol
+            className={`m-0 min-w-0 flex-[1_1_300px] list-none flex-col gap-1 bg-card p-2.5 text-[13px] leading-[normal] print:hidden! max-[880px]:flex max-[880px]:gap-1.5 max-[880px]:p-3 ${
+              atRest ? 'hidden' : 'flex'
+            }`}
+          >
+            {steps.map((s, i) => {
+              const phase = phaseOf(i, cursor)
+              return (
+                <li
+                  key={i}
+                  aria-current={phase === 'current' ? 'step' : undefined}
+                  className={`grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-1 max-[880px]:gap-x-2 ${ROW_CLASS[phase]}`}
+                >
                   <span className={`font-mono ${phase === 'current' ? 'text-accent-text' : ''}`}>{i + 1}</span>
-                  {stepText(s)}
-                </span>
-                {phase === 'current' && s.note ? (
-                  <span className="pl-[18px] text-[12px] leading-[18px] text-sub max-[880px]:hidden">{s.note}</span>
-                ) : null}
-              </li>
-            )
-          })}
-        </ol>
+                  <span>{stepText(s)}</span>
+                  {phase === 'current' && s.note ? (
+                    <span className="col-start-2 text-[12px] leading-[18px] text-sub">{s.note}</span>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ol>
+        </div>
         <span className="sr-only" aria-live="polite">
           {currentStep ? `Step ${cursor} of ${count}: ${stepText(currentStep)}` : ''}
         </span>
