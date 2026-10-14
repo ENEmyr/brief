@@ -4,7 +4,6 @@ export const SKILL_DOCS_URL = 'https://github.com/ENEmyr/brief/blob/main/skills/
 
 export const INSTALL_COMMAND = 'npx skills add ENEmyr/brief'
 
-/** The reader route only matches 14-character ids (app/s/page.tsx), so the examples use one. */
 export const EXAMPLE_ID = 'k2p9x4Qm7Zr1Ta'
 export const EXAMPLE_LINK = `brief.algoryth.me/s/${EXAMPLE_ID}`
 
@@ -48,11 +47,7 @@ export type BlockGroup = {
 
 /**
  * Grouped exactly as skills/brief/BLOCKS.md groups them, so the page and the
- * skill cannot drift apart in meaning. Tests assert that every block type in
- * payloadSchema appears here and that nothing here is missing from it, which
- * is what fails when a new block ships without the landing page catching up.
- * B-Landing's "Agent work" row (walkthrough, diff, trajectory) joins when
- * those block types exist.
+ * skill cannot drift apart in meaning.
  */
 export const BLOCK_GROUPS: BlockGroup[] = [
   {

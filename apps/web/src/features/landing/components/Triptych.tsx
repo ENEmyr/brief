@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { EXAMPLE_ID, EXAMPLE_LINK } from '../lib/content'
 import styles from './landing.module.css'
 
@@ -5,7 +6,6 @@ const PANEL = 'flex flex-col rounded-[8px] border border-line bg-card'
 const PANEL_HEAD = 'border-b border-line px-[14px] py-[10px] font-mono text-[11px] text-faint'
 const OPTION = 'rounded-[3px] border px-[6px] py-[5px]'
 
-/** Three panels: the agent's terminal, the brief, the prompt that goes back (B-Landing:46-83). */
 export function Triptych({ className }: { className: string }) {
   return (
     <div className={`${className} grid grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] gap-4`}>
@@ -18,7 +18,12 @@ export function Triptych({ className }: { className: string }) {
           <span className="text-faint">· read 2 files · ran k6 · wrote brief</span>
           <span className="text-text">Reviewed the plan. Four calls need you:</span>
           <span>
-            <span className={`${styles.type} text-accent-text`}>{EXAMPLE_LINK}</span>
+            <span
+              className={`${styles.type} text-accent-text`}
+              style={{ '--type-steps': EXAMPLE_LINK.length } as CSSProperties}
+            >
+              {EXAMPLE_LINK}
+            </span>
           </span>
         </div>
       </div>

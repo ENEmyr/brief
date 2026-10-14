@@ -12,7 +12,6 @@ const NODE = 'absolute top-2 flex h-8 w-[120px] items-center justify-center roun
 const LIFELINE = 'absolute top-10 h-[130px] w-0 border-l border-dashed border-line2'
 const MESSAGE = 'absolute w-[160px] text-center font-mono text-[11px]'
 
-/** One horizontal message arrow of the seq card, drawn as the board draws it (B-Landing:173-175). */
 function Arrow({ id, left, top, color, dashed, back }: { id: string; left: number; top: number; color: string; dashed?: boolean; back?: boolean }) {
   return (
     <svg
@@ -42,11 +41,6 @@ function Arrow({ id, left, top, color, dashed, back }: { id: string; left: numbe
   )
 }
 
-/**
- * The annotated reader on B-Landing:143-202, built from the reader's own
- * parts at preview scale. It shows the three view tabs of the shipped reader
- * (owner ruling D2), not the board's four.
- */
 export function ReaderPreview() {
   return (
     <section id="preview" className={`border-t border-line ${BAND}`}>

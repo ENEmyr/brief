@@ -11,7 +11,6 @@ import { SectionView } from '@/features/reader/components/SectionView'
 const { highlightMock } = vi.hoisted(() => ({ highlightMock: vi.fn() }))
 vi.mock('@/features/reader/services/shiki', () => ({ highlightToHast: highlightMock }))
 
-/** A shiki-shaped tree, one `span.line` per line (as in test/reader/code-blocks.test.tsx). */
 function hastFor(lines: string[]): Root {
   const children: (HastElement | { type: 'text'; value: string })[] = []
   lines.forEach((line, i) => {
