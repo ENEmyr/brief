@@ -110,15 +110,6 @@ function styledNode(text: string, style: CharStyle): ElementContent {
   return { type: 'element', tagName: 'span', properties, children: [{ type: 'text', value: text }] }
 }
 
-function supNode(symbol: string): ElementContent {
-  return {
-    type: 'element',
-    tagName: 'sup',
-    properties: { class: 'ml-px text-[10px] font-bold text-mauve' },
-    children: [{ type: 'text', value: symbol }],
-  }
-}
-
 /** Same highlight/mark/note/ask styling as HighlightedText, ported to hast
  * nodes instead of a JSX fragment (a line is coloured token spans, not one
  * plain string, so HighlightedText's own string-slicing can't be reused
@@ -127,13 +118,12 @@ function supNode(symbol: string): ElementContent {
  * `<mark>` does. */
 function markNode(h: Highlight, children: ElementContent[]): ElementContent {
   const isAsk = h.question !== undefined
-  if (isAsk) children.push(supNode('?'))
-  else if (h.note !== null) children.push(supNode('●'))
   return {
     type: 'element',
     tagName: 'mark',
     properties: {
       'data-highlight-id': h.id,
+      'data-marker': isAsk ? 'ask' : h.note !== null ? 'note' : undefined,
       class: isAsk
         ? 'cursor-pointer rounded-[3px] bg-mauvesoft px-[2px] text-mauve'
         : 'cursor-pointer rounded-[3px] px-[2px]',
