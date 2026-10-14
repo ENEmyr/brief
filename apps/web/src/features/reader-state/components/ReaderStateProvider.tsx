@@ -4,8 +4,22 @@ import { createReaderStateStore } from '../store'
 import type { ReaderState, ReaderStateActions, ReaderStateStore } from '../store'
 import { cancelPendingPersist, clearPersistedState } from '../persistence'
 import { startKvSync } from '../sync'
+import type { SyncStatus } from '../sync'
 
 const ReaderStateContext = createContext<ReaderStateStore | null>(null)
+
+/** What the save chip shows. `tab` is memory-only state (protected docs, or a
+ * doc encrypted mid-view): a reload loses it. `device` is a failed sync: the
+ * answers are only in this browser's localStorage. */
+export type SaveStatus = 'saved' | 'saving' | 'device' | 'tab'
+
+const SYNC_TO_SAVE: Record<SyncStatus, SaveStatus> = {
+  saving: 'saving',
+  saved: 'saved',
+  failed: 'device',
+}
+
+const SaveStatusContext = createContext<SaveStatus>('saved')
 
 const SERVER_SNAPSHOT: ReaderState = { highlights: [], dsel: {}, dnote: {} }
 
@@ -44,6 +58,8 @@ export function ReaderStateProvider({
   // to `persist` and only ever flips true->false, via stopPersistence --
   // there is no path back to persisting once stopped.
   const [syncActive, setSyncActive] = useState(persist)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('saved')
+  const saveStatus: SaveStatus = persist && syncActive ? SYNC_TO_SAVE[syncStatus] : 'tab'
 
   const stopPersistence = useCallback(() => {
     setSyncActive(false)
@@ -73,10 +89,19 @@ export function ReaderStateProvider({
       return
     }
     if (!syncActive) return
-    return startKvSync(sessionId, store)
+    return startKvSync(sessionId, store, setSyncStatus)
   }, [sessionId, store, persist, syncActive])
 
-  return <ReaderStateContext.Provider value={contextValue}>{children}</ReaderStateContext.Provider>
+  return (
+    <ReaderStateContext.Provider value={contextValue}>
+      <SaveStatusContext.Provider value={saveStatus}>{children}</SaveStatusContext.Provider>
+    </ReaderStateContext.Provider>
+  )
+}
+
+/** Where the reader's answers and marks currently live, for the save chip. */
+export function useSaveStatus(): SaveStatus {
+  return useContext(SaveStatusContext)
 }
 
 function useReaderStore(): ReaderStateStore {
