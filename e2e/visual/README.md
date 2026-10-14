@@ -108,6 +108,10 @@ Append an entry to `crops.json` and run `bun run e2e:visual:refs`:
 - `nth`: zero-based index among the matches (default 0).
 - `contains`: text the element must hold; the renderer throws if the board changed
   and the entry points at something else. Always set it.
+- `visibleHeight`: the rows of the element the board shows, when its frame clips
+  the rest. B-Overlays clips the Archive dialog at 446 (a 470 frame, the dialog
+  24 down), and below that the crop would hold the figcaption. The spec cuts the
+  app element to the same height.
 - Output is `reference/crop-<name>.png`, cut out of the full board render at the
   element's box. To compare the app with it, add a spec that cuts the matching
   app element the same way: `toHaveScreenshot('crop-<name>.png', { fullPage: true,

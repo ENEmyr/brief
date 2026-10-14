@@ -38,6 +38,8 @@ interface Crop {
   hasNotText?: string
   /** Text the element must contain (case-insensitive); guards against the board changing under the map. */
   contains?: string
+  /** Rows of the element the board shows, when its frame clips the rest. */
+  visibleHeight?: number
 }
 
 const crops = (
@@ -203,7 +205,9 @@ test('element crops from crops.json', async ({ browser }) => {
         throw new Error(`crop ${crop.name}: element does not contain "${crop.contains}"; fix its entry in crops.json`)
       }
     }
-    await save(page, `crop-${crop.name}`, await clipOf(locator))
+    const clip = await clipOf(locator)
+    if (crop.visibleHeight !== undefined) clip.height = Math.min(clip.height, crop.visibleHeight)
+    await save(page, `crop-${crop.name}`, clip)
   }
 })
 
