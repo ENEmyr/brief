@@ -6,15 +6,21 @@ import { useReaderStateStore } from '@/features/reader-state'
 import { copyText } from '../lib/copy'
 import { downloadMarkdown as downloadMarkdownFile } from '../lib/download'
 import { printDocument } from '../lib/print'
-import { Toast } from './Toast'
+import { Toast, isSticky } from './Toast'
+import type { ShownToast, ToastSpec } from './Toast'
 import { ShareModal } from './ShareModal'
 import { CopyFallbackModal } from './CopyFallbackModal'
 
 const TOAST_DURATION_MS = 1600
-const NO_EDIT_POINTS_MESSAGE = 'No edit points yet - highlight something or answer a decision first'
+const COPIED: ToastSpec = { kind: 'done', message: 'Copied' }
+const NO_EDIT_POINTS: ToastSpec = {
+  kind: 'info',
+  message: 'No edit points yet - highlight something or answer a decision first',
+}
 
 export interface ExportContextValue {
-  copy: (text: string) => Promise<void>
+  /** Resolves 'copied', or 'fallback' once the manual-copy dialog opened instead. */
+  copy: (text: string) => Promise<'copied' | 'fallback'>
   share: () => void
   downloadMarkdown: () => void
   /** Print / save-as-PDF, alongside downloadMarkdown because the Topbar's
@@ -24,17 +30,21 @@ export interface ExportContextValue {
    *  answers and copies it, or toasts that there is nothing to act on yet.
    *  The Edit menu's one live item (see EditMenu.tsx). */
   copyEditPrompt: () => void
-  toast: (message: string) => void
+  /** Shows one toast, replacing any other; returns its id for dismissToast. */
+  toast: (toast: ToastSpec) => number
+  /** Hides the toast with this id, if it is still the one showing. */
+  dismissToast: (id: number) => void
 }
 
 const noop = () => {}
 const ExportContext = createContext<ExportContextValue>({
-  copy: async () => {},
+  copy: async () => 'fallback',
   share: noop,
   downloadMarkdown: noop,
   print: noop,
   copyEditPrompt: noop,
-  toast: noop,
+  toast: () => 0,
+  dismissToast: noop,
 })
 
 /**
@@ -62,10 +72,13 @@ export function ExportProvider({
   sessionId,
   payload,
   encrypted = false,
+  expiresAt,
   children,
 }: {
   sessionId: string
   payload: Payload
+  /** When the session expires (epoch ms, from the session GET). */
+  expiresAt?: number
   /** Whether the server only holds ciphertext for this session; threaded
    *  into copyEditPrompt so the edit prompt tells the human to paste the
    *  document instead of pointing an AI at a raw endpoint that would 403.
@@ -74,16 +87,26 @@ export function ExportProvider({
   children: React.ReactNode
 }) {
   const store = useReaderStateStore()
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [shown, setShown] = useState<ShownToast | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [fallbackText, setFallbackText] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastToastId = useRef(0)
 
-  const toast = useCallback((message: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-    setToastMessage(message)
-    toastTimer.current = setTimeout(() => setToastMessage(null), TOAST_DURATION_MS)
+  const dismissToast = useCallback((id: number) => {
+    setShown((current) => (current?.id === id ? null : current))
   }, [])
+
+  const toast = useCallback(
+    (spec: ToastSpec) => {
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+      const id = ++lastToastId.current
+      setShown({ id, spec })
+      if (!isSticky(spec)) toastTimer.current = setTimeout(() => dismissToast(id), TOAST_DURATION_MS)
+      return id
+    },
+    [dismissToast],
+  )
 
   // Clear any pending auto-dismiss timer on unmount, so it can never fire a
   // setState against an unmounted provider (review finding).
@@ -96,8 +119,9 @@ export function ExportProvider({
   const copy = useCallback(
     async (text: string) => {
       const result = await copyText(text)
-      if (result === 'copied') toast('Copied')
+      if (result === 'copied') toast(COPIED)
       else setFallbackText(text)
+      return result
     },
     [toast],
   )
@@ -113,22 +137,23 @@ export function ExportProvider({
   const copyEditPrompt = useCallback(() => {
     const prompt = buildEditPrompt(payload, store.getState(), sessionId, window.location.origin, encrypted)
     if (prompt) void copy(prompt)
-    else toast(NO_EDIT_POINTS_MESSAGE)
+    else toast(NO_EDIT_POINTS)
   }, [payload, store, sessionId, encrypted, copy, toast])
 
   const value = useMemo<ExportContextValue>(
-    () => ({ copy, share, downloadMarkdown, print, copyEditPrompt, toast }),
-    [copy, share, downloadMarkdown, print, copyEditPrompt, toast],
+    () => ({ copy, share, downloadMarkdown, print, copyEditPrompt, toast, dismissToast }),
+    [copy, share, downloadMarkdown, print, copyEditPrompt, toast, dismissToast],
   )
 
   return (
     <ExportContext.Provider value={value}>
       {children}
-      <Toast message={toastMessage} />
+      <Toast toast={shown} onDismiss={() => shown && dismissToast(shown.id)} />
       {shareOpen && (
         <ShareModal
           sessionId={sessionId}
           version={payload.meta.version}
+          expiresAt={expiresAt}
           onClose={() => setShareOpen(false)}
           onCopy={copy}
         />
@@ -137,7 +162,7 @@ export function ExportProvider({
         <CopyFallbackModal
           text={fallbackText}
           onClose={() => setFallbackText(null)}
-          onCopied={() => toast('Copied')}
+          onCopied={() => toast(COPIED)}
         />
       )}
     </ExportContext.Provider>

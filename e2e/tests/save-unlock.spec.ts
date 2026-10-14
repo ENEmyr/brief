@@ -26,7 +26,7 @@ test.describe('save + encrypt + unlock', () => {
     const dialog = page.getByRole('dialog', { name: 'Archive this doc' })
     await expect(dialog).toBeVisible()
 
-    await dialog.getByRole('button', { name: 'Archive with password' }).click()
+    await dialog.getByRole('radio', { name: 'Archive with password' }).click()
     await dialog.getByLabel('Password', { exact: true }).fill(testPassphrase)
     await dialog.getByLabel('Confirm password').fill(testPassphrase)
 
@@ -37,6 +37,7 @@ test.describe('save + encrypt + unlock', () => {
     const putResponse = await savePut
     expect(putResponse.ok()).toBe(true)
     await expect(dialog).not.toBeVisible()
+    await expect(page.getByRole('status').filter({ hasText: 'Archived. Kept 90 days from last open.' })).toBeVisible()
 
     // Server envelope is encrypted -- verified via the API, not just the UI.
     const envelope = await page.request.get(`${API_URL}/api/session/${id}`)

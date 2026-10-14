@@ -222,7 +222,7 @@ describe('SessionPage / SessionView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
@@ -260,7 +260,7 @@ describe('SessionPage / SessionView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
     const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Archive' }))

@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useState } from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Payload } from '@brief/schema'
@@ -73,17 +73,16 @@ describe('saveSession (api.ts)', () => {
     expect(result).toEqual({ ok: false, error: 'Too many attempts - try again in a minute', status: 429 })
   })
 
-  it('maps other error statuses to "Archive failed"', async () => {
+  it('maps other error statuses to the generic archive failure', async () => {
     stubFetch({ status: 500 })
     const result = await saveSession('sess1', { mode: 'plain' })
-    expect(result).toEqual({ ok: false, error: 'Archive failed', status: 500 })
+    expect(result).toEqual({ ok: false, error: 'Could not archive. Nothing was changed.', status: 500 })
   })
 
-  it('maps a network failure to "Archive failed"', async () => {
+  it('maps a network failure to the generic archive failure', async () => {
     stubFetch(new Error('network down'))
     const result = await saveSession('sess1', { mode: 'plain' })
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('Archive failed')
+    expect(result).toEqual({ ok: false, error: 'Could not archive. Nothing was changed.', status: 0 })
   })
 })
 
@@ -147,52 +146,81 @@ describe('SaveModal', () => {
 
     expect(onSaved).toHaveBeenCalledWith('plain')
     expect(onClose).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived'))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived. Kept 90 days from last open.'))
   })
 
-  it('selecting "Archive with password" reveals the password fields and disables submit until valid', () => {
+  // B-Overlays:65-69 draws the mismatch with Archive still lit.
+  it('selecting "Archive with password" reveals the password fields; Archive with them empty saves nothing and points at Password', () => {
+    const fetchMock = stubFetch({ status: 200, body: { state: null } })
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
 
-    expect(screen.getByRole('button', { name: 'Archive with password' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('radio', { name: 'Archive with password' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Archive' })).toHaveAttribute('aria-checked', 'false')
     const passwordInput = screen.getByLabelText('Password')
     expect(passwordInput).toHaveFocus()
-    expect(screen.getByRole('button', { name: 'Archive' })).toBeDisabled()
     expect(screen.getByText(/never leaves this device/)).toBeInTheDocument()
+    expect(passwordInput).not.toHaveAttribute('aria-invalid')
+
+    screen.getByRole('radio', { name: 'Archive with password' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+
+    expect(passwordInput).toHaveFocus()
+    expect(passwordInput).toHaveAccessibleDescription('Must be at least 8 characters')
+    expect(screen.getByLabelText('Confirm password')).not.toHaveAttribute('aria-invalid')
+    expect(fetchMock.mock.calls.every(([, init]) => (init as RequestInit | undefined)?.method !== 'PUT')).toBe(true)
   })
 
-  it('shows an inline hint for a too-short password and keeps submit disabled', () => {
+  it('shows an inline hint for a too-short password', () => {
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'short' } })
 
-    expect(screen.getByText(/at least 8 characters/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Archive' })).toBeDisabled()
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Must be at least 8 characters')
+    expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('shows an inline mismatch error when confirm does not match password', () => {
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password124' } })
 
-    expect(screen.getByText(/do not match/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Archive' })).toBeDisabled()
+    expect(screen.getByLabelText('Confirm password')).toHaveAccessibleDescription('Passwords do not match')
+    expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-invalid')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    expect(screen.getByLabelText('Confirm password')).toHaveFocus()
   })
 
-  it('enables submit once password and confirm match and meet the minimum length', () => {
+  it('switching mode clears the field errors a submit raised', () => {
+    stubFetch({ status: 200, body: { state: null } })
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+    expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
+
+    expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('shows no field error once password and confirm match and meet the minimum length', () => {
+    renderModal()
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
+    expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-invalid')
+    expect(screen.getByLabelText('Confirm password')).not.toHaveAttribute('aria-invalid')
     expect(screen.getByRole('button', { name: 'Archive' })).toBeEnabled()
   })
 
   it('encrypt path: calls encryptPayload then saveSession with mode encrypt + encParams, toasts, and closes', async () => {
     stubFetch({ status: 200, body: { saved: true, encrypted: true, expiresAt: 1 } })
     const { onSaved, onClose } = renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
@@ -203,7 +231,7 @@ describe('SaveModal', () => {
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith('encrypt'))
     expect(onClose).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived with password'))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived. Kept 90 days from last open.'))
   })
 
   it('shows "Encrypting…" and disables submit while PBKDF2/save is in flight', async () => {
@@ -217,7 +245,7 @@ describe('SaveModal', () => {
       ),
     )
     renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
@@ -231,27 +259,84 @@ describe('SaveModal', () => {
     // "window is not defined" as an unhandled rejection that only surfaced
     // in CI's stricter timing (not reproduced by a handful of local runs).
     resolveFetch(new Response(JSON.stringify({ saved: true, encrypted: true, expiresAt: 1 }), { status: 200 }))
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived with password'))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Archived. Kept 90 days from last open.'))
   })
 
-  it('renders a 409 error inline without closing the modal', async () => {
+  it('reports a 409 in an error toast without Retry and keeps the dialog open', async () => {
     stubFetch({ status: 409 })
     const { onClose } = renderModal()
 
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Already protected')
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Archive this doc' })).toBeInTheDocument()
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('renders a 413 error inline without closing the modal', async () => {
+  it('reports a 413 in an error toast without Retry and keeps the dialog open', async () => {
     stubFetch({ status: 413 })
     const { onClose } = renderModal()
 
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Document too large to encrypt')
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('a failed save shows the error toast with Retry, which saves what the dialog holds by then', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation((_url: string, init?: RequestInit) =>
+        Promise.resolve(new Response(JSON.stringify({ state: null }), { status: init?.method === 'PUT' ? 500 : 200 })),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const { onSaved, onClose } = renderModal()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not archive. Nothing was changed.')
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ saved: true, encrypted: true, expiresAt: 1 }), { status: 200 })),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('encrypt'))
+    const retried = fetchMock.mock.calls.at(-1)![1] as RequestInit
+    expect(JSON.parse(retried.body as string)).toMatchObject({ mode: 'encrypt' })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Archived. Kept 90 days from last open.')
+  })
+
+  it('the error toast stays past 1.6s and leaves when the dialog closes, so Retry cannot outlive it', async () => {
+    stubFetch({ status: 500 })
+    function Harness() {
+      const [open, setOpen] = useState(true)
+      return (
+        <ReaderStateProvider sessionId="sess1">
+          <ExportProvider sessionId="sess1" payload={payload}>
+            {open && <SaveModal sessionId="sess1" payload={payload} onClose={() => setOpen(false)} onSaved={vi.fn()} />}
+          </ExportProvider>
+        </ReaderStateProvider>
+      )
+    }
+    render(<Harness />)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Archive' })))
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1700))
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not archive. Nothing was changed.')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('pre-checks projected ciphertext size and skips crypto entirely when too large', async () => {
@@ -280,7 +365,7 @@ describe('SaveModal', () => {
         </ExportProvider>
       </ReaderStateProvider>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
@@ -322,7 +407,7 @@ describe('SaveModal cancel during an in-flight save', () => {
   it('cancel during a pending encrypt PUT: no toast/onSaved, onBackgroundSaveSettled("encrypt") when it later resolves ok', async () => {
     const { resolvePut, putFired } = stubFetchWithPendingPut()
     const { onSaved, onClose, onBackgroundSaveSettled } = renderModal()
-    fireEvent.click(screen.getByRole('button', { name: 'Archive with password' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
@@ -350,7 +435,11 @@ describe('SaveModal cancel during an in-flight save', () => {
 
     await waitFor(() => expect(putFired()).toBe(true))
 
+    // While busy Escape and the scrim do not close (interactions.md).
     fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('dialog').parentElement as HTMLElement)
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalledTimes(1)
 
     resolvePut(new Response(JSON.stringify({ saved: true, encrypted: false, expiresAt: 1 }), { status: 200 }))
