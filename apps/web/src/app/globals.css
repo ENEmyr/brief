@@ -133,6 +133,11 @@
    * tools/lightify.py). Board values with no token in tokens.css. */
   --c-dock-current: #f5faec;
   --shadow-sheet: -16px 0 48px rgba(15, 18, 20, 0.3);
+
+  /* Key hints on the inverted selection toolbar (B-Components:148-151 draws
+   * #4C555D, light sub, on the dark theme's light toolbar), so each theme
+   * takes the other theme's sub. */
+  --c-inverse-sub: #a1aab2;
 }
 
 @media not print {
@@ -198,6 +203,8 @@
 
     --c-dock-current: #141a12;
     --shadow-sheet: -16px 0 48px rgba(0, 0, 0, 0.45);
+
+    --c-inverse-sub: #4c555d;
   }
 }
 
@@ -258,16 +265,6 @@ body {
   --shiki-token-inserted: var(--c-good);
   --shiki-token-deleted: var(--c-bad);
   --shiki-token-changed: var(--c-warn);
-}
-
-@keyframes dc-floatpop {
-  0% { opacity: 0; transform: translate(-50%, 4px); }
-  100% { opacity: 1; transform: translate(-50%, 0); }
-}
-
-@keyframes dc-pop {
-  0% { opacity: 0; transform: scale(.96); }
-  100% { opacity: 1; transform: scale(1); }
 }
 
 /* B-Reader motion: the palette drops in, overlays fade, the header card rises
