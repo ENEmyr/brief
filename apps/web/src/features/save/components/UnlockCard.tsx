@@ -1,14 +1,12 @@
 'use client'
-import { useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { payloadSchema, type EncParams, type Payload } from '@brief/schema'
 import { decryptPayload } from '../lib/crypto'
 
 /**
- * Protected-session password unlock form (ADR-0001, decision log 131). Meant
- * to be rendered inside the standard page chrome (SessionView wraps it in
- * the same Topbar+centered-card `StatusCard` used for the other status
- * states), so this component only owns the title/copy/form -- not the page
- * shell.
+ * Protected-session password unlock card (ADR-0001, decision log 131), drawn
+ * as B-Overlays' Unlock page (lines 82-87): a page, not a dialog. SessionView
+ * owns the page around it.
  *
  * Security posture: the password and the decrypted payload live in this
  * component's React state only (never persisted to storage), and a wrong
@@ -31,6 +29,7 @@ export function UnlockCard({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const fieldId = useId()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -59,34 +58,54 @@ export function UnlockCard({
   }
 
   return (
-    <>
-      <h1 className="mb-2 text-[15px] font-bold text-text">Protected session</h1>
-      <p className="mb-4 text-[13px] leading-[1.6] text-sub">
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-[406px] max-w-full flex-col gap-3 rounded-overlay border border-line bg-card p-[22px] leading-[normal] text-text"
+    >
+      <div className="flex items-center gap-[10px]">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-ctrl bg-chip">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="text-accent-line">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+        </span>
+        <h1 className="m-0 text-[16px] font-semibold">Protected session</h1>
+      </div>
+      <p className="m-0 text-[13px] leading-5 text-sub">
         This doc is end-to-end encrypted. Enter the password to unlock it on this device.
       </p>
-      <form onSubmit={handleSubmit} className="mx-auto flex max-w-xs flex-col gap-3 text-left">
+      <div className="flex flex-col gap-1">
+        <label htmlFor={fieldId} className="text-[12px] text-sub">
+          Password
+        </label>
         <input
           ref={inputRef}
+          id={fieldId}
           type="password"
           autoFocus
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           disabled={busy}
-          aria-label="Password"
-          placeholder="Password"
-          className="w-full rounded-[9px] border border-line bg-elev px-3 py-[9px] text-[13px] text-text disabled:opacity-50"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${fieldId}-error` : undefined}
+          className={`min-h-[42px] rounded-ctrl border bg-page px-[10px] text-[16px] text-text disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line ${
+            error ? 'border-bad' : 'border-line2'
+          }`}
         />
-        <button
-          type="submit"
-          disabled={busy || password.length === 0}
-          className="min-h-11 cursor-pointer rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {busy ? 'Decrypting…' : 'Unlock'}
-        </button>
-        <p aria-live="polite" className="min-h-[1em] text-[12.5px] text-bad">
-          {error}
-        </p>
-      </form>
-    </>
+        {error && (
+          <span id={`${fieldId}-error`} role="alert" className="text-[12px] text-bad">
+            {error}
+          </span>
+        )}
+      </div>
+      <button
+        type="submit"
+        // B-Overlays:86 draws the error state, field cleared, with Unlock still lit; an empty submit is a no-op.
+        disabled={busy}
+        className="min-h-11 cursor-pointer rounded-ctrl border-0 bg-accent px-4 text-[14px] font-semibold text-on-accent transition-transform duration-[var(--dur-fast)] active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line"
+      >
+        {busy ? 'Decrypting…' : 'Unlock'}
+      </button>
+    </form>
   )
 }

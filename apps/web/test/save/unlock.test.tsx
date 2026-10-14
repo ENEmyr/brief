@@ -119,17 +119,17 @@ describe('UnlockCard', () => {
     expect(onUnlock).not.toHaveBeenCalled()
   })
 
-  it('the error region is aria-live polite', async () => {
+  // B-Overlays:85.
+  it('the error is an alert under the field that describes it', async () => {
     mockDecrypt.mockRejectedValueOnce(new Error('fail'))
     render(<UnlockCard ciphertext="cipher" encParams={encParams} onUnlock={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } })
     fireEvent.click(screen.getByRole('button', { name: 'Unlock' }))
 
-    await waitFor(() => {
-      const err = screen.getByText('Wrong password or corrupted data.')
-      expect(err.closest('[aria-live="polite"]')).not.toBeNull()
-    })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Wrong password or corrupted data.')
+    expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong password or corrupted data.')
+    expect(screen.getByLabelText('Password')).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('the password never appears anywhere in the DOM after a submit (success or failure)', async () => {
