@@ -141,6 +141,40 @@ describe('useShortcuts', () => {
     expect(nextSection).toHaveBeenCalledTimes(1)
   })
 
+  it('a handler that returns false leaves the key to the next one, which takes it once', () => {
+    const declines = vi.fn(() => false as const)
+    const takes = vi.fn()
+    const after = vi.fn()
+    renderHook(() => useShortcuts({ pickOption: declines }))
+    renderHook(() => useShortcuts({ pickOption: takes }))
+    renderHook(() => useShortcuts({ pickOption: after }))
+
+    expect(press({ key: '3', code: 'Digit3' })).toBe(true)
+    expect(declines).toHaveBeenCalledWith('3')
+    expect(takes).toHaveBeenCalledWith('3')
+    expect(after).not.toHaveBeenCalled()
+  })
+
+  it('a key every handler declines is not prevented', () => {
+    renderHook(() => useShortcuts({ copyPrompt: () => false }))
+    expect(press({ key: 'Enter', ctrlKey: true })).toBe(false)
+  })
+
+  it('N, the digits by physical key and Cmd or Ctrl Enter reach their handlers', () => {
+    const nextDecision = vi.fn()
+    const pickOption = vi.fn()
+    const copyPrompt = vi.fn()
+    renderHook(() => useShortcuts({ nextDecision, pickOption, copyPrompt }))
+
+    press({ key: 'n', code: 'KeyN' })
+    press({ key: '-', code: 'Digit3' })
+    press({ key: 'Enter', metaKey: true })
+    press({ key: 'Enter' })
+    expect(nextDecision).toHaveBeenCalledTimes(1)
+    expect(pickOption).toHaveBeenCalledWith('3')
+    expect(copyPrompt).toHaveBeenCalledTimes(1)
+  })
+
   it('calls the handler from the latest render, once', () => {
     const first = vi.fn()
     const second = vi.fn()

@@ -1,98 +1,92 @@
 'use client'
-import { useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import type { Decision } from '@brief/schema'
 
 type TabKey = 'why' | 'cmp' | 'dia'
 type CmpTableData = NonNullable<Decision['cmp']>
 
-/** Support tabs for a decision's why/cmp/dia fields (Reader.dc.html
- * 799-828): a tab strip with only the tabs whose data is present on this
- * decision (active tab accent-soft bg + accent text), a body with elev
- * background inside a rounded/line2-bordered container. Renders null when
- * the decision has none of why/cmp/dia.
- *
- * Deviation from the prototype: the prototype always shows an "Explanation"
- * tab (its mock data happened to give every decision a `why`); the brief
- * calls for tabs "only when data present", so the why tab is conditional
- * here too, matching cmp/dia.
- *
- * Deviation from the prototype: `dia` in this schema is a plain string
- * label, not a diagram spec (the prototype's supportDia rendered an SVG
- * mock). Per the adjudicated simplification, the Diagram tab renders a mono
- * caption note instead: "[diagram: {label}]".
- *
- * Tab selection is remembered per decision id (a local
- * Record<decisionId, TabKey>) so switching between stepper questions and
- * back restores the tab the user was on, matching the prototype's
- * `this._tab[decision.id]` memory. */
-export function SupportTabs({ decision }: { decision: Decision }) {
-  const [tabByDecision, setTabByDecision] = useState<Record<string, TabKey>>({})
+const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
 
+/**
+ * A decision's why / cmp / dia under it in the dock (owner ruling D4), built
+ * from parts the boards already draw: B-Reader's view-tab group, its section 03
+ * table and small text. Only tabs whose field is present; nothing without any.
+ * `dia` is a plain string label in the schema, not a diagram spec, so the
+ * Diagram tab shows it as a caption note.
+ */
+export function SupportTabs({ decision }: { decision: Decision }) {
   const tabs: { key: TabKey; label: string }[] = []
   if (decision.why) tabs.push({ key: 'why', label: 'Explanation' })
   if (decision.cmp) tabs.push({ key: 'cmp', label: 'Compare' })
   if (decision.dia) tabs.push({ key: 'dia', label: 'Diagram' })
 
+  const [picked, setPicked] = useState<TabKey | undefined>(undefined)
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const baseId = useId()
+
   if (tabs.length === 0) return null
+  const active = tabs.find((t) => t.key === picked)?.key ?? tabs[0]!.key
 
-  const firstKey = tabs[0]!.key
-  const stored = tabByDecision[decision.id]
-  const active = stored && tabs.some((t) => t.key === stored) ? stored : firstKey
-
-  function selectTab(key: TabKey) {
-    setTabByDecision((prev) => ({ ...prev, [decision.id]: key }))
+  // Left/Right move between tabs and select (ARIA APG tabs, automatic activation).
+  function handleKeyDown(event: React.KeyboardEvent) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    const at = tabs.findIndex((t) => t.key === active)
+    const next = (at + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
+    setPicked(tabs[next]!.key)
+    tabRefs.current[next]?.focus()
   }
 
   return (
-    <div className="mt-3 overflow-hidden rounded-[10px] border border-line2 bg-elev">
-      <div role="tablist" className="flex gap-0.5 border-b border-line2 p-1.5">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={active === t.key}
-            onClick={() => selectTab(t.key)}
-            className={`max-[880px]:min-h-11 rounded-[7px] px-3 py-[5px] font-[inherit] text-[12.5px] ${
-              active === t.key ? 'bg-accent-soft font-semibold text-accent-text' : 'font-normal text-sub'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+    <div className="flex flex-col gap-2">
+      <div
+        role="tablist"
+        aria-label={`${decision.id} details`}
+        onKeyDown={handleKeyDown}
+        className="flex self-start gap-[2px] rounded-[6px] border border-line bg-card p-[2px]"
+      >
+        {tabs.map((t, i) => {
+          const selected = t.key === active
+          return (
+            <button
+              key={t.key}
+              ref={(el) => {
+                tabRefs.current[i] = el
+              }}
+              id={`${baseId}-${t.key}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`${baseId}-panel`}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => setPicked(t.key)}
+              className={`min-h-[30px] rounded-[4px] border-0 px-[10px] text-[13px] transition-[background-color,transform] duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none max-[880px]:min-h-11 ${
+                selected ? 'bg-chip text-text' : 'bg-transparent text-faint hover:bg-chip'
+              } ${FOCUS_RING}`}
+            >
+              {t.label}
+            </button>
+          )
+        })}
       </div>
-      <div className="p-[13px_15px]">
-        {active === 'why' && decision.why && (
-          <p className="m-0 text-[13.5px] leading-[1.75] text-text">{decision.why}</p>
-        )}
+      <div id={`${baseId}-panel`} role="tabpanel" aria-labelledby={`${baseId}-${active}`}>
+        {active === 'why' && <p className="m-0 text-[13px] leading-5 text-sub">{decision.why}</p>}
         {active === 'cmp' && decision.cmp && <CmpTable cmp={decision.cmp} />}
-        {active === 'dia' && decision.dia && (
-          <p className="m-0 font-mono text-[12.5px] text-sub">[diagram: {decision.dia}]</p>
-        )}
+        {active === 'dia' && <p className="m-0 font-mono text-[12px] leading-[18px] text-faint">[diagram: {decision.dia}]</p>}
       </div>
     </div>
   )
 }
 
-/** Compact comparison table (Reader.dc.html's cmpTable): head cells accent
- * semibold, first column of each body row rendered as a semibold `<th>`,
- * every other cell a `<td>`; header underline uses `line`, body row
- * separators use `line2`. Unlike the prototype's `cols` mock (which
- * excluded the row-label column), this schema's `head` already includes
- * every column header -- including the label column -- so it is mapped
- * directly with no synthetic leading blank cell, matching how DataTable
- * renders the real `table` block. */
+/** B-Reader's section 03 table: line border radius 4, elev head in `sub`, 8 10 cells, line between rows. */
 function CmpTable({ cmp }: { cmp: CmpTableData }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-[12.5px]">
+    <div className="overflow-x-auto rounded-[4px] border border-line">
+      <table className="w-full border-collapse text-[13px] leading-5">
         <thead>
-          <tr>
+          <tr className="bg-elev text-left text-sub">
             {cmp.head.map((cell, i) => (
-              <th
-                key={i}
-                className="border-b border-line px-2.5 py-[7px] text-left font-semibold text-accent-text"
-              >
+              <th key={i} scope="col" className="px-[10px] py-2 font-medium">
                 {cell}
               </th>
             ))}
@@ -100,18 +94,14 @@ function CmpTable({ cmp }: { cmp: CmpTableData }) {
         </thead>
         <tbody>
           {cmp.rows.map((row, ri) => (
-            <tr key={ri}>
+            <tr key={ri} className="border-t border-line">
               {row.map((cell, ci) =>
                 ci === 0 ? (
-                  <th
-                    key={ci}
-                    scope="row"
-                    className="border-b border-line2 px-2.5 py-[7px] text-left font-semibold text-text"
-                  >
+                  <th key={ci} scope="row" className="px-[10px] py-2 text-left font-normal">
                     {cell}
                   </th>
                 ) : (
-                  <td key={ci} className="border-b border-line2 px-2.5 py-[7px] text-left text-sub">
+                  <td key={ci} className="px-[10px] py-2">
                     {cell}
                   </td>
                 ),

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import SessionPage from '@/app/s/page'
 import { encryptPayload } from '@/features/save/lib/crypto'
@@ -89,7 +89,8 @@ describe('SessionPage / SessionView', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
     const dock = screen.getByRole('complementary', { name: 'Decision dock' })
-    expect(within(dock).getByRole('heading', { name: '02 Decisions' })).toBeInTheDocument()
+    expect(within(dock).getByText('DECISIONS')).toBeInTheDocument()
+    expect(within(dock).getByRole('group', { name: 'Question d1' })).toBeInTheDocument()
     const outline = screen.getByRole('navigation', { name: 'Outline' })
     expect(within(outline).queryByText('Decisions')).not.toBeInTheDocument()
     expect(within(outline).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['#s1'])
@@ -319,5 +320,121 @@ describe('SessionPage / SessionView', () => {
 
     vi.restoreAllMocks()
     window.localStorage.clear()
+  })
+})
+
+describe('decision dock in the reader', () => {
+  const dockPayload = {
+    ...validPayload,
+    decisions: [
+      { id: 'd1', q: 'Which cache?', multi: false, opts: [{ id: 'kv', label: 'KV' }, { id: 'none', label: 'None' }] },
+      { id: 'd2', q: 'Which regions?', multi: true, opts: [{ id: 'us', label: 'US' }, { id: 'eu', label: 'EU' }] },
+      { id: 'd3', q: 'Which limit?', multi: false, opts: [{ id: '60', label: '60' }, { id: '600', label: '600' }] },
+    ],
+  }
+
+  function stubApi() {
+    const envelope = { ...validEnvelope, payload: JSON.stringify(dockPayload) }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url.endsWith('/state')
+            ? new Response(JSON.stringify({ state: null }))
+            : new Response(JSON.stringify(envelope)),
+        ),
+      ),
+    )
+    document.execCommand = vi.fn().mockReturnValue(true)
+  }
+
+  async function openReader() {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    stubApi()
+    const view = render(<SessionPage />)
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Question d1' })).toBeInTheDocument())
+    return view
+  }
+
+  const question = (id: string) => screen.getByRole('group', { name: `Question ${id}` })
+
+  // jsdom has no layout, so it does not implement scrollIntoView.
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+  afterEach(() => {
+    delete (Element.prototype as Partial<Element>).scrollIntoView
+  })
+
+  it('Copy prompt for agent copies at once and opens the review with the same text, open questions included', async () => {
+    await openReader()
+    fireEvent.click(within(question('d1')).getByRole('radio', { name: 'KV' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Copy prompt for agent/ }))
+
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    const review = screen.getByRole('dialog', { name: 'Review prompt before copying' })
+    const text = (within(review).getByRole('textbox', { name: 'Prompt text' }) as HTMLTextAreaElement).value
+    expect(text).toContain('[d1] Which cache?\n  - Choice: KV')
+    expect(text).toContain('[d3] Which limit?\n  - Choice: (not answered)')
+  })
+
+  it('Go to Dn closes the review and focuses that question in the dock', async () => {
+    await openReader()
+    fireEvent.click(within(question('d1')).getByRole('radio', { name: 'KV' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Copy prompt for agent/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go to d2' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
+  })
+
+  it('N jumps to the next unanswered question, then the one after the focused question', async () => {
+    await openReader()
+    fireEvent.click(within(question('d1')).getByRole('radio', { name: 'KV' }))
+    document.body.focus()
+
+    fireEvent.keyDown(document.body, { key: 'n', code: 'KeyN' })
+    expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
+
+    fireEvent.keyDown(document.activeElement!, { key: 'n', code: 'KeyN' })
+    expect(within(question('d3')).getByRole('radio', { name: '60' })).toHaveFocus()
+
+    fireEvent.keyDown(document.activeElement!, { key: 'n', code: 'KeyN' })
+    expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
+  })
+
+  it('N does nothing while typing a reason', async () => {
+    await openReader()
+    const reason = screen.getByRole('textbox', { name: 'd3 Reason' })
+    reason.focus()
+    fireEvent.keyDown(reason, { key: 'n', code: 'KeyN' })
+    expect(reason).toHaveFocus()
+  })
+
+  it('Cmd or Ctrl Enter copies the prompt from inside the dock, not from the document', async () => {
+    await openReader()
+    fireEvent.keyDown(document.body, { key: 'Enter', ctrlKey: true })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    const reason = screen.getByRole('textbox', { name: 'd1 Reason' })
+    reason.focus()
+    fireEvent.keyDown(reason, { key: 'Enter', metaKey: true })
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    expect(screen.getByRole('dialog', { name: 'Review prompt before copying' })).toBeInTheDocument()
+  })
+
+  it('a reload keeps an Other answer', async () => {
+    const first = await openReader()
+    fireEvent.click(within(question('d3')).getByRole('radio', { name: 'Other, type your own' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'd3 Your answer' }), { target: { value: '300 a minute' } })
+    await waitFor(() => expect(window.localStorage.getItem('idocs:abc12345678901')).toContain('300 a minute'))
+    first.unmount()
+
+    await openReader()
+    expect(screen.getByRole('textbox', { name: 'd3 Your answer' })).toHaveValue('300 a minute')
+    expect(within(question('d3')).getByRole('radio', { name: 'Other, type your own' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
   })
 })

@@ -191,9 +191,8 @@ export function SaveModal({
             aria-pressed={mode === 'plain'}
             // Distinguishes this option row's accessible name from the footer's
             // "Archive" submit button (both show the literal word "Archive" per
-            // the design copy) -- same one-attribute-addition posture as
-            // PromptReview's aria-label fix, harmless for and arguably helpful
-            // to real screen-reader users.
+            // the design copy) -- a one-attribute addition, harmless for and
+            // arguably helpful to real screen-reader users.
             aria-label="Archive without a password"
             onClick={() => setMode('plain')}
             className={`max-[880px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${

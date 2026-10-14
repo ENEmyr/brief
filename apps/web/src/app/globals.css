@@ -123,6 +123,12 @@
    * B-Reader-Light draws it #B87A0A (lines 88, 198, 286); tokens.css has only
    * the text value #8F5A00. Dark is the warn token. */
   --c-warn-fill: #b87a0a;
+
+  /* The dock's first open decision (B-Reader:261, B-Reader-Light:261) and the
+   * prompt review sheet's leftward shadow (B-Overlays:119, light from
+   * tools/lightify.py). Board values with no token in tokens.css. */
+  --c-dock-current: #f5faec;
+  --shadow-sheet: -16px 0 48px rgba(15, 18, 20, 0.3);
 }
 
 @media not print {
@@ -185,6 +191,9 @@
     --c-disabled-text: #4b545c;
 
     --c-warn-fill: #f4b740;
+
+    --c-dock-current: #141a12;
+    --shadow-sheet: -16px 0 48px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -276,6 +285,10 @@ body {
   from { transform: translateY(100%); }
   to { transform: none; }
 }
+@keyframes console-sheet-right {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
 @keyframes save-pulse {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
@@ -291,6 +304,9 @@ body {
 }
 .console-sheet {
   animation: console-sheet var(--dur-slow) var(--ease-console) both;
+}
+.console-sheet-right {
+  animation: console-sheet-right var(--dur-slow) var(--ease-console) both;
 }
 .save-pulse {
   animation: save-pulse 1.2s ease-in-out infinite;
@@ -320,6 +336,7 @@ body {
   .console-fade,
   .console-rise,
   .console-sheet,
+  .console-sheet-right,
   .save-pulse {
     animation: none;
   }
@@ -487,8 +504,8 @@ body {
      near-white card surfaces but not for these: a highlight without its
      background is not a highlight, and code panels (`.shiki`, plus the
      `[data-code-panel]` spots outside shiki: CodePre's fallback `<pre>` and
-     the PromptReview and CopyFallbackModal textareas) keep their
-     `--c-code-bg` tint. */
+     the CopyFallbackModal textarea) keep their `--c-code-bg` tint. The
+     prompt review sheet never prints (B-Print). */
   .shiki,
   mark,
   [data-code-panel] {

@@ -1,4 +1,11 @@
-export type ShortcutId = 'palette' | 'nextSection' | 'prevSection' | 'help'
+export type ShortcutId =
+  | 'palette'
+  | 'nextSection'
+  | 'prevSection'
+  | 'pickOption'
+  | 'nextDecision'
+  | 'copyPrompt'
+  | 'help'
 
 /** One registry row = one line of the shortcut sheet. */
 export interface ShortcutRow {
@@ -23,6 +30,13 @@ const SHORTCUTS: readonly (ShortcutRow & { bindings: readonly Binding[] })[] = [
       { id: 'prevSection', key: 'k' },
     ],
   },
+  {
+    keys: ['1', '9'],
+    description: 'pick an option in the focused question',
+    bindings: ['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => ({ id: 'pickOption' as const, key })),
+  },
+  { keys: ['N'], description: 'jump to next unanswered question', bindings: [{ id: 'nextDecision', key: 'n' }] },
+  { keys: ['mod', 'Enter'], description: 'copy the prompt', bindings: [{ id: 'copyPrompt', key: 'enter', mod: true }] },
   { keys: ['?'], description: 'show all shortcuts', bindings: [{ id: 'help', key: '?' }] },
   // Each overlay handles Esc itself; the row is listed because it works in every one of them.
   { keys: ['Esc'], description: 'close and return focus to the trigger', bindings: [] },
@@ -50,8 +64,10 @@ export function modKeyLabel(): string {
 }
 
 // A Thai (or any non-Latin) layout reports its own character in `key`, so a
-// letter shortcut falls back to the physical key there.
+// letter shortcut falls back to the physical key there. Digits always go by the
+// physical key: Thai Kedmanee puts "/" and "-" on the 2 and 3 keys.
 function pressedKey(event: KeyboardEvent): string {
+  if (event.code.startsWith('Digit')) return event.code.slice(5)
   const key = event.key.toLowerCase()
   return /^[\x20-\x7e]$/.test(key) || !event.code.startsWith('Key') ? key : event.code.slice(3).toLowerCase()
 }
@@ -69,9 +85,11 @@ function matches(binding: Binding, event: KeyboardEvent, key: string): boolean {
   )
 }
 
-export function matchShortcut(event: KeyboardEvent): ShortcutId | undefined {
+/** The binding the event triggers; `key` tells a handler which of its keys was pressed (1 to 9). */
+export function matchShortcut(event: KeyboardEvent): { id: ShortcutId; key: string } | undefined {
   // Chrome's autofill dispatches keydown events that carry no key.
   if (!event.key) return undefined
   const key = pressedKey(event)
-  return SHORTCUTS.flatMap((row) => row.bindings).find((binding) => matches(binding, event, key))?.id
+  const binding = SHORTCUTS.flatMap((row) => row.bindings).find((b) => matches(b, event, key))
+  return binding && { id: binding.id, key: binding.key }
 }

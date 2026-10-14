@@ -1,9 +1,7 @@
 // Copies text via the async Clipboard API when available, falling back to a
-// hidden-textarea execCommand('copy') otherwise. Extracted from the
-// annotations feature (Task 2) so the decisions feature's PromptReview can
-// reuse the same default `copyText` prop convention without a disallowed
-// cross-feature deep import -- same "small helper multiple features need"
-// precedent as shared/api.ts (Task 1).
+// hidden-textarea execCommand('copy') otherwise. The default `copyText` prop
+// of the annotation popovers; shared so another feature can reuse it without
+// a disallowed cross-feature deep import, like shared/api.ts.
 export function defaultCopyText(text: string): void {
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(text).catch(() => execCommandCopy(text))
