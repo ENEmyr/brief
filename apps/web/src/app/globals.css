@@ -1,32 +1,16 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-base: var(--ctp-base);
-  --color-mantle: var(--ctp-mantle);
-  --color-crust: var(--ctp-crust);
   --color-text: var(--ctp-text);
-  --color-subtext1: var(--ctp-subtext1);
-  --color-subtext0: var(--ctp-subtext0);
-  --color-overlay2: var(--ctp-overlay2);
-  --color-overlay1: var(--ctp-overlay1);
-  --color-overlay0: var(--ctp-overlay0);
   --color-surface2: var(--ctp-surface2);
   --color-surface1: var(--ctp-surface1);
-  --color-surface0: var(--ctp-surface0);
   --color-blue: var(--ctp-blue);
-  --color-lavender: var(--ctp-lavender);
-  --color-sapphire: var(--ctp-sapphire);
-  --color-sky: var(--ctp-sky);
   --color-teal: var(--ctp-teal);
   --color-green: var(--ctp-green);
   --color-yellow: var(--ctp-yellow);
   --color-peach: var(--ctp-peach);
-  --color-maroon: var(--ctp-maroon);
   --color-red: var(--ctp-red);
   --color-mauve: var(--ctp-mauve);
-  --color-pink: var(--ctp-pink);
-  --color-flamingo: var(--ctp-flamingo);
-  --color-rosewater: var(--ctp-rosewater);
   --color-page: var(--ctp-page);
   --color-card: var(--ctp-card);
   --color-elev: var(--ctp-elev);
