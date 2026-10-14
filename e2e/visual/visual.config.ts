@@ -1,11 +1,14 @@
 import { defineConfig } from '@playwright/test'
+import { e2ePorts } from '../ports'
 
 // The Console visual suite. Compares the running app, fed the B-Reader sample
 // brief, against PNGs rendered from the design boards (render-references.ts).
 // Run with `bun run e2e:visual`. It is NOT part of `bun run e2e`.
-export const VISUAL_WEB_URL = process.env.VISUAL_WEB_URL ?? 'http://localhost:8789'
+// Ports come from ../ports.ts (see there); the web server is base + 2.
+const ports = e2ePorts()
+export const VISUAL_WEB_URL = ports.visualWebUrl
 // The API is never started: every call is answered with page.route.
-export const VISUAL_API_URL = process.env.API_URL ?? 'http://localhost:8787'
+export const VISUAL_API_URL = ports.apiUrl
 
 // The references are the design, not the app's output. Playwright's CLI flag
 // overrides `updateSnapshots` below, so refuse the flag outright rather than
@@ -49,10 +52,10 @@ export default defineConfig({
     { name: 'light', use: { colorScheme: 'light' } },
   ],
   webServer: {
-    command: 'bunx wrangler pages dev out --port 8789 --compatibility-date=2026-06-05',
+    command: `bunx wrangler pages dev out --port ${ports.visualWeb} --inspector-port ${ports.visualInspector} --compatibility-date=2026-06-05`,
     cwd: '../../apps/web',
     url: VISUAL_WEB_URL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env.CI && process.env.E2E_REUSE_SERVER === '1',
     timeout: 60_000,
   },
 })
