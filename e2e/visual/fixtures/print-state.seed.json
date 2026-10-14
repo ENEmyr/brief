@@ -1,0 +1,30 @@
+{
+  "dsel": {
+    "D1": [
+      "edge"
+    ],
+    "D3": [
+      "api",
+      "user"
+    ]
+  },
+  "dnote": {
+    "D1": "ใกล้ผู้ใช้ ตัด request ก่อนถึง origin",
+    "D2": "free tier ใช้จริงไม่เกิน 120"
+  },
+  "dother": {
+    "D2": "300 ครั้ง / นาที สำหรับ free tier"
+  },
+  "highlights": [
+    {
+      "id": "h-print-1",
+      "sid": 0,
+      "bid": 0,
+      "path": "text",
+      "start": 71,
+      "end": 107,
+      "text": "ค่า p95 latency ขึ้นไปถึง 2.4 วินาที",
+      "note": "ตัวเลขนี้มาจาก staging หรือ prod?"
+    }
+  ]
+}

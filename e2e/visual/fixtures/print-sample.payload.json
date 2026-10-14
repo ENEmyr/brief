@@ -1,0 +1,212 @@
+{
+  "meta": {
+    "title": "Rate limit สำหรับ public API"
+  },
+  "sections": [
+    {
+      "id": "s1",
+      "no": 1,
+      "title": "ภาพรวม",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "สองสัปดาห์ที่ผ่านมา traffic ของ public API เพิ่มขึ้นสองเท่า ช่วง burst ค่า p95 latency ขึ้นไปถึง 2.4 วินาที และ origin เริ่มตอบ 503 ข้อเสนอคือใส่ limiter ที่ edge ก่อนถึง origin"
+        },
+        {
+          "type": "table",
+          "head": [
+            "ตัวชี้วัด",
+            "ตอนนี้",
+            "เป้า"
+          ],
+          "rows": [
+            [
+              "p95 latency",
+              "2.4 s",
+              "0.4 s"
+            ],
+            [
+              "error rate",
+              "3.1%",
+              "0.2%"
+            ],
+            [
+              "peak rps",
+              "5,200",
+              "5,200"
+            ]
+          ]
+        },
+        {
+          "type": "warn",
+          "text": "KV counter นับช้ากว่าจริงได้ถึง 60 วินาที อย่าใช้ตัดสินแบบ real time"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "no": 2,
+      "title": "Token bucket ทำงานอย่างไร",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "ทุก request ต้องขอ token จาก token bucket ของ key นั้นก่อนถึง origin ถ้า bucket ว่างจะตอบ 429 ทันที โดยไม่แตะ origin เลย"
+        },
+        {
+          "type": "seq",
+          "actors": [
+            "Client",
+            "Edge",
+            "Limiter",
+            "Origin"
+          ],
+          "steps": [
+            {
+              "from": "Client",
+              "to": "Edge",
+              "label": "GET /orders"
+            },
+            {
+              "from": "Edge",
+              "to": "Limiter",
+              "label": "take(key)"
+            },
+            {
+              "from": "Limiter",
+              "to": "Edge",
+              "label": "ok, 41 left"
+            },
+            {
+              "from": "Edge",
+              "to": "Origin",
+              "label": "forward"
+            }
+          ]
+        },
+        {
+          "type": "code",
+          "language": "ts",
+          "filename": "src/limiter.ts",
+          "code": "export async function take(key: string) {\n  const b = await bucket(key)\n  if (b.tokens < 1) return deny(b.resetAt)\n  b.tokens -= 1\n  return allow(b.tokens)\n}"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "no": 3,
+      "title": "ทางเลือก",
+      "blocks": [
+        {
+          "type": "table",
+          "head": [
+            "ทางเลือก",
+            "latency เพิ่ม",
+            "USD / เดือน",
+            "ความแม่น"
+          ],
+          "rows": [
+            [
+              "Rate limiting binding",
+              "~1 ms",
+              "0",
+              "ประมาณ ต่อ location"
+            ],
+            [
+              "Durable Object",
+              "~8 ms",
+              "35",
+              "แม่น ทั่วโลก"
+            ],
+            [
+              "Custom KV counter",
+              "~4 ms",
+              "12",
+              "ช้า 60 วินาที"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "no": 4,
+      "title": "ความเสี่ยง",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "ลูกค้าที่ใช้ webhook ส่งเป็นชุดอาจโดน 429 ช่วง burst"
+        },
+        {
+          "type": "p",
+          "text": "ถ้า limiter ล่ม ต้องเลือกว่าจะปล่อยผ่านหรือปิดกั้นทั้งหมด"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "q": "วาง limiter ไว้ที่ไหน",
+      "multi": false,
+      "opts": [
+        {
+          "id": "edge",
+          "label": "Edge Worker"
+        },
+        {
+          "id": "origin",
+          "label": "Origin middleware"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "q": "จำกัดกี่ครั้งต่อนาที",
+      "multi": false,
+      "opts": [
+        {
+          "id": "60",
+          "label": "60 ครั้ง / นาที"
+        },
+        {
+          "id": "600",
+          "label": "600 ครั้ง / นาที"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "q": "ใช้อะไรเป็น key",
+      "multi": true,
+      "opts": [
+        {
+          "id": "api",
+          "label": "API key"
+        },
+        {
+          "id": "ip",
+          "label": "IP"
+        },
+        {
+          "id": "user",
+          "label": "User ID"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "q": "ส่ง header อะไรกลับ",
+      "multi": false,
+      "opts": [
+        {
+          "id": "std",
+          "label": "RateLimit-* headers"
+        },
+        {
+          "id": "retry",
+          "label": "Retry-After only"
+        }
+      ]
+    }
+  ]
+}
