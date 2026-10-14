@@ -357,6 +357,18 @@ test.describe('dock at 1440', () => {
     expect(await focusInView()).toBe(true)
   })
 
+  test('the question list scrolls under a thin scrollbar in the line color', async ({
+    page,
+    theme,
+  }) => {
+    const list = dockOf(page).locator('[data-decision="D1"]').locator('xpath=..')
+    expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true)
+    await expectComputed(list, {
+      'scrollbar-width': 'thin',
+      'scrollbar-color': `${C[theme].line} ${C[theme].transparent}`,
+    })
+  })
+
   // Pixel crops of the parts whose content matches the board: the header,
   // two option rows, a checkbox and the Copy button.
   for (const [crop, find] of [

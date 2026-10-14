@@ -112,7 +112,7 @@ export function DecisionDock({
         </div>
         <DecisionSegments decisions={decisions} state={state} />
       </div>
-      <div className="flex min-h-0 flex-col overflow-y-auto">
+      <div className="flex min-h-0 flex-col overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--c-line)_transparent]">
         {decisions.map((d) => (
           <DockDecision key={d.id} decision={d} current={d === firstOpen} />
         ))}
