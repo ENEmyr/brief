@@ -305,7 +305,7 @@ function SessionReady({
             // data-reader-grid: the print stylesheet turns this flex row back
             // into one column, since the outline does not print.
             data-reader-grid=""
-            className={`flex flex-wrap items-start gap-4 p-4 max-[880px]:p-3 ${
+            className={`flex flex-wrap items-start gap-4 p-4 max-[880px]:px-3 max-[880px]:py-[14px] ${
               // Room for the dock's peek bar (8 + 4 + 10 + 44 + 30 + 1px border, B-Mobile).
               hasDecisions ? 'max-[880px]:pb-[97px]' : ''
             }`}
