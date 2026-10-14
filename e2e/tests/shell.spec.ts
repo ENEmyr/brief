@@ -105,7 +105,9 @@ test.describe('reader shell', () => {
     await expect(sheet).toContainText('command palette and search')
     await expect(sheet).toContainText('next and previous section')
     await expect(sheet).toContainText('show all shortcuts')
-    await expect(sheet).not.toContainText('unanswered')
+    await expect(sheet).toContainText('pick an option in the focused question')
+    await expect(sheet).toContainText('jump to next unanswered question')
+    await expect(sheet).toContainText('copy the prompt')
     await page.keyboard.press('Escape')
     await expect(sheet).toBeHidden()
 
@@ -115,6 +117,36 @@ test.describe('reader shell', () => {
     await reason.press('j')
     await expect(reason).toHaveValue('j')
     await expect(page.locator('section#intro')).toHaveAttribute('data-flash', /^[ab]$/)
+  })
+
+  test('N jumps to the next open question, 1 to 9 pick in it, and Cmd or Ctrl Enter copies from the dock', async ({
+    page,
+    createSession,
+  }) => {
+    const [d1, d2] = testPayload.decisions
+    const { id } = await createSession()
+    await page.goto(`/s/${id}`)
+    const dock = page.getByRole('complementary', { name: 'Decision dock' })
+    await expect(dock.getByText(d1!.q)).toBeVisible()
+
+    await page.keyboard.press('n')
+    const first = dock.getByRole('group', { name: `Question ${d1!.id}` }).getByRole('radio', { name: d1!.opts[0]!.label })
+    await expect(first).toBeFocused()
+    await page.keyboard.press('2')
+    await expect(dock.getByRole('radio', { name: d1!.opts[1]!.label })).toHaveAttribute('aria-checked', 'true')
+
+    await page.keyboard.press('n')
+    const q2 = dock.getByRole('group', { name: `Question ${d2!.id}` })
+    await expect(q2.getByRole('checkbox', { name: d2!.opts[0]!.label })).toBeFocused()
+    // The last number is Other; it opens "Your answer" and moves the caret there.
+    await page.keyboard.press(String(d2!.opts.length + 1))
+    await expect(q2.getByRole('textbox', { name: `${d2!.id} Your answer` })).toBeFocused()
+    await page.keyboard.type('5')
+    await expect(q2.getByRole('textbox', { name: `${d2!.id} Your answer` })).toHaveValue('5')
+
+    await page.keyboard.press('ControlOrMeta+Enter')
+    const review = page.getByRole('dialog', { name: 'Review prompt before copying' })
+    await expect(review.getByRole('textbox', { name: 'Prompt text' })).toHaveValue(/Other: 5\n/)
   })
 
   test('view tabs: Diagrams keeps diagram blocks only, Raw shows the markdown export', async ({
@@ -158,7 +190,7 @@ test.describe('reader shell', () => {
     await expect(chip).toHaveText('saved')
 
     const d1 = testPayload.decisions[0]!
-    await page.getByRole('button', { name: d1.opts[0]!.label }).click()
+    await page.getByRole('radio', { name: d1.opts[0]!.label }).click()
     await expect(chip).toHaveText('saving')
     // The sync debounce is 5 seconds.
     await expect(chip).toHaveText('this device', { timeout: 10_000 })
