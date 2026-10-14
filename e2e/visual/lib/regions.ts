@@ -1,4 +1,4 @@
-import type { Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 /**
  * Selectors for the B-Reader regions, shared by the reference renderer (run
@@ -17,6 +17,48 @@ export const READER_REGIONS = {
 } as const
 
 export const READER_WIDTHS = [1440, 1100, 880] as const
+
+/**
+ * B-Landing regions, the same contract for the board and the app. `rows`
+ * keeps the first n matches and cuts their union: the blocks table rows that
+ * exist today (the board's sixth row, "Agent work", waits for those blocks).
+ * The `-copy`, `-tabs`, `-body` and `-rows` cuts leave out the parts known to
+ * differ (14-character ids, three view tabs, the missing row).
+ */
+export interface Region {
+  selector: string
+  hasText?: string
+  rows?: number
+}
+export const LANDING_REGIONS: Record<string, Region> = {
+  header: { selector: 'header' },
+  hero: { selector: 'section:has(h1)' },
+  'hero-copy': { selector: 'section:has(h1) > div:first-child' },
+  how: { selector: 'section#how' },
+  usage: { selector: 'section#usage' },
+  'usage-tabs': { selector: 'div:has(> [role="tablist"])' },
+  preview: { selector: 'section#preview' },
+  'preview-body': { selector: '[aria-label="Preview of a brief"] > div:nth-child(3)' },
+  blocks: { selector: 'section#blocks' },
+  'blocks-rows': { selector: '#blocks tr', rows: 5 },
+  features: { selector: 'section#features' },
+  closing: { selector: 'section', hasText: 'Give your agent a better way to ask.' },
+  footer: { selector: 'footer' },
+}
+export const LANDING_WIDTHS = [1440, 390] as const
+
+/** The region's clip at scroll 0 (see clipOf); for `rows`, the union of the first n matches. */
+export async function clipOfRegion(page: Page, region: Region): Promise<Clip> {
+  const matches = page.locator(region.selector, { hasText: region.hasText })
+  if (region.rows === undefined) return clipOf(matches.first())
+  const clips = []
+  for (let i = 0; i < region.rows; i++) clips.push(await clipOf(matches.nth(i)))
+  const x = Math.min(...clips.map((c) => c.x))
+  const y = Math.min(...clips.map((c) => c.y))
+  const right = Math.max(...clips.map((c) => c.x + c.width))
+  const bottom = Math.max(...clips.map((c) => c.y + c.height))
+  return { x, y, width: right - x, height: bottom - y }
+}
 export const THEMES = ['dark', 'light'] as const
 export type Theme = (typeof THEMES)[number]
 
