@@ -23,6 +23,8 @@ Each script fans out through Turborepo, so a single workspace can be targeted wi
 
 End-to-end tests run with `bun run e2e`, which executes `e2e/run.sh`: it builds `apps/web` with the API URL baked in, applies local D1 migrations, then runs Playwright with both local servers managed by the Playwright config.
 
+The e2e and visual suites take their ports from `e2e/ports.ts`: API = `E2E_PORT_BASE`, web = base + 1, visual web = base + 2, plus a wrangler inspector port per server (base + 4, + 5, + 6). With `CI=true` the base is 8787. Locally the base is derived from the repo root path (20000 to 27999, step 8), so every worktree has its own stable ports and several worktrees can run `bun run e2e`, `bun run e2e:visual` and `bun run e2e:visual:refs` at once with no lock. Each run prints its ports first. A server already on a port fails the run instead of being reused; set `E2E_REUSE_SERVER=1` to reuse one you started yourself. Set `E2E_PORT_BASE` to pick the ports by hand. `bun e2e/ports.check.ts` checks the derivation.
+
 ## Changing the payload schema
 
 `packages/schema/src/payload.ts` is the source of truth for the payload, and `skills/brief/` is how agents learn to write one. An agent cannot read the Zod file: it is not on the machine the agent runs on. So a schema change that the skill does not describe is a schema change agents will get wrong, and they will get it wrong silently, by guessing field names.

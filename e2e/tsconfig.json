@@ -5,6 +5,6 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["tests", "visual", "playwright.config.ts"],
+  "include": ["tests", "visual", "playwright.config.ts", "ports.ts", "ports.check.ts"],
   "exclude": ["visual/reference"]
 }
