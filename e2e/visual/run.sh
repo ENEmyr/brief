@@ -10,7 +10,9 @@ unset CDPATH
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # Ports come from ports.ts so run.sh and visual.config.ts always agree.
-eval "$(bun "${SCRIPT_DIR}/../ports.ts")"
+# Assign before eval: `eval "$(...)"` would hide a failing ports.ts behind eval's own status.
+PORT_EXPORTS="$(bun "${SCRIPT_DIR}/../ports.ts")"
+eval "$PORT_EXPORTS"
 echo "==> Ports: visual web ${VISUAL_WEB_URL}, baked API ${API_URL} (E2E_PORT_BASE=${E2E_PORT_BASE})"
 
 mode="visual"
