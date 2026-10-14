@@ -134,6 +134,19 @@ describe('Seq block', () => {
     expect(within(screen.getByRole('list')).getAllByRole('listitem')).toHaveLength(1)
   })
 
+  it('offers no playback when every step names an unknown actor', () => {
+    const block: Extract<Block, { type: 'seq' }> = {
+      type: 'seq',
+      actors: ['A'],
+      steps: [{ from: 'A', to: 'Ghost', label: 'lost' }],
+    }
+    r(block)
+    expect(button('Play sequence')).toBeDisabled()
+    expect(button('Next step')).toBeDisabled()
+    fireEvent.keyDown(screen.getByRole('group', { name: 'Sequence steps' }), { key: 'ArrowRight' })
+    expect(screen.queryByText(/^step/)).not.toBeInTheDocument()
+  })
+
   it('shows only the seq kind tag when no title is given', () => {
     // The fallback caption 'Sequence' is gone: the kind tag names the block
     // (B-Blocks:75, B-Reader:126), and an untitled block shows no invented caption.
@@ -339,6 +352,20 @@ describe('StateMachine block', () => {
     expect(classes[1]).toContain('stroke-warn')
     expect(edges(container)[1]?.querySelector('path')?.getAttribute('stroke-dasharray')).toBe('6 5')
     expect(classes[2]).toContain('stroke-good')
+  })
+
+  it('draws a transition to the same state as a dashed loop over the node, with its label', () => {
+    const block: Extract<Block, { type: 'state' }> = {
+      type: 'state',
+      initial: 'a',
+      states: [{ id: 'a', label: 'A' }],
+      transitions: [{ from: 'a', to: 'a', label: 'retry' }],
+    }
+    const { container } = r(block)
+    expect(edges(container)).toHaveLength(1)
+    expect(edges(container)[0]?.getAttribute('class')).toContain('stroke-warn')
+    expect(edges(container)[0]?.querySelector('path')?.getAttribute('stroke-dasharray')).toBe('6 5')
+    expect(screen.getByText('retry')).toBeInTheDocument()
   })
 
   it('fits a long Thai or English label inside its node by wrapping it', () => {

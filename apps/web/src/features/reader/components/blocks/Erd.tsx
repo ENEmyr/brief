@@ -182,10 +182,12 @@ function computeErdLayout(tables: readonly TableDef[]): ErdLayout {
         ]
       }
 
-      // Another row: out of the side, down the gap between columns, in from the side.
+      // Another row: out of the side, down the gap beside the source's column
+      // (as wide as its widest table), in from the side.
       const right = target.x >= source.x
       const x1 = right ? source.x + source.w : source.x
-      const channel = right ? x1 + GAP_X / 2 : x1 - GAP_X / 2
+      const columnLeft = colX[source.col] ?? LEFT
+      const channel = right ? columnLeft + colWidth(source.col) + GAP_X / 2 : columnLeft - GAP_X / 2
       const x2 = right ? target.x - TIP_GAP : target.x + target.w + TIP_GAP
       const enterX = target.col === source.col ? (right ? target.x + target.w + TIP_GAP : target.x - TIP_GAP) : x2
       return [
@@ -221,29 +223,29 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
   const diagram = (
     <div className="relative mx-auto text-[13px] leading-4" style={{ width: layout.width, height: layout.height }}>
       <EdgeLayer width={layout.width} height={layout.height}>
-        {layout.edges.map((e) => (
+        {layout.edges.map((e, i) => (
           <Edge
-            key={e.key}
+            key={i}
             points={e.points}
             dataState={e === active ? 'active' : undefined}
             className={e === active ? EDGE_TONE.accent : EDGE_TONE.sub}
           />
         ))}
       </EdgeLayer>
-      {layout.boxes.map((box) => (
+      {layout.boxes.map((box, i) => (
         <div
-          key={box.table.name}
+          key={i}
           data-table={box.table.name}
           className="absolute box-border flex flex-col overflow-hidden rounded-[6px] border border-line2 bg-elev text-text"
           style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
         >
           <span className="flex h-9 shrink-0 items-center bg-chip px-3 font-mono font-medium">{box.table.name}</span>
-          {box.table.columns.map((column) => {
+          {box.table.columns.map((column, i) => {
             const key = `${box.table.name}.${column.name}`
             const target = active?.target === box.table.name && active.targetColumn === column.name
             return (
               <span
-                key={column.name}
+                key={i}
                 data-column={column.name}
                 onPointerEnter={column.fk ? () => setHovered(key) : undefined}
                 onPointerLeave={column.fk ? () => setHovered(null) : undefined}
@@ -261,9 +263,9 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
           })}
         </div>
       ))}
-      {layout.edges.map((e) => (
+      {layout.edges.map((e, i) => (
         <div
-          key={e.key}
+          key={i}
           className="absolute whitespace-nowrap text-center font-mono text-[11px] text-info"
           style={{ left: e.label.left, top: e.label.top, width: e.label.width }}
         >

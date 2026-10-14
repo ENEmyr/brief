@@ -263,6 +263,28 @@ describe('Erd block', () => {
     expect(points[1]?.[1]).toBe(58)
   })
 
+  it('runs an edge to another row down the gap beside its column, clear of the column\'s widest table', () => {
+    // Four tables: three in the first row, the fourth under the first. The
+    // first is wide; the fourth is narrow and points at the second.
+    const block: Extract<Block, { type: 'erd' }> = {
+      type: 'erd',
+      tables: [
+        { name: 'wide', columns: [{ name: 'a_very_long_column_name_for_width', type: 'timestamptz' }] },
+        { name: 'target', columns: [{ name: 'id', type: 'uuid', pk: true }] },
+        { name: 'third', columns: [{ name: 'id', type: 'uuid' }] },
+        { name: 'narrow', columns: [{ name: 'target_id', type: 'uuid', fk: { table: 'target', column: 'id' } }] },
+      ],
+    }
+    const { container } = r(block)
+    const box = (name: string) => container.querySelector<HTMLElement>(`[data-table="${name}"]`)!.style
+    const wideRight = Number.parseFloat(box('wide').left) + Number.parseFloat(box('wide').width)
+    const d = container.querySelector('[data-edge] path')?.getAttribute('d') ?? ''
+    const xs = [...d.matchAll(/[ML]([\d.]+) /g)].map((m) => Number(m[1]))
+    // Out of the narrow table, then a vertical run in the gap right of the wide one.
+    expect(xs[1]).toBeGreaterThan(wideRight)
+    expect(xs[1]).toBeLessThan(Number.parseFloat(box('target').left))
+  })
+
   it('does not crash when a fk references an unknown table', () => {
     expect(() => r(erdBlock)).not.toThrow()
   })
