@@ -9,7 +9,7 @@ import { buildReplyPrompt } from '../lib/replyPrompt'
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
 const CHIP = 'rounded-[3px] px-[6px] py-[2px]'
-const BUTTON = `min-h-9 rounded-[4px] px-[14px] text-[13px] transition-transform duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none max-[880px]:min-h-11 ${FOCUS_RING}`
+const BUTTON = `min-h-9 whitespace-nowrap rounded-[4px] px-[14px] text-[13px] transition-transform duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none max-[880px]:min-h-11 ${FOCUS_RING}`
 
 /**
  * "Review prompt before copying" as B-Overlays' right sheet (lines 118-139):
@@ -123,7 +123,8 @@ export function PromptReviewSheet({
           aria-label="Prompt text"
           className={`mx-[18px] mt-3 min-h-0 grow resize-none rounded-[4px] border border-line2 bg-[var(--c-code-bg)] px-[14px] py-3 font-mono text-[12.5px] leading-5 text-text outline-none ${FOCUS_RING}`}
         />
-        <div className="flex items-center gap-2 px-[18px] pb-4 pt-3">
+        {/* Wraps on a phone, where the board's one row of 500 does not fit. */}
+        <div className="flex flex-wrap items-center gap-2 px-[18px] pb-4 pt-3">
           <button
             type="button"
             onClick={() => copyText(text)}
@@ -141,8 +142,7 @@ export function PromptReviewSheet({
           >
             Rebuild from answers
           </button>
-          <span className="grow" />
-          <span className="font-mono text-[11px] text-faint">{text.length} chars</span>
+          <span className="ml-auto font-mono text-[11px] text-faint">{text.length} chars</span>
         </div>
       </aside>
     </div>
