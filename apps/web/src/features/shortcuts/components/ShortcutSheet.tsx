@@ -42,7 +42,7 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }): JSX.Element
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="flex size-8 cursor-pointer items-center justify-center rounded-ctrl text-sub max-[879px]:min-h-11 max-[879px]:min-w-11"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-ctrl text-sub max-[880px]:min-h-11 max-[880px]:min-w-11"
           >
             <svg
               width="14"

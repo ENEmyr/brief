@@ -1,24 +1,42 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { payloadToMarkdown } from '@brief/schema'
 import type { Payload } from '@brief/schema'
-import { Toc } from '@/features/toc'
-import type { TocSection } from '@/features/toc'
+import { Toc, useActiveSection } from '@/features/toc'
+import type { TocMark } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
 import { DiagramLayoutProvider } from '@/features/diagram-layout'
-import { ReaderStateProvider, useReaderStateStore } from '@/features/reader-state'
+import {
+  ReaderStateProvider,
+  useReaderState,
+  useReaderStateStore,
+  useSaveStatus,
+} from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
 import { DecisionSection } from '@/features/decisions'
 import { ExportProvider, useExport } from '@/features/export'
 import { SaveModal, UnlockCard } from '@/features/save'
+import { CommandPalette, buildDocumentEntries } from '@/features/palette'
+import type { PaletteEntry } from '@/features/palette'
+import { ShortcutSheet, modKeyLabel, useShortcuts } from '@/features/shortcuts'
+import { useTheme } from '@/features/theme'
 import type { SessionData } from '../services/api'
 import { useSession } from '../hooks/useSession'
+import { useIsNarrow } from '../hooks/useIsNarrow'
+import { DIAGRAM_BLOCK_TYPES, hasDiagrams } from '../lib/views'
+import type { ReaderView } from '../lib/views'
+import { adjacentSectionId, findSection, scrollToElement } from '../lib/sectionNav'
+import { DockSlot } from './DockSlot'
+import { RawView } from './RawView'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
 import { Topbar } from './Topbar'
 
 const TOC_STORAGE_KEY = 'idocs:toc'
+
+const pad = (n: number) => String(n).padStart(2, '0')
 
 function readStoredTocCollapsed(): boolean {
   try {
@@ -49,12 +67,23 @@ function StatusCard({ children }: { children: React.ReactNode }) {
   )
 }
 
+/** Reader highlights for the outline's "Your marks", in reading order. */
+function marksOf(highlights: Highlight[], sections: Payload['sections']): TocMark[] {
+  return [...highlights]
+    .sort((a, b) => a.sid - b.sid || (a.bid ?? -1) - (b.bid ?? -1) || a.start - b.start)
+    .flatMap((h) => {
+      const section = sections[h.sid]
+      return section ? [{ id: h.id, sectionId: section.id, text: h.text, ask: h.question !== undefined }] : []
+    })
+}
+
+const NO_DIAGRAMS: ReadonlySet<ReaderView> = new Set(['diagrams'])
+
 /**
- * The fully-loaded reader UI: Topbar, TOC, sections, decisions, and the
- * annotation popovers/toolbar. Split out from SessionView so it can render
- * inside both ReaderStateProvider and ExportProvider and call useExport()
- * for the Topbar's Download/Share controls and the copy chain threaded into
- * SelectionToolbar/AskPopover (Task 6) -- useExport() only resolves to a
+ * The fully-loaded reader UI: Topbar, outline, document, the decision dock
+ * slot, the command palette and the annotation popovers/toolbar. Split out
+ * from SessionView so it can render inside both ReaderStateProvider and
+ * ExportProvider and call useExport() -- useExport() only resolves to a
  * real value for descendants of ExportProvider, not for SessionView itself.
  */
 function SessionReady({
@@ -66,14 +95,24 @@ function SessionReady({
    * Set once the reader has decrypted a protected session's payload for this
    * page view (memory-only, re-locks on navigation/reload). Hides the Archive
    * button entirely -- the envelope is already encrypted, so there is
-   * nothing new to save -- and swaps the "archived" chip for a "protected" one.
+   * nothing new to save.
    */
   protectedSession?: boolean
 }) {
   const { copy, share, downloadMarkdown, print, copyEditPrompt } = useExport()
+  const payload = data.payload
+  const { theme, toggle: toggleTheme } = useTheme()
+  const narrow = useIsNarrow()
+  const saveStatus = useSaveStatus()
+  const { highlights } = useReaderState()
+  const [view, setView] = useState<ReaderView>('document')
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [dockOpen, setDockOpen] = useState(false)
+  // seq restarts the flash when the same section is jumped to twice.
+  const [flash, setFlash] = useState<{ id: string; seq: number } | null>(null)
+  const [pendingJump, setPendingJump] = useState<string | null>(null)
   const [tocCollapsed, setTocCollapsed] = useState(false)
-  // Drawer open state lives here per the Task 5 contract; `onMenu` from
-  // Topbar opens it and Toc's onCloseDrawer prop closes it.
   const [tocDrawerOpen, setTocDrawerOpen] = useState(false)
   // Note/Ask popovers are mutually exclusive -- opening one always closes
   // the other, matching the prototype's single-notePop/single-askPop state.
@@ -83,18 +122,12 @@ function SessionReady({
   // Local, display-only override -- deliberately NOT written back into `data`
   // (or anything the outer SessionView's `data.encrypted` render gate reads).
   // After an encrypt-save, SessionReady keeps rendering the CURRENT decrypted
-  // payload already in memory; only the "archived" chip reflects the new status.
+  // payload already in memory; only the Archive icon reflects the new status.
   // Mutating `data.encrypted` here would make the component fall through to
   // the "Protected session" placeholder on next render, which would
   // incorrectly blank a doc the reader is actively viewing.
   const [savedOverride, setSavedOverride] = useState(false)
-  const saved = savedOverride || data.saved
-  let savedLabel: 'protected' | 'archived' | undefined
-  if (protectedSession) {
-    savedLabel = 'protected'
-  } else if (saved) {
-    savedLabel = 'archived'
-  }
+  const archived = savedOverride || data.saved
 
   // bug-250: an in-view encrypt save purges the server's plaintext state:<id>
   // KV blob (this ReaderStateProvider was mounted with persist=true, since
@@ -114,6 +147,64 @@ function SessionReady({
   useEffect(() => {
     setTocCollapsed(readStoredTocCollapsed())
   }, [])
+
+  const sections = payload.sections
+  const hasDecisions = payload.decisions.length > 0
+  const shownSections = useMemo(() => {
+    if (view === 'raw') return []
+    if (view === 'diagrams') return sections.filter((s) => s.blocks.some((b) => DIAGRAM_BLOCK_TYPES.has(b.type)))
+    return sections
+  }, [sections, view])
+  const activeId = useActiveSection(shownSections.map((s) => s.id))
+  const disabledViews = useMemo(() => (hasDiagrams(sections) ? undefined : NO_DIAGRAMS), [sections])
+  const rawMarkdown = useMemo(
+    () => (view === 'raw' ? payloadToMarkdown(payload, { url: `${window.location.origin}/s/${data.id}` }) : ''),
+    [view, payload, data.id],
+  )
+
+  const flashSection = useCallback((id: string, el: HTMLElement) => {
+    scrollToElement(el)
+    setFlash((prev) => ({ id, seq: (prev?.seq ?? 0) + 1 }))
+  }, [])
+
+  // A section the current view does not render (Raw, or Diagrams without
+  // diagrams in it) is reached by switching back to Document first.
+  const jumpTo = useCallback(
+    (id: string) => {
+      const el = findSection(id)
+      if (el) {
+        flashSection(id, el)
+        return
+      }
+      setView('document')
+      setPendingJump(id)
+    },
+    [flashSection],
+  )
+
+  useEffect(() => {
+    if (!pendingJump) return
+    setPendingJump(null)
+    const el = findSection(pendingJump)
+    if (el) flashSection(pendingJump, el)
+  }, [pendingJump, view, flashSection])
+
+  function jumpToMark(mark: TocMark) {
+    const el = [...document.querySelectorAll<HTMLElement>('main mark[data-mark-id]')].find(
+      (m) => m.dataset.markId === mark.id,
+    )
+    if (el) scrollToElement(el, 'center')
+    else jumpTo(mark.sectionId)
+  }
+
+  function openDock() {
+    if (narrow) {
+      setDockOpen(true)
+      return
+    }
+    const dock = document.getElementById('dock')
+    if (dock) scrollToElement(dock, 'nearest')
+  }
 
   function openNote(id: string) {
     setAskPopId(null)
@@ -146,84 +237,143 @@ function SessionReady({
   const closeSaveModal = useCallback(() => setSaveModalOpen(false), [])
   const closeNotePopover = useCallback(() => setNotePopId(null), [])
   const closeAskPopover = useCallback(() => setAskPopId(null), [])
+  const closePalette = useCallback(() => setPaletteOpen(false), [])
+  const closeShortcuts = useCallback(() => setShortcutsOpen(false), [])
+  const closeTocDrawer = useCallback(() => setTocDrawerOpen(false), [])
+  const openSaveModal = protectedSession ? undefined : () => setSaveModalOpen(true)
+  const themeLabel = theme === 'dark' ? 'Theme: dark. Switch to light' : 'Theme: light. Switch to dark'
 
-  const sections = data.payload.sections.map((s) => ({ id: s.id, no: s.no, title: s.title }))
-  const hasDecisions = data.payload.decisions.length > 0
-  const tocSections: TocSection[] = hasDecisions
-    ? [...sections, { id: 'decide', no: sections.length + 1, title: 'Decisions' }]
-    : sections
+  useShortcuts({
+    palette: () => setPaletteOpen(true),
+    nextSection: () => {
+      const id = adjacentSectionId(1)
+      if (id) jumpTo(id)
+    },
+    prevSection: () => {
+      const id = adjacentSectionId(-1)
+      if (id) jumpTo(id)
+    },
+    help: () => setShortcutsOpen(true),
+  })
+
+  const documentEntries = useMemo(() => buildDocumentEntries(payload), [payload])
+  const paletteEntries: PaletteEntry[] = [
+    ...documentEntries,
+    { kind: 'action', key: 'a:edit', label: 'Copy edit prompt', run: copyEditPrompt },
+    { kind: 'action', key: 'a:markdown', label: 'Download Markdown', run: downloadMarkdown },
+    { kind: 'action', key: 'a:pdf', label: 'Download PDF', run: print },
+    ...(openSaveModal ? [{ kind: 'action' as const, key: 'a:archive', label: 'Archive', run: openSaveModal }] : []),
+    { kind: 'action', key: 'a:share', label: 'Share', run: share },
+    { kind: 'action', key: 'a:theme', label: themeLabel, run: toggleTheme },
+    { kind: 'action', key: 'a:shortcuts', label: 'Show all shortcuts', run: () => setShortcutsOpen(true) },
+  ]
+
+  function selectEntry(entry: PaletteEntry) {
+    if (entry.kind === 'section' || entry.kind === 'block') jumpTo(entry.sectionId)
+    else if (entry.kind === 'decision') openDock()
+    else entry.run()
+  }
+
+  const counterSection = sections.find((s) => s.id === activeId) ?? sections[0]
+  const sectionCounter = counterSection ? `§${pad(counterSection.no)} / ${pad(sections.length)}` : undefined
+  const mod = modKeyLabel()
 
   return (
     <div className="min-h-screen bg-page">
       <Topbar
         sessionId={data.id}
-        repo={data.payload.meta.repo}
-        showProgress
-        savedLabel={savedLabel}
-        onMenu={() => setTocDrawerOpen(true)}
-        onSave={protectedSession ? undefined : () => setSaveModalOpen(true)}
+        title={payload.meta.title}
+        sectionCounter={sectionCounter}
+        view={view}
+        onViewChange={setView}
+        disabledViews={disabledViews}
+        paletteHint={mod === '⌘' ? '⌘K' : `${mod} K`}
+        onOpenPalette={() => setPaletteOpen(true)}
+        saveStatus={saveStatus}
+        archived={!protectedSession && archived}
+        onOpenOutline={() => setTocDrawerOpen(true)}
+        onSave={openSaveModal}
         onEditPrompt={copyEditPrompt}
         onDownload={downloadMarkdown}
         onPrint={print}
         onShare={share}
+        showProgress
       />
-      <main className="mx-auto max-w-[1180px] px-4 pb-[90px] min-[880px]:px-7 min-[880px]:pb-[110px]">
-        <MetaHeader meta={data.payload.meta} />
-        <DiagramLayoutProvider sessionId={data.id}>
-          <DiagramViewerProvider>
-            <div
-              // data-reader-grid: the print stylesheet collapses this back to a
-              // single column, since the TOC does not print and its column would
-              // leave a blank gutter down every page.
-              data-reader-grid=""
-              className="items-start gap-[34px] min-[880px]:grid"
-              style={{ gridTemplateColumns: tocCollapsed ? '48px 1fr' : '188px 1fr' }}
-            >
-              <Toc
-                sections={tocSections}
-                collapsed={tocCollapsed}
-                onToggleCollapsed={toggleTocCollapsed}
-                drawerOpen={tocDrawerOpen}
-                onCloseDrawer={() => setTocDrawerOpen(false)}
-              />
-              {/* min-w-0: a grid item defaults to min-width:auto, so without this
-                  the article column cannot shrink below its widest child and one
-                  wide table or diagram pushes the whole page into a horizontal
-                  scroll. Wide blocks scroll inside their own box instead. */}
-              <div className="min-w-0">
-                {data.payload.sections.map((s, si) => (
-                  <SectionView key={s.id} section={s} sid={si} onMarkClick={handleMarkClick} />
-                ))}
-                {hasDecisions && (
-                  <DecisionSection
-                    decisions={data.payload.decisions}
-                    no={data.payload.sections.length + 1}
-                    docTitle={data.payload.meta.title}
-                    sessionId={data.id}
-                    copyText={copy}
+      <DiagramLayoutProvider sessionId={data.id}>
+        <DiagramViewerProvider>
+          <div
+            // data-reader-grid: the print stylesheet turns this flex row back
+            // into one column, since the outline does not print.
+            data-reader-grid=""
+            className={`flex flex-wrap items-start gap-4 p-4 max-[880px]:p-3 ${
+              // Room for the dock's peek bar (8 + 4 + 10 + 44 + 30 + 1px border, B-Mobile).
+              hasDecisions ? 'max-[880px]:pb-[97px]' : ''
+            }`}
+          >
+            <Toc
+              sections={sections}
+              activeId={activeId}
+              marks={marksOf(highlights, sections)}
+              onJump={jumpTo}
+              onMarkJump={jumpToMark}
+              collapsed={tocCollapsed}
+              onToggleCollapsed={toggleTocCollapsed}
+              drawerOpen={tocDrawerOpen}
+              onCloseDrawer={closeTocDrawer}
+            />
+            {/* min-w-0: a flex item defaults to min-width:auto, so without this
+                the document column cannot shrink below its widest child and one
+                wide table or diagram pushes the whole page into a horizontal
+                scroll. Wide blocks scroll inside their own box instead. */}
+            <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
+              <MetaHeader meta={payload.meta} />
+              {view === 'raw' ? (
+                <RawView markdown={rawMarkdown} />
+              ) : (
+                shownSections.map((s) => (
+                  <SectionView
+                    key={s.id}
+                    section={s}
+                    sid={sections.indexOf(s)}
+                    onMarkClick={handleMarkClick}
+                    flash={flash?.id === s.id ? flash.seq : undefined}
+                    only={view === 'diagrams' ? DIAGRAM_BLOCK_TYPES : undefined}
                   />
-                )}
-              </div>
-            </div>
-          </DiagramViewerProvider>
-        </DiagramLayoutProvider>
-      </main>
+                ))
+              )}
+            </main>
+            {hasDecisions && (
+              <DockSlot decisions={payload.decisions} open={dockOpen} onOpenChange={setDockOpen}>
+                <DecisionSection
+                  decisions={payload.decisions}
+                  no={sections.length + 1}
+                  docTitle={payload.meta.title}
+                  sessionId={data.id}
+                  copyText={copy}
+                />
+              </DockSlot>
+            )}
+          </div>
+        </DiagramViewerProvider>
+      </DiagramLayoutProvider>
       <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} copyText={copy} />
       {notePopId && <NotePopover id={notePopId} onClose={closeNotePopover} />}
       {askPopId && (
         <AskPopover
           id={askPopId}
-          sections={data.payload.sections}
+          sections={payload.sections}
           sessionId={data.id}
-          docTitle={data.payload.meta.title}
+          docTitle={payload.meta.title}
           onClose={closeAskPopover}
           copyText={copy}
         />
       )}
+      {paletteOpen && <CommandPalette entries={paletteEntries} onSelect={selectEntry} onClose={closePalette} />}
+      {shortcutsOpen && <ShortcutSheet onClose={closeShortcuts} />}
       {!protectedSession && saveModalOpen && (
         <SaveModal
           sessionId={data.id}
-          payload={data.payload}
+          payload={payload}
           onClose={closeSaveModal}
           onSaved={(mode) => {
             setSavedOverride(true)
@@ -231,7 +381,7 @@ function SessionReady({
           }}
           // A save the user cancelled mid-flight can still commit server-side
           // (the PUT cannot be recalled). No toast/modal feedback in that
-          // case, but the chip must still reflect server truth.
+          // case, but the Archive icon must still reflect server truth.
           onBackgroundSaveSettled={(mode) => {
             setSavedOverride(true)
             if (mode === 'encrypt') setEncryptedNow(true)

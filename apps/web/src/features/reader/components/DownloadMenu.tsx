@@ -1,18 +1,23 @@
 'use client'
 import { TopbarMenu } from './TopbarMenu'
 import type { TopbarMenuItem } from './TopbarMenu'
+import { DownloadIcon } from './icons'
+import { ICON_BUTTON } from './topbarChrome'
 
 /**
- * One Download control in place of the two separate Markdown and Print / PDF
- * buttons. Both are the same reader intent ("give me this doc as a file"), and
- * collapsing them frees a slot in a topbar that is already tight at the
- * 880px breakpoint where every label hides.
+ * One Download control for both files a reader can take away (Markdown and
+ * Print / PDF): the same reader intent, one slot in a tight top bar.
  *
  * Each handler is optional and an absent one drops its menu item; with
- * neither, TopbarMenu renders nothing. The trigger/panel/focus/keyboard
- * mechanics live once in TopbarMenu; this component only supplies its own
- * icon, label, and items.
+ * neither, TopbarMenu renders nothing. Item labels are B-Components' menu.
  */
+export function downloadItems(onDownload?: () => void, onPrint?: () => void): TopbarMenuItem[] {
+  const items: TopbarMenuItem[] = []
+  if (onDownload) items.push({ label: 'Markdown', run: onDownload })
+  if (onPrint) items.push({ label: 'PDF', run: onPrint })
+  return items
+}
+
 export function DownloadMenu({
   onDownload,
   onPrint,
@@ -20,9 +25,12 @@ export function DownloadMenu({
   onDownload?: () => void
   onPrint?: () => void
 }) {
-  const items: TopbarMenuItem[] = []
-  if (onDownload) items.push({ icon: '↓', label: 'Markdown (.md)', run: onDownload })
-  if (onPrint) items.push({ icon: '⎙', label: 'Print / PDF', run: onPrint })
-
-  return <TopbarMenu triggerIcon="↓" triggerLabel="Download" items={items} />
+  return (
+    <TopbarMenu
+      icon={<DownloadIcon />}
+      triggerLabel="Download"
+      triggerClassName={ICON_BUTTON}
+      items={downloadItems(onDownload, onPrint)}
+    />
+  )
 }

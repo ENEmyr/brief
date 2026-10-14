@@ -26,6 +26,7 @@ export function NotePopover({ id, onClose }: { id: string; onClose: () => void }
 
   return (
     <div
+      data-popover=""
       style={{ animation: 'dc-pop .18s ease' }}
       className="fixed right-6 bottom-6 z-[80] w-[300px] rounded-xl border border-line bg-card p-3.5 shadow-[var(--shadow-overlay)]"
     >

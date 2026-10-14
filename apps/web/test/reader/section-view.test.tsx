@@ -29,12 +29,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('SectionView', () => {
-  it('renders the section number zero-padded and title without a trailing period', () => {
+  // B-Reader's card header puts the number beside the h2, not inside it.
+  it('renders the zero-padded number beside the title in the card header row', () => {
     renderSection()
 
-    const heading = screen.getByRole('heading', { name: '01 Intro' })
-    expect(heading).toBeInTheDocument()
-    expect(heading.textContent).toBe('01Intro')
+    const heading = screen.getByRole('heading', { name: 'Intro' })
+    expect(heading.textContent).toBe('Intro')
+    expect(heading.parentElement?.textContent).toBe('01Intro')
   })
 
   it('keeps the id and data-section attributes for scroll-sync and anchor links', () => {
@@ -46,20 +47,55 @@ describe('SectionView', () => {
     expect(el?.tagName).toBe('SECTION')
   })
 
-  it('applies the design spacing and scroll-margin classes to the section', () => {
+  // The section is now a B-Reader card: card fill, line border, radius 6, scroll margin 72.
+  it('is a card with the board scroll margin', () => {
     renderSection()
 
     const el = document.getElementById('s1')
-    expect(el).toHaveClass('mb-11', 'scroll-mt-[76px]')
+    expect(el).toHaveClass('scroll-mt-[72px]', 'rounded-[6px]', 'border', 'border-line', 'bg-card')
   })
 
-  it('applies the design chrome classes to the heading and its number span', () => {
+  it('styles the header row as B-Reader: 12px accent number, 18/26 600 title, line under it', () => {
     renderSection()
 
-    const heading = screen.getByRole('heading', { name: '01 Intro' })
-    expect(heading).toHaveClass('text-[21px]', 'font-bold', 'border-b-2', 'border-accent-soft')
-    const numberSpan = heading.querySelector('span')
-    expect(numberSpan).toHaveClass('font-mono', 'text-accent-text', 'text-[16px]')
+    const heading = screen.getByRole('heading', { name: 'Intro' })
+    expect(heading).toHaveClass('text-[18px]', 'font-semibold', 'leading-[26px]')
+    const row = heading.parentElement!
+    expect(row).toHaveClass('border-b', 'border-line', 'px-4', 'py-3')
+    expect(row.querySelector('span')).toHaveClass('font-mono', 'text-accent-text', 'text-[12px]')
+  })
+
+  it('flashes after a jump, alternating the animation so a repeat jump restarts it', () => {
+    const { rerender } = renderSection()
+    const el = document.getElementById('s1')!
+    expect(el).not.toHaveAttribute('data-flash')
+
+    rerender(
+      <ReaderStateProvider sessionId="section-view-test">
+        <SectionView section={section} sid={0} flash={1} />
+      </ReaderStateProvider>,
+    )
+    expect(el).toHaveAttribute('data-flash', 'b')
+    rerender(
+      <ReaderStateProvider sessionId="section-view-test">
+        <SectionView section={section} sid={0} flash={2} />
+      </ReaderStateProvider>,
+    )
+    expect(el).toHaveAttribute('data-flash', 'a')
+  })
+
+  it('keeps only the given block types, at their payload index', () => {
+    render(
+      <ReaderStateProvider sessionId="section-view-test">
+        <SectionView
+          section={{ ...section, blocks: [{ type: 'p', text: 'Hello world' }, { type: 'warn', text: 'Careful' }] }}
+          sid={0}
+          only={new Set(['warn'])}
+        />
+      </ReaderStateProvider>,
+    )
+    expect(screen.queryByText('Hello world')).not.toBeInTheDocument()
+    expect(screen.getByText('Careful').closest('[data-bid]')).toHaveAttribute('data-bid', '1')
   })
 
   it('renders the blocks inside the section', () => {

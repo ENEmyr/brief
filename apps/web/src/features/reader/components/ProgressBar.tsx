@@ -1,46 +1,34 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
+function computePct(): number {
+  const { scrollTop, scrollHeight, clientHeight } = document.documentElement
+  const denom = scrollHeight - clientHeight
+  // NaN-safe: content that fits in the viewport has no progress to show.
+  if (denom <= 0) return 0
+  return Math.round(Math.max(0, Math.min(100, (scrollTop / denom) * 100)))
+}
+
+/** B-Reader's 2px reading progress line: `elev` track, `accent` fill. */
 export function ProgressBar() {
   const [pct, setPct] = useState(0)
   const scheduled = useRef(false)
   const rafId = useRef(0)
 
-  // Compute scroll progress percentage
-  function computePct(): number {
-    const scrollTop = document.documentElement.scrollTop
-    const scrollHeight = document.documentElement.scrollHeight
-    const clientHeight = document.documentElement.clientHeight
-    const denom = scrollHeight - clientHeight
-
-    // NaN-safe: if content fits in viewport, return 0
-    if (denom <= 0) return 0
-
-    const raw = (scrollTop / denom) * 100
-    // Clamp to 0-100 and round to integer
-    return Math.round(Math.max(0, Math.min(100, raw)))
-  }
-
-  // Called by rAF to update state
-  function tick() {
-    scheduled.current = false
-    setPct(computePct())
-  }
-
-  // Scroll event handler: throttle with rAF using scheduled flag
-  function handleScroll() {
-    if (scheduled.current) return
-    scheduled.current = true
-    rafId.current = requestAnimationFrame(tick)
-  }
-
   useEffect(() => {
-    // Initial compute synchronously (not via rAF)
     setPct(computePct())
 
-    // Add passive scroll listener
-    window.addEventListener('scroll', handleScroll, { passive: true })
+    // One update per frame however many scroll events arrive.
+    function handleScroll() {
+      if (scheduled.current) return
+      scheduled.current = true
+      rafId.current = requestAnimationFrame(() => {
+        scheduled.current = false
+        setPct(computePct())
+      })
+    }
 
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
       window.removeEventListener('scroll', handleScroll)
       if (rafId.current) cancelAnimationFrame(rafId.current)
@@ -54,12 +42,9 @@ export function ProgressBar() {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct}
-      className="absolute bottom-[-1px] left-0 h-[2.5px] print:hidden"
-      style={{
-        width: `${pct}%`,
-        background: 'var(--c-accent)',
-        transition: 'width .1s linear',
-      }}
-    />
+      className="h-[2px] bg-elev print:hidden"
+    >
+      <div className="h-[2px] bg-accent" style={{ width: `${pct}%` }} />
+    </div>
   )
 }

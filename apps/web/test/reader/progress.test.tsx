@@ -163,12 +163,17 @@ describe('ProgressBar', () => {
     expect(rafStub.mock.calls.length).toBeGreaterThan(0)
   })
 
-  it('applies absolute positioning and the accent fill', () => {
+  // B-Reader draws a 2px elev track with the accent fill inside it (the old
+  // 2.5px bar floated over the header border with a width transition).
+  it('is a 2px elev track holding the accent fill, with no transition while scrolling', () => {
+    Object.defineProperty(document.documentElement, 'scrollTop', { configurable: true, writable: true, value: 50 })
     render(<ProgressBar />)
     const bar = screen.getByRole('progressbar')
 
-    expect(bar).toHaveClass('absolute', 'left-0', 'bottom-[-1px]', 'h-[2.5px]', 'print:hidden')
-    expect(bar.style.background).toBe('var(--c-accent)')
-    expect(bar.style.transition).toBe('width .1s linear')
+    expect(bar).toHaveClass('h-[2px]', 'bg-elev', 'print:hidden')
+    const fill = bar.firstElementChild as HTMLElement
+    expect(fill).toHaveClass('h-[2px]', 'bg-accent')
+    expect(fill.style.width).toBe('25%')
+    expect(fill.style.transition).toBe('')
   })
 })
