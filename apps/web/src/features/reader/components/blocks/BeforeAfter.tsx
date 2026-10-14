@@ -1,24 +1,36 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { Block } from '@brief/schema'
+import { Annotatable } from '@/features/annotations'
+import { useReaderState } from '@/features/reader-state'
 import { BlockCard, cardHeader } from '../BlockCard'
-import { CardCaption } from '../CardCaption'
 import type { BlockAnchor } from '../blockAnchor'
-import { CodePre } from './CodePre'
+import {
+  CodePanel,
+  CodeRow,
+  useHighlightedCode,
+  type HighlightedCode,
+  type LineTone,
+} from './CodePre'
+import { diffLines } from './lineDiff'
 
 type BeforeAfterBlock = Extract<Block, { type: 'ba' }>
+type View = 'split' | 'unified'
+type Side = 'before' | 'after'
 
-function segmentClass(active: boolean): string {
-  const base = 'rounded-md px-3 py-1 text-[12px] font-semibold max-[880px]:min-h-11'
-  return active ? `${base} bg-accent text-on-accent` : `${base} bg-transparent text-sub`
+/** B-Blocks:142: the selected view has the control border and fill, the other is bare faint text. */
+function viewButtonClass(active: boolean): string {
+  const base = 'min-h-7 rounded-[4px] px-2 font-mono text-[11px] max-[880px]:min-h-11'
+  return active
+    ? `${base} border border-line2 bg-elev text-text`
+    : `${base} border-0 bg-transparent text-faint`
 }
 
 /**
- * The label is the title of whichever side is showing, and it is annotatable
- * when the payload supplies one: the two sides are separate leaves
- * (`titleBefore`, `titleAfter`), so a highlight on one does not bleed onto the
- * other. A side with no title shows the plain 'Before'/'After' chrome label,
- * which is not in the payload and so is not annotatable.
+ * B-Blocks:141-160. Split shows both sides with removed lines on the bad tint
+ * and added lines on the good tint; Unified (no board draws it) shows one
+ * listing in diff order. Every line keeps its own leaf (`before.N`,
+ * `after.N`) in both views; an unchanged line in Unified is the after line.
  */
 export function BeforeAfter({
   block,
@@ -26,50 +38,131 @@ export function BeforeAfter({
   annotatable = true,
   ...anchor
 }: { block: BeforeAfterBlock } & BlockAnchor) {
-  const [showAfter, setShowAfter] = useState(false)
-  const code = showAfter ? block.after : block.before
-  const title = showAfter ? block.titleAfter : block.titleBefore
-  const caption = title ?? (showAfter ? 'After' : 'Before')
+  const [view, setView] = useState<View>('split')
+  const { highlights } = useReaderState()
+  const before = useHighlightedCode(block.before, block.language)
+  const after = useHighlightedCode(block.after, block.language)
+  const lines = useMemo(
+    () => ({ before: block.before.split('\n'), after: block.after.split('\n') }),
+    [block.before, block.after],
+  )
+  const { rows, removed, added } = useMemo(() => {
+    const rows = diffLines(lines.before, lines.after)
+    return {
+      rows,
+      removed: new Set(rows.flatMap((r) => (r.kind === 'del' ? [r.before] : []))),
+      added: new Set(rows.flatMap((r) => (r.kind === 'add' ? [r.after] : []))),
+    }
+  }, [lines])
+
+  const sides = {
+    before: { highlighted: before, title: block.titleBefore, changed: removed, tone: 'del' },
+    after: { highlighted: after, title: block.titleAfter, changed: added, tone: 'add' },
+  } as const
+  const row = (side: Side, index: number, tone: LineTone | undefined) => (
+    <CodeRow
+      key={`${side}.${index}`}
+      node={sides[side].highlighted?.lines[index]}
+      text={lines[side][index] ?? ''}
+      number={index + 1}
+      gutter="w-7"
+      tone={tone}
+      path={`${pathPrefix}${side}.${index}`}
+      annotatable={annotatable}
+      highlights={highlights}
+      {...anchor}
+    />
+  )
+  const label = (side: Side) => {
+    const title = sides[side].title
+    return title === undefined ? (
+      side
+    ) : (
+      <Annotatable
+        sid={anchor.sid}
+        bid={anchor.bid ?? null}
+        annotatable={annotatable && anchor.bid !== undefined}
+        onMarkClick={anchor.onMarkClick}
+        className="break-words"
+        text={title}
+        path={`${pathPrefix}${side === 'before' ? 'titleBefore' : 'titleAfter'}`}
+      />
+    )
+  }
 
   const toggle = (
-    <div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-chip p-0.5">
-      <button
-        type="button"
-        onClick={() => setShowAfter(false)}
-        aria-pressed={showAfter === false}
-        className={segmentClass(!showAfter)}
-      >
-        Before
-      </button>
-      <button
-        type="button"
-        onClick={() => setShowAfter(true)}
-        aria-pressed={showAfter === true}
-        className={segmentClass(showAfter)}
-      >
-        After
-      </button>
-    </div>
+    <span className="flex shrink-0 items-center gap-2">
+      {(['split', 'unified'] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={view === v}
+          onClick={() => setView(v)}
+          className={viewButtonClass(view === v)}
+        >
+          {v === 'split' ? 'Split' : 'Unified'}
+        </button>
+      ))}
+    </span>
   )
 
   return (
     <BlockCard {...cardHeader(block, { ...anchor, pathPrefix, annotatable })} controls={toggle}>
-      <div className="border-b border-line px-3 py-1.5 font-mono text-[11px] text-faint">
-        <CardCaption
-          {...anchor}
-          text={caption}
-          path={`${pathPrefix}${showAfter ? 'titleAfter' : 'titleBefore'}`}
-          annotatable={annotatable && title !== undefined}
-        />
+      <div
+        className={`font-mono text-[13px] leading-[22px] ${view === 'split' ? 'grid grid-cols-2 max-[880px]:grid-cols-1' : ''}`}
+      >
+        {view === 'split' ? (
+          (['before', 'after'] as const).map((side) => (
+            <Pane
+              key={side}
+              label={label(side)}
+              divider={side === 'before'}
+              highlighted={sides[side].highlighted}
+            >
+              {lines[side].map((_, i) =>
+                row(side, i, sides[side].changed.has(i) ? sides[side].tone : undefined),
+              )}
+            </Pane>
+          ))
+        ) : (
+          <Pane
+            label={
+              <>
+                {label('before')} / {label('after')}
+              </>
+            }
+            divider={false}
+            highlighted={after ?? before}
+          >
+            {rows.map((r) =>
+              r.kind === 'del'
+                ? row('before', r.before, 'del')
+                : row('after', r.after, r.kind === 'add' ? 'add' : undefined),
+            )}
+          </Pane>
+        )}
       </div>
-      <CodePre
-        code={code}
-        language={block.language}
-        pathPrefix={pathPrefix}
-        field={showAfter ? 'after' : 'before'}
-        annotatable={annotatable}
-        {...anchor}
-      />
     </BlockCard>
+  )
+}
+
+function Pane({
+  label,
+  divider,
+  highlighted,
+  children,
+}: {
+  label: ReactNode
+  divider: boolean
+  highlighted: HighlightedCode | null
+  children: ReactNode
+}) {
+  return (
+    <div
+      className={`min-w-0 py-2 ${divider ? 'border-r border-line max-[880px]:border-r-0 max-[880px]:border-b' : ''}`}
+    >
+      <div className="px-3 pb-1.5 text-[11px] text-faint">{label}</div>
+      <CodePanel highlighted={highlighted}>{children}</CodePanel>
+    </div>
   )
 }

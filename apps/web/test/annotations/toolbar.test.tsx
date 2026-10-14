@@ -183,6 +183,8 @@ describe('SelectionToolbar', () => {
   })
 
   it('stays hidden when the selection is inside a block with no annotatable leaf', () => {
+    // The code body used to be leafless until shiki resolved; its lines are now
+    // leaves from the first paint. The card's kind tag is still plain chrome.
     render(
       <ReaderStateProvider sessionId={sessionId}>
         <BlockRenderer
@@ -193,8 +195,8 @@ describe('SelectionToolbar', () => {
         <SelectionToolbar />
       </ReaderStateProvider>,
     )
-    const code = screen.getByText(/const x/)
-    selectWithin(code)
+    const chrome = screen.getByText('code')
+    selectWithin(chrome)
     expect(screen.queryByRole('button', { name: 'Highlight' })).not.toBeInTheDocument()
   })
 

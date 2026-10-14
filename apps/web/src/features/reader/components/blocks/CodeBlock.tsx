@@ -17,7 +17,6 @@ export function CodeBlock({
         language={block.language}
         highlightLines={block.highlight}
         pathPrefix={pathPrefix}
-        field="code"
         {...anchor}
       />
     </BlockCard>
