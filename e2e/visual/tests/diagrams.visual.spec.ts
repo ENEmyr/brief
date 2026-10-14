@@ -224,10 +224,16 @@ test.describe('at 1440', () => {
     expect(borders).toEqual([c.line2, c.accentLine, c.accentLine, c.line2])
 
     // B-Blocks:77: the diagram pane is padded 20/10 beside the list.
-    await expectComputed(seqCanvas(figure).locator('..'), { 'padding-top': '20px', 'padding-left': '10px' })
+    const pane = seqCanvas(figure).locator('..')
+    await expectComputed(pane, { 'padding-top': '20px', 'padding-left': '10px' })
+    // B-Blocks:78: the canvas starts at the pane's padding, not centered.
+    expectNear(await rel(seqCanvas(figure), pane), { x: 10, y: 20 }, 'canvas in the pane')
     // B-Blocks:101-108: the list is padded 10 with 4 between rows, 13px.
     const list = figure.getByRole('list')
     await expectComputed(list, { 'padding-top': '10px', 'row-gap': '4px', 'font-size': '13px' })
+    // B-Blocks:76-77, :101: the pane and the list share one row, the 1px rule between them.
+    const paneBox = await rel(pane, figure)
+    expectNear(await rel(list, figure), { x: paneBox.x + paneBox.width + 1, y: paneBox.y, height: paneBox.height }, 'list')
     const rows = list.getByRole('listitem')
     await expect(rows).toHaveCount(6)
     await expectComputed(rows.nth(2), {
