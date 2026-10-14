@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { BlockRenderer, DiagramCard } from '@/features/reader'
+import { BlockRenderer } from '@/features/reader'
+import { BlockCard } from '@/features/reader/components/BlockCard'
 import { ReaderStateProvider } from '@/features/reader-state'
 import type { Block } from '@brief/schema'
 
@@ -80,12 +81,14 @@ describe('annotatable diagram titles', () => {
     expect(screen.getByText(title)).toHaveAttribute('data-path', 'title')
   })
 
-  it('leaves the fallback caption of an untitled diagram as plain chrome', () => {
-    // 'Sequence' is not in the payload, so there is no `title` leaf to anchor
-    // to: annotating it would name a leaf that does not exist.
+  it('leaves the kind tag of an untitled diagram as plain chrome', () => {
+    // The fallback caption 'Sequence' gave way to the kind tag (B-Blocks:75). The tag
+    // is not in the payload either, so there is no leaf to anchor to:
+    // annotating it would name a leaf that does not exist.
     renderBlock({ ...seqWithTitle, title: undefined })
 
-    expect(screen.getByText('Sequence')).not.toHaveAttribute('data-hl')
+    expect(screen.getByText('seq')).not.toHaveAttribute('data-hl')
+    expect(screen.queryByText('Sequence')).not.toBeInTheDocument()
   })
 
   it('addresses a nested diagram title under its blocks.<i>. prefix', () => {
@@ -136,15 +139,17 @@ describe('annotatable code headers', () => {
   })
 })
 
-describe('DiagramCard without an anchor', () => {
+describe('BlockCard without an anchor', () => {
   it('renders the caption as plain text, exactly as before', () => {
+    // DiagramCard is gone; BlockCard is the one header every block uses now,
+    // and an anchorless caption must stay plain text there too.
     render(
-      <DiagramCard caption="seq">
+      <BlockCard kind="seq" caption={{ text: 'Login flow', path: 'title' }}>
         <svg data-testid="diagram" />
-      </DiagramCard>,
+      </BlockCard>,
     )
 
-    const caption = screen.getByText('seq')
+    const caption = screen.getByText('Login flow')
     expect(caption).not.toHaveAttribute('data-hl')
     expect(caption).not.toHaveAttribute('data-sid')
     expect(caption).not.toHaveAttribute('data-path')

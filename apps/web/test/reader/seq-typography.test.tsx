@@ -4,6 +4,10 @@ import { BlockRenderer } from '@/features/reader'
 import { pillWidth } from '@/features/reader/lib/seqLayout'
 import type { Block } from '@brief/schema'
 
+// The card header now draws the full-screen icon, a decorative aria-hidden svg,
+// ahead of the diagram, so "the first svg" is no longer the diagram.
+const DIAGRAM_SVG = 'svg:not([aria-hidden="true"])'
+
 /**
  * The real payload that broke the block: seven actors, Thai names of very
  * different lengths, and long Thai sentences as step labels. Thai has no word
@@ -34,7 +38,7 @@ const thaiSeq: Extract<Block, { type: 'seq' }> = {
 
 function renderSeq(block: Extract<Block, { type: 'seq' }>): SVGSVGElement {
   const { container } = render(<BlockRenderer block={block} />)
-  const svg = container.querySelector('svg')
+  const svg = container.querySelector(DIAGRAM_SVG)
   if (!svg) throw new Error('no svg rendered')
   return svg as SVGSVGElement
 }
@@ -216,7 +220,7 @@ describe('Sibling diagram blocks use the shared Thai-capable text style', () => 
 
     blocks.forEach((block) => {
       const { container, unmount } = render(<BlockRenderer block={block} />)
-      const texts = Array.from(container.querySelectorAll('svg text'))
+      const texts = Array.from(container.querySelectorAll(`${DIAGRAM_SVG} text`))
       expect(texts.length).toBeGreaterThan(0)
       texts.forEach((t) => {
         expect(t.getAttribute('font-family')).toBeNull()

@@ -2,6 +2,7 @@ import type { Block } from '@brief/schema'
 import type { CSSProperties } from 'react'
 import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
+import { BlockCard, cardHeader } from '../BlockCard'
 
 // The payload keeps its Catppuccin tone names (renaming them would break
 // payloads); each maps to the data hue tokens.css defines for it.
@@ -39,37 +40,39 @@ export function Stats({
   }
 
   return (
-    <div
-      className="grid grid-cols-2 gap-3 my-4 min-[880px]:[grid-template-columns:var(--stat-cols)]"
-      style={style}
-    >
-      {block.items.map((item, i) => (
-        <div key={i} className="border border-line rounded-xl bg-card px-4 py-[15px] text-center">
-          <Annotatable
-            {...anchor}
-            as="p"
-            className={`text-[28px] font-bold font-mono leading-none ${statToneClass[item.tone ?? 'mauve']}`}
-            text={item.value}
-            path={`${pathPrefix}items.${i}.value`}
-          />
-          <Annotatable
-            {...anchor}
-            as="p"
-            className="text-[12px] text-sub mt-1.5 leading-[1.4]"
-            text={item.label}
-            path={`${pathPrefix}items.${i}.label`}
-          />
-          {item.hint && (
+    <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
+      <div
+        className="grid grid-cols-2 gap-3 p-3 min-[880px]:[grid-template-columns:var(--stat-cols)]"
+        style={style}
+      >
+        {block.items.map((item, i) => (
+          <div key={i} className="border border-line rounded-xl bg-card px-4 py-[15px] text-center">
             <Annotatable
               {...anchor}
               as="p"
-              className="text-[11px] text-faint mt-1"
-              text={item.hint}
-              path={`${pathPrefix}items.${i}.hint`}
+              className={`text-[28px] font-bold font-mono leading-none ${statToneClass[item.tone ?? 'mauve']}`}
+              text={item.value}
+              path={`${pathPrefix}items.${i}.value`}
             />
-          )}
-        </div>
-      ))}
-    </div>
+            <Annotatable
+              {...anchor}
+              as="p"
+              className="text-[12px] text-sub mt-1.5 leading-[1.4]"
+              text={item.label}
+              path={`${pathPrefix}items.${i}.label`}
+            />
+            {item.hint && (
+              <Annotatable
+                {...anchor}
+                as="p"
+                className="text-[11px] text-faint mt-1"
+                text={item.hint}
+                path={`${pathPrefix}items.${i}.hint`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </BlockCard>
   )
 }

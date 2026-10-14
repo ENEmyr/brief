@@ -1,10 +1,9 @@
 'use client'
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
-import { ChartExpandButton } from './ChartExpandButton'
+import { useChartCard } from '../fullScreen'
 import { useTheme } from '@/features/theme'
 import { chartPalette, seriesColors, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
@@ -63,19 +62,19 @@ export function buildScatterOption(block: ScatterBlockType, palette: Palette): E
 export function Scatter({ block, ...anchor }: { block: ScatterBlockType } & BlockAnchor) {
   const { theme } = useTheme()
 
-  const { containerRef, chartRef } = useEChart(() => buildScatterOption(block, chartPalette(theme)), [block, theme])
+  const { containerRef, chartRef, ready } = useEChart(() => buildScatterOption(block, chartPalette(theme)), [block, theme])
+
+  const chartCard = useChartCard(chartRef, ready, theme)
 
   return (
-    <DiagramCard
-      {...titleCaption(anchor, block.title, 'Scatter plot')}
-      expandable={false}
-      controls={
-        <div className="flex justify-end">
-          <ChartExpandButton chartRef={chartRef} theme={theme} />
-        </div>
-      }
-    >
-      <div ref={containerRef} className="h-[260px] w-full" />
-    </DiagramCard>
+    <BlockCard {...cardHeader(block, anchor)} {...chartCard}>
+      <div className="px-4 py-3">
+        <div
+          ref={containerRef}
+          className={`h-[260px] w-full ${ready ? '' : 'sk'}`}
+          style={{ borderRadius: 4 }}
+        />
+      </div>
+    </BlockCard>
   )
 }

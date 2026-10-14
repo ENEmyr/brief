@@ -1,6 +1,7 @@
 import type { Block } from '@brief/schema'
 import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
+import { BlockCard, cardHeader } from '../BlockCard'
 
 const paneBorderTop = {
   good: 'border-t-good',
@@ -35,15 +36,8 @@ export function Compare({
   }
 
   return (
-    <figure className="my-4">
-      <figcaption className="font-mono text-[10.5px] tracking-[.04em] text-faint mb-2">
-        {block.caption ? (
-          <Annotatable {...anchor} text={block.caption} path={`${pathPrefix}caption`} />
-        ) : (
-          'Comparison'
-        )}
-      </figcaption>
-      <div className="flex gap-3.5 items-stretch max-[880px]:flex-col">
+    <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
+      <div className="flex gap-3.5 items-stretch p-3 max-[880px]:flex-col">
         {[
           { side: 'left', data: block.left },
           { side: 'right', data: block.right },
@@ -85,6 +79,6 @@ export function Compare({
           </div>
         ))}
       </div>
-    </figure>
+    </BlockCard>
   )
 }
