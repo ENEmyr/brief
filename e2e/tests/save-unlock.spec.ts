@@ -8,6 +8,7 @@ test.describe('save + encrypt + unlock', () => {
   test('saving with a password encrypts server-side, and unlock gates on the password', async ({
     page,
     createSession,
+    isMobile,
   }) => {
     // Own session: encrypt-save is irreversible server-side (a second save
     // attempt on the same id 409s per saveFeature/service.ts), so this spec
@@ -15,7 +16,13 @@ test.describe('save + encrypt + unlock', () => {
     const { id } = await createSession()
     await page.goto(`/s/${id}`)
 
-    await page.getByRole('button', { name: 'Archive' }).click()
+    // Under 880 Archive sits in B-Mobile's "More actions" menu.
+    if (isMobile) {
+      await page.getByRole('button', { name: 'More actions' }).click()
+      await page.getByRole('menuitem', { name: 'Archive' }).click()
+    } else {
+      await page.getByRole('button', { name: 'Archive' }).click()
+    }
     const dialog = page.getByRole('dialog', { name: 'Archive this doc' })
     await expect(dialog).toBeVisible()
 

@@ -2,7 +2,8 @@ import { test, expect, testPayload } from './fixtures'
 
 // bug-088: under 880px the outline column is hidden, so the contents have to
 // come from the top bar's drawer. bug-089: the drawer's items keep a 44px touch
-// target (`min-h-11`).
+// target (`min-h-11`). The names follow B-Reader: "Open outline" and "Outline"
+// (they were "Open contents" and "Table of contents"), and the rows are links.
 const DRAWER_ITEM_MIN_HEIGHT = 44
 
 test.describe('outline drawer under 880px', () => {
@@ -15,14 +16,14 @@ test.describe('outline drawer under 880px', () => {
     const { id } = await createSession()
     await page.goto(`/s/${id}`)
 
-    await expect(page.getByRole('navigation', { name: 'Table of contents' })).toBeHidden()
-    await page.getByRole('button', { name: 'Open contents' }).click()
+    await expect(page.getByRole('navigation', { name: 'Outline' })).toBeHidden()
+    await page.getByRole('button', { name: 'Open outline' }).click()
 
-    const drawer = page.getByRole('dialog', { name: 'Table of contents' })
+    const drawer = page.getByRole('dialog', { name: 'Outline' })
     await expect(drawer).toBeVisible()
-    const items = drawer.getByRole('button')
+    const items = drawer.getByRole('link')
     await expect(items.first()).toBeVisible()
-    // One item per section, plus whatever extra entries the shell adds (today: Decisions).
+    // One row per section, plus one per reader mark.
     expect(await items.count()).toBeGreaterThanOrEqual(testPayload.sections.length)
     for (const item of await items.all()) {
       const box = await item.boundingBox()
@@ -38,11 +39,11 @@ test.describe('outline drawer under 880px', () => {
     const { id } = await createSession()
     await page.setViewportSize({ width: 879, height: 900 })
     await page.goto(`/s/${id}`)
-    await expect(page.getByRole('button', { name: 'Open contents' })).toBeVisible()
-    await expect(page.getByRole('navigation', { name: 'Table of contents' })).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Open outline' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Outline' })).toBeHidden()
 
     await page.setViewportSize({ width: 880, height: 900 })
-    await expect(page.getByRole('button', { name: 'Open contents' })).toBeHidden()
-    await expect(page.getByRole('navigation', { name: 'Table of contents' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Open outline' })).toBeHidden()
+    await expect(page.getByRole('navigation', { name: 'Outline' })).toBeVisible()
   })
 })
