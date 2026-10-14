@@ -4,10 +4,6 @@ import { copyText } from '@/shared/clipboard'
 import { FOCUS_RING } from '../lib/styles'
 import styles from './landing.module.css'
 
-/**
- * The board's lowercase "copy" button. It reads "copied" for two seconds after
- * a copy, so it never claims the clipboard holds something it no longer does.
- */
 export function CopyButton({ text, label, className }: { text: string; label: string; className: string }) {
   const [copied, setCopied] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)

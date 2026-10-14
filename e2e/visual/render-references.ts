@@ -45,7 +45,6 @@ interface Crop {
   contains?: string
   /** Rows of the element the board shows, when its frame clips the rest. */
   visibleHeight?: number
-  /** Snap the element to a whole pixel row first (snapToPixelRow); the spec must snap the app side too. */
   snap?: boolean
 }
 

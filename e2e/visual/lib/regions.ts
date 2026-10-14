@@ -18,17 +18,10 @@ export const READER_REGIONS = {
 
 export const READER_WIDTHS = [1440, 1100, 880] as const
 
-/**
- * B-Landing regions, the same contract for the board and the app. `rows`
- * keeps the first n matches and cuts their union: the blocks table rows that
- * exist today (the board's sixth row, "Agent work", waits for those blocks).
- * The `-copy`, `-tabs`, `-body` and `-rows` cuts leave out the parts known to
- * differ (14-character ids, three view tabs, the missing row).
- */
 export interface Region {
   selector: string
   hasText?: string
-  rows?: number
+  unionOfFirst?: number
 }
 export const LANDING_REGIONS: Record<string, Region> = {
   header: { selector: 'header' },
@@ -40,19 +33,18 @@ export const LANDING_REGIONS: Record<string, Region> = {
   preview: { selector: 'section#preview' },
   'preview-body': { selector: '[aria-label="Preview of a brief"] > div:nth-child(3)' },
   blocks: { selector: 'section#blocks' },
-  'blocks-rows': { selector: '#blocks tr', rows: 5 },
+  'blocks-rows': { selector: '#blocks tr', unionOfFirst: 5 },
   features: { selector: 'section#features' },
   closing: { selector: 'section', hasText: 'Give your agent a better way to ask.' },
   footer: { selector: 'footer' },
 }
 export const LANDING_WIDTHS = [1440, 390] as const
 
-/** The region's clip at scroll 0 (see clipOf); for `rows`, the union of the first n matches. */
 export async function clipOfRegion(page: Page, region: Region): Promise<Clip> {
   const matches = page.locator(region.selector, { hasText: region.hasText })
-  if (region.rows === undefined) return clipOf(matches.first())
+  if (region.unionOfFirst === undefined) return clipOf(matches.first())
   const clips = []
-  for (let i = 0; i < region.rows; i++) clips.push(await clipOf(matches.nth(i)))
+  for (let i = 0; i < region.unionOfFirst; i++) clips.push(await clipOf(matches.nth(i)))
   const x = Math.min(...clips.map((c) => c.x))
   const y = Math.min(...clips.map((c) => c.y))
   const right = Math.max(...clips.map((c) => c.x + c.width))
@@ -97,15 +89,10 @@ export async function clipOf(locator: Locator): Promise<Clip> {
 }
 
 /**
- * Moves the element down by less than a pixel so its top edge lands on a whole
- * pixel. Box edges and text baselines round to pixels separately, so text in a
- * box that starts between pixels lands a row higher or lower depending on the
- * fraction, and a flow document (B-Print, the printed reader) puts boxes at
- * whatever fraction the content above adds up to. The renderer snaps a crop
- * marked `snap` and the spec snaps the app element, so both sides compare at
- * the same phase. It uses a relative offset, which is laid out like any other
- * position; a transform would resample the painted text instead. Table parts
- * cannot be offset, so their table moves.
+ * Moves the element (or its table) down by less than a pixel so its top lands
+ * on a whole pixel. The renderer and the specs both call it, so the board and
+ * the app are cut at the same sub-pixel phase; without it the print answers
+ * crop fails.
  */
 export async function snapToPixelRow(locator: Locator): Promise<void> {
   await locator.evaluate((el: HTMLElement) => {

@@ -58,10 +58,7 @@ describe('landing page', () => {
     }
   })
 
-  // The other direction: the board's "Agent work" row cannot appear before
-  // walkthrough, diff and trajectory exist.
   it('names no block type the schema does not accept', () => {
-    // `decision` stands for the payload's decisions list, which is not a block.
     const accepted = new Set([...schemaBlockTypes(), 'decision'])
     for (const type of BLOCK_GROUPS.flatMap((group) => group.blocks)) {
       expect(accepted).toContain(type)
@@ -97,8 +94,6 @@ describe('landing page', () => {
     expect(within(screen.getByRole('tabpanel')).getByText(/curl -X POST/i)).toBeInTheDocument()
   })
 
-  // findings.md F3: the reader route only matches 14-character ids, so a
-  // shorter example link opens "Session not found".
   it('uses 14-character session ids in every example link', () => {
     render(<LandingPage />)
     const ids = () => {
@@ -115,5 +110,12 @@ describe('landing page', () => {
     expect(all.length).toBeGreaterThanOrEqual(6)
     for (const id of all) expect(id).toBe('k2p9x4Qm7Zr1Ta')
     expect(document.body.textContent).toContain('/api/session/k2p9x4Qm7Zr1Ta/raw')
+  })
+
+  it('previews the three view tabs the reader has', () => {
+    render(<LandingPage />)
+    const preview = screen.getByRole('img', { name: 'Preview of a brief' })
+    const tabs = ['Document', 'Diagrams', 'Decisions', 'Raw'].filter((tab) => within(preview).queryByText(tab))
+    expect(tabs).toEqual(['Document', 'Diagrams', 'Raw'])
   })
 })

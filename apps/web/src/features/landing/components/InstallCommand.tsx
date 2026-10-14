@@ -1,7 +1,6 @@
 import { INSTALL_COMMAND } from '../lib/content'
 import { CopyButton } from './CopyButton'
 
-/** The install command with its copy button, in the hero and the closing band (B-Landing:41, 241). */
 export function InstallCommand() {
   return (
     <div className="flex min-h-[50px] items-center gap-[10px] rounded-[6px] border border-line2 bg-card pr-[6px] pl-[14px] font-mono text-[14px]">
