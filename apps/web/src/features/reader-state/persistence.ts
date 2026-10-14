@@ -70,7 +70,7 @@ export function schedulePersist(sessionId: string, state: ReaderState): void {
     try {
       window.localStorage.setItem(
         storageKey(sessionId),
-        JSON.stringify({ dsel: state.dsel, dnote: state.dnote, highlights: state.highlights }),
+        JSON.stringify({ dsel: state.dsel, dnote: state.dnote, dother: state.dother, highlights: state.highlights }),
       )
     } catch {
       // private mode / quota exceeded: persistence just does not happen

@@ -1,10 +1,12 @@
 import type { Decision } from '@brief/schema'
 import type { ReaderState } from '@/features/reader-state'
+import { answerLabels } from './answers'
 
 /**
  * One block per decision -- its id, question, the labels of every selected
  * option (resolved by id, kept in `opts` order rather than selection order)
- * or "(not answered)", and the free-text note when non-empty, each block
+ * then "Other: <text>" when the reader wrote their own answer, or
+ * "(not answered)", and the free-text note when non-empty, each block
  * followed by a blank line. Split out of buildReplyPrompt so editPrompt.ts
  * (which needs the same per-decision serialization inside a differently
  * framed prompt) does not have to re-derive it.
@@ -12,9 +14,8 @@ import type { ReaderState } from '@/features/reader-state'
 export function decisionAnswerLines(decisions: Decision[], state: ReaderState): string[] {
   const lines: string[] = []
   for (const decision of decisions) {
-    const selected = new Set(state.dsel[decision.id] ?? [])
-    const chosenLabels = decision.opts.filter((opt) => selected.has(opt.id)).map((opt) => opt.label)
-    const choice = chosenLabels.length > 0 ? chosenLabels.join('; ') : '(not answered)'
+    const labels = answerLabels(decision, state)
+    const choice = labels.length > 0 ? labels.join('; ') : '(not answered)'
 
     lines.push(`[${decision.id}] ${decision.q}`)
     lines.push(`  - Choice: ${choice}`)

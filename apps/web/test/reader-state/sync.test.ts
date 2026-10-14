@@ -48,7 +48,7 @@ describe('startKvSync hydration precedence', () => {
     const store = createReaderStateStore(sessionId)
     const stop = startKvSync(sessionId, store)
     await flushMicrotasks()
-    expect(store.getState()).toEqual({ highlights: [], dsel: {}, dnote: {} })
+    expect(store.getState()).toEqual({ highlights: [], dsel: {}, dnote: {}, dother: {} })
     stop()
   })
 })
@@ -83,6 +83,40 @@ describe('startKvSync debounce', () => {
     const state = JSON.parse(body.state)
     expect(state.dsel).toEqual({ d1: ['b'] })
     expect(state.dnote).toEqual({ d1: 'hi' })
+    expect(state.dother).toEqual({})
+    stop()
+  })
+
+  it('sends the Other answers in the PUT body', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null })))
+    vi.stubGlobal('fetch', mockFetch)
+    const store = createReaderStateStore(sessionId)
+    const stop = startKvSync(sessionId, store)
+    await flushMicrotasks()
+    mockFetch.mockClear()
+
+    store.actions.pickOther('d2', false)
+    store.actions.setOtherText('d2', '300 a minute')
+    vi.advanceTimersByTime(5000)
+    await flushMicrotasks()
+
+    const [, init] = mockFetch.mock.calls[0]!
+    expect(JSON.parse(JSON.parse(init.body).state)).toEqual({
+      dsel: {},
+      dnote: {},
+      dother: { d2: '300 a minute' },
+      highlights: [],
+    })
+    stop()
+  })
+
+  it('hydrates the Other answers from remote state', async () => {
+    const remote = { highlights: [], dsel: {}, dnote: {}, dother: { d2: 'from another device' } }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: JSON.stringify(remote) }))))
+    const store = createReaderStateStore(sessionId)
+    const stop = startKvSync(sessionId, store)
+    await flushMicrotasks()
+    expect(store.getState().dother).toEqual({ d2: 'from another device' })
     stop()
   })
 

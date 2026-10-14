@@ -57,7 +57,7 @@ const basePayload: Payload = {
   ],
 }
 
-const emptyState: ReaderState = { highlights: [], dsel: {}, dnote: {} }
+const emptyState: ReaderState = { highlights: [], dsel: {}, dnote: {}, dother: {} }
 
 describe('buildExportMarkdown', () => {
   it('renders (no highlights) when there are none', () => {
@@ -102,6 +102,25 @@ describe('buildExportMarkdown', () => {
     expect(md).toContain('- [x] Token bucket')
     expect(md).toContain('- [x] Sliding window')
     expect(md).toContain('- **Answer:** Token bucket; Sliding window')
+  })
+
+  it('prints the reader Other answer as a ticked line and in the answer, single and multi', () => {
+    const state: ReaderState = {
+      ...emptyState,
+      dsel: { d2: ['token'] },
+      dother: { d1: '  Durable Object  ', d2: 'leaky bucket' },
+    }
+    const md = buildExportMarkdown(basePayload, state, 'sess1', 'https://example.com')
+
+    expect(md).toContain('- [ ] Cloudflare KV\n- [ ] No cache\n- [x] Other: Durable Object\n')
+    expect(md).toContain('- **Answer:** Other: Durable Object')
+    expect(md).toContain('- [x] Other: leaky bucket')
+    expect(md).toContain('- **Answer:** Token bucket; Other: leaky bucket')
+  })
+
+  it('lists no Other line when the reader did not pick Other', () => {
+    const md = buildExportMarkdown(basePayload, { ...emptyState, dsel: { d1: ['kv'] } }, 'sess1', 'https://example.com')
+    expect(md).not.toContain('Other')
   })
 
   it('renders (not answered) and (none) empty states for an unanswered decision', () => {
