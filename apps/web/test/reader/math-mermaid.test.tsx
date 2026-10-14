@@ -114,12 +114,16 @@ describe('MathBlock', () => {
 })
 
 describe('MermaidBlock', () => {
-  it('renders the raw code in a plain pre immediately, before mermaid resolves', () => {
+  it('reserves the final box with a skeleton before mermaid resolves', () => {
+    // Was the raw code in a plain pre, whose height then jumped to the
+    // diagram's. B-States:106-107 reserves the final height with a skeleton.
     mermaidRenderMock.mockReturnValue(pending())
 
-    render(<MermaidBlock block={mermaidBlock} />)
+    const { container } = render(<MermaidBlock block={mermaidBlock} />)
 
-    expect(screen.getByText('graph TD; A-->B')).toBeInTheDocument()
+    const box = container.querySelector<HTMLElement>('.sk')
+    expect(box?.style.height).toBe('400px')
+    expect(screen.queryByText('graph TD; A-->B')).not.toBeInTheDocument()
   })
 
   it('shows the mermaid kind tag, and the block title as caption when there is one', () => {
@@ -159,14 +163,17 @@ describe('MermaidBlock', () => {
     expect(screen.queryByText('loading diagram')).not.toBeInTheDocument()
   })
 
-  it('falls back to the source in a plain pre with a warning note when mermaid rejects, and never throws', async () => {
+  it('fails inside its card with the B-States error and the numbered source when mermaid rejects, and never throws', async () => {
+    // Was the source in a plain pre under "Diagram source could not be
+    // rendered". B-States:92-98 draws the error box over the numbered source.
     mermaidRenderMock.mockRejectedValue(new Error('parse error'))
     document.body.innerHTML = '<div id="dmm-test-orphan"></div>'
 
     expect(() => render(<MermaidBlock block={mermaidBlock} />)).not.toThrow()
 
-    await waitFor(() => expect(screen.getByText('Diagram source could not be rendered')).toBeInTheDocument())
-    expect(screen.getByText('graph TD; A-->B')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Diagram could not be drawn.'))
+    expect(screen.getByText('graph TD; A-->B', { exact: false, normalizer: (t) => t.trim() })).toHaveTextContent(/^1\s+graph TD; A-->B$/)
+    expect(screen.queryByText(/parse error/)).not.toBeInTheDocument()
   })
 
   it('initializes mermaid with htmlLabels false at BOTH the top level and flowchart scope', async () => {
@@ -206,7 +213,8 @@ describe('MermaidBlock', () => {
       secondaryColor: 'dark:accent-soft',
       tertiaryColor: 'dark:code-bg',
       fontFamily: 'sans-stack',
-      fontSize: '12px',
+      // Was 12px; B-Blocks2:102 sets mermaid labels at 13px.
+      fontSize: '13px',
     })
   })
 

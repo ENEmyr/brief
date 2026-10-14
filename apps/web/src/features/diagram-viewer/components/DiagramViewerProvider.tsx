@@ -1,13 +1,13 @@
 'use client'
 import { createContext, useContext, useMemo } from 'react'
-import { useViewer } from '../hooks/useViewer'
+import { useViewer, type ViewerExtras } from '../hooks/useViewer'
 import { ViewerOverlay } from './ViewerOverlay'
 
 export interface DiagramViewerContextValue {
   /** Key of the block currently expanded, or null. */
   expandedKey: string | null
-  open: (ownerKey: string, node: React.ReactNode) => void
-  sync: (ownerKey: string, node: React.ReactNode) => void
+  open: (ownerKey: string, node: React.ReactNode, extras?: ViewerExtras) => void
+  sync: (ownerKey: string, node: React.ReactNode, extras?: ViewerExtras) => void
   close: () => void
 }
 
@@ -40,7 +40,12 @@ export function DiagramViewerProvider({ children }: { children: React.ReactNode 
   return (
     <DiagramViewerContext.Provider value={value}>
       {children}
-      <ViewerOverlay content={content?.node ?? null} onClose={close} />
+      <ViewerOverlay
+        content={content?.node ?? null}
+        heading={content?.heading}
+        steps={content?.steps}
+        onClose={close}
+      />
     </DiagramViewerContext.Provider>
   )
 }

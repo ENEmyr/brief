@@ -1,12 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { BlockRenderer } from '@/features/reader'
-import { pillWidth } from '@/features/reader/lib/seqLayout'
+import { ACTOR_WIDTH, LINE_HEIGHT, numberedLabel } from '@/features/reader/lib/seqLayout'
 import type { Block } from '@brief/schema'
-
-// The card header now draws the full-screen icon, a decorative aria-hidden svg,
-// ahead of the diagram, so "the first svg" is no longer the diagram.
-const DIAGRAM_SVG = 'svg:not([aria-hidden="true"])'
 
 /**
  * The real payload that broke the block: seven actors, Thai names of very
@@ -36,161 +32,127 @@ const thaiSeq: Extract<Block, { type: 'seq' }> = {
   ],
 }
 
-function renderSeq(block: Extract<Block, { type: 'seq' }>): SVGSVGElement {
+// Phase 4b draws the diagrams as the boards do (B-Blocks:78-98): HTML boxes
+// and labels over one SVG edge layer, at natural size in a scrolling body.
+// These tests pinned the old all-SVG drawing (rect, text, tspan); each now
+// pins the same promise against the HTML structure.
+function renderSeq(block: Extract<Block, { type: 'seq' }>): HTMLElement {
   const { container } = render(<BlockRenderer block={block} />)
-  const svg = container.querySelector(DIAGRAM_SVG)
-  if (!svg) throw new Error('no svg rendered')
-  return svg as SVGSVGElement
+  const canvas = container.querySelector<HTMLElement>('[data-actor]')?.parentElement
+  if (!canvas) throw new Error('no diagram rendered')
+  return canvas
 }
 
-/** Actor groups come first in document order, one <g> per actor. */
-function actorGroups(svg: SVGSVGElement, count: number): Element[] {
-  return Array.from(svg.querySelectorAll(':scope > g')).slice(0, count)
-}
-
-function num(el: Element | null | undefined, attr: string): number {
-  return Number(el?.getAttribute(attr) ?? NaN)
-}
+const actors = (canvas: HTMLElement) => Array.from(canvas.querySelectorAll<HTMLElement>('[data-actor]'))
+const labels = (canvas: HTMLElement) => Array.from(canvas.querySelectorAll<HTMLElement>('[data-seq-label]'))
+const px = (value: string) => Number(value.replace('px', ''))
 
 describe('Seq typography and sizing (Thai payload)', () => {
   it('renders at its natural pixel size and never upscales', () => {
-    const svg = renderSeq(thaiSeq)
-
-    expect(svg.style.maxWidth).toBe('100%')
-    // The upscale bug: `width: 100%` on a small fixed viewBox stretched one user
-    // unit to ~1.8 CSS pixels. The diagram must only ever be scaled down.
-    expect(svg.style.width).toBe('')
-    expect(svg.style.height).toBe('auto')
-    expect(num(svg, 'width')).toBeGreaterThan(0)
-    expect(num(svg, 'height')).toBeGreaterThan(0)
-    // The viewBox matches the rendered size 1:1, so one user unit is one CSS
-    // pixel and an 11-unit label paints at 11px instead of the old ~20px.
-    expect(svg.getAttribute('viewBox')).toBe(`0 0 ${num(svg, 'width')} ${num(svg, 'height')}`)
+    const canvas = renderSeq(thaiSeq)
+    // The upscale bug: `width: 100%` on a small fixed viewBox stretched one unit
+    // to ~1.8 CSS pixels. The canvas is sized in pixels and the edge layer's
+    // viewBox matches it, so one unit is one pixel and nothing scales.
+    expect(canvas.style.width).toMatch(/^\d+px$/)
+    expect(canvas.style.height).toMatch(/^\d+px$/)
+    const edges = canvas.querySelector('svg')
+    expect(edges?.getAttribute('viewBox')).toBe(`0 0 ${px(canvas.style.width)} ${px(canvas.style.height)}`)
   })
 
   it('grows the diagram width with the actor count instead of squeezing a fixed box', () => {
-    const three = renderSeq({ ...thaiSeq, actors: THAI_ACTORS.slice(0, 3), steps: thaiSeq.steps.slice(0, 3) })
+    const three = renderSeq({ ...thaiSeq, actors: THAI_ACTORS.slice(0, 3), steps: thaiSeq.steps.slice(1, 3) })
     const seven = renderSeq(thaiSeq)
-    expect(num(seven, 'width')).toBeGreaterThan(num(three, 'width'))
+    expect(px(seven.style.width)).toBeGreaterThan(px(three.style.width))
   })
 
-  it('sizes each actor pill to its own name, so no name overflows an empty-looking box', () => {
-    const svg = renderSeq(thaiSeq)
-    const groups = actorGroups(svg, THAI_ACTORS.length)
-    expect(groups).toHaveLength(THAI_ACTORS.length)
-
-    const widths = groups.map((g) => num(g.querySelector('rect'), 'width'))
-    // Size-to-fit: a long name gets a wider pill than a short one.
-    expect(new Set(widths).size).toBeGreaterThan(1)
-    expect(widths[THAI_ACTORS.indexOf('คณะกรรมการ')]).toBeGreaterThan(widths[THAI_ACTORS.indexOf('DM')] as number)
-
-    groups.forEach((g, i) => {
-      const name = THAI_ACTORS[i] as string
-      const text = g.querySelector('text')
-      expect(text?.textContent).toBe(name)
-      // The rendered pill must be exactly the width `pillWidth` computes for
-      // this name, not merely "wide enough" - a bound that widens with the
-      // name can never fail, which is why the previous version of this
-      // assertion (name-length * 0.6em) passed even while the pill's own
-      // lane was too narrow to hold it (blocker 1).
-      expect(widths[i] as number).toBeCloseTo(pillWidth(name), 5)
-    })
+  it('draws every actor in the board box and grows it in height for a long name, so no name overflows', () => {
+    // The board fixes actor boxes at 130x44 (B-Blocks:89-92); the old pills
+    // were sized to their names instead. A name too long for 130 wraps, and
+    // every box grows to the tallest name.
+    const longName = 'ผู้อำนวยการสำนักบริหารทรัพยากรบุคคล'
+    const canvas = renderSeq({ ...thaiSeq, actors: [...THAI_ACTORS, longName] })
+    const boxes = actors(canvas)
+    expect(boxes).toHaveLength(THAI_ACTORS.length + 1)
+    boxes.forEach((box) => expect(box.style.width).toBe(`${ACTOR_WIDTH}px`))
+    expect(new Set(boxes.map((b) => b.style.height)).size).toBe(1)
+    expect(px(boxes[0]?.style.height ?? '')).toBeGreaterThan(44)
+    expect(boxes.map((b) => b.textContent)).toEqual([...THAI_ACTORS, longName])
   })
 
-  it('keeps neighbouring actor pills from colliding', () => {
-    const svg = renderSeq(thaiSeq)
-    const rects = actorGroups(svg, THAI_ACTORS.length).map((g) => g.querySelector('rect'))
-    for (let i = 1; i < rects.length; i++) {
-      const prev = rects[i - 1]
-      const cur = rects[i]
-      const prevRight = num(prev, 'x') + num(prev, 'width')
-      expect(num(cur, 'x')).toBeGreaterThan(prevRight)
+  it('keeps neighbouring actor boxes from colliding', () => {
+    const boxes = actors(renderSeq(thaiSeq))
+    for (let i = 1; i < boxes.length; i++) {
+      const prevRight = px(boxes[i - 1]?.style.left ?? '') + px(boxes[i - 1]?.style.width ?? '')
+      expect(px(boxes[i]?.style.left ?? '')).toBeGreaterThan(prevRight)
     }
   })
 
-  it('keeps pills from colliding even when a name is long enough to hit the lane cap', () => {
-    // These two names are long enough that their pills (278.5 and 323 units)
-    // exceed LANE_MAX - LANE_GAP (172 units, ~18 advance-bearing characters).
-    // A lane clamped to LANE_MAX regardless of pill width is narrower than
-    // the pill it holds, so the next pill starts inside its neighbour: this
-    // is blocker 1, and the THAI_ACTORS fixture above never crossed the
-    // threshold, so it could not catch it.
+  it('keeps boxes from colliding even when a name is long enough to wrap', () => {
+    // These names are far wider than a 130px box. The box keeps its board
+    // width and the name wraps inside it, so lanes never overlap.
     const longNameActors = [
       'ผู้อำนวยการสำนักบริหารทรัพยากรบุคคล',
       'คณะกรรมการพิจารณาผลการปฏิบัติงานประจำปี',
       'HR',
     ]
-    const svg = renderSeq({
-      type: 'seq',
-      actors: longNameActors,
-      steps: [
-        { from: longNameActors[0] as string, to: longNameActors[1] as string, label: 'ส่ง' },
-        { from: longNameActors[1] as string, to: longNameActors[2] as string, label: 'รับ' },
-      ],
-    })
-    const rects = actorGroups(svg, longNameActors.length).map((g) => g.querySelector('rect'))
-    for (let i = 1; i < rects.length; i++) {
-      const prev = rects[i - 1]
-      const cur = rects[i]
-      const prevRight = num(prev, 'x') + num(prev, 'width')
-      expect(num(cur, 'x')).toBeGreaterThan(prevRight)
+    const boxes = actors(
+      renderSeq({
+        type: 'seq',
+        actors: longNameActors,
+        steps: [
+          { from: longNameActors[0] as string, to: longNameActors[1] as string, label: 'ส่ง' },
+          { from: longNameActors[1] as string, to: longNameActors[2] as string, label: 'รับ' },
+        ],
+      }),
+    )
+    for (let i = 1; i < boxes.length; i++) {
+      const prevRight = px(boxes[i - 1]?.style.left ?? '') + px(boxes[i - 1]?.style.width ?? '')
+      expect(px(boxes[i]?.style.left ?? '')).toBeGreaterThan(prevRight)
     }
   })
 
-  it('wraps a long Thai label into several tspans instead of one overflowing line', () => {
-    const svg = renderSeq(thaiSeq)
-    const texts = Array.from(svg.querySelectorAll('text'))
-    const wrapped = texts.filter((t) => t.querySelectorAll('tspan').length > 1)
-    expect(wrapped.length).toBeGreaterThan(0)
-
-    const strip = (s: string) => s.replace(/\s+/g, '')
-    const longest = texts.find((t) => strip(t.textContent ?? '').includes(strip(LONG_SELF_LABEL).slice(0, 12)))
-    expect(longest).toBeTruthy()
-    const lines = Array.from(longest?.querySelectorAll('tspan') ?? []).map((t) => t.textContent ?? '')
+  it('wraps a long Thai label onto several lines instead of one overflowing line', () => {
+    const all = labels(renderSeq(thaiSeq))
+    const longest = all.find((l) => (l.textContent ?? '').includes(LONG_SELF_LABEL.slice(0, 12)))
+    const lines = (longest?.textContent ?? '').split('\n')
     expect(lines.length).toBeGreaterThan(1)
-    // Wrapping only inserts breaks: no character of the label is lost.
-    expect(strip(lines.join(''))).toBe(strip(LONG_SELF_LABEL))
+    // Wrapping only inserts breaks: no character of the numbered label is lost.
+    const strip = (s: string) => s.replace(/\s+/g, '')
+    expect(strip(lines.join(''))).toBe(strip(numberedLabel(0, LONG_SELF_LABEL)))
   })
 
   it('rows are pitched to the tallest wrapped label, so labels do not overlap', () => {
-    const svg = renderSeq(thaiSeq)
-    const arrowRows = Array.from(svg.querySelectorAll('line:not([stroke-dasharray="3 3"])')).map((l) => num(l, 'y1'))
-    for (let i = 1; i < arrowRows.length; i++) {
-      // The old layout used a fixed 30-unit pitch, which cannot hold a label
-      // wrapped onto three or four lines.
-      expect(arrowRows[i] as number).toBeGreaterThan(arrowRows[i - 1] as number)
+    const all = labels(renderSeq(thaiSeq))
+    for (let i = 1; i < all.length; i++) {
+      const prev = all[i - 1] as HTMLElement
+      const prevBottom = px(prev.style.top) + (prev.textContent ?? '').split('\n').length * LINE_HEIGHT
+      expect(px(all[i]?.style.top ?? '')).toBeGreaterThanOrEqual(prevBottom)
     }
-    const tallest = Math.max(
-      ...Array.from(svg.querySelectorAll('text')).map((t) => t.querySelectorAll('tspan').length),
-    )
-    expect(num(svg, 'height')).toBeGreaterThan(30 * thaiSeq.steps.length)
-    expect(tallest).toBeGreaterThan(1)
   })
 
-  it('draws every label with a Thai-capable font stack, applied through the style prop', () => {
-    const svg = renderSeq(thaiSeq)
-    const texts = Array.from(svg.querySelectorAll('text'))
-    expect(texts.length).toBeGreaterThan(0)
-
-    texts.forEach((t) => {
-      // A presentation attribute cannot resolve var(), so the stack has to ride
-      // on the style prop.
-      expect(t.getAttribute('font-family')).toBeNull()
-      const family = (t as SVGTextElement).style.fontFamily
-      expect(family).toContain('--font-noto-thai')
-      expect(family).toContain('Noto Sans Thai')
-    })
+  it('sets labels as HTML text in the mono stack and names in the sans stack, both with Noto Sans Thai behind them', () => {
+    // The labels used to be SVG text, which needed the font stack on the
+    // style prop. As HTML they take the Tailwind stacks, and --font-sans and
+    // --font-mono in globals.css both carry Noto Sans Thai.
+    const canvas = renderSeq(thaiSeq)
+    expect(canvas.querySelectorAll('svg text')).toHaveLength(0)
+    expect(canvas.className).toContain('font-mono')
+    actors(canvas).forEach((box) => expect(box.className).toContain('font-sans'))
   })
 
-  it('still shows every actor name and the step controls', () => {
+  it('still shows every actor name and the play control', () => {
+    // The Prev/Next row with "step n/max" became the header controls (B-Blocks:75,
+    // B-Reader:126): at rest the header shows Play.
     render(<BlockRenderer block={thaiSeq} />)
     THAI_ACTORS.forEach((a) => expect(screen.getAllByText(a).length).toBeGreaterThan(0))
-    expect(screen.getByText(`step ${thaiSeq.steps.length}/${thaiSeq.steps.length}`)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Play sequence' })).toBeInTheDocument()
   })
 })
 
-describe('Sibling diagram blocks use the shared Thai-capable text style', () => {
-  it('state, layers and erd labels carry the font stack on the style prop', () => {
+describe('Sibling diagram blocks set their labels as HTML text', () => {
+  it('state, layers and erd draw no SVG text and show every Thai label', () => {
+    // Same move as seq: nodes and labels are HTML (B-Blocks2:36-90), so the
+    // font stack comes from CSS, not from an SVG style prop.
     const blocks: Block[] = [
       {
         type: 'state',
@@ -217,15 +179,12 @@ describe('Sibling diagram blocks use the shared Thai-capable text style', () => 
         tables: [{ name: 'พนักงาน', columns: [{ name: 'รหัส', type: 'text', pk: true }] }],
       },
     ]
+    const expected = [['รอดำเนินการ', 'เสร็จสิ้น', 'ไป'], ['ฐานข้อมูล', 'ตารางพนักงาน'], ['พนักงาน', 'รหัส']]
 
-    blocks.forEach((block) => {
+    blocks.forEach((block, i) => {
       const { container, unmount } = render(<BlockRenderer block={block} />)
-      const texts = Array.from(container.querySelectorAll(`${DIAGRAM_SVG} text`))
-      expect(texts.length).toBeGreaterThan(0)
-      texts.forEach((t) => {
-        expect(t.getAttribute('font-family')).toBeNull()
-        expect((t as SVGTextElement).style.fontFamily).toContain('Noto Sans Thai')
-      })
+      expect(container.querySelectorAll('svg text')).toHaveLength(0)
+      expected[i]?.forEach((text) => expect(screen.getAllByText(text).length).toBeGreaterThan(0))
       unmount()
     })
   })

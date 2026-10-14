@@ -5,7 +5,6 @@ import type { Payload } from '@brief/schema'
 import { Toc, useActiveSection } from '@/features/toc'
 import type { TocMark } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
-import { DiagramLayoutProvider } from '@/features/diagram-layout'
 import {
   ReaderStateProvider,
   useReaderState,
@@ -337,7 +336,7 @@ function SessionReady({
         onShare={share}
         showProgress
       />
-      <DiagramLayoutProvider sessionId={data.id}>
+      <>
         <DiagramViewerProvider>
           <div
             // data-reader-grid: the print stylesheet turns this flex row back
@@ -399,7 +398,7 @@ function SessionReady({
             )}
           </div>
         </DiagramViewerProvider>
-      </DiagramLayoutProvider>
+      </>
       <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} copyText={copy} />
       {notePopId && <NotePopover id={notePopId} onClose={closeNotePopover} />}
       {askPopId && (
