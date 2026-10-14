@@ -29,5 +29,5 @@ docs/design-handoffs/
 
 # visual suite references, rendered from the design handoff
 e2e/visual/reference/
-e2e/visual/playwright-report-visual/
-e2e/visual/test-results-visual/
+e2e/playwright-report-visual/
+e2e/test-results-visual/

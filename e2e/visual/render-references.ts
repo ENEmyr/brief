@@ -2,6 +2,8 @@ import { test, type Browser, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { createRequire } from 'node:module'
+import { BOARD_FONTS, assertFontsLoaded } from './lib/fonts'
 import {
   BOARDS_DIR,
   GENERATED_DIR,
@@ -17,6 +19,8 @@ import {
   READER_REGIONS,
   READER_WIDTHS,
   THEMES,
+  clipOf,
+  type Clip,
 } from './lib/regions'
 
 /**
@@ -58,35 +62,46 @@ test.afterAll(async () => {
   console.log(`wrote ${written.length} references to ${REFERENCE_DIR}`)
 })
 
-const FAMILIES = ['Geist', 'Geist Mono'] as const
-
 /** Opens a board at a width and waits until every font it uses is loaded. Throws on fallback fonts. */
 async function openBoard(page: Page, board: string, width: number): Promise<void> {
   await page.setViewportSize({ width, height: 900 })
   await page.goto(`${boards.url}/${board}.dc.html`, { waitUntil: 'networkidle' })
-  // document.fonts.ready also resolves when a font failed, so inspect the faces.
-  const faces = await page.evaluate(async () => {
-    await document.fonts.ready
-    return [...document.fonts].map((f) => ({ family: f.family.replace(/"/g, ''), status: f.status }))
-  })
-  const failed = faces.filter((f) => f.status === 'error')
-  if (failed.length > 0) throw new Error(`${board}: fonts failed to load: ${JSON.stringify(failed)}`)
-  for (const family of FAMILIES) {
-    if (!faces.some((f) => f.family === family && f.status === 'loaded')) {
-      throw new Error(`${board}: ${family} is not loaded (network blocked?); refusing to write fallback-font references`)
-    }
-  }
+  await assertFontsLoaded(page, BOARD_FONTS, board)
   await page.waitForTimeout(400)
 }
 
-async function save(page: Page, name: string, clip?: { x: number; y: number; width: number; height: number }) {
+/** Full-page screenshot, or the clip (page coordinates) cut out of it. */
+async function save(page: Page, name: string, clip?: Clip) {
   const file = path.join(REFERENCE_DIR, `${name}.png`)
-  await page.screenshot({ path: file, fullPage: clip === undefined, clip, animations: 'disabled' })
+  await page.screenshot({ path: file, fullPage: true, clip, animations: 'disabled' })
   written.push(file)
 }
 
+/**
+ * The user agent next/font/google downloads with, read from the installed Next.
+ * Google Fonts serves different files per user agent (different advance
+ * widths, so Thai lines wrap differently), and the app ships the files Next
+ * downloaded, so the boards must get the same ones.
+ */
+function nextFontUserAgent(): string {
+  const file = createRequire(path.resolve(import.meta.dirname, '../../apps/web/package.json')).resolve(
+    'next/dist/compiled/@next/font/dist/google/fetch-resource.js',
+  )
+  const header = /'User-Agent':\s*((?:'[^']*'\s*\+?\s*)+)/.exec(fs.readFileSync(file, 'utf8'))?.[1]
+  if (header === undefined) {
+    throw new Error(`No User-Agent header in ${file}; next/font changed how it downloads fonts, update nextFontUserAgent()`)
+  }
+  return [...header.matchAll(/'([^']*)'/g)].map((m) => m[1]).join('')
+}
+
+const NEXT_FONT_UA = nextFontUserAgent()
+
 async function newPage(browser: Browser): Promise<Page> {
-  return (await browser.newContext({ deviceScaleFactor: 1 })).newPage()
+  const page = await (await browser.newContext({ deviceScaleFactor: 1 })).newPage()
+  await page.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, (route) =>
+    route.continue({ headers: { ...route.request().headers(), 'user-agent': NEXT_FONT_UA } }),
+  )
+  return page
 }
 
 test('every row B board in full', async ({ browser }) => {
@@ -106,9 +121,7 @@ test('reader at 1440, 1100 and 880, dark and light, plus regions', async ({ brow
       await save(page, `reader-${theme}-${width}`)
       if (theme === 'dark' && width === 1440) {
         for (const [region, selector] of Object.entries(READER_REGIONS)) {
-          const file = path.join(REFERENCE_DIR, `region-${theme}-${region}.png`)
-          await page.locator(selector).first().screenshot({ path: file, animations: 'disabled' })
-          written.push(file)
+          await save(page, `region-${theme}-${region}`, await clipOf(page.locator(selector).first()))
         }
       }
     }
@@ -127,13 +140,24 @@ test('phone screens of B-Mobile and B-Mobile-Light', async ({ browser }) => {
         })
         .map((el) => {
           const r = el.getBoundingClientRect()
-          return { x: r.x, y: r.y, width: r.width, height: r.height }
+          const buttons = [...el.querySelectorAll('button')].map((b) => {
+            const br = b.getBoundingClientRect()
+            return { text: b.innerText, top: br.top - r.top, bottom: br.bottom - r.top }
+          })
+          return { x: r.x, y: r.y, width: r.width, height: r.height, buttons }
         }),
     )
     if (frames.length !== 2) throw new Error(`expected 2 phone frames on ${theme} mobile board, found ${frames.length}`)
+    const cropBottom = PHONE_SCREEN.y + PHONE_SCREEN.height
     for (const [i, name] of ['reading', 'sheet'].entries()) {
       const f = frames[i]!
       if (f.width !== 390 || f.height !== 844) throw new Error(`phone frame is ${f.width}x${f.height}, expected 390x844`)
+      const cut = f.buttons.find((b) => b.top < cropBottom && b.bottom > cropBottom)
+      if (cut) {
+        throw new Error(
+          `mobile-${theme}-${name}: button "${cut.text}" spans frame-y ${cut.top}..${cut.bottom}, across the crop's bottom edge at ${cropBottom}; fix PHONE_SCREEN`,
+        )
+      }
       await save(page, `mobile-${theme}-${name}`, {
         x: f.x + PHONE_SCREEN.x,
         y: f.y + PHONE_SCREEN.y,
@@ -179,9 +203,7 @@ test('element crops from crops.json', async ({ browser }) => {
         throw new Error(`crop ${crop.name}: element does not contain "${crop.contains}"; fix its entry in crops.json`)
       }
     }
-    const file = path.join(REFERENCE_DIR, `crop-${crop.name}.png`)
-    await locator.screenshot({ path: file, animations: 'disabled' })
-    written.push(file)
+    await save(page, `crop-${crop.name}`, await clipOf(locator))
   }
 })
 

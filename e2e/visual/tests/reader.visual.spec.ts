@@ -1,4 +1,4 @@
-import { READER_REGIONS, READER_WIDTHS, type ReaderRegion } from '../lib/regions'
+import { READER_REGIONS, READER_WIDTHS, clipOf } from '../lib/regions'
 import { expect, openReader, test } from '../lib/session'
 
 // Full-page reader against B-Reader / B-Reader-Light rendered at the same width.
@@ -11,16 +11,18 @@ for (const width of READER_WIDTHS) {
   })
 }
 
-// Region references exist for the dark board at 1440 only.
+// Region references exist for the dark board at 1440 only. Cut out of the full
+// page at the box measured at scroll 0, the way the renderer cuts them.
 test.describe('regions at 1440', () => {
   test.beforeEach(({ theme }) => {
     test.skip(theme !== 'dark', 'region references are rendered from the dark board only')
   })
-  for (const region of Object.keys(READER_REGIONS) as ReaderRegion[]) {
+  for (const [region, selector] of Object.entries(READER_REGIONS)) {
     test(`region ${region}`, async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 })
       await openReader(page)
-      await expect(page.locator(READER_REGIONS[region]).first()).toHaveScreenshot(`region-dark-${region}.png`)
+      const clip = await clipOf(page.locator(selector).first())
+      await expect(page).toHaveScreenshot(`region-dark-${region}.png`, { fullPage: true, clip })
     })
   }
 })
