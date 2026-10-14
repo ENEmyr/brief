@@ -75,17 +75,26 @@ test('print rules', async ({ page }) => {
     'background-color': 'rgba(0, 0, 0, 0)',
     'print-color-adjust': 'exact',
   })
-  await expect(page.locator('[data-print-note]')).toHaveText('Note: ตัวเลขนี้มาจาก staging หรือ prod?')
+  await expect(page.locator('section#s1 p [data-print-note]')).toHaveText('Note: ตัวเลขนี้มาจาก staging หรือ prod?')
 
   // Code panels: light, a 1px rule, no exact-color override.
   const code = page.locator('pre.shiki').first()
   await expect(code).toBeVisible()
   await expectComputed(code, { 'print-color-adjust': 'economy', 'background-color': 'rgba(0, 0, 0, 0)' })
-  await expectComputed(page.locator('div:has(> pre.shiki)').first(), {
+  const panel = page.locator('div:has(> pre.shiki)').first()
+  await expectComputed(panel, {
     'border-top-width': '1px',
     'border-top-style': 'solid',
     'border-top-color': INK,
   })
+  await expectComputed(code, { 'white-space': 'pre-wrap' })
+  // A highlighted line keeps its light accent tint.
+  await expectComputed(code.locator('.hl-line').first(), {
+    'background-color': 'rgb(238, 248, 217)',
+    'print-color-adjust': 'exact',
+  })
+  // A note on a code highlight follows the listing.
+  await expect(panel.locator('xpath=following-sibling::*[1]')).toHaveText('Note: สอง request พร้อมกันอาจหักซ้ำ')
 
   // No app chrome: top bar, header card and dock stay off paper.
   await expect(page.locator('header').first()).toBeHidden()
@@ -121,8 +130,17 @@ test('page.pdf() prints the sheet on A4 and cleans up after', async ({ page, the
   await page.clock.setFixedTime(PRINTED_AT)
   await serveSession(page, printPayload)
   await openReader(page, printSeed)
+  await page.evaluate(() => {
+    const w = window as unknown as { printEvents: string[] }
+    w.printEvents = []
+    for (const type of ['beforeprint', 'afterprint']) window.addEventListener(type, () => w.printEvents.push(type))
+  })
   const pdf = await page.pdf({ format: 'A4', path: testInfo.outputPath('print.pdf') })
   expect(pdf.subarray(0, 5).toString()).toBe('%PDF-')
-  // page.pdf() fired beforeprint and afterprint: the print-only parts are gone again.
+  expect(await page.evaluate(() => (window as unknown as { printEvents: string[] }).printEvents)).toEqual([
+    'beforeprint',
+    'afterprint',
+  ])
+  // The print-only parts left again with afterprint.
   await expect(page.locator('[data-print-answers], [data-print-sheet], [data-print-note]')).toHaveCount(0)
 })

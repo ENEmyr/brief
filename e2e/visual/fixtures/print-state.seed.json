@@ -25,6 +25,16 @@
       "end": 107,
       "text": "ค่า p95 latency ขึ้นไปถึง 2.4 วินาที",
       "note": "ตัวเลขนี้มาจาก staging หรือ prod?"
+    },
+    {
+      "id": "h-print-2",
+      "sid": 1,
+      "bid": 2,
+      "path": "code.3",
+      "start": 2,
+      "end": 15,
+      "text": "b.tokens -= 1",
+      "note": "สอง request พร้อมกันอาจหักซ้ำ"
     }
   ]
 }

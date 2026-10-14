@@ -17,7 +17,9 @@ export function BlockTable() {
           <tbody>
             {BLOCK_GROUPS.map((group, i) => (
               <tr key={group.name} className={i > 0 ? 'border-t border-line' : undefined}>
-                <td className={`${CELL} font-semibold ${i === 0 ? 'w-[232px]' : ''}`}>{group.name}</td>
+                <th scope="row" className={`${CELL} text-left font-semibold ${i === 0 ? 'w-[232px]' : ''}`}>
+                  {group.name}
+                </th>
                 <td className={`${CELL} font-mono text-[12px] text-accent-text ${i === 0 ? 'w-[332px]' : ''}`}>
                   {group.blocks.join(' ')}
                 </td>

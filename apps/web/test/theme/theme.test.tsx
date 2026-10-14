@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, renderHook, act } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import {
-  ThemeToggle,
   useTheme,
   setThemePrintOverride,
   beginThemedRender,
@@ -22,8 +21,8 @@ describe('theme', () => {
   })
 
   it('toggles light to dark and persists', () => {
-    render(<ThemeToggle />)
-    fireEvent.click(screen.getByRole('button', { name: /toggle theme/i }))
+    const { result } = renderHook(() => useTheme())
+    act(() => result.current.toggle())
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(localStorage.getItem('idocs:theme')).toBe('dark')
   })

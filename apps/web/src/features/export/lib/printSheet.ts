@@ -30,33 +30,55 @@ export function printedLine(printedAt: Date, url: string): string {
   return `printed ${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC from ${url}`
 }
 
+/** Paragraph and list text keep their notes inside the element, right under the text. */
+const TEXT_LEAVES = new Set(['P', 'LI'])
+/** Anywhere else a note follows the whole block, or the section's heading row. */
+const BLOCK = 'section[data-section] > div:last-child > *, section[data-section] > div:first-child'
+
+function noteLines(h: Highlight): [label: string, text: string][] {
+  const lines: [string, string][] = []
+  const note = h.note?.trim()
+  if (note) lines.push(['Note:', note])
+  const question = h.question?.trim()
+  if (question) lines.push(['Question:', question])
+  return lines
+}
+
 /**
- * Writes each highlight note after the text it belongs to, as "Note: ..."
- * (B-Print:27), and returns the function that takes them out again.
+ * Writes each highlight's note (and question, for an ask highlight) after the
+ * text it belongs to, as "Note: ..." (B-Print:27), and returns the function
+ * that takes them out again.
  *
  * The paragraphs belong to the reader and annotations features, so the notes
  * are added to the rendered page for the length of one print instead of being
- * rendered by them. A note goes at the end of the highlighted leaf (the
- * paragraph, cell or item), or after the code listing for a highlight in code.
- * Text only: a note is reader input and never becomes markup.
+ * rendered by them. Text only: a note is reader input and never becomes markup.
  */
 export function insertPrintNotes(root: ParentNode, highlights: Highlight[]): () => void {
   for (const stale of root.querySelectorAll('[data-print-note]')) stale.remove()
+  const byId = new Map(highlights.map((h) => [h.id, h]))
   const added: Element[] = []
-  for (const mark of root.querySelectorAll<HTMLElement>('mark[data-mark-id]')) {
-    const note = highlights.find((h) => h.id === mark.dataset.markId)?.note?.trim()
-    if (!note) continue
-    const leaf = mark.closest('[data-sid]') ?? mark.parentElement
-    if (!leaf) continue
-    const el = mark.ownerDocument.createElement('span')
-    el.dataset.printNote = ''
-    const label = mark.ownerDocument.createElement('b')
-    label.textContent = 'Note:'
-    el.append(label, ` ${note}`)
-    const pre = leaf.closest('pre')
-    if (pre) pre.after(el)
-    else leaf.append(el)
-    added.push(el)
+  // Text marks carry data-mark-id (HighlightedText), code marks data-highlight-id (codeLines.ts).
+  for (const mark of root.querySelectorAll<HTMLElement>('mark[data-mark-id], mark[data-highlight-id]')) {
+    const highlight = byId.get(mark.dataset.markId ?? mark.dataset.highlightId ?? '')
+    if (!highlight) continue
+    const els = noteLines(highlight).map(([label, text]) => {
+      const el = mark.ownerDocument.createElement('span')
+      el.dataset.printNote = ''
+      const b = mark.ownerDocument.createElement('b')
+      b.textContent = label
+      el.append(b, ` ${text}`)
+      return el
+    })
+    if (els.length === 0) continue
+    const leaf = mark.closest('[data-sid]')
+    if (leaf && TEXT_LEAVES.has(leaf.tagName)) {
+      leaf.append(...els)
+    } else {
+      let after = mark.closest(BLOCK) ?? leaf ?? mark
+      while (after.nextElementSibling?.hasAttribute('data-print-note')) after = after.nextElementSibling
+      after.after(...els)
+    }
+    added.push(...els)
   }
   return () => {
     for (const el of added) el.remove()
