@@ -16,11 +16,14 @@ import {
 } from './lib/handoff'
 import {
   BOARD_FOR_THEME,
+  LANDING_REGIONS,
+  LANDING_WIDTHS,
   PHONE_SCREEN,
   READER_REGIONS,
   READER_WIDTHS,
   THEMES,
   clipOf,
+  clipOfRegion,
   type Clip,
 } from './lib/regions'
 
@@ -171,17 +174,25 @@ test('phone screens of B-Mobile and B-Mobile-Light', async ({ browser }) => {
   }
 })
 
-test('landing dark and light, print', async ({ browser }) => {
+test('landing dark and light, regions at 1440 and 390, print', async ({ browser }) => {
   const page = await newPage(browser)
-  await openBoard(page, 'B-Landing', boardWidth('B-Landing'))
-  await save(page, 'landing-dark')
-
   const light = path.join(GENERATED_DIR, 'B-Landing-Light.dc.html')
   execFileSync('python3', ['-I', LIGHTIFY, path.join(BOARDS_DIR, 'B-Landing.dc.html'), light, 'Landing light'], {
     stdio: 'inherit',
   })
-  await openBoard(page, 'B-Landing-Light', boardWidth('B-Landing'))
-  await save(page, 'landing-light')
+  for (const [theme, board] of [
+    ['dark', 'B-Landing'],
+    ['light', 'B-Landing-Light'],
+  ] as const) {
+    await openBoard(page, board, boardWidth('B-Landing'))
+    await save(page, `landing-${theme}`)
+    for (const width of LANDING_WIDTHS) {
+      await openBoard(page, board, width)
+      for (const [name, region] of Object.entries(LANDING_REGIONS)) {
+        await save(page, `landing-${theme}-${width}-${name}`, await clipOfRegion(page, region))
+      }
+    }
+  }
 
   await openBoard(page, 'B-Print', boardWidth('B-Print'))
   await save(page, 'print')

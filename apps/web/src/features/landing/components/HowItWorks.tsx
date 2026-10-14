@@ -1,29 +1,18 @@
 import { STEPS } from '../lib/content'
+import { BAND, H2, PAD } from '../lib/styles'
 
-/**
- * The steps are numbered because the round trip really is ordered: the link
- * cannot exist before the payload, and the answers cannot exist before the
- * link. The number chips borrow the reader's own section numbering, so the
- * page reads like the thing it describes.
- */
+/** Three steps, in the order the round trip really happens (B-Landing:86-95). */
 export function HowItWorks() {
   return (
-    <section className="border-y border-line bg-elev">
-      <div className="mx-auto max-w-[1080px] px-6 py-16">
-        <h2 className="text-[24px] font-semibold tracking-tight text-text">The round trip</h2>
-        <p className="mt-2 max-w-[60ch] text-[15px] text-sub">
-          Three moves. The agent never asks you to scroll a wall of chat, and you never re-explain a
-          decision you already made.
-        </p>
-
-        <ol className="mt-8 grid gap-4 min-[880px]:grid-cols-3">
+    <section id="how" className={`border-y border-line ${BAND}`}>
+      <div className={`mx-auto flex max-w-[1280px] flex-col gap-8 py-[72px] ${PAD}`}>
+        <h2 className={H2}>How it works</h2>
+        <ol className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-4 p-0">
           {STEPS.map((step) => (
-            <li key={step.no} className="rounded-xl border border-line bg-card p-5">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft font-mono text-[13px] font-semibold text-accent-text">
-                {step.no}
-              </span>
-              <h3 className="mt-3 text-[16px] font-semibold text-text">{step.title}</h3>
-              <p className="mt-2 text-[14px] leading-relaxed text-sub">{step.body}</p>
+            <li key={step.label} className="flex flex-col gap-[10px] rounded-[6px] border border-line bg-card p-5">
+              <span className="font-mono text-[12px] text-accent-text">{step.label}</span>
+              <h3 className="m-0 text-[19px] leading-[26px] font-semibold">{step.title}</h3>
+              <p className="m-0 text-[15px] leading-6 text-sub">{step.body}</p>
             </li>
           ))}
         </ol>
