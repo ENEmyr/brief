@@ -1,276 +1,236 @@
 'use client'
-import { useId, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { Block } from '@brief/schema'
 import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 import { useDiagramFullScreen } from '../fullScreen'
-import { svgTextStyle } from '../../lib/svgText'
+import { estimateTextWidth, wrapText } from '../../lib/svgText'
+import { Edge, EDGE_TONE, EdgeLayer, type Point } from './diagramParts'
 
 type LayersBlock = Extract<Block, { type: 'layers' }>
-type LayerDef = LayersBlock['layers'][number]
 
-const NODE_HEIGHT = 34
-const START_X = 20
-const NODE_GAP_X = 40
-const BASE_ROW_Y = 58
-const FIRST_ABOVE_Y = 10
-const FIRST_BELOW_Y = 108
-const ROW_STACK_STEP = 48
+/** B-Blocks2:55-70: 120px bands 150 apart, 180x52 nodes 300 apart, the first at 220. */
+const BAND_HEIGHT = 120
+const BAND_PITCH = 150
+const NODE_WIDTH = 180
+const NODE_MIN_HEIGHT = 52
+const NODE_TOP = 34
+const COL_PITCH = 300
+const FIRST_COL = 220
+const RIGHT_MARGIN = 40
+const MIN_WIDTH = 1040
+const LINE = 16
+const NODE_PAD = 6
+const LABEL_GAP = 12
+const TIP_GAP = 1
+/** A vertical edge runs down the middle of the empty strip between two columns. */
+const CHANNEL = COL_PITCH - NODE_WIDTH
 
-interface NodeInfo {
+interface NodeBox {
+  id: string
   label: string
+  lines: string[]
+  band: number
+  col: number
   x: number
   y: number
-  w: number
-  h: number
-  layerIndex: number
 }
 
-interface OwnedEdge {
-  from: string
-  to: string
-  label: string | undefined
-  layerIndex: number
+interface EdgeShape {
+  points: Point[]
+  label?: { lines: string[]; left: number; top: number; width: number; centered: boolean }
 }
 
-interface Layout {
-  nodes: Map<string, NodeInfo>
-  edges: OwnedEdge[]
+interface LayersLayout {
   width: number
-  minY: number
-  maxY: number
+  height: number
+  nodeHeight: number
+  bandHeight: number
+  bands: { label: string; top: number }[]
+  nodes: NodeBox[]
+  edges: EdgeShape[]
 }
 
-function nodeWidth(label: string): number {
-  return Math.max(72, label.length * 7 + 24)
-}
-
-/**
- * Row y-coordinate per layer index: layer 0 is the base row (center); every
- * later layer alternates above/below the base, stacking further out by
- * ROW_STACK_STEP each time it revisits a side. Matches the brief's row
- * layout spec and the prototype's cache-above/retry-below placement.
- */
-function rowYFor(layerIndex: number, aboveCount: number, belowCount: number): number {
-  if (layerIndex === 0) return BASE_ROW_Y
-  return layerIndex % 2 === 1 ? FIRST_ABOVE_Y - aboveCount * ROW_STACK_STEP : FIRST_BELOW_Y + belowCount * ROW_STACK_STEP
-}
-
-/**
- * Lays out the union of all nodes across layers, one row per layer. Nodes
- * are placed left-to-right in first-seen order within their own layer's
- * row; a node id repeated in a later layer keeps its original position.
- * Edges are collected from every layer (tagged with the owning layer index
- * for visibility) and may reference a node id defined in a different layer
- * (e.g. a cache layer's edge into a base-row node).
- */
-function layoutLayers(layers: LayerDef[]): Layout {
-  const nodes = new Map<string, NodeInfo>()
-  let aboveCount = 0
-  let belowCount = 0
-
-  layers.forEach((layer, layerIndex) => {
-    const y = rowYFor(layerIndex, aboveCount, belowCount)
-    if (layerIndex > 0) {
-      if (layerIndex % 2 === 1) aboveCount += 1
-      else belowCount += 1
-    }
-    let cursor = START_X
+function computeLayersLayout(block: LayersBlock): LayersLayout {
+  const seen = new Set<string>()
+  const placed: Omit<NodeBox, 'x' | 'y'>[] = []
+  block.layers.forEach((layer, band) => {
+    let col = 0
     for (const node of layer.nodes) {
-      if (nodes.has(node.id)) continue
-      const w = nodeWidth(node.label)
-      nodes.set(node.id, { label: node.label, x: cursor, y, w, h: NODE_HEIGHT, layerIndex })
-      cursor += w + NODE_GAP_X
+      if (seen.has(node.id)) continue
+      seen.add(node.id)
+      placed.push({ id: node.id, label: node.label, lines: wrapText(node.label, NODE_WIDTH - 2 * NODE_PAD, 13), band, col })
+      col += 1
     }
   })
+  const nodeHeight = Math.max(NODE_MIN_HEIGHT, ...placed.map((n) => n.lines.length * LINE + 2 * NODE_PAD))
+  const nodeTop = NODE_TOP
+  const bandHeight = Math.max(BAND_HEIGHT, nodeTop + nodeHeight + NODE_TOP)
+  const bandPitch = bandHeight + (BAND_PITCH - BAND_HEIGHT)
+  const nodes: NodeBox[] = placed.map((n) => ({
+    ...n,
+    x: FIRST_COL + n.col * COL_PITCH,
+    y: n.band * bandPitch + nodeTop,
+  }))
+  const byId = new Map(nodes.map((n) => [n.id, n]))
 
-  const edges: OwnedEdge[] = []
-  layers.forEach((layer, layerIndex) => {
-    for (const edge of layer.edges) {
-      if (!nodes.has(edge.from) || !nodes.has(edge.to)) continue
-      edges.push({ from: edge.from, to: edge.to, label: edge.label, layerIndex })
-    }
-  })
+  const columns = Math.max(1, ...nodes.map((n) => n.col + 1))
+  const width = Math.max(MIN_WIDTH, FIRST_COL + columns * COL_PITCH - CHANNEL + RIGHT_MARGIN)
+  const gapBelow = (band: number) => band * bandPitch + bandHeight + (bandPitch - bandHeight) / 2
 
-  let maxRight = START_X
-  let minY = BASE_ROW_Y
-  let maxY = BASE_ROW_Y + NODE_HEIGHT
-  for (const n of nodes.values()) {
-    maxRight = Math.max(maxRight, n.x + n.w)
-    minY = Math.min(minY, n.y)
-    maxY = Math.max(maxY, n.y + n.h)
-  }
+  const edges: EdgeShape[] = block.layers.flatMap((layer) =>
+    layer.edges.flatMap((edge): EdgeShape[] => {
+      const a = byId.get(edge.from)
+      const b = byId.get(edge.to)
+      if (!a || !b || a === b) return []
+      const lines = edge.label ? wrapText(edge.label, CHANNEL - LABEL_GAP, 12) : []
+      const labelWidth = Math.ceil(Math.max(0, ...lines.map((l) => estimateTextWidth(l, 12))))
+      const cy = (n: NodeBox) => n.y + nodeHeight / 2
+      const cx = (n: NodeBox) => n.x + NODE_WIDTH / 2
 
-  return { nodes, edges, width: maxRight + START_X, minY: minY - 16, maxY: maxY + 16 }
-}
+      // Neighbours in one band: straight across, label above (B-Blocks2:61, :71).
+      if (a.band === b.band && Math.abs(a.col - b.col) === 1) {
+        const right = b.col > a.col
+        const x1 = right ? a.x + NODE_WIDTH : a.x
+        const x2 = right ? b.x - TIP_GAP : b.x + NODE_WIDTH + TIP_GAP
+        return [
+          {
+            points: [
+              { x: x1, y: cy(a) },
+              { x: x2, y: cy(a) },
+            ],
+            label: lines.length
+              ? { lines, left: (x1 + x2) / 2 - labelWidth / 2, top: cy(a) - LABEL_GAP - lines.length * LINE, width: labelWidth, centered: true }
+              : undefined,
+          },
+        ]
+      }
 
-function edgeLine(a: NodeInfo, b: NodeInfo): { x1: number; y1: number; x2: number; y2: number } {
-  const aCenterX = a.x + a.w / 2
-  const aCenterY = a.y + a.h / 2
-  const bCenterX = b.x + b.w / 2
-  const bCenterY = b.y + b.h / 2
-  if (a.y === b.y) {
-    return aCenterX < bCenterX
-      ? { x1: a.x + a.w, y1: aCenterY, x2: b.x, y2: bCenterY }
-      : { x1: a.x, y1: aCenterY, x2: b.x + b.w, y2: bCenterY }
-  }
-  return a.y < b.y
-    ? { x1: aCenterX, y1: a.y + a.h, x2: bCenterX, y2: b.y }
-    : { x1: aCenterX, y1: a.y, x2: bCenterX, y2: b.y + b.h }
-}
+      // Farther along one band: under the nodes, inside the band.
+      if (a.band === b.band) {
+        const y = a.y + nodeHeight + (bandHeight - nodeTop - nodeHeight) / 2
+        return [
+          {
+            points: [
+              { x: cx(a), y: a.y + nodeHeight },
+              { x: cx(a), y },
+              { x: cx(b), y },
+              { x: cx(b), y: b.y + nodeHeight + TIP_GAP },
+            ],
+          },
+        ]
+      }
 
-interface LayerChipProps {
-  label: string
-  on: boolean
-  disabled: boolean
-  onToggle: () => void
-}
-
-function LayerChip({ label, on, disabled, onToggle }: LayerChipProps) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onToggle}
-      aria-pressed={on}
-      className="rounded-[7px] border px-2.5 py-1 font-mono text-[12px] max-[880px]:min-h-11"
-      style={{
-        color: on ? 'var(--c-text)' : 'var(--c-faint)',
-        borderColor: on ? 'var(--c-line2)' : 'var(--c-line)',
-        background: on ? 'var(--c-elev)' : 'transparent',
-        cursor: disabled ? 'default' : 'pointer',
-      }}
-    >
-      {`[${on ? 'x' : ' '}] ${label}`}
-    </button>
+      // Across bands: leave through the gap next to the source band, run down an
+      // empty strip between columns, and enter the target from the gap next to
+      // its band, so no edge crosses a node (B-Blocks2:62-64 draw the same
+      // shape for neighbours: down, across, in).
+      const down = b.band > a.band
+      const exitY = down ? a.y + nodeHeight : a.y
+      const enterY = down ? b.y - TIP_GAP : b.y + nodeHeight + TIP_GAP
+      const gapA = down ? gapBelow(a.band) : gapBelow(a.band - 1)
+      const gapB = down ? gapBelow(b.band - 1) : gapBelow(b.band)
+      const points: Point[] = [{ x: cx(a), y: exitY }]
+      if (Math.abs(b.band - a.band) === 1) {
+        points.push({ x: cx(a), y: gapA }, { x: cx(b), y: gapA })
+      } else {
+        const mid = (cx(a) + cx(b)) / 2
+        const channel = Array.from({ length: columns + 1 }, (_, k) => FIRST_COL - CHANNEL / 2 + k * COL_PITCH).reduce(
+          (best, x) => (Math.abs(x - mid) < Math.abs(best - mid) ? x : best),
+        )
+        points.push({ x: cx(a), y: gapA }, { x: channel, y: gapA }, { x: channel, y: gapB }, { x: cx(b), y: gapB })
+      }
+      points.push({ x: cx(b), y: enterY })
+      const strip = down ? (gapB + b.y) / 2 : (gapB + b.y + nodeHeight) / 2
+      return [
+        {
+          points: points.filter((p, i) => i === 0 || p.x !== points[i - 1]?.x || p.y !== points[i - 1]?.y),
+          label: lines.length
+            ? { lines, left: cx(b) + LABEL_GAP, top: strip - (lines.length * LINE) / 2, width: labelWidth, centered: false }
+            : undefined,
+        },
+      ]
+    }),
   )
-}
 
-interface LayerControlsProps {
-  layers: LayerDef[]
-  visible: (i: number) => boolean
-  onToggle: (i: number) => void
-}
-
-function LayerControls({ layers, visible, onToggle }: LayerControlsProps) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {layers.map((layer, i) => (
-        <LayerChip
-          key={layer.id}
-          label={layer.label}
-          on={visible(i)}
-          disabled={i === 0}
-          onToggle={() => onToggle(i)}
-        />
-      ))}
-    </div>
-  )
+  return {
+    width,
+    height: (block.layers.length - 1) * bandPitch + bandHeight,
+    nodeHeight,
+    bandHeight,
+    bands: block.layers.map((layer, i) => ({ label: layer.label, top: i * bandPitch })),
+    nodes,
+    edges,
+  }
 }
 
 /**
- * Layers-flow diagram block. Generalizes the prototype's fixed 3-row mock
- * (Reader.dc.html 625-641: Client/Limiter/API base row, Redis cache above,
- * Retry queue below) to n schema-driven layers. The first layer is always
- * the base row and is always visible (its control chip is disabled-on);
- * every other layer defaults off and toggles independently. Edges/nodes
- * referencing an id absent from the union of all layers' nodes are dropped
- * defensively rather than crashing on an undefined position.
+ * Layers diagram block (B-Blocks2:51-78): one band per layer, label top left in
+ * mono caps, every layer shown at once. Nodes repeated in a later layer keep
+ * their first position; edges to an id no layer defines are dropped.
  */
 export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAnchor) {
-  const markerId = useId()
-  const layout = useMemo(() => layoutLayers(block.layers), [block.layers])
-  const [visibleLayers, setVisibleLayers] = useState<Record<number, boolean>>({})
+  const layout = useMemo(() => computeLayersLayout(block), [block])
 
-  function isVisible(i: number): boolean {
-    return i === 0 || !!visibleLayers[i]
-  }
-
-  function toggle(i: number) {
-    if (i === 0) return
-    setVisibleLayers((v) => ({ ...v, [i]: !v[i] }))
-  }
-
-  const height = layout.maxY - layout.minY
-
-  const controls = <LayerControls layers={block.layers} visible={isVisible} onToggle={toggle} />
   const diagram = (
-    <svg
-      width={layout.width}
-      height={height}
-      viewBox={`0 ${layout.minY} ${layout.width} ${height}`}
-      style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
-    >
-      {layout.edges.map((edge, i) => {
-        const a = layout.nodes.get(edge.from)
-        const b = layout.nodes.get(edge.to)
-        if (!a || !b) return null
-        const on = isVisible(edge.layerIndex)
-        const { x1, y1, x2, y2 } = edgeLine(a, b)
-        return (
-          <g key={i} style={{ opacity: on ? 0.8 : 0.12, transition: 'opacity .3s' }}>
-            <line
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              strokeWidth={1.5}
-              style={{ stroke: 'var(--c-sub)' }}
-              markerEnd={`url(#${markerId})`}
-            />
-            {edge.label ? (
-              <text
-                x={(x1 + x2) / 2}
-                y={(y1 + y2) / 2 - 4}
-                textAnchor="middle"
-                fontSize={9}
-                style={svgTextStyle({ fill: 'var(--c-sub)' })}
-              >
-                {edge.label}
-              </text>
-            ) : null}
-          </g>
-        )
-      })}
-      {Array.from(layout.nodes.entries()).map(([id, n]) => {
-        const on = isVisible(n.layerIndex)
-        return (
-          <g key={id} style={{ opacity: on ? 1 : 0.14, transition: 'opacity .3s' }}>
-            <rect
-              x={n.x}
-              y={n.y}
-              width={n.w}
-              height={n.h}
-              rx={7}
-              strokeWidth={1.6}
-              style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
-            />
-            <text
-              x={n.x + n.w / 2}
-              y={n.y + 21}
-              textAnchor="middle"
-              fontSize={11}
-              fontWeight={600}
-              style={svgTextStyle({ fill: 'var(--c-text)' })}
-            >
-              {n.label}
-            </text>
-          </g>
-        )
-      })}
-      <defs>
-        <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-          <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
-        </marker>
-      </defs>
-    </svg>
+    <div className="relative mx-auto text-[13px] leading-4" style={{ width: layout.width, height: layout.height }}>
+      {layout.bands.map((band, i) => (
+        <div
+          key={i}
+          data-band=""
+          className="absolute left-0 box-border rounded-[4px] border border-[var(--c-grid-line)] bg-[var(--c-code-bg)]"
+          style={{ top: band.top, width: layout.width, height: layout.bandHeight }}
+        >
+          <span className="absolute left-4 top-3 font-mono text-[11px] uppercase leading-[normal] tracking-[.06em] text-faint">
+            {band.label}
+          </span>
+        </div>
+      ))}
+      <EdgeLayer width={layout.width} height={layout.height}>
+        {layout.edges.map((e, i) => (
+          <Edge key={i} points={e.points} className={EDGE_TONE.sub} />
+        ))}
+      </EdgeLayer>
+      {layout.nodes.map((n) => (
+        <div
+          key={n.id}
+          data-layer-node={n.id}
+          className="absolute box-border flex items-center justify-center rounded-[6px] border border-line2 bg-elev p-1.5 text-center text-text"
+          style={{ left: n.x, top: n.y, width: NODE_WIDTH, height: layout.nodeHeight }}
+        >
+          <span>
+            {n.lines.map((line, i) => (
+              <span key={i} className="block">
+                {line}
+              </span>
+            ))}
+          </span>
+        </div>
+      ))}
+      {layout.edges.map((e, i) =>
+        e.label ? (
+          <div
+            key={i}
+            className={`absolute whitespace-pre font-mono text-[12px] text-sub ${e.label.centered ? 'text-center' : ''}`}
+            style={{ left: e.label.left, top: e.label.top, width: e.label.width }}
+          >
+            {e.label.lines.join('\n')}
+          </div>
+        ) : null,
+      )}
+    </div>
   )
-  const onFullScreen = useDiagramFullScreen(diagram)
+  const onFullScreen = useDiagramFullScreen(diagram, { heading: { kind: block.type, title: block.title } })
+  const layers = block.layers.length
+  const nodes = layout.nodes.length
 
   return (
-    <BlockCard {...cardHeader(block, anchor)} fullScreen={onFullScreen}>
-      <div className="overflow-x-auto py-3">{diagram}</div>
-      <div className="px-3.5 pb-3.5 pt-1.5">{controls}</div>
+    <BlockCard
+      {...cardHeader(block, anchor)}
+      captionSuffix={`${layers} ${layers === 1 ? 'layer' : 'layers'} / ${nodes} ${nodes === 1 ? 'node' : 'nodes'}`}
+      fullScreen={onFullScreen}
+    >
+      <div className="overflow-x-auto p-4">{diagram}</div>
     </BlockCard>
   )
 }

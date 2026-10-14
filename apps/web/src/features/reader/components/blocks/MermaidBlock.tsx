@@ -1,21 +1,23 @@
 'use client'
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import type { Block } from '@brief/schema'
-import { BlockCard, LOADING, cardHeader } from '../BlockCard'
+import { BlockCard, LOADING, cardHeader, type BlockCardState } from '../BlockCard'
+import { SourceListing } from '../BlockError'
 import type { BlockAnchor } from '../blockAnchor'
 import { useDiagramFullScreen } from '../fullScreen'
+import { FOCUS_RING } from '../topbarChrome'
+import { diagramDeclaration, escapeLabelGt, mermaidBoxHeight, parseErrorLine } from '../../lib/mermaidSource'
 import { useTheme, beginThemedRender, readColorTokens, readFontStack } from '@/features/theme'
 import type { Theme } from '@/features/theme'
 
 type MermaidBlockType = Extract<Block, { type: 'mermaid' }>
 
-// Mermaid's own default is 16px, which renders visibly heavier than the
-// hand-rolled SVG blocks next to it (Erd/Seq/StateMachine/Layers all label at
-// 9-11.5px inside a scaled viewBox). Note this belongs in themeVariables, not
-// as a top-level `fontSize` on initialize(): with theme 'base' plus an explicit
-// themeVariables object, label sizing is read from here.
-const LABEL_FONT_SIZE = '12px'
+// B-Blocks2:102 sets mermaid labels at 13px, the node label size of the other
+// diagrams. This belongs in themeVariables, not as a top-level `fontSize` on
+// initialize(): with theme 'base' plus an explicit themeVariables object, label
+// sizing is read from here.
+const LABEL_FONT_SIZE = '13px'
 
 /**
  * The mermaid themeVariables listed on B-Blocks2, as resolved token values:
@@ -50,7 +52,27 @@ const FLOWCHART_CONFIG = {
   padding: 8,
 } as const
 
-const FALLBACK_PRE_CLASS = 'm-0 overflow-x-auto p-4 font-mono text-[12.5px] leading-[1.7] text-sub'
+
+/**
+ * Sanitizes mermaid's svg and pins its natural size: mermaid writes
+ * `width="100%"` and a `max-width` style, which leaves the svg no size of its
+ * own inside a box that shrinks to fit (the viewer) or a box of fixed height
+ * (the card). Width and height from the viewBox make it scale like an image.
+ */
+function sanitizeAtNaturalSize(svg: string): string {
+  const body = DOMPurify.sanitize(svg, {
+    USE_PROFILES: { svg: true, svgFilters: true, html: true },
+    RETURN_DOM: true,
+  }) as HTMLElement
+  const root = body.querySelector('svg')
+  const box = root?.getAttribute('viewBox')?.split(/[\s,]+/).map(Number)
+  if (root && box && box.length === 4 && box.every(Number.isFinite)) {
+    root.setAttribute('width', String(box[2]))
+    root.setAttribute('height', String(box[3]))
+    root.style.removeProperty('max-width')
+  }
+  return body.innerHTML
+}
 
 // useId() returns something like ":r0:" — strip everything but
 // alphanumerics/hyphens so the result is a valid CSS id for mermaid.render.
@@ -99,13 +121,14 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
   const renderSeq = useRef(0)
   const { theme } = useTheme()
   const [svg, setSvg] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<{ line?: number } | null>(null)
+  const [view, setView] = useState<'diagram' | 'source'>('diagram')
 
   useEffect(() => {
     let cancelled = false
     const callId = `${mermaidId}-r${++renderSeq.current}`
     setSvg(null)
-    setFailed(false)
+    setFailure(null)
     // Tracked so lib/print.ts can wait for this diagram's redraw in the
     // print-forced palette before handing off to window.print() -- see
     // features/theme's beginThemedRender doc comment.
@@ -135,11 +158,11 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
         flowchart: FLOWCHART_CONFIG,
       })
       try {
-        const result = await mermaid.render(callId, block.code)
+        const result = await mermaid.render(callId, escapeLabelGt(block.code))
         if (!cancelled) setSvg(result.svg)
-      } catch {
+      } catch (error) {
         removeTempNodes()
-        if (!cancelled) setFailed(true)
+        if (!cancelled) setFailure({ line: parseErrorLine(error, block.code) })
       }
     }).finally(endThemedRender)
 
@@ -154,45 +177,84 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
     }
   }, [block.code, mermaidId, theme])
 
-  const safeSvg =
-    svg === null ? null : DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true, html: true } })
+  const safeSvg = useMemo(() => (svg === null ? null : sanitizeAtNaturalSize(svg)), [svg])
 
   const diagram = safeSvg ? (
     <div
-      className="flex justify-center overflow-x-auto"
+      className="flex items-center justify-center"
       // safeSvg is mermaid-generated markup from this block's own code
       // (never remote/user HTML) — see the component doc comment above.
       // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
       dangerouslySetInnerHTML={{ __html: safeSvg }}
     />
   ) : null
-  const onFullScreen = useDiagramFullScreen(diagram)
-  const header = cardHeader(block, anchor)
+  const onFullScreen = useDiagramFullScreen(diagram, { heading: { kind: block.type, title: block.title } })
+  const declaration = diagramDeclaration(block.code)
+  const boxHeight = mermaidBoxHeight(block.code)
 
-  if (failed) {
-    return (
-      <BlockCard {...header}>
-        <pre className={FALLBACK_PRE_CLASS}>
-          <code>{block.code}</code>
-        </pre>
-        <p className="m-0 px-4 pb-3 font-mono text-[10.5px] text-faint">Diagram source could not be rendered</p>
-      </BlockCard>
-    )
+  if (failure) {
+    const state: BlockCardState = {
+      status: 'error',
+      message: failure.line === undefined ? 'Diagram could not be drawn.' : `Diagram could not be drawn. Parse error on line ${failure.line}.`,
+      source: block.code,
+      lineNumber: failure.line,
+    }
+    return <BlockCard {...cardHeader(block, anchor)} captionSuffix={declaration} state={state} />
   }
+
+  const controls = diagram ? <ViewToggle view={view} onChange={setView} /> : undefined
 
   return (
     <BlockCard
-      {...header}
+      {...cardHeader(block, anchor)}
+      captionSuffix={declaration}
+      controls={controls}
       fullScreen={diagram ? onFullScreen : 'pending'}
       state={diagram ? undefined : LOADING.diagram}
     >
-      {diagram ? (
-        <div className="p-3">{diagram}</div>
+      {diagram && view === 'source' ? (
+        <div className="p-3">
+          <SourceListing source={block.code} />
+        </div>
       ) : (
-        <pre className={FALLBACK_PRE_CLASS}>
-          <code>{block.code}</code>
-        </pre>
+        <div className="p-5">
+          {/* The box has its final height before mermaid arrives (B-States:107); the
+              diagram scales down into it, never up, and full screen shows it 1:1. */}
+          <div
+            className={`[&>div]:size-full [&_svg]:h-auto [&_svg]:max-h-full [&_svg]:w-auto [&_svg]:max-w-full ${diagram ? '' : 'sk rounded-[4px]'}`}
+            style={{ height: boxHeight }}
+          >
+            {diagram}
+          </div>
+        </div>
       )}
     </BlockCard>
+  )
+}
+
+const VIEWS = ['diagram', 'source'] as const
+
+/** B-Blocks2:98: a 26px segmented toggle; 44 under 880, where the frame drops to keep the header 53. */
+function ViewToggle({ view, onChange }: { view: 'diagram' | 'source'; onChange: (view: 'diagram' | 'source') => void }) {
+  return (
+    <div
+      role="group"
+      aria-label="View"
+      className="flex shrink-0 gap-0.5 rounded-[4px] border border-line bg-page p-0.5 max-[880px]:border-0 max-[880px]:p-0"
+    >
+      {VIEWS.map((v) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={view === v}
+          onClick={() => onChange(v)}
+          className={`min-h-[26px] rounded-[3px] px-2 text-[11px] transition-[background-color] duration-[var(--dur-fast)] motion-reduce:transition-none max-[880px]:min-h-11 ${FOCUS_RING} ${
+            view === v ? 'bg-chip text-text' : 'bg-transparent text-faint hover:text-text'
+          }`}
+        >
+          {v}
+        </button>
+      ))}
+    </div>
   )
 }

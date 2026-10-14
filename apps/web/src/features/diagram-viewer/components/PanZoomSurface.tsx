@@ -10,74 +10,24 @@ export interface PanZoomSurfaceProps {
 
 /**
  * The two halves a pan/zoom needs: a fixed surface that receives the gestures,
- * and a content box that carries the transform. Both the inline DiagramCard
- * body and the fullscreen ViewerOverlay render through this, so the gesture
- * behaviour cannot drift between them.
+ * and a content box that carries the transform.
  */
 export function PanZoomSurface({ api, className, contentClassName, children }: PanZoomSurfaceProps) {
   return (
-    <div
-      ref={api.surfaceRef}
-      className={className}
-      {...api.surfaceProps}
-      style={api.surfaceProps.style}
-    >
+    <div ref={api.surfaceRef} className={className} {...api.surfaceProps} style={api.surfaceProps.style}>
       {/* data-panzoom-content is the print stylesheet's handle on this box: the
           transform is an inline style, so only a targeted `!important` rule can
-          reset it, and a reader who panned or zoomed a diagram must not print it
-          mid-transform (half off its own card). */}
+          reset it. A zoom eases in (B-Overlays:16); a drag follows the pointer. */}
       <div
         ref={api.contentRef}
         data-panzoom-content=""
-        className={contentClassName}
+        className={`${contentClassName ?? ''} ${
+          api.panning ? '' : 'transition-transform duration-[var(--dur-base)] ease-console motion-reduce:transition-none'
+        }`}
         style={{ transform: api.transform, transformOrigin: 'center' }}
       >
         {children}
       </div>
-    </div>
-  )
-}
-
-export interface ZoomControlsProps {
-  api: PanZoomApi
-  /** Rendered inside a `data-zbar` wrapper so pointerdown on a control never
-   *  starts a pan (see usePanZoom's isInteractiveTarget). */
-  className?: string
-  buttonClassName: string
-  /**
-   * `fit` scales the content to fill the surface, which is what the fullscreen
-   * overlay wants: you expanded the diagram to see it bigger.
-   *
-   * `reset` returns to 1:1. That is what the inline card wants, because there
-   * the content already fills its box, so a measured fit would land on a value
-   * near but not exactly 1 and read as a broken button.
-   */
-  action?: 'fit' | 'reset'
-}
-
-export function ZoomControls({
-  api,
-  className,
-  buttonClassName,
-  action = 'fit',
-}: ZoomControlsProps) {
-  const isFit = action === 'fit'
-  return (
-    <div data-zbar="1" className={className}>
-      <button type="button" aria-label="Zoom out" onClick={api.zoomOut} className={buttonClassName}>
-        −
-      </button>
-      <button type="button" aria-label="Zoom in" onClick={api.zoomIn} className={buttonClassName}>
-        +
-      </button>
-      <button
-        type="button"
-        aria-label={isFit ? 'Fit to screen' : 'Reset zoom'}
-        onClick={isFit ? api.fit : api.reset}
-        className={buttonClassName}
-      >
-        {isFit ? 'Fit' : 'Reset'}
-      </button>
     </div>
   )
 }
