@@ -2,24 +2,22 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Decision } from '@brief/schema'
+import { isAnswered } from '@/features/decisions'
 import { useDialogFocus } from '@/features/export'
 import { useReaderState } from '@/features/reader-state'
+import type { ReaderState } from '@/features/reader-state'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { ChevronDownIcon } from './icons'
 import { TOUCH_BUTTON } from './topbarChrome'
 
-function isAnswered(decision: Decision, dsel: Record<string, string[]>): boolean {
-  return (dsel[decision.id]?.length ?? 0) > 0
-}
-
 /** One segment per decision: answered accent, the first open one warn, the rest line. */
-function DecisionSegments({ decisions, dsel }: { decisions: Decision[]; dsel: Record<string, string[]> }) {
-  const firstOpen = decisions.findIndex((d) => !isAnswered(d, dsel))
+function DecisionSegments({ decisions, state }: { decisions: Decision[]; state: ReaderState }) {
+  const firstOpen = decisions.findIndex((d) => !isAnswered(d, state))
   return (
     <div className="flex gap-[3px]" aria-hidden="true">
       {decisions.map((d, i) => {
         let tone = 'bg-line'
-        if (isAnswered(d, dsel)) tone = 'bg-accent'
+        if (isAnswered(d, state)) tone = 'bg-accent'
         else if (i === firstOpen) tone = 'bg-[var(--c-warn-fill)]'
         return <span key={d.id} className={`h-1 flex-1 rounded-[2px] ${tone}`} />
       })}
@@ -52,7 +50,7 @@ export function DockSlot({
   children: React.ReactNode
 }) {
   const narrow = useIsNarrow()
-  const { dsel } = useReaderState()
+  const state = useReaderState()
   const asideRef = useRef<HTMLElement>(null)
   const sheet = narrow && open
 
@@ -62,8 +60,8 @@ export function DockSlot({
   }, [narrow, open, onOpenChange])
 
   const total = decisions.length
-  const answered = decisions.filter((d) => isAnswered(d, dsel)).length
-  const next = decisions.find((d) => !isAnswered(d, dsel))
+  const answered = decisions.filter((d) => isAnswered(d, state)).length
+  const next = decisions.find((d) => !isAnswered(d, state))
   // Stable, so the sheet's focus effect does not re-run (and grab focus) on every answer.
   const close = useCallback(() => onOpenChange(false), [onOpenChange])
 
@@ -102,7 +100,7 @@ export function DockSlot({
                   {answered} of {total}
                   {next && `, next ${next.id}`}
                 </span>
-                <DecisionSegments decisions={decisions} dsel={dsel} />
+                <DecisionSegments decisions={decisions} state={state} />
               </div>
               <button
                 type="button"

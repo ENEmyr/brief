@@ -28,7 +28,7 @@ const basePayload: Payload = {
 }
 
 function emptyState(overrides: Partial<ReaderState> = {}): ReaderState {
-  return { highlights: [], dsel: {}, dnote: {}, ...overrides }
+  return { highlights: [], dsel: {}, dnote: {}, dother: {}, ...overrides }
 }
 
 describe('buildEditPrompt', () => {
@@ -47,6 +47,12 @@ describe('buildEditPrompt', () => {
     const state = emptyState({ dsel: { d1: ['kv'] } })
     const prompt = buildEditPrompt(basePayload, state, 'sess1', 'https://example.com', false)
     expect(prompt).not.toBeNull()
+  })
+
+  it('returns a prompt when the only input is an Other answer, and prints it', () => {
+    const state = emptyState({ dother: { d1: 'Redis' } })
+    const prompt = buildEditPrompt(basePayload, state, 'sess1', 'https://example.com', false)
+    expect(prompt).toContain('  - Choice: Other: Redis')
   })
 
   it('includes the doc title, session id, and reference URL', () => {
