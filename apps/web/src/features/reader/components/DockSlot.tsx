@@ -65,7 +65,7 @@ export function DockSlot({
       )}
       {/* From 1101 the dock sticks at 64 and ends 16 above the viewport's bottom
           edge (B-Reader's page padding); 82 counts its 2 px of border. Taller
-          content scrolls inside the decision list, so a question that N or
+          content scrolls inside the decision list, so the option that N or
           "Go to" focuses, and the Copy button, stay on screen. */}
       <aside
         ref={asideRef}

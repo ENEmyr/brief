@@ -1,5 +1,6 @@
 import { test, expect, testPayload } from './fixtures'
 import type { Page } from '@playwright/test'
+import type { Payload } from '@brief/schema'
 
 const [d1, d2] = testPayload.decisions
 if (!d1 || !d2) throw new Error('fixture payload changed shape')
@@ -81,4 +82,70 @@ test.describe('decide', () => {
     )
     await expect(q1.getByRole('textbox', { name: /Your answer$/ })).toHaveValue('Solarized')
   })
+})
+
+function focusVisibility(page: Page) {
+  return page.evaluate(() => {
+    const el = document.activeElement
+    const row = el?.closest<HTMLElement>('[data-decision]')
+    const labelledBy = el?.closest('[aria-labelledby]')?.getAttribute('aria-labelledby')
+    const question = labelledBy ? document.getElementById(labelledBy) : null
+    if (!el || !row?.parentElement || !question) return { decision: null }
+    const list = row.parentElement.getBoundingClientRect()
+    const visibleInList = (target: Element) => {
+      const r = target.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return r.top >= list.top - 0.5 && r.bottom <= list.bottom + 0.5 && !!hit && target.contains(hit)
+    }
+    return { decision: row.dataset.decision, option: visibleInList(el), question: visibleInList(question) }
+  })
+}
+
+test.describe('dock edges', () => {
+  const tall: Payload = {
+    ...testPayload,
+    decisions: [
+      {
+        ...d1,
+        why: 'A long explanation so the first decision is taller than the dock list at a laptop height.',
+        opts: Array.from({ length: 8 }, (_, i) => ({
+          id: `o${i}`,
+          label: `Option ${i + 1} for the limiter`,
+          detail: 'A detail line that explains the option',
+        })),
+        cmp: {
+          head: ['Option', 'Latency', 'Accuracy', 'Cost'],
+          rows: Array.from({ length: 6 }, (_, i) => [`Option ${i + 1}`, '~1 ms', 'exact', 'low']),
+        },
+      },
+      d2,
+    ],
+  }
+
+  for (const { width, height, rowTallerThanList } of [
+    { width: 1440, height: 700, rowTallerThanList: true },
+    { width: 1440, height: 900, rowTallerThanList: false },
+    { width: 1100, height: 700, rowTallerThanList: false },
+    { width: 900, height: 700, rowTallerThanList: false },
+  ]) {
+    test(`N shows the question and its focused option at ${width}x${height}`, async ({
+      page,
+      createSession,
+      isMobile,
+    }) => {
+      test.skip(isMobile, 'the dock is a column only from 880')
+      await page.setViewportSize({ width, height })
+      const { id } = await createSession(tall)
+      await page.goto(`/s/${id}`)
+      const d1Row = page.getByRole('complementary', { name: 'Decision dock' }).locator(`[data-decision="${d1.id}"]`)
+      await expect(d1Row).toBeAttached()
+      const [rowHeight, listHeight] = await d1Row.evaluate((el: HTMLElement) => [el.offsetHeight, el.parentElement!.clientHeight])
+      expect(rowHeight > listHeight).toBe(rowTallerThanList)
+
+      for (const want of [d1.id, d2.id, d1.id]) {
+        await page.keyboard.press('n')
+        await expect.poll(() => focusVisibility(page)).toEqual({ decision: want, option: true, question: true })
+      }
+    })
+  }
 })
