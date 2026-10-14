@@ -446,6 +446,16 @@ describe('Heatmap/Histogram/Scatter components (useEChart mocked)', () => {
     expect(screen.getByText('scatter')).toHaveAttribute('data-kind-tag')
     expect(screen.queryByText('Scatter plot')).not.toBeInTheDocument()
   })
+
+  it('Scatter says how its series differ under the chart, once there are two (B-Blocks2:160)', () => {
+    const sentence = 'Series differ by shape and color, so grayscale and color-blind readers can tell them apart.'
+    const one: Extract<Block, { type: 'scatter' }> = { type: 'scatter', series: [{ label: 'A', points: [[1, 2]] }] }
+    const { rerender } = render(<Scatter block={one} />)
+    expect(screen.queryByText(sentence)).not.toBeInTheDocument()
+
+    rerender(<Scatter block={{ ...one, series: [...one.series, { label: 'B', points: [[3, 4]] }] }} />)
+    expect(screen.getByText(sentence)).toBeInTheDocument()
+  })
 })
 
 describe('chart failures inside the card (B-States:92-98, features.md B6)', () => {

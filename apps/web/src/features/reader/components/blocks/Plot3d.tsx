@@ -35,6 +35,24 @@ function axis3D(name: string | undefined, palette: Palette) {
   }
 }
 
+/**
+ * A surface the way B-Blocks2:170-177 draws it: no fill, a line along each
+ * grid row in the height ramp, and the cross lines in the plot3d grid color.
+ * The surface itself stays, transparent, so hovering anywhere on it still reads
+ * out x, y and z (B-Blocks2:188): a line3D picks its hover point by x alone.
+ */
+function surfaceSeries(grid: number[][], data: [number, number, number][], palette: Palette) {
+  const rows = grid.map((row, y) => ({ type: 'line3D', data: row.map((z, x) => [x, y, z]), lineStyle: { width: 1 } }))
+  const columns = Array.from({ length: Math.max(0, ...grid.map((row) => row.length)) }, (_, x) => ({
+    type: 'line3D',
+    silent: true,
+    data: grid.flatMap((row, y) => (x < row.length ? [[x, y, row[x]]] : [])),
+    lineStyle: { width: 1, color: palette.plot3dGrid },
+  }))
+  const hover = { type: 'surface', name: 'surface', data, shading: 'color', itemStyle: { opacity: 0 }, wireframe: { show: false } }
+  return { series: [...rows, ...columns, hover], ramped: rows.map((_, i) => i) }
+}
+
 /** echarts-gl's own starting camera distance; the zoom buttons move from here. */
 const DEFAULT_DISTANCE = 200
 /** One zoom press, as the viewer's 25-point step reads at 100%. */
@@ -62,6 +80,7 @@ export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): ECh
   // Degenerate all-equal-z datasets get max+1 so the visualMap range never
   // collapses to zero width — same rule Heatmap's builder uses.
   const max = dataMax === min ? dataMax + 1 : dataMax
+  const surface = block.kind === 'surface' ? surfaceSeries(block.grid ?? [], data, palette) : null
 
   const option: Record<string, unknown> = {
     backgroundColor: 'transparent',
@@ -73,6 +92,7 @@ export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): ECh
       max,
       show: false,
       inRange: { color: [...palette.plot3d] },
+      ...(surface ? { seriesIndex: surface.ramped } : {}),
     },
     xAxis3D: axis3D(block.xLabel, palette),
     yAxis3D: axis3D(block.yLabel, palette),
@@ -80,11 +100,7 @@ export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): ECh
     grid3D: {
       viewControl: { autoRotate: false, distance: DEFAULT_DISTANCE },
     },
-    series: [
-      block.kind === 'surface'
-        ? { type: 'surface', data, shading: 'color', wireframe: { show: true, lineStyle: { color: palette.plot3dGrid, width: 1 } } }
-        : { type: 'scatter3D', data, symbolSize: 6 },
-    ],
+    series: surface ? surface.series : [{ type: 'scatter3D', data, symbolSize: 6 }],
   }
 
   return option as unknown as EChartsOption
@@ -155,6 +171,7 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
     return (
       <BlockCard
         {...cardHeader(block, anchor)}
+        captionSuffix={block.kind}
         state={{
           status: 'error',
           message: webGLAvailable ? 'No data for 3D plot' : 'WebGL unavailable - 3D plot cannot render',
@@ -167,6 +184,9 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
   return (
     <BlockCard
       {...cardHeader(block, anchor)}
+      // B-Blocks2:166 leads with the kind ("surface / title"); the card puts
+      // derived text after the title, as mermaid's declaration.
+      captionSuffix={block.kind}
       controls={
         <button
           type="button"

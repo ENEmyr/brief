@@ -176,6 +176,22 @@ describe('MermaidBlock', () => {
     expect(screen.queryByText(/parse error/)).not.toBeInTheDocument()
   })
 
+  it('rounds square node boxes to 6px as the board does and leaves shapes that set their own corners', async () => {
+    mermaidRenderMock.mockResolvedValue({
+      svg: '<svg viewBox="0 0 100 50"><g class="node" id="square"><rect class="basic label-container"></rect></g><g class="node" id="round"><rect class="basic label-container" rx="5" ry="5"></rect></g></svg>',
+    })
+
+    const { container } = render(<MermaidBlock block={mermaidBlock} />)
+
+    await waitFor(() => expect(container.querySelector('#square rect')).not.toBeNull())
+    const corners = (id: string) => {
+      const box = container.querySelector(`#${id} rect`)
+      return [box?.getAttribute('rx'), box?.getAttribute('ry')]
+    }
+    expect(corners('square')).toEqual(['6', '6'])
+    expect(corners('round')).toEqual(['5', '5'])
+  })
+
   it('initializes mermaid with htmlLabels false at BOTH the top level and flowchart scope', async () => {
     // mermaid 11 ignores flowchart.htmlLabels alone — labels stay
     // foreignObject HTML and DOMPurify's svg profile strips them to empty
@@ -194,6 +210,7 @@ describe('MermaidBlock', () => {
       theme: 'base',
       htmlLabels: false,
       flowchart: { htmlLabels: false },
+      themeCSS: '.edgeLabel rect { opacity: 1; }',
     })
   })
 
@@ -212,6 +229,9 @@ describe('MermaidBlock', () => {
       lineColor: 'dark:sub',
       secondaryColor: 'dark:accent-soft',
       tertiaryColor: 'dark:code-bg',
+      // Added in the 4b fix round: unset, mermaid tints edge label boxes from
+      // secondaryColor; B-Blocks2:107 draws the labels on the canvas.
+      edgeLabelBackground: 'dark:card',
       fontFamily: 'sans-stack',
       // Was 12px; B-Blocks2:102 sets mermaid labels at 13px.
       fontSize: '13px',
