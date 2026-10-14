@@ -6,7 +6,7 @@ import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
-import { AXIS_FONT, PALETTES, useEChart } from '../../services/echarts'
+import { chartPalette, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type HeatmapBlockType = Extract<Block, { type: 'heatmap' }>
@@ -37,7 +37,7 @@ export function buildHeatmapOption(block: HeatmapBlockType, palette: Palette): E
     animation: false,
     tooltip: {
       backgroundColor: palette.card,
-      textStyle: { color: palette.text, fontFamily: AXIS_FONT, fontSize: 11 },
+      textStyle: { color: palette.text, fontFamily: palette.font, fontSize: 11 },
       borderColor: palette.line2,
     },
     grid: { top: 12, bottom: 64, left: 64, right: 20, containLabel: true },
@@ -45,14 +45,14 @@ export function buildHeatmapOption(block: HeatmapBlockType, palette: Palette): E
       type: 'category',
       data: [...block.xLabels],
       splitArea: { show: true },
-      axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
       axisLine: { lineStyle: { color: palette.sub } },
     },
     yAxis: {
       type: 'category',
       data: [...block.yLabels],
       splitArea: { show: true },
-      axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
       axisLine: { lineStyle: { color: palette.sub } },
     },
     visualMap: {
@@ -63,14 +63,14 @@ export function buildHeatmapOption(block: HeatmapBlockType, palette: Palette): E
       left: 'center',
       bottom: 0,
       show: true,
-      inRange: { color: [palette.line2, palette.mauve] },
-      textStyle: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      inRange: { color: [palette.line2, palette.accentText] },
+      textStyle: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
     },
     series: [
       {
         type: 'heatmap',
         data,
-        label: { show: showLabel, color: palette.text, fontSize: 9, fontFamily: AXIS_FONT },
+        label: { show: showLabel, color: palette.text, fontSize: 9, fontFamily: palette.font },
         itemStyle: { borderColor: palette.card, borderWidth: 1 },
       },
     ],
@@ -79,9 +79,8 @@ export function buildHeatmapOption(block: HeatmapBlockType, palette: Palette): E
 
 export function Heatmap({ block, ...anchor }: { block: HeatmapBlockType } & BlockAnchor) {
   const { theme } = useTheme()
-  const palette = PALETTES[theme]
 
-  const { containerRef, chartRef } = useEChart(() => buildHeatmapOption(block, palette), [block, theme])
+  const { containerRef, chartRef } = useEChart(() => buildHeatmapOption(block, chartPalette(theme)), [block, theme])
 
   return (
     <DiagramCard
@@ -89,7 +88,7 @@ export function Heatmap({ block, ...anchor }: { block: HeatmapBlockType } & Bloc
       expandable={false}
       controls={
         <div className="flex justify-end">
-          <ChartExpandButton chartRef={chartRef} palette={palette} />
+          <ChartExpandButton chartRef={chartRef} theme={theme} />
         </div>
       }
     >

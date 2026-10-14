@@ -45,8 +45,8 @@ export function DataTable({
               {block.head.map((cell, i) => (
                 <th
                   key={i}
-                  className={`text-left px-3.5 py-2.5 font-semibold border-b-2 border-mauvesoft bg-elev whitespace-nowrap ${
-                    i === 0 ? 'text-faint text-[11.5px] uppercase' : 'text-mauve text-[13px]'
+                  className={`text-left px-3.5 py-2.5 font-semibold border-b-2 border-accent-soft bg-elev whitespace-nowrap ${
+                    i === 0 ? 'text-faint text-[11.5px] uppercase' : 'text-accent-text text-[13px]'
                   }`}
                 >
                   <Annotatable {...anchor} text={cell} path={`${pathPrefix}head.${i}`} />
@@ -56,7 +56,7 @@ export function DataTable({
           </thead>
           <tbody>
             {block.rows.map((row, i) => (
-              <tr key={i} className={i % 2 === 1 ? 'bg-[var(--row-zebra)]' : undefined}>
+              <tr key={i} className={i % 2 === 1 ? 'bg-[var(--c-table-zebra)]' : undefined}>
                 {row.map((cell, j) => {
                   const content = (
                     <Annotatable {...anchor} text={cell} path={`${pathPrefix}rows.${i}.${j}`} />

@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { Block } from '@brief/schema'
-import { AXIS_FONT, PALETTES } from '@/features/reader/services/echarts'
+import { LIGHT_PALETTE } from './chart-palette'
 import { buildPlot3dOption, Plot3d, __resetWebGLCacheForTests } from '@/features/reader/components/blocks/Plot3d'
 
-const palette = PALETTES.latte
+const palette = LIGHT_PALETTE
 
 const { useThemeMock } = vi.hoisted(() => ({ useThemeMock: vi.fn() }))
-vi.mock('@/features/theme', () => ({ useTheme: useThemeMock }))
+vi.mock('@/features/theme', () => ({
+  useTheme: useThemeMock,
+  readColorTokens: (theme: string, names: readonly string[]) =>
+    Object.fromEntries(names.map((name) => [name, `${theme}:${name}`])),
+  readFontStack: (kind: string) => `${kind}-stack`,
+}))
 
 const { useEChartMock } = vi.hoisted(() => ({ useEChartMock: vi.fn() }))
 vi.mock('@/features/reader/services/echarts', async () => {
@@ -22,7 +27,7 @@ vi.mock('@/features/reader/services/echarts', async () => {
 
 beforeEach(() => {
   useThemeMock.mockReset()
-  useThemeMock.mockReturnValue({ theme: 'latte', toggle: vi.fn() })
+  useThemeMock.mockReturnValue({ theme: 'light', toggle: vi.fn() })
   useEChartMock.mockReset()
   useEChartMock.mockReturnValue({
     containerRef: { current: null },
@@ -105,10 +110,10 @@ describe('Plot3d option builder', () => {
     expect(visualMap.max).toBe(6)
   })
 
-  it('uses the blue -> mauve gradient, low to high', () => {
+  it('uses the info -> accent gradient, low to high', () => {
     const option = buildPlot3dOption(scatterBlock, palette)
     const visualMap = option.visualMap as unknown as { inRange: { color: string[] } }
-    expect(visualMap.inRange.color).toEqual([palette.blue, palette.mauve])
+    expect(visualMap.inRange.color).toEqual([palette.info, palette.accentText])
   })
 
   it('names the 3D axes from xLabel/yLabel/zLabel in mono, sub-colored text', () => {
@@ -122,7 +127,7 @@ describe('Plot3d option builder', () => {
     expect(opt.yAxis3D.name).toBe('y')
     expect(opt.zAxis3D.name).toBe('z')
     expect(opt.xAxis3D.nameTextStyle.color).toBe(palette.sub)
-    expect(opt.xAxis3D.nameTextStyle.fontFamily).toBe(AXIS_FONT)
+    expect(opt.xAxis3D.nameTextStyle.fontFamily).toBe(palette.font)
   })
 
   it('omits axis names when xLabel/yLabel/zLabel are absent', () => {
@@ -196,7 +201,7 @@ describe('Plot3d component', () => {
     })
     render(<Plot3d block={scatterBlock} />)
     fireEvent.click(screen.getByLabelText('Expand chart'))
-    expect(getDataURL).toHaveBeenCalledWith(expect.objectContaining({ pixelRatio: 1 }))
+    expect(getDataURL).toHaveBeenCalledWith({ pixelRatio: 1, backgroundColor: 'light:card' })
     getContextSpy.mockRestore()
   })
 

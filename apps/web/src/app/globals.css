@@ -1,143 +1,198 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-text: var(--ctp-text);
-  --color-surface2: var(--ctp-surface2);
-  --color-surface1: var(--ctp-surface1);
-  --color-blue: var(--ctp-blue);
-  --color-teal: var(--ctp-teal);
-  --color-green: var(--ctp-green);
-  --color-yellow: var(--ctp-yellow);
-  --color-peach: var(--ctp-peach);
-  --color-red: var(--ctp-red);
-  --color-mauve: var(--ctp-mauve);
-  --color-page: var(--ctp-page);
-  --color-card: var(--ctp-card);
-  --color-elev: var(--ctp-elev);
-  --color-line: var(--ctp-line);
-  --color-line2: var(--ctp-line2);
-  --color-sub: var(--ctp-subtext0);
-  --color-faint: var(--ctp-faint);
-  --color-chip: var(--ctp-chip);
-  --color-mauvesoft: var(--ctp-mauvesoft);
-  --font-sans: var(--font-plex-sans), 'IBM Plex Sans Thai', system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
+  /* neutrals: names unchanged */
+  --color-page: var(--c-page);
+  --color-card: var(--c-card);
+  --color-elev: var(--c-elev);
+  --color-chip: var(--c-chip);
+  --color-line: var(--c-line);
+  --color-line2: var(--c-line2);
+  --color-text: var(--c-text);
+  --color-sub: var(--c-sub);
+  --color-faint: var(--c-faint);
+
+  /* accent: replaces mauve / mauvesoft */
+  --color-accent: var(--c-accent);
+  --color-accent-text: var(--c-accent-text);
+  --color-accent-line: var(--c-accent-line);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-on-accent: var(--c-on-accent);
+
+  /* status: replaces red / green / peach / yellow / blue in components */
+  --color-info: var(--c-info);
+  --color-good: var(--c-good);
+  --color-warn: var(--c-warn);
+  --color-bad: var(--c-bad);
+  --color-info-soft: var(--c-info-soft);
+  --color-good-soft: var(--c-good-soft);
+  --color-warn-soft: var(--c-warn-soft);
+  --color-bad-soft: var(--c-bad-soft);
+  --color-info-line: var(--c-info-line);
+  --color-good-line: var(--c-good-line);
+  --color-warn-line: var(--c-warn-line);
+  --color-bad-line: var(--c-bad-line);
+
+  /* data hues: payload stat tones and chart series */
+  --color-data-mauve: var(--c-accent-text);
+  --color-data-blue: var(--c-info);
+  --color-data-green: var(--c-good);
+  --color-data-red: var(--c-bad);
+  --color-data-peach: var(--c-data-orange);
+  --color-data-teal: var(--c-data-teal);
+  --color-data-yellow: var(--c-warn);
+
+  --font-sans: var(--font-geist), var(--font-noto-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), var(--font-noto-thai), ui-monospace, monospace;
+
+  --radius-ctrl: 4px;
+  --radius-panel: 6px;
+  --radius-overlay: 8px;
+
+  --ease-console: cubic-bezier(0.3, 0.8, 0.3, 1);
 }
 
-/* Catppuccin Latte (light) */
+/* The light set is the :root default and the dark set lives inside
+ * @media not print, so printing is always light without extra work. The
+ * no-flash script in layout.tsx picks the theme before paint (stored choice,
+ * else prefers-color-scheme). Dark is the theme the boards were designed in
+ * first. */
 :root,
-[data-theme='latte'] {
-  --ctp-base: #eff1f5;
-  --ctp-mantle: #e6e9ef;
-  --ctp-crust: #dce0e8;
-  --ctp-text: #4c4f69;
-  --ctp-subtext1: #5c5f77;
-  --ctp-subtext0: #6c6f85;
-  --ctp-overlay2: #7c7f93;
-  --ctp-overlay1: #8c8fa1;
-  --ctp-overlay0: #9ca0b0;
-  --ctp-surface2: #acb0be;
-  --ctp-surface1: #bcc0cc;
-  --ctp-surface0: #ccd0da;
-  --ctp-blue: #1e66f5;
-  --ctp-lavender: #7287fd;
-  --ctp-sapphire: #209fb5;
-  --ctp-sky: #04a5e5;
-  --ctp-teal: #179299;
-  --ctp-green: #40a02b;
-  --ctp-yellow: #df8e1d;
-  --ctp-peach: #fe640b;
-  --ctp-maroon: #e64553;
-  --ctp-red: #d20f39;
-  --ctp-mauve: #8839ef;
-  --ctp-pink: #ea76cb;
-  --ctp-flamingo: #dd7878;
-  --ctp-rosewater: #dc8a78;
-  --ctp-page: #eff1f5;
-  --ctp-card: #ffffff;
-  --ctp-elev: #f4f5f8;
-  --ctp-line: #dce0e8;
-  --ctp-line2: #e6e9ef;
-  --ctp-faint: #8c8fa1;
-  --ctp-chip: #eceef3;
-  --ctp-mauvesoft: #f2ebfd;
-  --ctp-oncolor: #fff;
-  --ctp-mark: rgba(223, 142, 29, 0.3);
-  --ctp-marktx: #8a5a10;
-  --ctp-toolbg: #313244;
-  --shadow-card: 0 6px 22px rgba(76, 79, 105, 0.14);
-  --shadow-mauve-glow: 0 4px 14px rgba(136, 57, 239, 0.3);
-  --callout-note-bg: #eef4ff;
-  --callout-warn-bg: #fff6ee;
-  --callout-good-bg: #f2fbef;
-  --row-zebra: #fafbfc;
-  --compare-pane-bg: var(--ctp-elev);
-  --compare-pane-good-bg: #f4fbf1;
-  --compare-pane-bad-bg: #fdf2f4;
-  --compare-tag-bg: #fff;
-  --code-bg: #1e1e2e;
+[data-theme='light'] {
+  color-scheme: light;
+  --c-page: #f4f5f6;
+  --c-card: #ffffff;
+  --c-elev: #f9fafa;
+  --c-chip: #eef0f2;
+  --c-line: #e1e4e7;
+  --c-line2: #cdd2d7;
+  --c-text: #0f1214;
+  --c-sub: #4c555d;
+  --c-faint: #6a737b;
+
+  --c-accent: #c5f05a; /* lime stays a fill, with dark text */
+  --c-accent-text: #4d7a00; /* lime as text darkens for contrast */
+  --c-accent-line: #5e8c10;
+  --c-accent-soft: #eef8d9;
+  --c-on-accent: #0f1214;
+
+  --c-info: #0b6fa8;
+  --c-good: #13784a;
+  --c-warn: #8f5a00;
+  --c-bad: #c0322d;
+  --c-info-soft: #e6f2fa;
+  --c-good-soft: #e3f3ea;
+  --c-warn-soft: #fbf0da;
+  --c-bad-soft: #fbe9e8;
+  --c-info-line: #b5dcef;
+  --c-good-line: #a9dcc2;
+  --c-warn-line: #ebcb8a;
+  --c-bad-line: #f0b8b5;
+  --c-data-orange: #b4530f;
+  --c-data-teal: #0b7a70;
+
+  --c-code-bg: #f9fafa;
+  --c-row-zebra: #f9fafa;
+  --c-mark: rgba(244, 183, 64, 0.35);
+  --c-mark-text: #0f1214;
+  --c-scrim: rgba(15, 18, 20, 0.35);
+  --c-topbar: rgba(255, 255, 255, 0.92);
+  --shadow-overlay: 0 16px 48px rgba(15, 18, 20, 0.12);
+  --shadow-toast: 0 8px 24px rgba(15, 18, 20, 0.12);
+  --shadow-card: 0 1px 2px rgba(15, 18, 20, 0.06);
+  --shadow-accent-glow: 0 0 0 4px rgba(94, 140, 16, 0.25);
+
+  /* Board colors tokens.css has no light value for (owner ruling D8). The
+   * dark value is the board's; the light value is a proposal awaiting
+   * approval in the Phase 1 PR. */
+  --c-table-zebra: #f9fafa;
+  --c-heat-1: #eef8d9;
+  --c-heat-2: #e0f5af;
+  --c-heat-3: #d3f384;
+  --c-plot3d-2: #afd07c;
+  --c-plot3d-3: #99be5f;
+  --c-plot3d-4: #7ea73a;
+  --c-plot3d-grid: #cdd2d7;
+  --c-diff-add-text: #a9dcc2;
+  --c-selection: #b9d98a;
+  --c-viewer-canvas: #eef0f2;
+  --c-skeleton-mid: #eef0f2;
+  --c-disabled-text: #a1aab2;
 }
 
-/*
- * Catppuccin Mocha (dark).
- *
- * `not print` is how the print stylesheet forces the light theme: the theme
- * attribute lives on <html>, the same element :root matches, so a print-time
- * override would have to restate all 45 latte tokens to beat these. Withholding
- * the dark ones on paper leaves the latte block below :root as the only theme in
- * play. Nobody wants a dark background and 45 duplicated tokens in their PDF.
- */
 @media not print {
-  [data-theme='mocha'] {
-    --ctp-base: #1e1e2e;
-    --ctp-mantle: #181825;
-    --ctp-crust: #11111b;
-    --ctp-text: #cdd6f4;
-    --ctp-subtext1: #bac2de;
-    --ctp-subtext0: #a6adc8;
-    --ctp-overlay2: #9399b2;
-    --ctp-overlay1: #7f849c;
-    --ctp-overlay0: #6c7086;
-    --ctp-surface2: #585b70;
-    --ctp-surface1: #45475a;
-    --ctp-surface0: #313244;
-    --ctp-blue: #89b4fa;
-    --ctp-lavender: #b4befe;
-    --ctp-sapphire: #74c7ec;
-    --ctp-sky: #89dceb;
-    --ctp-teal: #94e2d5;
-    --ctp-green: #a6e3a1;
-    --ctp-yellow: #f9e2af;
-    --ctp-peach: #fab387;
-    --ctp-maroon: #eba0ac;
-    --ctp-red: #f38ba8;
-    --ctp-mauve: #cba6f7;
-    --ctp-pink: #f5c2e7;
-    --ctp-flamingo: #f2cdcd;
-    --ctp-rosewater: #f5e0dc;
-    --ctp-page: #11111b;
-    --ctp-card: #1e1e2e;
-    --ctp-elev: #181825;
-    --ctp-line: #313244;
-    --ctp-line2: #292a3a;
-    --ctp-faint: #6c7086;
-    --ctp-chip: #313244;
-    --ctp-mauvesoft: rgba(203, 166, 247, 0.14);
-    --ctp-oncolor: #11111b;
-    --ctp-mark: rgba(249, 226, 175, 0.22);
-    --ctp-marktx: #f9e2af;
-    --ctp-toolbg: #313244;
-    --shadow-card: 0 8px 26px rgba(0, 0, 0, 0.5);
-    --shadow-mauve-glow: 0 4px 14px rgba(203, 166, 247, 0.3);
-    --callout-note-bg: rgba(255, 255, 255, 0.03);
-    --callout-warn-bg: rgba(255, 255, 255, 0.03);
-    --callout-good-bg: rgba(255, 255, 255, 0.03);
-    --row-zebra: rgba(255, 255, 255, 0.015);
-    --compare-pane-bg: rgba(255, 255, 255, 0.02);
-    --compare-pane-good-bg: rgba(255, 255, 255, 0.02);
-    --compare-pane-bad-bg: rgba(255, 255, 255, 0.02);
-    --compare-tag-bg: rgba(255, 255, 255, 0.06);
-    --code-bg: #11111b;
+  [data-theme='dark'] {
+    color-scheme: dark;
+    --c-page: #0b0d0f;
+    --c-card: #111417; /* panel */
+    --c-elev: #171b1f; /* raised */
+    --c-chip: #1b2024; /* hover, selected tab, chip */
+    --c-line: #23292e;
+    --c-line2: #313940; /* strong line, control border */
+    --c-text: #e8ecee;
+    --c-sub: #a1aab2;
+    --c-faint: #7c868f;
+
+    --c-accent: #c5f05a; /* fills only: buttons, selected kbd, progress */
+    --c-accent-text: #c5f05a;
+    --c-accent-line: #c5f05a;
+    --c-accent-soft: #1e2612;
+    --c-on-accent: #0b0d0f;
+
+    --c-info: #62c7f5;
+    --c-good: #4fd39a;
+    --c-warn: #f4b740;
+    --c-bad: #ff6b6b;
+    --c-info-soft: #0f1a20;
+    --c-good-soft: #13261f;
+    --c-warn-soft: #2a2213;
+    --c-bad-soft: #2b1618;
+    --c-info-line: #1d3a48;
+    --c-good-line: #1d4434;
+    --c-warn-line: #4a3a16;
+    --c-bad-line: #5a2328;
+    --c-data-orange: #ff9f5a;
+    --c-data-teal: #3dd6c6;
+
+    --c-code-bg: #0e1113;
+    --c-row-zebra: #0e1113;
+    --c-mark: rgba(244, 183, 64, 0.22);
+    --c-mark-text: #e8ecee;
+    --c-scrim: rgba(0, 0, 0, 0.55);
+    --c-topbar: rgba(11, 13, 15, 0.92);
+    --shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.5);
+    --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --shadow-card: none; /* panels separate by value, not shadow */
+    --shadow-accent-glow: 0 0 0 4px rgba(197, 240, 90, 0.25);
+
+    --c-table-zebra: #0f1215;
+    --c-heat-1: #23301a;
+    --c-heat-2: #3b5420;
+    --c-heat-3: #6e9a2e;
+    --c-plot3d-2: #56701f;
+    --c-plot3d-3: #7fa126;
+    --c-plot3d-4: #a5cb3a;
+    --c-plot3d-grid: #2a3330;
+    --c-diff-add-text: #1f4a35;
+    --c-selection: #2e4a0e;
+    --c-viewer-canvas: #08090a;
+    --c-skeleton-mid: #1f252a;
+    --c-disabled-text: #4b545c;
+  }
+}
+
+/* Motion */
+:root {
+  --dur-fast: 90ms;
+  --dur-base: 160ms;
+  --dur-slow: 260ms;
+  --dur-step: 400ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-base: 90ms;
+    --dur-slow: 90ms;
+    --dur-step: 0ms;
   }
 }
 
@@ -157,15 +212,32 @@
 
 html,
 body {
-  background: var(--ctp-page);
-  color: var(--ctp-text);
+  background: var(--c-page);
+  color: var(--c-text);
 }
 
 ::selection {
-  background: rgba(136, 57, 239, 0.22);
+  background: var(--c-selection);
 }
-[data-theme='mocha'] ::selection {
-  background: rgba(203, 166, 247, 0.28);
+
+/* Shiki's css-variables theme (services/shiki.ts) colors tokens with these.
+ * The boards color keywords info, numbers warn and comments faint, and show
+ * everything else in the text color. */
+:root {
+  --shiki-foreground: var(--c-text);
+  --shiki-background: var(--c-code-bg);
+  --shiki-token-keyword: var(--c-info);
+  --shiki-token-constant: var(--c-warn);
+  --shiki-token-comment: var(--c-faint);
+  --shiki-token-string: var(--c-text);
+  --shiki-token-string-expression: var(--c-text);
+  --shiki-token-function: var(--c-text);
+  --shiki-token-parameter: var(--c-text);
+  --shiki-token-punctuation: var(--c-text);
+  --shiki-token-link: var(--c-text);
+  --shiki-token-inserted: var(--c-good);
+  --shiki-token-deleted: var(--c-bad);
+  --shiki-token-changed: var(--c-warn);
 }
 
 @keyframes dc-floatpop {
@@ -183,32 +255,14 @@ body {
   100% { background-position: 480px 0; }
 }
 .sk {
-  background: linear-gradient(90deg, #e2e5ec 25%, #eef0f4 37%, #e2e5ec 63%);
+  background: linear-gradient(90deg, var(--c-elev) 25%, var(--c-skeleton-mid) 37%, var(--c-elev) 63%);
   background-size: 480px 100%;
   animation: sk-shimmer 1.4s infinite linear;
   border-radius: 8px;
 }
-[data-theme='mocha'] .sk {
-  background: linear-gradient(90deg, #24243a 25%, #2e2e48 37%, #24243a 63%);
-  background-size: 480px 100%;
-}
 
-/*
- * Code blocks deliberately render a dark panel in BOTH app themes (per
- * Reader.dc.html's beforeAfter/code pre: background is #1e1e2e in latte,
- * #11111b in mocha — always dark, never the light card color). Shiki itself
- * is rendered with a single theme (catppuccin-mocha) regardless of the app
- * theme, so its own inline background-color (#1e1e2e) is fixed too; this
- * rule overrides it with the app-theme-aware --code-bg token. An external
- * stylesheet !important beats a plain inline style, so this wins over
- * shiki's own `style="background-color:..."` without needing to post-process
- * the generated HTML.
- */
-.shiki {
-  background-color: var(--code-bg) !important;
-}
 .shiki .hl-line {
-  background: rgba(203, 166, 247, 0.12);
+  background: var(--c-accent-soft);
   display: inline-block;
   width: 100%;
 }
@@ -335,15 +389,11 @@ body {
   }
 
   /* Backgrounds are dropped by default when printing, which is fine for the
-     near-white card surfaces but not for these: code panels are dark in both
-     themes (light syntax colors on white paper is unreadable), and a
-     highlight without its background is not a highlight. `.shiki` is the
-     highlighted code path; `[data-code-panel]` marks the other spots that
-     pair the same dark `--code-bg` with fixed light text outside shiki --
-     CodePre's pre-highlight/highlight-failed fallback `<pre>` and
-     PromptReview's and CopyFallbackModal's textareas -- which would
-     otherwise lose only the background and keep the light text, unreadable
-     on the white page underneath. */
+     near-white card surfaces but not for these: a highlight without its
+     background is not a highlight, and code panels (`.shiki`, plus the
+     `[data-code-panel]` spots outside shiki: CodePre's fallback `<pre>` and
+     the PromptReview and CopyFallbackModal textareas) keep their
+     `--c-code-bg` tint. */
   .shiki,
   mark,
   [data-code-panel] {

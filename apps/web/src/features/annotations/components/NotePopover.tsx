@@ -27,9 +27,9 @@ export function NotePopover({ id, onClose }: { id: string; onClose: () => void }
   return (
     <div
       style={{ animation: 'dc-pop .18s ease' }}
-      className="fixed right-6 bottom-6 z-[80] w-[300px] rounded-xl border border-line bg-card p-3.5 shadow-[var(--shadow-card)]"
+      className="fixed right-6 bottom-6 z-[80] w-[300px] rounded-xl border border-line bg-card p-3.5 shadow-[var(--shadow-overlay)]"
     >
-      <div className="mb-2 border-l-2 border-mauve pl-2 text-xs italic text-faint">“{quote}”</div>
+      <div className="mb-2 border-l-2 border-accent-line pl-2 text-xs italic text-faint">“{quote}”</div>
       <textarea
         autoFocus
         value={h.note ?? ''}
@@ -41,14 +41,14 @@ export function NotePopover({ id, onClose }: { id: string; onClose: () => void }
         <button
           type="button"
           onClick={handleRemove}
-          className="max-[879px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-red"
+          className="max-[879px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-bad"
         >
           Remove highlight
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="max-[879px]:min-h-11 cursor-pointer rounded-[7px] border-0 bg-mauve px-3.5 py-1.5 font-[inherit] text-[12.5px] font-semibold text-white"
+          className="max-[879px]:min-h-11 cursor-pointer rounded-[7px] border-0 bg-accent px-3.5 py-1.5 font-[inherit] text-[12.5px] font-semibold text-on-accent"
         >
           Done
         </button>

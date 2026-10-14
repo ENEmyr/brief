@@ -27,7 +27,7 @@ function findHlBlock(node: Node | null): HTMLElement | null {
 }
 
 const buttonClass =
-  'inline-flex items-center gap-[5px] rounded-md border-0 bg-transparent px-[9px] py-[5px] font-[inherit] text-[12.5px] text-white cursor-pointer max-[879px]:min-h-11'
+  'inline-flex items-center gap-[5px] rounded-md border-0 bg-transparent px-[9px] py-[5px] font-[inherit] text-[12.5px] text-page cursor-pointer max-[879px]:min-h-11'
 
 /** Floating pill toolbar (prototype: Reader.dc.html lines 707-713) shown on
  * text selection inside a [data-hl] block. Listens on document so it works
@@ -157,12 +157,12 @@ export function SelectionToolbar({
         top: toolbar.top,
         transform: 'translateX(-50%)',
         zIndex: 80,
-        background: 'var(--ctp-toolbg)',
+        background: 'var(--c-text)',
         borderRadius: 9,
         padding: 4,
         display: 'flex',
         gap: 2,
-        boxShadow: '0 8px 24px rgba(0,0,0,.4)',
+        boxShadow: 'var(--shadow-overlay)',
         animation: 'dc-floatpop .16s ease',
       }}
     >
@@ -173,9 +173,9 @@ export function SelectionToolbar({
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleHighlight}
       >
-        <span className="text-yellow">▮</span>Highlight
+        <span className="text-warn">▮</span>Highlight
       </button>
-      <span style={{ width: 1, background: 'rgba(255,255,255,.15)', margin: '4px 1px' }} />
+      <span style={{ width: 1, background: 'var(--c-faint)', margin: '4px 1px' }} />
       <button
         type="button"
         aria-label="Note"
@@ -183,7 +183,7 @@ export function SelectionToolbar({
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleNote}
       >
-        <span className="text-yellow">✎</span>Note
+        <span className="text-warn">✎</span>Note
       </button>
       <button
         type="button"
@@ -192,9 +192,9 @@ export function SelectionToolbar({
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleAsk}
       >
-        <span className="text-yellow">?</span>Ask
+        <span className="text-warn">?</span>Ask
       </button>
-      <span style={{ width: 1, background: 'rgba(255,255,255,.15)', margin: '4px 1px' }} />
+      <span style={{ width: 1, background: 'var(--c-faint)', margin: '4px 1px' }} />
       <button
         type="button"
         aria-label="Copy"

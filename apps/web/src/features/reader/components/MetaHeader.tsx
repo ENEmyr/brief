@@ -12,7 +12,7 @@ export function MetaHeader({ meta }: { meta: Meta }) {
       <span key="author" className="inline-flex items-center">
         <span
           aria-hidden="true"
-          className="mr-[7px] inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-mauve text-[11px] font-semibold text-white"
+          className="mr-[7px] inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-on-accent"
         >
           {meta.author.charAt(0)}
         </span>
@@ -38,7 +38,7 @@ export function MetaHeader({ meta }: { meta: Meta }) {
         href={meta.repo}
         target="_blank"
         rel="noopener noreferrer"
-        className="font-mono text-blue no-underline"
+        className="font-mono text-info no-underline"
       >
         <span aria-hidden="true">⎇ </span>
         {meta.repo}
@@ -52,7 +52,7 @@ export function MetaHeader({ meta }: { meta: Meta }) {
   return (
     <div className="mb-[26px] border-b border-line pt-[30px] pb-[22px]">
       {meta.docId && (
-        <div className="mb-[9px] font-mono text-[11px] font-semibold tracking-[.12em] text-mauve">
+        <div className="mb-[9px] font-mono text-[11px] font-semibold tracking-[.12em] text-accent-text">
           {meta.docId}
         </div>
       )}

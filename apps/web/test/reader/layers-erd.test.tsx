@@ -1,7 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { BlockRenderer } from '@/features/reader'
 import type { Block } from '@brief/schema'
+
+const GLOBALS_CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
+const LAYOUT_TSX = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8')
+
+/** Every custom property the markup reads with var() that neither globals.css
+ *  nor next/font (the --font-* variables in app/layout.tsx) declares. */
+function undeclaredVars(markup: string): string[] {
+  const used = new Set([...markup.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1] as string))
+  return [...used].filter((name) => !GLOBALS_CSS.includes(`${name}:`) && !LAYOUT_TSX.includes(`variable: '${name}'`))
+}
 
 const layersBlock: Extract<Block, { type: 'layers' }> = {
   type: 'layers',
@@ -122,24 +134,30 @@ describe('Layers block', () => {
     expect(screen.getByRole('button', { name: '[x] Request flow' })).toBeInTheDocument()
   })
 
-  it('strokes edge lines, edge labels, and the arrow marker with the real --ctp-subtext0 token (--ctp-sub does not exist)', () => {
+  it('strokes edge lines, edge labels, and the arrow marker with the sub token, and reads no undeclared var', () => {
     const { container } = r(layersBlock)
     const svg = container.querySelector('svg')
-    // Regression for the invisible-edges bug: an unresolved CSS var (the
-    // nonexistent --ctp-sub) collapses SVG stroke to none in a browser,
-    // while jsdom renders the raw string either way. Assert the literal
-    // token name so the bug cannot silently return.
+    // Regression for the invisible-edges bug: an unresolved CSS var (it was
+    // a nonexistent --ctp-sub) collapses SVG stroke to none in a browser,
+    // while jsdom renders the raw string either way. So every var() the
+    // diagram reads must be declared in globals.css.
     const edgeLines = Array.from(svg?.querySelectorAll('g > line') ?? [])
     expect(edgeLines.length).toBeGreaterThan(0)
-    edgeLines.forEach((l) => expect(l.getAttribute('style')).toContain('var(--ctp-subtext0)'))
+    edgeLines.forEach((l) => expect(l.getAttribute('style')).toContain('var(--c-sub)'))
     const edgeLabel = Array.from(svg?.querySelectorAll('g > text') ?? []).find((t) => t.textContent === 'request')
-    expect(edgeLabel?.getAttribute('style')).toContain('var(--ctp-subtext0)')
+    expect(edgeLabel?.getAttribute('style')).toContain('var(--c-sub)')
     const markerPath = svg?.querySelector('marker path')
-    expect(markerPath?.getAttribute('style')).toContain('var(--ctp-subtext0)')
-    expect(svg?.innerHTML).not.toContain('var(--ctp-sub)')
+    expect(markerPath?.getAttribute('style')).toContain('var(--c-sub)')
+    expect(undeclaredVars(container.innerHTML)).toEqual([])
   })
 
-  it('renders a node id repeated across two layers exactly once, keeping the first-seen layer position and color', () => {
+  it('detects a var that globals.css does not declare', () => {
+    expect(undeclaredVars('<line style="stroke: var(--c-sub)"/><path style="fill: var(--c-nope)"/>')).toEqual([
+      '--c-nope',
+    ])
+  })
+
+  it('renders a node id repeated across two layers exactly once, keeping the first-seen layer position', () => {
     const block: Extract<Block, { type: 'layers' }> = {
       type: 'layers',
       layers: [
@@ -162,13 +180,15 @@ describe('Layers block', () => {
     }
     const { container } = r(block)
     // First-seen layer wins: exactly one node for the duplicate id, with the
-    // base layer's label, position (base row y=58), and color (blue).
+    // base layer's label and position (base row y=58). Nodes no longer take a
+    // per-layer hue: every node is the Console elev fill with a line2 border.
     expect(screen.getAllByText('Shared').length).toBe(1)
     expect(screen.queryByText('Shared duplicate')).not.toBeInTheDocument()
     const sharedGroup = findAncestorWithText(container, 'Shared')
     const sharedRect = sharedGroup?.querySelector('rect')
     expect(sharedRect?.getAttribute('y')).toBe('58')
-    expect(sharedRect?.getAttribute('style')).toContain('var(--ctp-blue)')
+    expect(sharedRect?.getAttribute('style')).toContain('fill: var(--c-elev)')
+    expect(sharedRect?.getAttribute('style')).toContain('stroke: var(--c-line2)')
     // The base-layer-owned node stays fully visible even though the extra
     // layer (off by default) also declared it.
     expect(sharedGroup?.getAttribute('style')).toContain('opacity: 1')

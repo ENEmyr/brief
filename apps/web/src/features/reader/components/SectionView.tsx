@@ -16,8 +16,8 @@ export function SectionView({
 }) {
   return (
     <section id={section.id} data-section={section.id} className="mb-11 scroll-mt-[76px]">
-      <h2 className="mb-3.5 border-b-2 border-mauvesoft pb-2 text-[21px] font-bold">
-        <span className="mr-2 font-mono text-[16px] text-mauve">{pad(section.no)}</span>
+      <h2 className="mb-3.5 border-b-2 border-accent-soft pb-2 text-[21px] font-bold">
+        <span className="mr-2 font-mono text-[16px] text-accent-text">{pad(section.no)}</span>
         {/* The heading is not a block, so it has no block index. It anchors at
             bid null rather than borrowing a sentinel index that would collide
             with a real block. */}

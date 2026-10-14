@@ -7,7 +7,7 @@ import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
-import { AXIS_FONT, PALETTES, seriesColors, useEChart } from '../../services/echarts'
+import { chartPalette, seriesColors, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type BigOBlockType = Extract<Block, { type: 'bigo' }>
@@ -85,23 +85,23 @@ export function buildBigOOption(block: BigOBlockType, n: number, palette: Palett
     tooltip: {
       trigger: 'axis',
       backgroundColor: palette.card,
-      textStyle: { color: palette.text, fontFamily: AXIS_FONT, fontSize: 11 },
+      textStyle: { color: palette.text, fontFamily: palette.font, fontSize: 11 },
       borderColor: palette.line2,
     },
     grid: { top: 16, bottom: 34, left: 44, right: 16, containLabel: true },
     xAxis: {
       type: 'value',
       name: 'n',
-      nameTextStyle: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
-      axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      nameTextStyle: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
+      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
       axisLine: { lineStyle: { color: palette.sub } },
       splitLine: { lineStyle: { color: palette.line2 } },
     },
     yAxis: {
       type: 'log',
       name: 'ops',
-      nameTextStyle: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
-      axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      nameTextStyle: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
+      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
       axisLine: { lineStyle: { color: palette.sub } },
       splitLine: { lineStyle: { color: palette.line2 } },
     },
@@ -123,7 +123,7 @@ export function buildBigOOption(block: BigOBlockType, n: number, palette: Palett
                 symbol: 'none',
                 animation: false,
                 label: { show: false },
-                lineStyle: { color: palette.mauve, type: 'dashed' },
+                lineStyle: { color: palette.accentText, type: 'dashed' },
                 data: [{ xAxis: n }],
               },
             }
@@ -135,13 +135,12 @@ export function buildBigOOption(block: BigOBlockType, n: number, palette: Palett
 
 export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAnchor) {
   const { theme } = useTheme()
-  const palette = PALETTES[theme]
   const maxN = block.maxN ?? DEFAULT_MAX_N
   // v=100 -> n=maxN (see sliderToN), matching "initial n = maxN" from the brief.
   const [v, setV] = useState(100)
   const n = sliderToN(v, maxN)
 
-  const { containerRef, chartRef } = useEChart(() => buildBigOOption(block, n, palette), [block, n, theme])
+  const { containerRef, chartRef } = useEChart(() => buildBigOOption(block, n, chartPalette(theme)), [block, n, theme])
 
   const controls = (
     <div className="flex flex-col gap-2">
@@ -153,9 +152,9 @@ export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAncho
           value={v}
           onChange={(event) => setV(Number(event.target.value))}
           aria-label="n (log scale)"
-          className="w-full accent-mauve"
+          className="w-full accent-accent"
         />
-        <ChartExpandButton chartRef={chartRef} palette={palette} />
+        <ChartExpandButton chartRef={chartRef} theme={theme} />
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px] text-sub">
         <span>
@@ -167,7 +166,7 @@ export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAncho
           return (
             <span key={s.label}>
               {s.label} ({CURVE_LABELS[s.curve]}) ≈{' '}
-              <b className="text-mauve">
+              <b className="text-accent-text">
                 {fmt(ops)}
                 {capped ? ' (capped)' : ''}
               </b>

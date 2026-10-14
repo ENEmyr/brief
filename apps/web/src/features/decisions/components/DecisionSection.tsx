@@ -89,11 +89,11 @@ export function DecisionSection({
 
   return (
     <section id="decide" data-section="decide" className="mt-4 scroll-mt-[76px]">
-      <h2 className="mb-1.5 border-b-2 border-mauvesoft pb-2 text-[21px] font-bold">
+      <h2 className="mb-1.5 border-b-2 border-accent-soft pb-2 text-[21px] font-bold">
         {/* Same line as the span on purpose: a line break here is ambiguous
             JSX spacing (S6772); the rendered text has no space, the visual
             gap comes from the span's mr-2 margin. */}
-        <span className="mr-2 font-mono text-[16px] text-mauve">{pad(no)}</span>Decisions
+        <span className="mr-2 font-mono text-[16px] text-accent-text">{pad(no)}</span>Decisions
       </h2>
       <p className="mb-4 text-[13.5px] text-sub">
         Answer every question to unlock prompt generation for Claude Code to continue
@@ -107,12 +107,12 @@ export function DecisionSection({
             aria-valuemin={0}
             aria-valuemax={total}
             aria-valuenow={done}
-            className="h-full rounded-full bg-mauve transition-[width] duration-300"
+            className="h-full rounded-full bg-accent transition-[width] duration-300"
             style={{ width: `${(done / total) * 100}%` }}
           />
         </div>
         <span
-          className={`shrink-0 whitespace-nowrap font-mono text-[12px] font-semibold ${done === total ? 'text-green' : 'text-sub'}`}
+          className={`shrink-0 whitespace-nowrap font-mono text-[12px] font-semibold ${done === total ? 'text-good' : 'text-sub'}`}
         >
           Answered {done}/{total}
         </span>
@@ -128,9 +128,9 @@ export function DecisionSection({
                 aria-label={`Question ${d.id}`}
                 title={d.id}
                 aria-current={active ? 'true' : undefined}
-                className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-[7px] border font-mono text-[10.5px] leading-none transition-colors hover:border-mauve max-[879px]:min-h-11 max-[879px]:min-w-11 ${
-                  active ? 'border-mauve font-bold' : 'border-line font-normal'
-                } ${answered ? 'bg-mauvesoft text-mauve' : 'bg-card text-faint'}`}
+                className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-[7px] border font-mono text-[10.5px] leading-none transition-colors hover:border-accent-line max-[879px]:min-h-11 max-[879px]:min-w-11 ${
+                  active ? 'border-accent-line font-bold' : 'border-line font-normal'
+                } ${answered ? 'bg-accent-soft text-accent-text' : 'bg-card text-faint'}`}
               >
                 {/* The position in the stepper, not the id. Ids are free-form
                     labels (`d1-reviewer-chain`), so the old `id.slice(1)` spilled
@@ -174,7 +174,7 @@ export function DecisionSection({
             type="button"
             onClick={handleReset}
             title="Clear all answers"
-            className="max-[879px]:min-h-11 rounded-[9px] border border-line bg-card px-3.5 py-[9px] text-[13px] font-semibold text-red"
+            className="max-[879px]:min-h-11 rounded-[9px] border border-line bg-card px-3.5 py-[9px] text-[13px] font-semibold text-bad"
           >
             ↺ Reset
           </button>
@@ -184,7 +184,7 @@ export function DecisionSection({
             <button
               type="button"
               onClick={handleGenerate}
-              className="max-[879px]:min-h-11 rounded-[9px] bg-mauve px-5 py-2.5 text-[14px] font-bold text-white shadow-[var(--shadow-mauve-glow)]"
+              className="max-[879px]:min-h-11 rounded-[9px] bg-accent px-5 py-2.5 text-[14px] font-bold text-on-accent shadow-[var(--shadow-accent-glow)]"
             >
               ✦ Generate prompt
             </button>

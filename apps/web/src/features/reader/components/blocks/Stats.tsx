@@ -3,14 +3,16 @@ import type { CSSProperties } from 'react'
 import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
 
+// The payload keeps its Catppuccin tone names (renaming them would break
+// payloads); each maps to the data hue tokens.css defines for it.
 const statToneClass = {
-  mauve: 'text-mauve',
-  blue: 'text-blue',
-  green: 'text-green',
-  red: 'text-red',
-  peach: 'text-peach',
-  teal: 'text-teal',
-  yellow: 'text-yellow',
+  mauve: 'text-data-mauve',
+  blue: 'text-data-blue',
+  green: 'text-data-green',
+  red: 'text-data-red',
+  peach: 'text-data-peach',
+  teal: 'text-data-teal',
+  yellow: 'text-data-yellow',
 } as const
 
 export function Stats({

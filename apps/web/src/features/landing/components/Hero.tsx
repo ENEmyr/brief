@@ -12,7 +12,7 @@ export function Hero() {
   return (
     <section className="mx-auto grid max-w-[1080px] gap-12 px-6 pt-16 pb-20 min-[880px]:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] min-[880px]:items-center min-[880px]:gap-14 min-[880px]:pt-24">
       <div>
-        <p className="font-mono text-[11px] tracking-[0.14em] text-mauve uppercase">
+        <p className="font-mono text-[11px] tracking-[0.14em] text-accent-text uppercase">
           POST /api/session
         </p>
         <h1 className="mt-4 text-[38px] leading-[1.12] font-semibold tracking-tight text-text min-[880px]:text-[46px]">
@@ -32,13 +32,13 @@ export function Hero() {
           <div className="flex flex-wrap items-center gap-3">
             <a
               href={REPO_URL}
-              className={`flex min-h-11 items-center rounded-xl bg-mauve px-5 text-[14px] font-medium text-[var(--ctp-oncolor)] shadow-[var(--shadow-mauve-glow)] transition-opacity hover:opacity-90 ${FOCUS_RING}`}
+              className={`flex min-h-11 items-center rounded-xl bg-accent px-5 text-[14px] font-medium text-on-accent shadow-[var(--shadow-accent-glow)] transition-opacity hover:opacity-90 ${FOCUS_RING}`}
             >
               View the source on GitHub
             </a>
             <a
               href="#example"
-              className={`flex min-h-11 items-center rounded-xl border border-line px-5 text-[14px] text-text transition-colors hover:border-mauve ${FOCUS_RING}`}
+              className={`flex min-h-11 items-center rounded-xl border border-line px-5 text-[14px] text-text transition-colors hover:border-accent-line ${FOCUS_RING}`}
             >
               See what it renders
             </a>

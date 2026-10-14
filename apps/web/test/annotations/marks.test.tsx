@@ -41,7 +41,7 @@ describe('HighlightedText', () => {
     const mark = document.querySelector('mark')
     expect(mark).not.toBeNull()
     expect(mark?.textContent).toContain('world')
-    expect(mark).toHaveStyle({ background: 'var(--ctp-mark)', color: 'var(--ctp-marktx)' })
+    expect(mark).toHaveStyle({ background: 'var(--c-mark)', color: 'var(--c-mark-text)' })
     // surrounding plain text stays outside the mark
     expect(screen.getByText('hello', { exact: false })).toBeInTheDocument()
   })
@@ -80,7 +80,7 @@ describe('HighlightedText', () => {
     expect(marks).toHaveLength(2)
   })
 
-  it('shows a mauve bold "?" sup indicator for an ask highlight (question defined)', () => {
+  it('shows an accent bold "?" sup indicator for an ask highlight (question defined)', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
     seedHighlights([
       { id: 'h1', sid: 0, bid: 0, start: 0, end: 5, text: 'hello', note: null, question: 'why?' },
@@ -89,7 +89,7 @@ describe('HighlightedText', () => {
     const mark = document.querySelector('mark')!
     const sup = mark.querySelector('sup')
     expect(sup?.textContent).toBe('?')
-    expect(mark).toHaveClass('bg-mauvesoft', 'text-mauve')
+    expect(mark).toHaveClass('bg-accent-soft', 'text-accent-text')
   })
 
   it('shows a "●" sup indicator for a note highlight (note non-null, no question)', () => {

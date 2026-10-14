@@ -361,8 +361,8 @@ describe('printDocument', () => {
     document.documentElement.removeAttribute('data-theme')
   })
 
-  it('calls window.print() immediately, without forcing a theme override, when the app is not on mocha', async () => {
-    document.documentElement.setAttribute('data-theme', 'latte')
+  it('calls window.print() immediately, without forcing a theme override, when the app is not on dark', async () => {
+    document.documentElement.setAttribute('data-theme', 'light')
     const print = vi.fn()
     vi.stubGlobal('print', print)
 
@@ -371,13 +371,13 @@ describe('printDocument', () => {
     expect(print).toHaveBeenCalledTimes(1)
   })
 
-  it('forces latte, waits for in-flight chart/diagram renders, prints, then restores mocha (blocker 2)', async () => {
-    document.documentElement.setAttribute('data-theme', 'mocha')
+  it('forces light, waits for in-flight chart/diagram renders, prints, then restores dark (blocker 2)', async () => {
+    document.documentElement.setAttribute('data-theme', 'dark')
     const print = vi.fn()
     vi.stubGlobal('print', print)
 
     const { result } = renderHook(() => useTheme())
-    expect(result.current.theme).toBe('mocha')
+    expect(result.current.theme).toBe('dark')
 
     // Simulate a chart/diagram still redrawing in the new palette: print
     // must not fire until this settles.
@@ -387,7 +387,7 @@ describe('printDocument', () => {
       printing = printDocument()
       await new Promise((resolve) => setTimeout(resolve, 60))
     })
-    expect(result.current.theme).toBe('latte')
+    expect(result.current.theme).toBe('light')
     expect(print).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -396,7 +396,7 @@ describe('printDocument', () => {
     })
 
     expect(print).toHaveBeenCalledTimes(1)
-    expect(result.current.theme).toBe('mocha')
+    expect(result.current.theme).toBe('dark')
   })
 })
 
