@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "e2e": "playwright test",
-    "lint": "eslint tests playwright.config.ts",
+    "lint": "eslint tests visual playwright.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

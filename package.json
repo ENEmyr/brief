@@ -9,7 +9,9 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "e2e": "bash e2e/run.sh",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "e2e:visual": "bash e2e/visual/run.sh",
+    "e2e:visual:refs": "bash e2e/visual/run.sh refs"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
