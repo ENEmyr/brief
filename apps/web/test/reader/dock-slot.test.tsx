@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import type { Decision } from '@brief/schema'
 import { DockSlot } from '@/features/reader/components/DockSlot'
-import { ReaderStateProvider } from '@/features/reader-state'
+import { ReaderStateProvider, useReaderActions } from '@/features/reader-state'
 
 const decisions: Decision[] = [
   { id: 'D1', q: 'Which limiter?', multi: false, opts: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] },
@@ -20,12 +20,22 @@ function narrowScreen(matches: boolean) {
   }))
 }
 
+function PickOption() {
+  const { pickOption } = useReaderActions()
+  return (
+    <button type="button" onClick={() => pickOption('D1', 'a', false)}>
+      pick D1 A
+    </button>
+  )
+}
+
 function Harness() {
   const [open, setOpen] = useState(false)
   return (
     <>
       <DockSlot decisions={decisions} open={open} onOpenChange={setOpen}>
         <p>dock content</p>
+        <PickOption />
       </DockSlot>
     </>
   )
@@ -82,5 +92,17 @@ describe('DockSlot', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('narrow: answering inside the open sheet keeps focus on the control', () => {
+    narrowScreen(true)
+    renderDock()
+    fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
+    const sheet = screen.getByRole('dialog', { name: 'Decision dock' })
+    const pick = within(sheet).getByRole('button', { name: 'pick D1 A' })
+    pick.focus()
+    fireEvent.click(pick)
+    expect(within(sheet).getByText('DECISIONS / 1/3')).toBeInTheDocument()
+    expect(pick).toHaveFocus()
   })
 })

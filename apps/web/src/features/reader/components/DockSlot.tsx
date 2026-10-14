@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Decision } from '@brief/schema'
 import { useDialogFocus } from '@/features/export'
@@ -64,7 +64,8 @@ export function DockSlot({
   const total = decisions.length
   const answered = decisions.filter((d) => isAnswered(d, dsel)).length
   const next = decisions.find((d) => !isAnswered(d, dsel))
-  const close = () => onOpenChange(false)
+  // Stable, so the sheet's focus effect does not re-run (and grab focus) on every answer.
+  const close = useCallback(() => onOpenChange(false), [onOpenChange])
 
   return (
     <>
