@@ -320,6 +320,62 @@ describe('outline scroll spy', () => {
     expect(row(/01\s*Introduction/)).not.toHaveAttribute('aria-current')
   })
 
+  describe('at the bottom of the page', () => {
+    const saved = (['scrollY', 'innerHeight'] as const).map(
+      (key) => [key, Object.getOwnPropertyDescriptor(window, key)!] as const,
+    )
+
+    afterEach(() => {
+      for (const [key, descriptor] of saved) Object.defineProperty(window, key, descriptor)
+      Reflect.deleteProperty(document.documentElement, 'scrollHeight')
+    })
+
+    function scrollPage(scrollY: number, scrollHeight: number) {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 })
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: scrollY })
+      Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: scrollHeight })
+      act(() => {
+        window.dispatchEvent(new Event('scroll'))
+      })
+    }
+
+    // A last section shorter than the band under the top bar never reaches
+    // it, so the observer alone leaves the one above it current.
+    it('the last section is current, and the observer takes over again above the bottom', () => {
+      mountSectionElements()
+      render(<SpiedToc />)
+      const observer = getObserver()
+      const s1 = document.querySelector('[data-section="s1"]') as Element
+      act(() => {
+        observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 40 } }])
+      })
+
+      scrollPage(1200, 2000)
+      expect(row(/02\s*Getting Started/)).toHaveAttribute('aria-current', 'true')
+
+      act(() => {
+        observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: -100 } }])
+      })
+      expect(row(/02\s*Getting Started/)).toHaveAttribute('aria-current', 'true')
+
+      scrollPage(1100, 2000)
+      expect(row(/01\s*Introduction/)).toHaveAttribute('aria-current', 'true')
+    })
+
+    it('a page that fits the window has no bottom to reach: the observer decides', () => {
+      mountSectionElements()
+      render(<SpiedToc />)
+      const observer = getObserver()
+      const s1 = document.querySelector('[data-section="s1"]') as Element
+      act(() => {
+        observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 40 } }])
+      })
+
+      scrollPage(0, 700)
+      expect(row(/01\s*Introduction/)).toHaveAttribute('aria-current', 'true')
+    })
+  })
+
   it('keeps the last active section when nothing is intersecting (sticky)', () => {
     mountSectionElements()
     render(<SpiedToc />)

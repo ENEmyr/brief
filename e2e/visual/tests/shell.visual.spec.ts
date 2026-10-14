@@ -178,6 +178,13 @@ test.describe('shell at 1440', () => {
     await expectComputed(idle.locator('span').first(), { color: C[theme].faint })
   })
 
+  // Section 04 is shorter than the band the scroll spy watches under the top
+  // bar, so only the bottom of the page can make it current.
+  test('the last section is current at the bottom of the page', async ({ page }) => {
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+    await expect(page.locator('nav[aria-label="Outline"] a[aria-current="true"]')).toHaveAttribute('href', '#s4')
+  })
+
   test('your marks lists the seeded highlight by its text', async ({ page, theme }) => {
     const outline = page.locator('nav[aria-label="Outline"]')
     await expectComputed(outline.getByText('YOUR MARKS', { exact: true }), { color: C[theme].faint, 'font-size': '10px' })
@@ -322,6 +329,12 @@ test.describe('under 880 (B-Mobile)', () => {
     const sheet = (await dock.boundingBox())!
     expect(Math.round(sheet.y + sheet.height)).toBe(PHONE_VIEWPORT.height)
     await expect(dock.getByRole('button', { name: 'Close dock' })).toBeVisible()
+  })
+
+  test('the section counter reads §04 / 04 at the bottom of the page', async ({ page }) => {
+    await openReader(page)
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+    await expect(page.locator('header > :first-child').getByText(/^§\d{2} \/ \d{2}$/)).toHaveText('§04 / 04')
   })
 
   test('sections sit flush on the page, as B-Mobile draws them', async ({ page, theme }) => {
