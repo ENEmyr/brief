@@ -293,4 +293,29 @@ test.describe('under 880 (B-Mobile)', () => {
     await expect.poll(async () => Math.round((await dock.boundingBox())!.y)).toBe(106)
     await expect(dock.getByRole('button', { name: 'Close dock' })).toBeVisible()
   })
+
+  test('sections sit flush on the page, as B-Mobile draws them', async ({ page, theme }) => {
+    await openReader(page)
+    await expectComputed(page.locator('[data-reader-grid]'), {
+      'padding-top': '14px',
+      'padding-left': '12px',
+      'padding-bottom': '97px',
+    })
+    const s1 = page.locator('section#s1')
+    await expectComputed(s1, {
+      'background-color': C[theme].transparent,
+      'border-top-color': C[theme].transparent,
+    })
+    const head = s1.locator(':scope > div').first()
+    await expectBox(head, { x: 13 })
+    await expectComputed(head, {
+      'padding-top': '0px',
+      'padding-left': '0px',
+      'column-gap': '8px',
+      'border-bottom-width': '0px',
+    })
+    await expectComputed(head.locator('span').first(), { color: C[theme].accentText, 'font-size': '12px' })
+    await expectComputed(head.locator('h2'), { 'font-size': '20px', 'line-height': '28px' })
+    await expectComputed(s1.locator(':scope > div').nth(1), { 'row-gap': '12px', 'padding-top': '12px', 'padding-left': '0px' })
+  })
 })

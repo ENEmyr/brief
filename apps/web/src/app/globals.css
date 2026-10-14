@@ -297,15 +297,16 @@ body {
 }
 
 /* Section flash (S8): after a jump the card border goes from lime back to
- * line with a fading 4px glow. Two identical animations so a second jump to
- * the same section restarts it (SectionView flips data-flash). */
+ * its own color (line; transparent under 880, where sections sit flush) with a
+ * fading 4px glow. Two identical animations so a second jump to the same
+ * section restarts it (SectionView flips data-flash). */
 @keyframes section-flash-a {
   0% { border-color: var(--c-accent-line); box-shadow: var(--shadow-accent-glow); }
-  100% { border-color: var(--c-line); box-shadow: 0 0 0 4px transparent; }
+  100% { box-shadow: 0 0 0 4px transparent; }
 }
 @keyframes section-flash-b {
   0% { border-color: var(--c-accent-line); box-shadow: var(--shadow-accent-glow); }
-  100% { border-color: var(--c-line); box-shadow: 0 0 0 4px transparent; }
+  100% { box-shadow: 0 0 0 4px transparent; }
 }
 [data-flash='a'] {
   animation: section-flash-a 1.6s ease-out both;
