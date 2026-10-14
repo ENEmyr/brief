@@ -5,7 +5,7 @@ import { BlockCard, cardHeader, type BlockCardState } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 import { useChartCard } from '../fullScreen'
 import { useTheme } from '@/features/theme'
-import { chartPalette, chartTooltip, useEChart } from '../../services/echarts'
+import { chartPalette, chartTooltip, encodeHTML, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type HeatmapBlockType = Extract<Block, { type: 'heatmap' }>
@@ -80,7 +80,7 @@ export function buildHeatmapOption(block: HeatmapBlockType, palette: Palette): E
       ...chartTooltip(palette),
       formatter: (params: unknown) => {
         const [x, y, value] = (params as { value: [number, number, number] }).value
-        return `${block.yLabels[y] ?? ''} ${block.xLabels[x] ?? ''} / ${value.toLocaleString('en-US')}`
+        return encodeHTML(`${block.yLabels[y] ?? ''} ${block.xLabels[x] ?? ''} / ${value.toLocaleString('en-US')}`)
       },
     },
     grid: { top: 0, bottom: TICKS, left: LABEL_COL + GAP, right: 0 },

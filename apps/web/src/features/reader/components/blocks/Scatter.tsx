@@ -5,7 +5,7 @@ import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 import { useChartCard } from '../fullScreen'
 import { useTheme } from '@/features/theme'
-import { chartPalette, chartTooltip, seriesColors, useEChart } from '../../services/echarts'
+import { chartPalette, chartTooltip, encodeHTML, seriesColors, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type ScatterBlockType = Extract<Block, { type: 'scatter' }>
@@ -46,7 +46,7 @@ export function buildScatterOption(block: ScatterBlockType, palette: Palette): E
       ...chartTooltip(palette),
       formatter: (params: unknown) => {
         const { seriesName, value } = params as { seriesName: string; value: [number, number] }
-        return `${seriesName} / ${value[0].toLocaleString('en-US')}, ${value[1].toLocaleString('en-US')}`
+        return encodeHTML(`${seriesName} / ${value[0].toLocaleString('en-US')}, ${value[1].toLocaleString('en-US')}`)
       },
     },
     grid: { top: 10, bottom: 30, left: 40, right: 10 },

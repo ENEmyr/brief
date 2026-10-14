@@ -102,6 +102,17 @@ export function seriesColors(palette: Palette): string[] {
   return [palette.bad, palette.accentLine, palette.info, palette.warn, palette.dataOrange, palette.dataTeal, palette.good]
 }
 
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+
+/**
+ * echarts writes a tooltip formatter's return value into the page as HTML, so
+ * any payload text a formatter returns goes through this first. Its default
+ * tooltip escapes on its own; axis and end labels draw on the canvas.
+ */
+export function encodeHTML(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c] ?? c)
+}
+
 /**
  * The chart tooltip B-Blocks:186 draws: an inverted chip, text-colored fill
  * with page-colored Geist 12, radius 4, padding 6/8.

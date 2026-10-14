@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { Block } from '@brief/schema'
 import { LIGHT_PALETTE } from './chart-palette'
@@ -443,5 +443,53 @@ describe('chart failures inside the card (B-States:92-98, features.md B6)', () =
     expect(screen.getByRole('alert')).toHaveTextContent(/^Chart could not be drawn\.$/)
     expect(screen.queryByText('loading chart')).not.toBeInTheDocument()
     expect(screen.queryByText('log scale')).not.toBeInTheDocument()
+  })
+})
+
+// echarts writes a tooltip formatter's string into the page as HTML. A label
+// is brief-author text that reaches every reader of a shared link, so each
+// formatter must hand it back as literal text.
+describe('chart tooltips keep payload text literal', () => {
+  const HOSTILE = '<img src=x onerror="window.__xss=1">'
+  type Formatter = (params: unknown) => string
+
+  function asHtml(markup: string) {
+    const host = document.createElement('div')
+    host.innerHTML = markup
+    return host
+  }
+
+  afterEach(() => {
+    delete (window as { __xss?: number }).__xss
+  })
+
+  it('heatmap: a hostile row or column label shows as text, and no element is made', () => {
+    const block: Extract<Block, { type: 'heatmap' }> = { type: 'heatmap', xLabels: [HOSTILE], yLabels: ['&'], values: [[3]] }
+    const tooltip = buildHeatmapOption(block, palette).tooltip as { formatter: Formatter }
+    const host = asHtml(tooltip.formatter({ value: [0, 0, 3] }))
+    expect(host.textContent).toBe(`& ${HOSTILE} / 3`)
+    expect(host.querySelector('img')).toBeNull()
+    expect((window as { __xss?: number }).__xss).toBeUndefined()
+  })
+
+  it('histogram: a hostile bin label shows as text, and no element is made', () => {
+    const block: Extract<Block, { type: 'histogram' }> = { type: 'histogram', bins: [{ label: HOSTILE, count: 1 }] }
+    const tooltip = buildHistogramOption(block, palette).tooltip as { formatter: Formatter }
+    const host = asHtml(tooltip.formatter([{ dataIndex: 0 }]))
+    expect(host.textContent).toBe(`${HOSTILE} / 1 (100.0%)`)
+    expect(host.querySelector('img')).toBeNull()
+  })
+
+  it('scatter: a hostile series label shows as text, and no element is made', () => {
+    const tooltip = buildScatterOption({ type: 'scatter', series: [{ label: HOSTILE, points: [[1, 2]] }] }, palette)
+      .tooltip as { formatter: Formatter }
+    const host = asHtml(tooltip.formatter({ seriesName: HOSTILE, value: [1, 2] }))
+    expect(host.textContent).toBe(`${HOSTILE} / 1, 2`)
+    expect(host.querySelector('img')).toBeNull()
+  })
+
+  it('bigo keeps echarts\' own tooltip, which escapes series names itself', () => {
+    const bigo = buildBigOOption({ type: 'bigo', series: [{ label: HOSTILE, curve: 'n' }] }, 10, palette)
+    expect((bigo.tooltip as { formatter?: unknown }).formatter).toBeUndefined()
   })
 })
