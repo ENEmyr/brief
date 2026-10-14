@@ -31,7 +31,11 @@ export function CommandPalette({
   onClose,
 }: {
   entries: PaletteEntry[]
-  /** Called after the palette has closed itself (onClose first, then onSelect). */
+  /**
+   * Called right after onClose, in the same event. The palette unmounts after
+   * this returns and focus goes back to the trigger, so a handler that moves
+   * focus must defer it, for example with requestAnimationFrame.
+   */
   onSelect: (entry: PaletteEntry) => void
   onClose: () => void
 }): JSX.Element {
