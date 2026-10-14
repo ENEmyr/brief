@@ -23,6 +23,11 @@ const NARROW = 'min-[880px]:hidden'
  * "Open outline" button under 880. Every control is optional, so the status
  * pages render the bar with the logo and theme toggle only.
  */
+/** The theme button's label, also used for its palette action. */
+export function themeToggleLabel(theme: string): string {
+  return theme === 'dark' ? 'Theme: dark. Switch to light' : 'Theme: light. Switch to dark'
+}
+
 export function Topbar({
   sessionId,
   title,
@@ -66,7 +71,7 @@ export function Topbar({
   showProgress?: boolean
 }) {
   const { theme, toggle } = useTheme()
-  const themeLabel = theme === 'dark' ? 'Theme: dark. Switch to light' : 'Theme: light. Switch to dark'
+  const themeLabel = themeToggleLabel(theme)
 
   const moreItems: TopbarMenuItem[] = []
   if (onEditPrompt) moreItems.push({ label: 'Copy edit prompt', run: onEditPrompt })

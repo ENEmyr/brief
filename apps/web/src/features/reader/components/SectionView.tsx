@@ -26,11 +26,13 @@ export function SectionView({
   flash?: number
   only?: ReadonlySet<Block['type']>
 }) {
+  let flashName: 'a' | 'b' | undefined
+  if (flash !== undefined) flashName = flash % 2 === 0 ? 'a' : 'b'
   return (
     <section
       id={section.id}
       data-section={section.id}
-      data-flash={flash === undefined ? undefined : flash % 2 === 0 ? 'a' : 'b'}
+      data-flash={flashName}
       className="scroll-mt-[72px] rounded-[6px] border border-line bg-card max-[880px]:border-transparent max-[880px]:bg-transparent"
     >
       <div className="flex items-center gap-[10px] border-b border-line px-4 py-3 leading-[normal] max-[880px]:gap-2 max-[880px]:border-b-0 max-[880px]:p-0">

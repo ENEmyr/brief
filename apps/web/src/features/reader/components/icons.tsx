@@ -6,7 +6,7 @@ const STROKE = {
   strokeLinejoin: 'round',
 } as const
 
-export function SearchIcon({ size }: { size: 14 | 16 | 18 }) {
+export function SearchIcon({ size }: { size: 14 | 18 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" {...STROKE} strokeWidth={2} aria-hidden="true">
       <circle cx="11" cy="11" r="7" />
@@ -82,11 +82,10 @@ export function MoreIcon() {
   )
 }
 
-export function ChevronIcon({ direction }: { direction: 'left' | 'right' | 'down' }) {
-  const d = { left: 'M15 6l-6 6 6 6', right: 'M9 6l6 6-6 6', down: 'M6 9l6 6 6-6' }[direction]
+export function ChevronDownIcon() {
   return (
-    <svg width={direction === 'down' ? 18 : 14} height={direction === 'down' ? 18 : 14} viewBox="0 0 24 24" {...STROKE} strokeWidth={2} aria-hidden="true">
-      <path d={d} />
+    <svg width="18" height="18" viewBox="0 0 24 24" {...STROKE} strokeWidth={2} aria-hidden="true">
+      <path d="M6 9l6 6 6-6" />
     </svg>
   )
 }

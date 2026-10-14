@@ -5,7 +5,7 @@ import type { Decision } from '@brief/schema'
 import { useDialogFocus } from '@/features/export'
 import { useReaderState } from '@/features/reader-state'
 import { useIsNarrow } from '../hooks/useIsNarrow'
-import { ChevronIcon } from './icons'
+import { ChevronDownIcon } from './icons'
 import { TOUCH_BUTTON } from './topbarChrome'
 
 function isAnswered(decision: Decision, dsel: Record<string, string[]>): boolean {
@@ -124,7 +124,7 @@ export function DockSlot({
                   DECISIONS / {answered}/{total}
                 </span>
                 <button type="button" onClick={close} aria-label="Close dock" className={TOUCH_BUTTON}>
-                  <ChevronIcon direction="down" />
+                  <ChevronDownIcon />
                 </button>
               </div>
             </div>

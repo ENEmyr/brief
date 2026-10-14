@@ -32,7 +32,7 @@ import { RawView } from './RawView'
 import { Skeleton } from './Skeleton'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
-import { Topbar } from './Topbar'
+import { Topbar, themeToggleLabel } from './Topbar'
 
 const TOC_STORAGE_KEY = 'idocs:toc'
 
@@ -152,11 +152,11 @@ function SessionReady({
   const hasDecisions = payload.decisions.length > 0
   const shownSections = useMemo(() => {
     if (view === 'raw') return []
-    if (view === 'diagrams') return sections.filter((s) => s.blocks.some((b) => DIAGRAM_BLOCK_TYPES.has(b.type)))
+    if (view === 'diagrams') return sections.filter(hasDiagrams)
     return sections
   }, [sections, view])
   const activeId = useActiveSection(shownSections.map((s) => s.id))
-  const disabledViews = useMemo(() => (hasDiagrams(sections) ? undefined : NO_DIAGRAMS), [sections])
+  const disabledViews = useMemo(() => (sections.some(hasDiagrams) ? undefined : NO_DIAGRAMS), [sections])
   const rawMarkdown = useMemo(
     () => (view === 'raw' ? payloadToMarkdown(payload, { url: `${window.location.origin}/s/${data.id}` }) : ''),
     [view, payload, data.id],
@@ -187,7 +187,7 @@ function SessionReady({
     setPendingJump(null)
     const el = findSection(pendingJump)
     if (el) flashSection(pendingJump, el)
-  }, [pendingJump, view, flashSection])
+  }, [pendingJump, flashSection])
 
   function jumpToMark(mark: TocMark) {
     const el = [...document.querySelectorAll<HTMLElement>('main mark[data-mark-id]')].find(
@@ -232,8 +232,7 @@ function SessionReady({
     })
   }
 
-  // Stable identities for the modal/popover dismiss handlers passed as props
-  // to SaveModal/NotePopover/AskPopover (review finding).
+  // Stable identities for the overlay dismiss handlers below.
   const closeSaveModal = useCallback(() => setSaveModalOpen(false), [])
   const closeNotePopover = useCallback(() => setNotePopId(null), [])
   const closeAskPopover = useCallback(() => setAskPopId(null), [])
@@ -241,19 +240,19 @@ function SessionReady({
   const closeShortcuts = useCallback(() => setShortcutsOpen(false), [])
   const closeTocDrawer = useCallback(() => setTocDrawerOpen(false), [])
   const openSaveModal = protectedSession ? undefined : () => setSaveModalOpen(true)
-  const themeLabel = theme === 'dark' ? 'Theme: dark. Switch to light' : 'Theme: light. Switch to dark'
+  const openPalette = () => setPaletteOpen(true)
+  const openShortcuts = () => setShortcutsOpen(true)
+
+  function jumpAdjacent(direction: 1 | -1) {
+    const id = adjacentSectionId(direction)
+    if (id) jumpTo(id)
+  }
 
   useShortcuts({
-    palette: () => setPaletteOpen(true),
-    nextSection: () => {
-      const id = adjacentSectionId(1)
-      if (id) jumpTo(id)
-    },
-    prevSection: () => {
-      const id = adjacentSectionId(-1)
-      if (id) jumpTo(id)
-    },
-    help: () => setShortcutsOpen(true),
+    palette: openPalette,
+    nextSection: () => jumpAdjacent(1),
+    prevSection: () => jumpAdjacent(-1),
+    help: openShortcuts,
   })
 
   const documentEntries = useMemo(() => buildDocumentEntries(payload), [payload])
@@ -264,8 +263,8 @@ function SessionReady({
     { kind: 'action', key: 'a:pdf', label: 'Download PDF', run: print },
     ...(openSaveModal ? [{ kind: 'action' as const, key: 'a:archive', label: 'Archive', run: openSaveModal }] : []),
     { kind: 'action', key: 'a:share', label: 'Share', run: share },
-    { kind: 'action', key: 'a:theme', label: themeLabel, run: toggleTheme },
-    { kind: 'action', key: 'a:shortcuts', label: 'Show all shortcuts', run: () => setShortcutsOpen(true) },
+    { kind: 'action', key: 'a:theme', label: themeToggleLabel(theme), run: toggleTheme },
+    { kind: 'action', key: 'a:shortcuts', label: 'Show all shortcuts', run: openShortcuts },
   ]
 
   function selectEntry(entry: PaletteEntry) {
@@ -288,9 +287,9 @@ function SessionReady({
         onViewChange={setView}
         disabledViews={disabledViews}
         paletteHint={mod === '⌘' ? '⌘K' : `${mod} K`}
-        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenPalette={openPalette}
         saveStatus={saveStatus}
-        archived={!protectedSession && archived}
+        archived={archived}
         onOpenOutline={() => setTocDrawerOpen(true)}
         onSave={openSaveModal}
         onEditPrompt={copyEditPrompt}

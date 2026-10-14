@@ -23,6 +23,6 @@ export const DIAGRAM_BLOCK_TYPES: ReadonlySet<Block['type']> = new Set([
   'plot3d',
 ])
 
-export function hasDiagrams(sections: Section[]): boolean {
-  return sections.some((s) => s.blocks.some((b) => DIAGRAM_BLOCK_TYPES.has(b.type)))
+export function hasDiagrams(section: Section): boolean {
+  return section.blocks.some((b) => DIAGRAM_BLOCK_TYPES.has(b.type))
 }
