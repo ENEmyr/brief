@@ -58,11 +58,14 @@ test.describe('the 880 breakpoint', () => {
     const { id } = await createSession()
     await page.setViewportSize({ width: 879, height: 900 })
     await page.goto(`/s/${id}`)
-    const prev = page.getByRole('button', { name: '‹ Prev', exact: true })
-    await expect(prev).toBeVisible()
-    expect((await prev.boundingBox())!.height).toBeGreaterThanOrEqual(TOUCH_TARGET)
+    // Was the seq block's "‹ Prev" row button. Phase 4b moved seq's controls
+    // into its card header, where Prev hides at rest on a wide screen, so the
+    // card's full-screen button, present on both sides of 880, carries the check.
+    const button = page.getByRole('button', { name: 'Open diagram full screen' }).first()
+    await expect(button).toBeVisible()
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(TOUCH_TARGET)
 
     await page.setViewportSize({ width: 880, height: 900 })
-    await expect.poll(async () => (await prev.boundingBox())!.height).toBeLessThan(TOUCH_TARGET)
+    await expect.poll(async () => (await button.boundingBox())!.height).toBeLessThan(TOUCH_TARGET)
   })
 })
