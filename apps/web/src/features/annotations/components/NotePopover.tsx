@@ -42,14 +42,14 @@ export function NotePopover({ id, onClose }: { id: string; onClose: () => void }
         <button
           type="button"
           onClick={handleRemove}
-          className="max-[879px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-bad"
+          className="max-[880px]:min-h-11 cursor-pointer rounded-md border-0 bg-transparent px-2 py-1 font-[inherit] text-[12.5px] text-bad"
         >
           Remove highlight
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="max-[879px]:min-h-11 cursor-pointer rounded-[7px] border-0 bg-accent px-3.5 py-1.5 font-[inherit] text-[12.5px] font-semibold text-on-accent"
+          className="max-[880px]:min-h-11 cursor-pointer rounded-[7px] border-0 bg-accent px-3.5 py-1.5 font-[inherit] text-[12.5px] font-semibold text-on-accent"
         >
           Done
         </button>
