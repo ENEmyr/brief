@@ -14,7 +14,42 @@ import type { Highlight } from '@/features/reader-state'
 export function extractLineNodes(root: Root): Element[] {
   const pre = root.children.find(isElementWithTag('pre'))
   const code = pre?.children.find(isElementWithTag('code'))
-  return code?.children.filter(isLineSpan) ?? []
+  return (code?.children.filter(isLineSpan) ?? []).map(numbersOnly)
+}
+
+const CONSTANT_COLOR = 'var(--shiki-token-constant)'
+const NUMBER = /^\s*[-+]?\.?\d/
+
+/**
+ * Shiki's css-variables theme gives one variable to numbers and to object,
+ * constant and property names alike. The boards color only numbers that way
+ * (B-Reader:158 `30`); `key`, `req` and `env.LIMITER` stay in the text color
+ * (B-Reader:155-158, B-NewBlocks:126-130). So a constant-colored token that is
+ * not a number goes back to the foreground. Shiki merges a leading space into
+ * the token after it, so a number may start with whitespace.
+ */
+function numbersOnly(node: Element): Element {
+  return {
+    ...node,
+    children: node.children.map((child) => {
+      if (child.type !== 'element') return child
+      const style = child.properties?.style
+      if (
+        typeof style === 'string' &&
+        style.includes(CONSTANT_COLOR) &&
+        !NUMBER.test(lineText(child))
+      ) {
+        return {
+          ...child,
+          properties: {
+            ...child.properties,
+            style: style.replace(CONSTANT_COLOR, 'var(--shiki-foreground)'),
+          },
+        }
+      }
+      return numbersOnly(child)
+    }),
+  }
 }
 
 function isElementWithTag(tagName: string) {

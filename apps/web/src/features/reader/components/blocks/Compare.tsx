@@ -3,14 +3,11 @@ import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
 import { BlockCard, cardHeader } from '../BlockCard'
 
-const paneBorderTop = {
-  good: 'border-t-good',
-  bad: 'border-t-bad',
-} as const
-
-const tagPillTone = {
-  good: 'text-good border-good bg-good-soft',
-  bad: 'text-bad border-bad bg-bad-soft',
+// B-Blocks:54, :58: the tone lives in the tag. An untoned tag takes the
+// neutral chip, which no board draws.
+const tagTone = {
+  good: 'bg-good-soft text-good',
+  bad: 'bg-bad-soft text-bad',
 } as const
 
 export function Compare({
@@ -37,39 +34,40 @@ export function Compare({
 
   return (
     <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
-      <div className="flex gap-3.5 items-stretch p-3 max-[880px]:flex-col">
+      <div className="grid grid-cols-2 max-[880px]:grid-cols-1">
         {[
           { side: 'left', data: block.left },
           { side: 'right', data: block.right },
         ].map(({ side, data }) => (
           <div
             key={side}
-            className={`flex-1 min-w-0 border border-line border-t-[3px] ${data.tone ? paneBorderTop[data.tone] : 'border-t-accent-line'} rounded-xl bg-card px-[17px] py-[15px]`}
+            className={`flex min-w-0 flex-col ${side === 'left' ? 'border-r border-line max-[880px]:border-r-0 max-[880px]:border-b' : ''}`}
           >
-            <div className="flex items-center gap-2 mb-[11px]">
+            <div className="flex items-center justify-between gap-2 border-b border-line px-3.5 py-2.5">
               <Annotatable
                 {...anchor}
                 as="div"
-                className="text-[14.5px] font-bold text-text"
+                className="min-w-0 break-words text-[14px] font-semibold leading-[normal] text-text"
                 text={data.title}
                 path={`${pathPrefix}${side}.title`}
               />
               {data.tag && (
                 <span
-                  className={`font-mono text-[10.5px] font-semibold rounded-full px-2.5 py-0.5 border ${data.tone ? tagPillTone[data.tone] : 'text-accent-text border-accent-line bg-accent-soft'}`}
+                  className={`shrink-0 rounded-[3px] px-1.5 py-px text-[11px] leading-[normal] ${data.tone ? tagTone[data.tone] : 'bg-chip text-sub'}`}
                 >
                   {data.tag}
                 </span>
               )}
             </div>
-            <ul className="flex flex-col gap-2">
+            <ul className="m-0 flex list-none flex-col gap-1.5 px-3.5 py-2 text-[14px] leading-[22px] text-text">
               {data.items.map((item, i) => (
-                <li key={i} className="flex gap-2 text-[13px] leading-[1.55] text-text">
-                  <span className={`flex-none font-bold ${item.ok ? 'text-good' : 'text-bad'}`}>
-                    {item.ok ? '✓' : '✕'}
+                <li key={i} className="flex gap-2">
+                  <span className={`shrink-0 font-mono ${item.ok ? 'text-good' : 'text-bad'}`}>
+                    {item.ok ? '✓' : '✗'}
                   </span>
                   <Annotatable
                     {...anchor}
+                    className="min-w-0 break-words"
                     text={item.text}
                     path={`${pathPrefix}${side}.items.${i}.text`}
                   />
