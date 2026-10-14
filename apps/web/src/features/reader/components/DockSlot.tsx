@@ -41,6 +41,8 @@ export function DockSlot({
   const narrow = useIsNarrow()
   const state = useReaderState()
   const asideRef = useRef<HTMLElement>(null)
+  const openRef = useRef<HTMLButtonElement>(null)
+  const sheetWasOpen = useRef(false)
   const sheet = narrow && open
 
   // The sheet only exists under 880; widening the window closes it.
@@ -53,6 +55,13 @@ export function DockSlot({
   const next = decisions.find((d) => !isAnswered(d, state))
   // Stable, so the sheet's focus effect does not re-run (and grab focus) on every answer.
   const close = useCallback(() => onOpenChange(false), [onOpenChange])
+
+  useEffect(() => {
+    const at = document.activeElement
+    const lost = !at || at === document.body || !!asideRef.current?.contains(at)
+    if (sheetWasOpen.current && !sheet && lost) openRef.current?.focus()
+    sheetWasOpen.current = sheet
+  }, [sheet])
 
   return (
     <>
@@ -81,10 +90,10 @@ export function DockSlot({
             : 'max-[880px]:z-40 max-[880px]:rounded-t-[14px]'
         }`}
       >
-        {narrow && (
+        {narrow && !sheet && (
           <div
             data-dock-chrome=""
-            className={`flex flex-col gap-[10px] px-3 pb-[30px] pt-2 leading-[normal] min-[880px]:hidden ${sheet ? 'hidden' : ''}`}
+            className="flex flex-col gap-[10px] px-3 pb-[30px] pt-2 leading-[normal] min-[880px]:hidden"
           >
             <span aria-hidden="true" className={HANDLE} />
             <div className="flex items-center gap-[10px]">
@@ -96,6 +105,7 @@ export function DockSlot({
                 <DecisionSegments decisions={decisions} state={state} />
               </div>
               <button
+                ref={openRef}
                 type="button"
                 onClick={() => onOpenChange(true)}
                 className="min-h-11 shrink-0 rounded-[4px] border-0 bg-accent px-[14px] text-[14px] font-semibold text-on-accent transition-transform duration-[var(--dur-fast)] active:scale-[.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line motion-reduce:transition-none"
