@@ -1,9 +1,5 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="10" fill="url(#brief-gradient)" />
-  <defs>
-    <linearGradient id="brief-gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#8839ef" />
-      <stop offset="1" stop-color="#1e66f5" />
-    </linearGradient>
-  </defs>
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- The B-Reader logo tile in the dark tokens (accent, on-accent). A favicon cannot load web fonts, so the "b" is Geist Mono 600 as an outline. -->
+  <rect width="22" height="22" rx="4" fill="#C5F05A" />
+  <path fill="#0B0D0F" d="M11.65 16.156Q11.065 16.156 10.616 15.941Q10.168 15.727 9.862 15.357Q9.557 14.986 9.401 14.505L9.596 14.245L9.518 16H8.062V6.77H9.596V10.709L9.453 10.423Q9.57 10.007 9.869 9.663Q10.168 9.318 10.63 9.11Q11.091 8.902 11.65 8.902Q12.521 8.902 13.158 9.338Q13.795 9.773 14.139 10.585Q14.484 11.398 14.484 12.529Q14.484 13.66 14.139 14.473Q13.795 15.285 13.158 15.72Q12.521 16.156 11.65 16.156ZM11.286 14.778Q12.053 14.778 12.469 14.187Q12.885 13.595 12.885 12.529Q12.885 11.463 12.469 10.872Q12.053 10.28 11.312 10.28Q10.779 10.28 10.396 10.547Q10.012 10.813 9.804 11.314Q9.596 11.814 9.596 12.529Q9.596 13.231 9.81 13.732Q10.025 14.232 10.402 14.505Q10.779 14.778 11.286 14.778Z" />
 </svg>

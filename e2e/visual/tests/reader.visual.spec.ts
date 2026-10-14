@@ -21,7 +21,9 @@ test.describe('regions at 1440', () => {
     test(`region ${region}`, async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 })
       await openReader(page)
-      const clip = await clipOf(page.locator(selector).first())
+      const landmark = page.locator(selector).first()
+      await expect(landmark, `landmark not found: ${selector}`).toBeVisible()
+      const clip = await clipOf(landmark)
       await expect(page).toHaveScreenshot(`region-dark-${region}.png`, { fullPage: true, clip })
     })
   }
