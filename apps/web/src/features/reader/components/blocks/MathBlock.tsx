@@ -2,8 +2,7 @@
 import { useEffect, useState } from 'react'
 import DOMPurify from 'dompurify'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 // Static import at module scope is safe here only because MathBlock itself
 // is loaded via next/dynamic({ ssr: false }) in BlockRenderer — the CSS
@@ -49,11 +48,10 @@ export function MathBlock({ block, ...anchor }: { block: MathBlockType } & Block
   const safeHtml = html === null ? null : DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
 
   return (
-    <DiagramCard {...titleCaption(anchor, block.title, 'Equation')} expandable={html !== null}>
+    <BlockCard {...cardHeader(block, anchor)}>
       {safeHtml ? (
         <div
-          data-expand-root
-          className="flex justify-center overflow-x-auto py-1 text-text"
+          className="flex justify-center overflow-x-auto p-3 text-text"
           // safeHtml is KaTeX-generated markup from this block's own latex
           // source (never remote/user HTML), sanitized above as defense in
           // depth — same posture as CodePre's shiki sink (verified
@@ -67,6 +65,6 @@ export function MathBlock({ block, ...anchor }: { block: MathBlockType } & Block
           <code>{block.latex}</code>
         </pre>
       )}
-    </DiagramCard>
+    </BlockCard>
   )
 }

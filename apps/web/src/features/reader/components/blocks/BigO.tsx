@@ -2,10 +2,9 @@
 import { useState } from 'react'
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
-import { ChartExpandButton } from './ChartExpandButton'
+import { useChartCard } from '../fullScreen'
 import { useTheme } from '@/features/theme'
 import { chartPalette, seriesColors, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
@@ -140,22 +139,20 @@ export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAncho
   const [v, setV] = useState(100)
   const n = sliderToN(v, maxN)
 
-  const { containerRef, chartRef } = useEChart(() => buildBigOOption(block, n, chartPalette(theme)), [block, n, theme])
+  const { containerRef, chartRef, ready } = useEChart(() => buildBigOOption(block, n, chartPalette(theme)), [block, n, theme])
+  const chartCard = useChartCard(chartRef, ready, theme)
 
   const controls = (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <input
-          type="range"
-          min={1}
-          max={100}
-          value={v}
-          onChange={(event) => setV(Number(event.target.value))}
-          aria-label="n (log scale)"
-          className="w-full accent-accent"
-        />
-        <ChartExpandButton chartRef={chartRef} theme={theme} />
-      </div>
+      <input
+        type="range"
+        min={1}
+        max={100}
+        value={v}
+        onChange={(event) => setV(Number(event.target.value))}
+        aria-label="n (log scale)"
+        className="w-full accent-accent"
+      />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px] text-sub">
         <span>
           n = <b className="text-text">{n.toLocaleString()}</b>
@@ -178,12 +175,15 @@ export function BigO({ block, ...anchor }: { block: BigOBlockType } & BlockAncho
   )
 
   return (
-    <DiagramCard
-      {...titleCaption(anchor, block.title, 'Big-O comparison')}
-      expandable={false}
-      controls={controls}
-    >
-      <div ref={containerRef} className="h-[260px] w-full" />
-    </DiagramCard>
+    <BlockCard {...cardHeader(block, anchor)} {...chartCard}>
+      <div className="flex flex-col gap-1.5 p-3">
+        <div
+          ref={containerRef}
+          className={`h-[260px] w-full ${ready ? '' : 'sk'}`}
+          style={{ borderRadius: 4 }}
+        />
+        {controls}
+      </div>
+    </BlockCard>
   )
 }

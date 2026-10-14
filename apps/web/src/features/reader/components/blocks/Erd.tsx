@@ -3,9 +3,9 @@ import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import type { Block } from '@brief/schema'
 import { useBlockLayout } from '@/features/diagram-layout'
 import type { NodeOffset } from '@/features/diagram-layout'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
+import { useDiagramFullScreen } from '../fullScreen'
 import { svgTextStyle } from '../../lib/svgText'
 
 type ErdBlock = Extract<Block, { type: 'erd' }>
@@ -226,105 +226,102 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
     setDrag(null)
   }
 
-  return (
-    <DiagramCard
-      {...titleCaption(anchor, block.title, 'Entity relationship')}
-      controls={
-        moved ? (
-          <button
-            type="button"
-            onClick={reset}
-            className="rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-accent-text transition-colors hover:border-accent-line hover:bg-accent-soft"
-          >
-            Reset layout
-          </button>
-        ) : undefined
-      }
+  const controls = moved ? (
+    <button
+      type="button"
+      onClick={reset}
+      className="rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-accent-text transition-colors hover:border-accent-line hover:bg-accent-soft"
     >
-      <svg
-        ref={svgRef}
-        width={viewBox.width}
-        height={viewBox.height}
-        viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.width} ${viewBox.height}`}
-        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-      >
-        {edges.map((d, i) => (
-          <path
-            key={i}
-            d={d}
-            fill="none"
-            strokeWidth={1.3}
-            strokeDasharray="4 3"
-            style={{ stroke: 'var(--c-sub)' }}
-            markerEnd={`url(#${markerId})`}
+      Reset layout
+    </button>
+  ) : undefined
+  const diagram = (
+    <svg
+      ref={svgRef}
+      width={viewBox.width}
+      height={viewBox.height}
+      viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.width} ${viewBox.height}`}
+      style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      {edges.map((d, i) => (
+        <path
+          key={i}
+          d={d}
+          fill="none"
+          strokeWidth={1.3}
+          strokeDasharray="4 3"
+          style={{ stroke: 'var(--c-sub)' }}
+          markerEnd={`url(#${markerId})`}
+        />
+      ))}
+      {boxes.map((box) => (
+        <g
+          key={box.table.name}
+          data-table={box.table.name}
+          onPointerDown={(event) => handlePointerDown(event, box.table.name)}
+          style={{ cursor: drag?.name === box.table.name ? 'grabbing' : 'grab' }}
+        >
+          <rect
+            x={box.x}
+            y={box.y}
+            width={box.w}
+            height={HEADER_H}
+            style={{ fill: 'var(--c-chip)', stroke: 'var(--c-line2)' }}
           />
-        ))}
-        {boxes.map((box) => (
-          <g
-            key={box.table.name}
-            data-table={box.table.name}
-            onPointerDown={(event) => handlePointerDown(event, box.table.name)}
-            style={{ cursor: drag?.name === box.table.name ? 'grabbing' : 'grab' }}
+          <text
+            x={box.x + 8}
+            y={box.y + 15}
+            fontSize={11.5}
+            fontWeight={700}
+            style={svgTextStyle({ fill: 'var(--c-text)' })}
           >
-            <rect
-              x={box.x}
-              y={box.y}
-              width={box.w}
-              height={HEADER_H}
-              style={{ fill: 'var(--c-chip)', stroke: 'var(--c-line2)' }}
-            />
-            <text
-              x={box.x + 8}
-              y={box.y + 15}
-              fontSize={11.5}
-              fontWeight={700}
-              style={svgTextStyle({ fill: 'var(--c-text)' })}
-            >
-              {box.table.name}
-            </text>
-            {box.table.columns.map((col, i) => {
-              const rowY = box.y + HEADER_H + i * ROW_H
-              return (
-                <g key={col.name}>
-                  <rect
-                    x={box.x}
-                    y={rowY}
-                    width={box.w}
-                    height={ROW_H}
-                    style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
-                  />
-                  <text
-                    x={box.x + 8}
-                    y={rowY + ROW_H / 2 + 3.5}
-                    fontSize={10}
-                    style={svgTextStyle()}
-                  >
-                    {col.pk ? (
-                      <tspan
-                        fontWeight={700}
-                        textDecoration="underline"
-                        style={{ fill: 'var(--c-accent-text)' }}
-                      >
-                        {'PK '}
-                      </tspan>
-                    ) : null}
-                    <tspan style={{ fill: 'var(--c-sub)' }}>{`${col.name} ${col.type}`}</tspan>
-                    {col.fk ? <tspan style={{ fill: 'var(--c-info)' }}>{' FK'}</tspan> : null}
-                  </text>
-                </g>
-              )
-            })}
-          </g>
-        ))}
-        <defs>
-          <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
-          </marker>
-        </defs>
-      </svg>
-    </DiagramCard>
+            {box.table.name}
+          </text>
+          {box.table.columns.map((col, i) => {
+            const rowY = box.y + HEADER_H + i * ROW_H
+            return (
+              <g key={col.name}>
+                <rect
+                  x={box.x}
+                  y={rowY}
+                  width={box.w}
+                  height={ROW_H}
+                  style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
+                />
+                <text x={box.x + 8} y={rowY + ROW_H / 2 + 3.5} fontSize={10} style={svgTextStyle()}>
+                  {col.pk ? (
+                    <tspan
+                      fontWeight={700}
+                      textDecoration="underline"
+                      style={{ fill: 'var(--c-accent-text)' }}
+                    >
+                      {'PK '}
+                    </tspan>
+                  ) : null}
+                  <tspan style={{ fill: 'var(--c-sub)' }}>{`${col.name} ${col.type}`}</tspan>
+                  {col.fk ? <tspan style={{ fill: 'var(--c-info)' }}>{' FK'}</tspan> : null}
+                </text>
+              </g>
+            )
+          })}
+        </g>
+      ))}
+      <defs>
+        <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+  const onFullScreen = useDiagramFullScreen(diagram)
+
+  return (
+    <BlockCard {...cardHeader(block, anchor)} fullScreen={onFullScreen}>
+      <div className="overflow-x-auto py-3">{diagram}</div>
+      {controls ? <div className="px-3.5 pb-3.5 pt-1.5">{controls}</div> : null}
+    </BlockCard>
   )
 }

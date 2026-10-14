@@ -1,6 +1,7 @@
 import type { Block } from '@brief/schema'
 import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
+import { BlockCard, cardHeader } from '../BlockCard'
 
 /**
  * Every cell is its own annotatable leaf (`head.2`, `rows.1.0`), which is the
@@ -30,15 +31,8 @@ export function DataTable({
   }
 
   return (
-    <figure className="my-4 border border-line rounded-xl bg-card overflow-hidden">
-      <figcaption className="px-3.5 py-[9px] border-b border-line2 bg-elev font-mono text-[10.5px] tracking-[.04em] text-faint">
-        {block.caption ? (
-          <Annotatable {...anchor} text={block.caption} path={`${pathPrefix}caption`} />
-        ) : (
-          'Table'
-        )}
-      </figcaption>
-      <div className="overflow-x-auto">
+    <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
+      <div className="overflow-x-auto rounded-b-[6px]">
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr>
@@ -80,6 +74,6 @@ export function DataTable({
           </tbody>
         </table>
       </div>
-    </figure>
+    </BlockCard>
   )
 }

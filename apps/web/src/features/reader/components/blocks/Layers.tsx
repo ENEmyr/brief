@@ -1,9 +1,9 @@
 'use client'
 import { useId, useMemo, useState } from 'react'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
+import { useDiagramFullScreen } from '../fullScreen'
 import { svgTextStyle } from '../../lib/svgText'
 
 type LayersBlock = Extract<Block, { type: 'layers' }>
@@ -193,80 +193,84 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
 
   const height = layout.maxY - layout.minY
 
-  return (
-    <DiagramCard
-      {...titleCaption(anchor, block.title, 'Layers')}
-      controls={<LayerControls layers={block.layers} visible={isVisible} onToggle={toggle} />}
+  const controls = <LayerControls layers={block.layers} visible={isVisible} onToggle={toggle} />
+  const diagram = (
+    <svg
+      width={layout.width}
+      height={height}
+      viewBox={`0 ${layout.minY} ${layout.width} ${height}`}
+      style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
     >
-      <svg
-        width={layout.width}
-        height={height}
-        viewBox={`0 ${layout.minY} ${layout.width} ${height}`}
-        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
-      >
-        {layout.edges.map((edge, i) => {
-          const a = layout.nodes.get(edge.from)
-          const b = layout.nodes.get(edge.to)
-          if (!a || !b) return null
-          const on = isVisible(edge.layerIndex)
-          const { x1, y1, x2, y2 } = edgeLine(a, b)
-          return (
-            <g key={i} style={{ opacity: on ? 0.8 : 0.12, transition: 'opacity .3s' }}>
-              <line
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                strokeWidth={1.5}
-                style={{ stroke: 'var(--c-sub)' }}
-                markerEnd={`url(#${markerId})`}
-              />
-              {edge.label ? (
-                <text
-                  x={(x1 + x2) / 2}
-                  y={(y1 + y2) / 2 - 4}
-                  textAnchor="middle"
-                  fontSize={9}
-                  style={svgTextStyle({ fill: 'var(--c-sub)' })}
-                >
-                  {edge.label}
-                </text>
-              ) : null}
-            </g>
-          )
-        })}
-        {Array.from(layout.nodes.entries()).map(([id, n]) => {
-          const on = isVisible(n.layerIndex)
-          return (
-            <g key={id} style={{ opacity: on ? 1 : 0.14, transition: 'opacity .3s' }}>
-              <rect
-                x={n.x}
-                y={n.y}
-                width={n.w}
-                height={n.h}
-                rx={7}
-                strokeWidth={1.6}
-                style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
-              />
+      {layout.edges.map((edge, i) => {
+        const a = layout.nodes.get(edge.from)
+        const b = layout.nodes.get(edge.to)
+        if (!a || !b) return null
+        const on = isVisible(edge.layerIndex)
+        const { x1, y1, x2, y2 } = edgeLine(a, b)
+        return (
+          <g key={i} style={{ opacity: on ? 0.8 : 0.12, transition: 'opacity .3s' }}>
+            <line
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              strokeWidth={1.5}
+              style={{ stroke: 'var(--c-sub)' }}
+              markerEnd={`url(#${markerId})`}
+            />
+            {edge.label ? (
               <text
-                x={n.x + n.w / 2}
-                y={n.y + 21}
+                x={(x1 + x2) / 2}
+                y={(y1 + y2) / 2 - 4}
                 textAnchor="middle"
-                fontSize={11}
-                fontWeight={600}
-                style={svgTextStyle({ fill: 'var(--c-text)' })}
+                fontSize={9}
+                style={svgTextStyle({ fill: 'var(--c-sub)' })}
               >
-                {n.label}
+                {edge.label}
               </text>
-            </g>
-          )
-        })}
-        <defs>
-          <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
-          </marker>
-        </defs>
-      </svg>
-    </DiagramCard>
+            ) : null}
+          </g>
+        )
+      })}
+      {Array.from(layout.nodes.entries()).map(([id, n]) => {
+        const on = isVisible(n.layerIndex)
+        return (
+          <g key={id} style={{ opacity: on ? 1 : 0.14, transition: 'opacity .3s' }}>
+            <rect
+              x={n.x}
+              y={n.y}
+              width={n.w}
+              height={n.h}
+              rx={7}
+              strokeWidth={1.6}
+              style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
+            />
+            <text
+              x={n.x + n.w / 2}
+              y={n.y + 21}
+              textAnchor="middle"
+              fontSize={11}
+              fontWeight={600}
+              style={svgTextStyle({ fill: 'var(--c-text)' })}
+            >
+              {n.label}
+            </text>
+          </g>
+        )
+      })}
+      <defs>
+        <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+  const onFullScreen = useDiagramFullScreen(diagram)
+
+  return (
+    <BlockCard {...cardHeader(block, anchor)} fullScreen={onFullScreen}>
+      <div className="overflow-x-auto py-3">{diagram}</div>
+      <div className="px-3.5 pb-3.5 pt-1.5">{controls}</div>
+    </BlockCard>
   )
 }

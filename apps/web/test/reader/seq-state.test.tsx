@@ -3,6 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { BlockRenderer } from '@/features/reader'
 import type { Block } from '@brief/schema'
 
+// The card header now draws the full-screen icon, a decorative aria-hidden svg,
+// ahead of the diagram, so "the first svg" is no longer the diagram.
+const DIAGRAM_SVG = 'svg:not([aria-hidden="true"])'
+
 const seqBlock: Extract<Block, { type: 'seq' }> = {
   type: 'seq',
   title: 'Rate limit flow',
@@ -38,7 +42,7 @@ const r = (block: Block) => render(<BlockRenderer block={block} />)
 describe('Seq block', () => {
   it('renders an actor box and lifeline per actor, evenly spaced across a content-sized viewBox', () => {
     const { container } = r(seqBlock)
-    const svg = container.querySelector('svg')
+    const svg = container.querySelector(DIAGRAM_SVG)
     expect(svg).toBeInTheDocument()
     expect(svg?.querySelectorAll('rect').length).toBeGreaterThanOrEqual(seqBlock.actors.length)
     const lifelines = Array.from(svg?.querySelectorAll('line[stroke-dasharray="3 3"]') ?? [])
@@ -90,7 +94,7 @@ describe('Seq block', () => {
     fireEvent.click(prev)
     fireEvent.click(prev)
     // step is now 2: steps[0] and steps[1] visible, steps[2..] faded
-    const groups = container.querySelectorAll('svg > g')
+    const groups = container.querySelectorAll(`${DIAGRAM_SVG} > g`)
     const stepGroups = Array.from(groups).slice(seqBlock.actors.length)
     expect(stepGroups[0]?.getAttribute('style')).not.toContain('opacity: 0.2')
     expect(stepGroups[2]?.getAttribute('style')).toContain('opacity: 0.2')
@@ -98,7 +102,7 @@ describe('Seq block', () => {
 
   it('renders a self-message loop distinctly for from === to steps', () => {
     const { container } = r(seqBlock)
-    const svg = container.querySelector('svg')
+    const svg = container.querySelector(DIAGRAM_SVG)
     const loopPath = Array.from(svg?.querySelectorAll('path') ?? []).find((p) =>
       p.getAttribute('d')?.includes('h26 v16 h-26'),
     )
@@ -118,11 +122,14 @@ describe('Seq block', () => {
     expect(screen.getByText('step 1/1')).toBeInTheDocument()
   })
 
-  it('falls back to the "Sequence" caption when no title is given', () => {
+  it('shows only the seq kind tag when no title is given', () => {
+    // The fallback caption 'Sequence' is gone: the kind tag names the block
+    // (B-Blocks:75, B-Reader:126), and an untitled block shows no invented caption.
     const untitled: Extract<Block, { type: 'seq' }> = { ...seqBlock }
     delete untitled.title
     r(untitled)
-    expect(screen.getByText('Sequence')).toBeInTheDocument()
+    expect(screen.getByText('seq')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Sequence')).not.toBeInTheDocument()
   })
 })
 
@@ -188,10 +195,13 @@ describe('StateMachine block', () => {
     expect(screen.queryByRole('button', { name: 'bad' })).not.toBeInTheDocument()
   })
 
-  it('falls back to the "State machine" caption when no title is given', () => {
+  it('shows only the state kind tag when no title is given', () => {
+    // The fallback caption 'State machine' is gone: the kind tag names the
+    // block (B-Blocks2:28), and an untitled block shows no invented caption.
     const untitled: Extract<Block, { type: 'state' }> = { ...stateBlock }
     delete untitled.title
     r(untitled)
-    expect(screen.getByText('State machine')).toBeInTheDocument()
+    expect(screen.getByText('state')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('State machine')).not.toBeInTheDocument()
   })
 })

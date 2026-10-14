@@ -5,6 +5,10 @@ import { resolve } from 'node:path'
 import { BlockRenderer } from '@/features/reader'
 import type { Block } from '@brief/schema'
 
+// The card header now draws the full-screen icon, a decorative aria-hidden svg,
+// ahead of the diagram, so "the first svg" is no longer the diagram.
+const DIAGRAM_SVG = 'svg:not([aria-hidden="true"])'
+
 const GLOBALS_CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
 const LAYOUT_TSX = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8')
 
@@ -77,13 +81,16 @@ function findAncestorWithText(container: HTMLElement, text: string): Element | n
 }
 
 describe('Layers block', () => {
-  it('renders the diagram caption from block.title, falling back to "Layers"', () => {
+  it('renders the diagram caption from block.title, and only the kind tag without one', () => {
+    // The fallback caption 'Layers' is gone: the kind tag names the block
+    // (B-Blocks2:52), and an untitled block shows no invented caption.
     r(layersBlock)
     expect(screen.getByText('Request path')).toBeInTheDocument()
     const untitled = { ...layersBlock }
     delete untitled.title
     r(untitled)
-    expect(screen.getByText('Layers')).toBeInTheDocument()
+    expect(screen.getAllByText('layers')).toHaveLength(2)
+    expect(screen.queryByText('Layers')).not.toBeInTheDocument()
   })
 
   it('renders the base layer chip as always-on and non-clickable', () => {
@@ -117,13 +124,13 @@ describe('Layers block', () => {
     const cacheChip = screen.getByRole('button', { name: '[ ] Redis cache' })
     // Edge order follows layer order: [0]=client->limiter, [1]=limiter->api
     // (both base, always on), [2]=redis->limiter (owned by the cache layer).
-    const edgeGroupsBefore = container.querySelectorAll('svg > g')
+    const edgeGroupsBefore = container.querySelectorAll(`${DIAGRAM_SVG} > g`)
     expect(edgeGroupsBefore[2]?.getAttribute('style')).toContain('opacity: 0.12')
     fireEvent.click(cacheChip)
     expect(screen.getByRole('button', { name: '[x] Redis cache' })).toBeInTheDocument()
     const redisGroup = findAncestorWithText(container, 'Redis')
     expect(redisGroup?.getAttribute('style')).toContain('opacity: 1')
-    const edgeGroupsAfter = container.querySelectorAll('svg > g')
+    const edgeGroupsAfter = container.querySelectorAll(`${DIAGRAM_SVG} > g`)
     expect(edgeGroupsAfter[2]?.getAttribute('style')).toContain('opacity: 0.8')
   })
 
@@ -136,7 +143,7 @@ describe('Layers block', () => {
 
   it('strokes edge lines, edge labels, and the arrow marker with the sub token, and reads no undeclared var', () => {
     const { container } = r(layersBlock)
-    const svg = container.querySelector('svg')
+    const svg = container.querySelector(DIAGRAM_SVG)
     // Regression for the invisible-edges bug: an unresolved CSS var (it was
     // a nonexistent --ctp-sub) collapses SVG stroke to none in a browser,
     // while jsdom renders the raw string either way. So every var() the
@@ -216,13 +223,16 @@ describe('Layers block', () => {
 })
 
 describe('Erd block', () => {
-  it('renders the diagram caption from block.title, falling back to "Entity relationship"', () => {
+  it('renders the diagram caption from block.title, and only the kind tag without one', () => {
+    // The fallback caption 'Entity relationship' is gone: the kind tag names
+    // the block (B-Blocks2:81), and an untitled block shows no invented caption.
     r(erdBlock)
     expect(screen.getByText('Schema')).toBeInTheDocument()
     const untitled = { ...erdBlock }
     delete untitled.title
     r(untitled)
-    expect(screen.getByText('Entity relationship')).toBeInTheDocument()
+    expect(screen.getAllByText('erd')).toHaveLength(2)
+    expect(screen.queryByText('Entity relationship')).not.toBeInTheDocument()
   })
 
   it('renders a table header per table', () => {
@@ -251,7 +261,7 @@ describe('Erd block', () => {
 
   it('renders exactly one fk edge per valid fk reference, skipping unknown table refs', () => {
     const { container } = r(erdBlock)
-    const svg = container.querySelector('svg')
+    const svg = container.querySelector(DIAGRAM_SVG)
     // Edges are orthogonal paths, not straight lines: an edge now picks which
     // side of each box to leave from and arrive at, so it needs elbows.
     const dashedTealEdges = Array.from(svg?.querySelectorAll('path') ?? []).filter(

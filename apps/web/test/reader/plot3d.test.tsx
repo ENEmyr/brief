@@ -32,6 +32,8 @@ beforeEach(() => {
   useEChartMock.mockReturnValue({
     containerRef: { current: null },
     chartRef: { current: null },
+    // useEChart reports when the chart has drawn; these tests run against a drawn chart.
+    ready: true,
   })
   // hasWebGL() caches its probe at module scope (Plot3d.tsx) so different
   // tests here can mock HTMLCanvasElement.prototype.getContext differently
@@ -153,7 +155,9 @@ describe('Plot3d component', () => {
   it('renders a WebGL-unavailable note when the canvas has no webgl context (jsdom default)', () => {
     render(<Plot3d block={scatterBlock} />)
     expect(screen.getByText('WebGL unavailable - 3D plot cannot render')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Expand chart')).not.toBeInTheDocument()
+    // The full-screen button (B-Blocks2:166) replaced the 'Expand chart' pill; there
+    // is still nothing to open when the chart cannot render.
+    expect(screen.queryByRole('button', { name: 'Open diagram full screen' })).not.toBeInTheDocument()
   })
 
   it('renders a no-data note for scatter3d with no points, even when webgl is available', () => {
@@ -178,14 +182,15 @@ describe('Plot3d component', () => {
     getContextSpy.mockRestore()
   })
 
-  it('renders the chart container and Expand control when webgl + data are both available', () => {
+  it('renders the chart container and the full-screen button when webgl + data are both available', () => {
     const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext') as unknown as ReturnType<
       typeof vi.fn
     >
     getContextSpy.mockReturnValue({})
     render(<Plot3d block={scatterBlock} />)
     expect(useEChartMock).toHaveBeenCalled()
-    expect(screen.getByLabelText('Expand chart')).toBeInTheDocument()
+    // B-Blocks2:166 header button, which replaced the 'Expand chart' pill.
+    expect(screen.getByRole('button', { name: 'Open diagram full screen' })).toBeInTheDocument()
     getContextSpy.mockRestore()
   })
 
@@ -198,16 +203,20 @@ describe('Plot3d component', () => {
     useEChartMock.mockReturnValue({
       containerRef: { current: null },
       chartRef: { current: { getDataURL } },
+      ready: true,
     })
     render(<Plot3d block={scatterBlock} />)
-    fireEvent.click(screen.getByLabelText('Expand chart'))
+    fireEvent.click(screen.getByRole('button', { name: 'Open diagram full screen' }))
     expect(getDataURL).toHaveBeenCalledWith({ pixelRatio: 1, backgroundColor: 'light:card' })
     getContextSpy.mockRestore()
   })
 
-  it('defaults the caption to "3D plot", or uses the block title', () => {
+  it('shows the plot3d kind tag, and the block title as caption when there is one', () => {
+    // The fallback caption '3D plot' is gone: the kind tag names the block
+    // (B-Blocks2:166), and an untitled block shows no invented caption.
     const { rerender } = render(<Plot3d block={scatterBlock} />)
-    expect(screen.getByText('3D plot')).toBeInTheDocument()
+    expect(screen.getByText('plot3d')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('3D plot')).not.toBeInTheDocument()
     rerender(<Plot3d block={{ ...scatterBlock, title: 'Loss surface' }} />)
     expect(screen.getByText('Loss surface')).toBeInTheDocument()
   })

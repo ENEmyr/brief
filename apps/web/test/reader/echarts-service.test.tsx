@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, act } from '@testing-library/react'
 import { useEChart } from '@/features/reader/services/echarts'
 import { whenThemedRendersIdle } from '@/features/theme'
@@ -36,5 +36,36 @@ describe('useEChart / beginThemedRender wiring', () => {
     })
 
     await expect(whenThemedRendersIdle()).resolves.toBeUndefined()
+  })
+})
+
+function ReadyChart({ loader }: { loader: () => Promise<{ init: () => { setOption: () => void } }> }) {
+  const { containerRef, ready } = useEChart(() => ({}), [], loader as never)
+  return <div ref={containerRef} data-testid="chart" data-ready={String(ready)} />
+}
+
+describe('useEChart ready', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('is false while echarts loads and true once the chart has drawn', async () => {
+    // jsdom has no ResizeObserver; the hook observes its container once one exists.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    )
+    let resolveLoader!: (value: { init: () => { setOption: () => void } }) => void
+    const loader = () => new Promise<{ init: () => { setOption: () => void } }>((resolve) => (resolveLoader = resolve))
+
+    const { getByTestId } = render(<ReadyChart loader={loader} />)
+    expect(getByTestId('chart')).toHaveAttribute('data-ready', 'false')
+
+    await act(async () => {
+      resolveLoader({ init: () => ({ setOption: () => {}, dispose: () => {} }) })
+      await Promise.resolve()
+    })
+    expect(getByTestId('chart')).toHaveAttribute('data-ready', 'true')
   })
 })
