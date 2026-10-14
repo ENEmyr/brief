@@ -54,6 +54,8 @@ Same three fields for all three types. `note` is informational, `warn` signals r
 
 Cells are plain strings, never numbers. Write `"1200"`, not `1200`. Ragged rows are accepted by the schema but render badly; keep every row the same length as `head`.
 
+Keep each cell to a phrase; the validator hints at a cell over 200 characters. Make the `caption` say what the table shows, not which file the numbers came from.
+
 ```json
 {
   "type": "table",
@@ -128,6 +130,8 @@ Stat item:
 
 `tone` is a fixed palette. Any other colour name fails validation. Values are strings: `"82 ms"`, `"48,120"`, `"3.2x"`.
 
+A tile holds a number and a few words. Keep `label` and `hint` short; the validator hints at either one over 50 characters. Qualifiers such as how the number was measured go in the paragraph beside the tile.
+
 ```json
 {
   "type": "stat",
@@ -161,7 +165,7 @@ Coverage item:
   "caption": "Test coverage of the flush path",
   "items": [
     { "label": "Buffer write", "status": "full" },
-    { "label": "Two-phase flush", "status": "partial", "note": "Happy path only; no test for a crash between phases." },
+    { "label": "Two-phase flush", "status": "partial", "note": "Only the normal case is tested. No test covers a crash between phases." },
     { "label": "Token revocation", "status": "missing" }
   ]
 }
@@ -557,7 +561,7 @@ Option object:
 | Field | Required | Type |
 | --- | --- | --- |
 | `id` | yes | `label`, unique within the decision |
-| `label` | yes | `label`, the option as the reader sees it |
+| `label` | yes | `label`, the option as the reader sees it, in words; do not repeat the `id` |
 | `detail` | no | string, the honest tradeoff |
 
 Two fields that agents routinely get wrong:
@@ -570,17 +574,17 @@ Two fields that agents routinely get wrong:
   "id": "limiter-choice",
   "q": "Which rate limiter should we use for /api/session?",
   "multi": false,
-  "why": "The binding costs nothing to run and covers the abuse case we actually saw. The KV counter only pays off if we later need per-user quotas, which nothing in the current roadmap asks for.",
+  "why": "The Cloudflare limiter costs nothing to run and stops the abuse we saw. The KV counter is better only if we need a limit for each user, and the roadmap has no such need.",
   "opts": [
     {
       "id": "cf-binding",
       "label": "Cloudflare Rate Limiting binding",
-      "detail": "Ships today, no storage cost, but the key space is limited to what the binding exposes, so per-user quotas are out."
+      "detail": "It takes hours to ship and has no storage cost. It cannot set a limit for each user."
     },
     {
       "id": "custom-kv",
       "label": "Custom KV counter",
-      "detail": "Any key space we want, at one KV write per request and an eventual-consistency window that lets a burst through."
+      "detail": "It can set a limit for each user. It costs one KV write per request, and a short burst can get through."
     }
   ],
   "cmp": {
