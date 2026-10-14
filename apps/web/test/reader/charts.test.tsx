@@ -205,6 +205,16 @@ describe('Heatmap option builder', () => {
     expect(visualMap.inRange.color).toEqual(['#f9fafa', '#eef8d9', '#e0f5af', '#d3f384', '#c5f05a'])
   })
 
+  it('names every third column and the last, as B-Blocks:185 writes 00 06 12 18 22', () => {
+    const hours = ['00', '02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22']
+    const option = buildHeatmapOption({ type: 'heatmap', xLabels: hours, yLabels: ['a'], values: [hours.map(() => 1)] }, palette)
+    const { interval } = (option.xAxis as unknown as { axisLabel: { interval: (i: number) => boolean } }).axisLabel
+    expect(hours.filter((_, i) => interval(i))).toEqual(['00', '06', '12', '18', '22'])
+    const few = buildHeatmapOption({ type: 'heatmap', xLabels: ['a', 'b'], yLabels: ['y'], values: [[1, 2]] }, palette)
+    const fewInterval = (few.xAxis as unknown as { axisLabel: { interval: (i: number) => boolean } }).axisLabel.interval
+    expect([0, 1].map(fewInterval)).toEqual([true, true])
+  })
+
   it('shows no cell value labels, at any column count (B-Blocks:181)', () => {
     // Was: labels under 12 columns. The board's cells carry color only; the
     // value is in the hover chip (B-Blocks:186).

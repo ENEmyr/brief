@@ -65,6 +65,9 @@ export function buildHeatmapOption(block: HeatmapBlockType, palette: Palette): E
   const dataMax = Math.max(...flatValues)
   const max = dataMax === min ? dataMax + 1 : dataMax
   const label = { color: palette.faint, fontFamily: palette.font, fontSize: 10 }
+  // B-Blocks:185 names five columns of twelve (00 06 12 18 22): every few, and the last.
+  const columns = block.xLabels.length
+  const step = Math.max(1, Math.ceil((columns - 1) / 4))
 
   const data: [number, number, number][] = []
   block.yLabels.forEach((_, yi) => {
@@ -90,7 +93,7 @@ export function buildHeatmapOption(block: HeatmapBlockType, palette: Palette): E
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { show: false },
-      axisLabel: { ...label, margin: 8 },
+      axisLabel: { ...label, margin: 8, interval: (index: number) => index % step === 0 || index === columns - 1 },
     },
     yAxis: {
       type: 'category',

@@ -10,10 +10,11 @@ import { DiagramFooter, Edge, EDGE_TONE, EdgeLayer, type Point } from './diagram
 type ErdBlock = Extract<Block, { type: 'erd' }>
 type TableDef = ErdBlock['tables'][number]
 
-/** B-Blocks2:86-88: 260 wide, a 36px header, 28px rows; tables 100 apart from x 60, y 40. */
+/** B-Blocks2:86-88: 260 wide, a 36px header, 28px rows and 12 below them; tables 100 apart from x 60, y 40. */
 const TABLE_MIN_WIDTH = 260
 const HEADER_H = 36
 const ROW_H = 28
+const TABLE_PAD_BOTTOM = 12
 const GAP_X = 100
 const GAP_Y = 60
 const LEFT = 60
@@ -41,6 +42,10 @@ function tableWidth(table: TableDef): number {
       2 * CELL_GAP,
   )
   return Math.ceil(Math.max(TABLE_MIN_WIDTH, name, ...columns))
+}
+
+function tableHeight(table: TableDef): number {
+  return HEADER_H + table.columns.length * ROW_H + TABLE_PAD_BOTTOM
 }
 
 interface TableBox {
@@ -87,7 +92,7 @@ function computeErdLayout(tables: readonly TableDef[]): ErdLayout {
     rowY.push(top)
     const tallest = Math.max(
       0,
-      ...tables.filter((_, i) => Math.floor(i / PER_ROW) === r).map((t) => HEADER_H + t.columns.length * ROW_H),
+      ...tables.filter((_, i) => Math.floor(i / PER_ROW) === r).map(tableHeight),
     )
     top += tallest + GAP_Y
   }
@@ -100,7 +105,7 @@ function computeErdLayout(tables: readonly TableDef[]): ErdLayout {
       x: colX[col] ?? LEFT,
       y: rowY[row] ?? TOP,
       w: widths[i] ?? TABLE_MIN_WIDTH,
-      h: HEADER_H + table.columns.length * ROW_H,
+      h: tableHeight(table),
       row,
       col,
     }
