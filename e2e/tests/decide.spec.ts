@@ -1,4 +1,4 @@
-import { test, expect, testPayload } from './fixtures'
+import { test, expect, testPayload, API_URL } from './fixtures'
 import type { Page } from '@playwright/test'
 import type { Payload } from '@brief/schema'
 
@@ -171,5 +171,24 @@ test.describe('dock edges', () => {
     await page.keyboard.press('Escape')
     await expect(sheet).toBeHidden()
     await expect(page.getByRole('button', { name: 'Open dock' })).toBeFocused()
+  })
+
+  test('an answer made just before a reload reaches the server', async ({ page, request, createSession, isMobile }) => {
+    const { id } = await createSession()
+    await page.goto(`/s/${id}`)
+    const dock = await openDock(page, isMobile)
+    await dock
+      .getByRole('group', { name: `Question ${d1.id}` })
+      .getByRole('radio', { name: d1.opts[1]!.label })
+      .click()
+    await page.reload()
+
+    await expect
+      .poll(async () => {
+        const res = await request.get(`${API_URL}/api/session/${id}/state`)
+        const { state } = (await res.json()) as { state: string | null }
+        return state === null ? null : (JSON.parse(state) as { dsel: unknown }).dsel
+      })
+      .toEqual({ [d1.id]: [d1.opts[1]!.id] })
   })
 })
