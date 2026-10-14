@@ -1,109 +1,184 @@
 'use client'
-import { ThemeToggle } from '@/features/theme'
-import { DownloadMenu } from './DownloadMenu'
+import { useTheme } from '@/features/theme'
+import type { SaveStatus } from '@/features/reader-state'
+import type { ReaderView } from '../lib/views'
+import { DownloadMenu, downloadItems } from './DownloadMenu'
 import { EditMenu } from './EditMenu'
 import { ProgressBar } from './ProgressBar'
-import { FOCUS_RING, GHOST_BUTTON } from './topbarChrome'
+import { SaveChip } from './SaveChip'
+import { TopbarMenu } from './TopbarMenu'
+import type { TopbarMenuItem } from './TopbarMenu'
+import { ViewTabs } from './ViewTabs'
+import { ArchiveIcon, MoonIcon, MoreIcon, OutlineIcon, SearchIcon, SunIcon } from './icons'
+import { FOCUS_RING, ICON_BUTTON, TOUCH_BUTTON } from './topbarChrome'
 
+/** Hidden under 880, where B-Mobile's bar replaces the wide controls. */
+const WIDE = 'max-[880px]:hidden'
+/** Shown only under 880. */
+const NARROW = 'min-[880px]:hidden'
+
+/**
+ * The reader's top bar: B-Reader at 880 and up (52 high), B-Mobile under 880
+ * (48 high, section counter, Search and More actions), plus B-Reader's
+ * "Open outline" button under 880. Every control is optional, so the status
+ * pages render the bar with the logo and theme toggle only.
+ */
 export function Topbar({
   sessionId,
-  repo,
-  showProgress,
-  savedLabel,
-  onMenu,
+  title,
+  sectionCounter,
+  view,
+  onViewChange,
+  disabledViews,
+  paletteHint,
+  onOpenPalette,
+  saveStatus,
+  archived,
+  onOpenOutline,
   onSave,
   onEditPrompt,
   onDownload,
   onPrint,
   onShare,
+  showProgress,
 }: {
   sessionId?: string
-  repo?: string
-  showProgress?: boolean
-  /** Mono chip text (e.g. "archived") rendered next to the session chip once the doc has been archived. */
-  savedLabel?: string
-  onMenu?: () => void
+  title?: string
+  /** "§02 / 04", shown under 880 in place of the title. */
+  sectionCounter?: string
+  view?: ReaderView
+  onViewChange?: (view: ReaderView) => void
+  disabledViews?: ReadonlySet<ReaderView>
+  /** The palette key hint, "⌘K" on Apple platforms and "Ctrl K" elsewhere. */
+  paletteHint?: string
+  onOpenPalette?: () => void
+  saveStatus?: SaveStatus
+  /** Fills the Archive icon once the doc is archived. */
+  archived?: boolean
+  onOpenOutline?: () => void
   onSave?: () => void
   /** Copies the edit prompt (highlights/notes/questions/decision answers) for
    *  an AI agent to act on; the Edit menu's one live item. */
   onEditPrompt?: () => void
-  /** Markdown export; surfaced as an item of the Download menu. */
   onDownload?: () => void
-  /** Print / PDF; also an item of the Download menu. Prop-gated like every
-   *  other control, so the propless loading-skeleton Topbar no longer offers
-   *  a print button for a document that has not loaded yet. */
   onPrint?: () => void
   onShare?: () => void
+  showProgress?: boolean
 }) {
+  const { theme, toggle } = useTheme()
+  const themeLabel = theme === 'dark' ? 'Theme: dark. Switch to light' : 'Theme: light. Switch to dark'
+
+  const moreItems: TopbarMenuItem[] = []
+  if (onEditPrompt) moreItems.push({ label: 'Copy edit prompt', run: onEditPrompt })
+  moreItems.push(...downloadItems(onDownload, onPrint))
+  if (onSave) moreItems.push({ label: 'Archive', run: onSave })
+  moreItems.push({ label: themeLabel, run: toggle })
+  if (onShare) moreItems.push({ label: 'Share', run: onShare })
+
+  // Under 880 the save chip only appears when the answers are not on the
+  // server, so a phone reader still learns that a reload or another device
+  // would lose them.
+  const chipOnNarrow = saveStatus === 'device' || saveStatus === 'tab'
+
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-card/[.93] backdrop-blur-[8px] print:hidden">
-      {showProgress && <ProgressBar />}
-      <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-3 px-[28px] py-[11px] max-[879px]:px-[16px] max-[879px]:py-[10px]">
-        <div className="flex min-w-0 items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="h-[22px] w-[22px] shrink-0 rounded-[7px] bg-accent"
-          />
-          <span className="shrink-0 whitespace-nowrap text-[14px] font-semibold">Brief</span>
-          {sessionId && (
-            <span className="min-w-0 truncate rounded-md bg-chip px-2 py-0.5 font-mono text-[11px] text-sub">
-              session <b className="text-accent-text">{sessionId}</b>
-            </span>
-          )}
-          {savedLabel && (
-            <span className="shrink-0 rounded-md bg-chip px-2 py-0.5 font-mono text-[11px] text-sub">
-              {savedLabel}
-            </span>
-          )}
-        </div>
-        {/* shrink-0 so the controls keep their full width and the left cluster
-            (which can truncate) absorbs a narrow viewport instead. */}
-        <div className="flex shrink-0 items-center gap-2">
-          {repo && (
-            <span className="hidden max-w-[220px] items-center gap-1 truncate rounded-lg border border-line bg-elev px-2.5 py-[5px] font-mono text-[11.5px] font-medium text-sub min-[880px]:inline-flex">
-              <span aria-hidden="true" className="text-faint">
-                ⎇
-              </span>
-              {repo}
-            </span>
-          )}
-          {onMenu && (
+    <header className="sticky top-0 z-40 border-b border-line bg-[var(--c-topbar)] leading-[normal] backdrop-blur-[8px] print:hidden">
+      <div className="flex h-[52px] items-center gap-[10px] pl-[14px] pr-2 max-[880px]:h-12 max-[880px]:gap-1 max-[880px]:pl-3 max-[880px]:pr-1">
+        {onOpenOutline && (
+          <button
+            type="button"
+            onClick={onOpenOutline}
+            aria-label="Open outline"
+            className={`${TOUCH_BUTTON} -ml-2 ${NARROW}`}
+          >
+            <OutlineIcon />
+          </button>
+        )}
+        <span
+          aria-hidden="true"
+          className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[4px] bg-accent font-mono text-[13px] font-semibold text-on-accent"
+        >
+          b
+        </span>
+        {sessionId && (
+          <span className={`min-w-0 shrink truncate font-mono text-[13px] text-faint ${WIDE}`}>{sessionId} /</span>
+        )}
+        {title && (
+          <span className={`min-w-0 flex-[0_1_auto] truncate text-[14px] font-medium ${WIDE}`}>{title}</span>
+        )}
+        {sectionCounter && (
+          <span className={`ml-[6px] min-w-0 grow truncate font-mono text-[12px] text-faint ${NARROW}`}>
+            {sectionCounter}
+          </span>
+        )}
+        <span className={`grow ${WIDE}`} />
+        {view && onViewChange && (
+          <ViewTabs view={view} onChange={onViewChange} disabled={disabledViews} className={WIDE} />
+        )}
+        {onOpenPalette && (
+          <>
             <button
               type="button"
-              onClick={onMenu}
-              aria-label="Open contents"
-              className={`flex h-11 w-11 items-center justify-center rounded-lg text-sub transition-colors hover:bg-chip hover:text-text min-[880px]:hidden ${FOCUS_RING}`}
+              onClick={onOpenPalette}
+              className={`flex h-8 min-w-[170px] shrink-0 items-center gap-2 rounded-[4px] border border-line2 bg-card pl-[10px] pr-2 text-[13px] text-faint transition-[transform] duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none ${FOCUS_RING} ${WIDE}`}
             >
-              ☰
+              <SearchIcon size={14} />
+              <span className="grow text-left">Jump to...</span>
+              <kbd className="font-mono text-[11px] text-sub">{paletteHint}</kbd>
             </button>
-          )}
+            <button
+              type="button"
+              onClick={onOpenPalette}
+              aria-label="Search"
+              className={`${TOUCH_BUTTON} ${NARROW}`}
+            >
+              <SearchIcon size={18} />
+            </button>
+          </>
+        )}
+        {saveStatus && <SaveChip status={saveStatus} className={chipOnNarrow ? '' : WIDE} />}
+        <div className={`contents ${WIDE}`}>
+          <EditMenu onCopyPrompt={onEditPrompt} />
+          <DownloadMenu onDownload={onDownload} onPrint={onPrint} />
           {onSave && (
             <button
               type="button"
               onClick={onSave}
               aria-label="Archive"
-              className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border-0 bg-accent px-2.5 py-[5px] text-[11.5px] font-semibold text-on-accent transition hover:brightness-110 active:brightness-95 ${FOCUS_RING}`}
+              title={archived ? 'Archived' : undefined}
+              className={ICON_BUTTON}
             >
-              <span className="text-[13px]">⛉</span>
-              <span className="hidden min-[880px]:inline">Archive</span>
+              <ArchiveIcon filled={!!archived} />
             </button>
           )}
-          <EditMenu onCopyPrompt={onEditPrompt} />
-          <DownloadMenu onDownload={onDownload} onPrint={onPrint} />
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={themeLabel}
+            data-theme-toggle=""
+            className={ICON_BUTTON}
+          >
+            {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+          </button>
           {onShare && (
             <button
               type="button"
               onClick={onShare}
-              aria-label="Share"
-              className={GHOST_BUTTON}
+              className={`h-8 shrink-0 rounded-[4px] border-0 bg-text px-3 text-[13px] font-semibold text-card transition-[transform] duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none [[data-theme=dark]_&]:text-page ${FOCUS_RING}`}
             >
-              <span className="text-[13px] text-accent-text">⇗</span>
-              <span className="hidden min-[880px]:inline">Share</span>
+              Share
             </button>
           )}
-          <ThemeToggle />
+        </div>
+        <div className={`contents ${NARROW}`}>
+          <TopbarMenu
+            icon={<MoreIcon />}
+            triggerLabel="More actions"
+            triggerClassName={TOUCH_BUTTON}
+            items={moreItems}
+          />
         </div>
       </div>
+      {showProgress && <ProgressBar />}
     </header>
   )
 }

@@ -160,7 +160,7 @@ export function CommandPalette({
                         // rows under a still pointer, which would fire it.
                         onMouseMove={() => setActive(index)}
                         onClick={() => select(entry)}
-                        className={`flex min-h-[38px] cursor-pointer items-center gap-2.5 rounded-ctrl px-2 max-[879px]:min-h-11 ${
+                        className={`flex min-h-[38px] cursor-pointer items-center gap-2.5 rounded-ctrl px-2 max-[880px]:min-h-11 ${
                           isActive ? 'bg-accent-soft text-text' : 'text-sub'
                         }`}
                       >

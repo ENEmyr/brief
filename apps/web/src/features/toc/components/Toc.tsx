@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { useActiveSection } from '../hooks/useActiveSection'
 
 export interface TocSection {
   id: string
@@ -8,8 +7,23 @@ export interface TocSection {
   title: string
 }
 
+/** One reader highlight listed under "Your marks", by its text. */
+export interface TocMark {
+  id: string
+  sectionId: string
+  text: string
+  /** Ask marks are lime in the text, so their swatch is a lime outline; the rest are amber. */
+  ask: boolean
+}
+
 export interface TocProps {
   sections: TocSection[]
+  activeId: string | null
+  marks: TocMark[]
+  /** Sections a still-open decision refers to get a warn dot. Needs decision refs (P1). */
+  openSectionIds?: ReadonlySet<string>
+  onJump: (sectionId: string) => void
+  onMarkJump: (mark: TocMark) => void
   collapsed: boolean
   onToggleCollapsed: () => void
   drawerOpen: boolean
@@ -18,15 +32,29 @@ export interface TocProps {
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
+const ROW = 'flex items-center gap-2 rounded-[4px] px-2 no-underline transition-colors duration-[var(--dur-fast)] hover:bg-chip focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
+const LABEL = 'px-2 py-[6px] font-mono text-[10px] text-faint'
+const DIVIDER = 'mx-1 my-2 h-px shrink-0 bg-line'
+
+/**
+ * B-Reader's outline: section rows with the current one marked, "Your marks",
+ * and a narrow rail when collapsed (owner ruling D5 keeps the collapse). Under
+ * 880 the outline hides and the same rows open as a drawer from the top bar.
+ * The nav and the drawer are siblings, not nested, so each keeps its own
+ * breakpoint (bug-088).
+ */
 export function Toc({
   sections,
+  activeId,
+  marks,
+  openSectionIds,
+  onJump,
+  onMarkJump,
   collapsed,
   onToggleCollapsed,
   drawerOpen,
   onCloseDrawer,
 }: TocProps) {
-  const ids = sections.map((s) => s.id)
-  const activeId = useActiveSection(ids)
   const [hovered, setHovered] = useState(false)
   const drawerPanelRef = useRef<HTMLDivElement>(null)
   const previouslyFocusedRef = useRef<HTMLElement | null>(null)
@@ -36,9 +64,16 @@ export function Toc({
     onToggleCollapsed()
   }
 
-  function goToSection(id: string) {
-    document.querySelector(`[data-section="${id}"]`)?.scrollIntoView({ behavior: 'smooth' })
+  function jump(event: React.MouseEvent, sectionId: string) {
+    event.preventDefault()
     onCloseDrawer()
+    onJump(sectionId)
+  }
+
+  function jumpToMark(event: React.MouseEvent, mark: TocMark) {
+    event.preventDefault()
+    onCloseDrawer()
+    onMarkJump(mark)
   }
 
   // Drawer a11y: on open, remember whatever had focus so it can be restored,
@@ -86,151 +121,141 @@ export function Toc({
     }
   }, [drawerOpen, onCloseDrawer])
 
+  function renderSections(rowSize: string) {
+    return sections.map((s) => {
+      const isActive = s.id === activeId
+      return (
+        <a
+          key={s.id}
+          href={`#${s.id}`}
+          onClick={(event) => jump(event, s.id)}
+          aria-current={isActive ? 'true' : undefined}
+          className={`${ROW} ${rowSize} ${isActive ? 'bg-chip font-medium text-text' : 'text-sub'}`}
+        >
+          <span className={`w-[18px] shrink-0 font-mono text-[11px] ${isActive ? 'text-accent-text' : 'text-faint'}`}>
+            {pad(s.no)}
+          </span>
+          <span className="min-w-0 truncate">{s.title}</span>
+          {openSectionIds?.has(s.id) && (
+            <span
+              role="img"
+              aria-label="open decisions"
+              className="ml-auto h-[6px] w-[6px] shrink-0 rounded-full bg-[var(--c-warn-fill)]"
+            />
+          )}
+        </a>
+      )
+    })
+  }
+
+  function renderMarks(rowSize: string) {
+    if (marks.length === 0) return null
+    return (
+      <>
+        <div className={DIVIDER} />
+        <span className={LABEL}>YOUR MARKS</span>
+        {marks.map((m) => (
+          <a
+            key={m.id}
+            href={`#${m.sectionId}`}
+            onClick={(event) => jumpToMark(event, m)}
+            className={`${ROW} ${rowSize} text-sub`}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-2 w-2 shrink-0 rounded-[2px] ${m.ask ? 'border-[1.5px] border-accent-line' : 'bg-[var(--c-warn-fill)]'}`}
+            />
+            <span className="min-w-0 truncate">{m.text}</span>
+          </a>
+        ))}
+      </>
+    )
+  }
+
+  function renderRail() {
+    return sections.map((s) => {
+      const isActive = s.id === activeId
+      return (
+        <a
+          key={s.id}
+          href={`#${s.id}`}
+          onClick={(event) => jump(event, s.id)}
+          aria-current={isActive ? 'true' : undefined}
+          aria-label={`${s.no}. ${s.title}`}
+          className={`${ROW} min-h-8 justify-center font-mono text-[11px] ${isActive ? 'bg-chip text-accent-text' : 'text-faint'}`}
+        >
+          {pad(s.no)}
+        </a>
+      )
+    })
+  }
+
   const showFull = !collapsed || hovered
-
-  function renderItems(showTitle: boolean) {
-    return (
-      <ul>
-        {sections.map((s) => {
-          const isActive = s.id === activeId
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => goToSection(s.id)}
-                aria-current={isActive ? 'true' : undefined}
-                className={`mb-0.5 flex w-full items-center gap-2 overflow-hidden whitespace-nowrap rounded-lg border-l-2 px-[9px] py-[5px] text-left text-[12.5px] transition-colors hover:bg-accent-soft ${
-                  isActive
-                    ? 'border-accent-line bg-accent-soft font-semibold text-accent-text'
-                    : 'border-transparent text-sub'
-                }`}
-              >
-                <span className="shrink-0 font-mono text-[11px]">{pad(s.no)}</span>
-                {showTitle && (
-                  <>
-                    {' '}
-                    {/* min-w-0 is what makes the ellipsis work: a flex item
-                        defaults to min-width:auto, so without this the span
-                        refuses to shrink below its (nowrap) min-content width,
-                        the box never clips, and text-ellipsis never fires. */}
-                    <span className="min-w-0 overflow-hidden text-ellipsis">{s.title}</span>
-                  </>
-                )}
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    )
-  }
-
-  function renderCollapsedNumbers() {
-    return (
-      <ul>
-        {sections.map((s) => {
-          const isActive = s.id === activeId
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => goToSection(s.id)}
-                aria-current={isActive ? 'true' : undefined}
-                aria-label={`${s.no}. ${s.title}`}
-                className={`block w-full rounded-md py-1.5 text-center font-mono text-[11px] transition-colors hover:bg-accent-soft hover:text-accent-text ${
-                  isActive ? 'font-bold text-accent-text' : 'text-faint'
-                }`}
-              >
-                {pad(s.no)}
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    )
-  }
-
-  function renderDrawerItems() {
-    return (
-      <ul>
-        {sections.map((s) => {
-          const isActive = s.id === activeId
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => goToSection(s.id)}
-                aria-current={isActive ? 'true' : undefined}
-                className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-[9px] text-left text-[14px] transition-colors hover:bg-accent-soft ${
-                  isActive ? 'bg-accent-soft text-accent-text' : 'text-text'
-                }`}
-              >
-                <span className="shrink-0 font-mono text-faint">{pad(s.no)}</span>
-                {/* The drawer wraps rather than truncates, so the title needs
-                    both min-w-0 (to shrink) and break-words (to break a long
-                    unspaced run, e.g. Thai, instead of overflowing the panel). */}
-                <span className="min-w-0 break-words">{s.title}</span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    )
-  }
+  const toggle = (
+    <button
+      type="button"
+      onClick={handleToggleCollapsed}
+      aria-label={collapsed ? 'Expand outline' : 'Collapse outline'}
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] text-faint transition-colors duration-[var(--dur-fast)] hover:bg-chip hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d={collapsed ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'} />
+      </svg>
+    </button>
+  )
 
   return (
     <>
       <nav
-        aria-label="Table of contents"
-        className="sticky top-[70px] hidden print:hidden min-[880px]:block"
+        aria-label="Outline"
+        onMouseEnter={() => collapsed && setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={`flex flex-col rounded-[6px] border border-line bg-card text-[13px] leading-[normal] max-[880px]:hidden min-[1101px]:sticky min-[1101px]:top-16 print:hidden ${
+          collapsed ? 'relative flex-[0_0_48px] px-1 py-[6px]' : 'box-content flex-[0_0_236px] p-[6px]'
+        }`}
       >
-        <div
-          className={collapsed ? 'relative w-12' : undefined}
-          onMouseEnter={() => collapsed && setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-        >
-          <div
-            className={`transition-[box-shadow,width] duration-[180ms] ${
-              collapsed
-                ? hovered
-                  ? 'absolute left-0 top-0 z-10 w-[200px] rounded-xl border border-line bg-card px-2.5 py-3 shadow-[var(--shadow-overlay)]'
-                  : 'w-12 rounded-xl border border-transparent bg-transparent px-1 py-1.5'
-                : 'rounded-xl border border-line bg-card px-2.5 py-3'
-            }`}
-          >
-            <div
-              className={`mb-2 flex items-center ${showFull ? 'justify-between' : 'justify-center'}`}
-            >
-              {showFull && (
-                <span className="font-mono text-[10px] tracking-[.08em] text-faint">Contents</span>
-              )}
-              <button
-                type="button"
-                onClick={handleToggleCollapsed}
-                aria-label={collapsed ? 'Expand contents' : 'Collapse contents'}
-                className="text-[14px] leading-none text-faint transition-colors hover:text-accent-text"
-              >
-                {collapsed ? '»' : '«'}
-              </button>
+        {collapsed ? (
+          <>
+            <div className="flex justify-center pb-1">{toggle}</div>
+            {renderRail()}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between pr-[2px]">
+              <span className={LABEL}>OUTLINE</span>
+              {toggle}
             </div>
-            {showFull ? renderItems(true) : renderCollapsedNumbers()}
+            {renderSections('min-h-8')}
+            {renderMarks('min-h-8')}
+          </>
+        )}
+        {collapsed && showFull && (
+          <div className="absolute left-0 top-0 z-10 box-content flex w-[236px] flex-col rounded-[6px] border border-line bg-card p-[6px] shadow-[var(--shadow-overlay)]">
+            <div className="flex items-center justify-between pr-[2px]">
+              <span className={LABEL}>OUTLINE</span>
+              {toggle}
+            </div>
+            {renderSections('min-h-8')}
+            {renderMarks('min-h-8')}
           </div>
-        </div>
+        )}
       </nav>
 
       {drawerOpen && (
         <div className="fixed inset-0 z-[60] min-[880px]:hidden" onClick={onCloseDrawer}>
-          <div role="presentation" className="absolute inset-0 bg-[var(--c-scrim)]" />
+          <div role="presentation" className="console-fade absolute inset-0 bg-[var(--c-scrim)]" />
           <div
             ref={drawerPanelRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Table of contents"
+            aria-label="Outline"
             tabIndex={-1}
             onClick={(event) => event.stopPropagation()}
-            className="absolute inset-y-0 left-0 w-[260px] overflow-y-auto bg-card p-4 shadow-[var(--shadow-overlay)]"
+            className="absolute inset-y-0 left-0 flex w-[260px] flex-col overflow-y-auto border-r border-line bg-card p-[6px] text-[14px] leading-[normal] shadow-[var(--shadow-overlay)] outline-none"
           >
-            <div className="mb-3 font-mono text-[11px] text-faint">Contents</div>
-            {renderDrawerItems()}
+            <span className={LABEL}>OUTLINE</span>
+            {renderSections('min-h-11')}
+            {renderMarks('min-h-11')}
           </div>
         </div>
       )}

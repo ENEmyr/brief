@@ -1,13 +1,13 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import { useDialogFocus } from '@/features/export'
-import { FOCUS_RING, GHOST_BUTTON } from './topbarChrome'
+import { FOCUS_RING } from './topbarChrome'
 
-const MENU_ITEM = `flex w-full min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12.5px] font-medium text-text transition-colors hover:bg-chip active:bg-accent-soft ${FOCUS_RING}`
+/** B-Components menu rows: 34 high (44 under 880), radius 4, 13px, focused row accent-soft. */
+const MENU_ITEM = `flex min-h-[34px] w-full items-center justify-between rounded-[4px] border-0 bg-transparent px-2 text-left text-[13px] text-text transition-colors duration-[var(--dur-fast)] hover:bg-chip focus:bg-accent-soft max-[880px]:min-h-11 ${FOCUS_RING}`
 
 export interface TopbarMenuItem {
-  icon: string
   label: string
   run: () => void
 }
@@ -51,13 +51,11 @@ function TopbarMenuPanel({
   items,
   onClose,
   rootRef,
-  panelWidthClassName,
 }: {
   label: string
   items: TopbarMenuItem[]
   onClose: () => void
   rootRef: RefObject<HTMLDivElement | null>
-  panelWidthClassName: string
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const firstItemRef = useRef<HTMLButtonElement>(null)
@@ -113,8 +111,7 @@ function TopbarMenuPanel({
       aria-label={label}
       tabIndex={-1}
       onKeyDown={handleKeyDown}
-      className={`absolute right-0 top-[calc(100%+6px)] z-50 ${panelWidthClassName} rounded-xl border border-line bg-card p-1.5 shadow-[var(--shadow-overlay)] outline-none`}
-      style={{ animation: 'dc-pop .18s ease' }}
+      className="console-pop absolute right-0 top-[calc(100%+6px)] z-50 flex w-[240px] flex-col rounded-[8px] border border-line2 bg-elev p-1 leading-[normal] shadow-[var(--shadow-overlay)] outline-none"
     >
       {items.map((item, index) => (
         <button
@@ -133,9 +130,6 @@ function TopbarMenuPanel({
           }}
           className={MENU_ITEM}
         >
-          <span aria-hidden="true" className="text-[13px] text-accent-text">
-            {item.icon}
-          </span>
           {item.label}
         </button>
       ))}
@@ -145,22 +139,20 @@ function TopbarMenuPanel({
 
 /**
  * One Topbar control that opens a dropdown of items. Each handler behind an
- * item is optional at the call site (DownloadMenu, EditMenu); with an empty
- * `items` array there is nothing to open, so the control renders nothing.
+ * item is optional at the call site (DownloadMenu, EditMenu, More actions);
+ * with an empty `items` array there is nothing to open, so the control
+ * renders nothing.
  */
 export function TopbarMenu({
-  triggerIcon,
+  icon,
   triggerLabel,
+  triggerClassName,
   items,
-  panelWidthClassName = 'w-[190px]',
 }: {
-  triggerIcon: string
+  icon: ReactNode
   triggerLabel: string
+  triggerClassName: string
   items: TopbarMenuItem[]
-  /** The item labels vary per menu (Download's longest is "Print / PDF",
-   *  Edit's is "Copy edit prompt"), so the panel width is not one size fits
-   *  all; callers with longer labels should widen it. */
-  panelWidthClassName?: string
 }) {
   const [open, setOpen] = useState(false)
   const close = useCallback(() => setOpen(false), [])
@@ -169,7 +161,7 @@ export function TopbarMenu({
   if (items.length === 0) return null
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         type="button"
         onClick={(event) => {
@@ -183,12 +175,9 @@ export function TopbarMenu({
         aria-label={triggerLabel}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={GHOST_BUTTON}
+        className={triggerClassName}
       >
-        <span aria-hidden="true" className="text-[13px] text-accent-text">
-          {triggerIcon}
-        </span>
-        <span className="hidden min-[880px]:inline">{triggerLabel}</span>
+        {icon}
       </button>
       {open && (
         <TopbarMenuPanel
@@ -196,7 +185,6 @@ export function TopbarMenu({
           items={items}
           onClose={close}
           rootRef={rootRef}
-          panelWidthClassName={panelWidthClassName}
         />
       )}
     </div>

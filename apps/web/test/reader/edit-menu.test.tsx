@@ -106,7 +106,8 @@ describe('Topbar Edit menu', () => {
     expect(copyItem).toHaveFocus()
   })
 
-  it('renders between Archive and Download when both are present', () => {
+  // B-Reader orders the top bar Edit, Download, Archive (it used to be Archive, Edit, Download).
+  it('renders before Download and Archive, as B-Reader orders them', () => {
     render(
       <Topbar
         sessionId="sess1"
@@ -119,8 +120,8 @@ describe('Topbar Edit menu', () => {
     const saveIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Archive')
     const editIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Edit')
     const downloadIndex = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Download')
-    expect(saveIndex).toBeGreaterThanOrEqual(0)
-    expect(editIndex).toBeGreaterThan(saveIndex)
+    expect(editIndex).toBeGreaterThanOrEqual(0)
     expect(downloadIndex).toBeGreaterThan(editIndex)
+    expect(saveIndex).toBeGreaterThan(downloadIndex)
   })
 })

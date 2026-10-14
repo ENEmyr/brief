@@ -1,75 +1,47 @@
 import type { Meta } from '@brief/schema'
 
-function Dot() {
-  return <span className="mx-2 text-faint">·</span>
-}
+const CHIP = 'rounded-[3px] border border-line2 px-[6px] py-[2px]'
 
+/**
+ * B-Reader's header card: the meta chips (doc id, author, role, date,
+ * version, repo, read time), the title and the summary. The repo chip is a
+ * link (owner ruling D5).
+ */
 export function MetaHeader({ meta }: { meta: Meta }) {
-  const items: React.ReactNode[] = []
-
-  if (meta.author) {
-    items.push(
-      <span key="author" className="inline-flex items-center">
-        <span
-          aria-hidden="true"
-          className="mr-[7px] inline-flex h-[22px] w-[22px] items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-on-accent"
-        >
-          {meta.author.charAt(0)}
-        </span>
-        <span className="font-semibold text-text">{meta.author}</span>
-        {meta.role && <span className="text-faint"> · {meta.role}</span>}
-      </span>,
-    )
-  }
-  if (meta.date) {
-    items.push(<span key="date">{meta.date}</span>)
-  }
-  if (meta.version) {
-    items.push(
-      <span key="version" className="font-mono">
-        {meta.version}
-      </span>,
-    )
+  const chips: React.ReactNode[] = []
+  for (const [key, value] of [
+    ['docId', meta.docId],
+    ['author', meta.author],
+    ['role', meta.author ? meta.role : undefined],
+    ['date', meta.date],
+    ['version', meta.version],
+  ] as const) {
+    if (value) chips.push(<span key={key} className={CHIP}>{value}</span>)
   }
   if (meta.repo) {
-    items.push(
+    chips.push(
       <a
         key="repo"
         href={meta.repo}
         target="_blank"
         rel="noopener noreferrer"
-        className="font-mono text-info no-underline"
+        className={`${CHIP} text-sub no-underline transition-colors duration-[var(--dur-fast)] hover:text-text`}
       >
-        <span aria-hidden="true">⎇ </span>
         {meta.repo}
       </a>,
     )
   }
-  if (meta.readTime) {
-    items.push(<span key="readtime">{meta.readTime}</span>)
-  }
+  if (meta.readTime) chips.push(<span key="readtime" className={CHIP}>{meta.readTime}</span>)
 
   return (
-    <div className="mb-[26px] border-b border-line pt-[30px] pb-[22px]">
-      {meta.docId && (
-        <div className="mb-[9px] font-mono text-[11px] font-semibold tracking-[.12em] text-accent-text">
-          {meta.docId}
-        </div>
+    <div className="console-rise flex flex-col gap-[14px] rounded-[6px] border border-line bg-card p-5 leading-[normal]">
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-[6px] font-mono text-[11px] text-sub">{chips}</div>
       )}
-      <h1 className="mb-2 text-[26px] font-bold leading-[1.25] min-[880px]:text-[32px]">
+      <h1 className="m-0 text-[30px] font-semibold leading-9 tracking-[-0.02em] max-[880px]:text-[24px] max-[880px]:leading-[30px]">
         {meta.title}
       </h1>
-      {meta.subtitle && <p className="mb-4 max-w-[640px] text-[15px] text-sub">{meta.subtitle}</p>}
-      {items.length > 0 && (
-        <div className="flex flex-wrap items-center text-[12.5px] text-sub">
-          {items.map((item, i) => (
-            <span key={i} className="inline-flex items-center">
-              {i > 0 && <Dot />}
-              {item}
-            </span>
-          ))}
-        </div>
-      )}
+      {meta.subtitle && <p className="m-0 text-[15px] leading-[26px] text-sub">{meta.subtitle}</p>}
     </div>
   )
 }
