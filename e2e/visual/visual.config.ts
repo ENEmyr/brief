@@ -29,8 +29,10 @@ export default defineConfig({
   timeout: 60_000,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report-visual' }]],
-  outputDir: 'test-results-visual',
+  // Report and results live outside visual/, which `eslint visual` lints: the
+  // report copies in the trace viewer's JS bundle.
+  reporter: [['list'], ['html', { open: 'never', outputFolder: '../playwright-report-visual' }]],
+  outputDir: '../test-results-visual',
   expect: {
     timeout: 5_000,
     toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: 'disabled', caret: 'hide' },

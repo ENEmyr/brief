@@ -1,6 +1,7 @@
 import { test as base, expect, type Page, type Route } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { APP_FONTS, assertFontsLoaded } from './fonts'
 import type { Theme } from './regions'
 import { VISUAL_API_URL } from '../visual.config'
 
@@ -59,7 +60,8 @@ export async function mockApi(page: Page, unexpected: string[]): Promise<void> {
     if (req.method() === 'GET' && pathname === `/api/session/${SESSION_ID}`) return json(route, sessionEnvelope())
     if (pathname === `/api/session/${SESSION_ID}/state`) {
       if (req.method() === 'GET') return json(route, { state: null })
-      if (req.method() === 'PUT') return json(route, { ok: true })
+      // apps/api answers a state write with 204 and no body.
+      if (req.method() === 'PUT') return route.fulfill({ status: 204, headers: CORS })
     }
     unexpected.push(`${req.method()} ${pathname}`)
     return route.abort('failed')
@@ -96,10 +98,15 @@ export async function seedReaderState(page: Page, state: unknown = readerSeed): 
   )
 }
 
-/** Opens the sample brief with the default board state and waits for fonts. */
+/**
+ * Opens the sample brief with the default board state. Waits for network idle:
+ * some blocks mount after a lazy chunk loads and grow their section, which
+ * would move boxes measured earlier (clipOf, expectBox). Throws if the app's
+ * fonts did not load.
+ */
 export async function openReader(page: Page, state: unknown = readerSeed): Promise<void> {
   await seedReaderState(page, state)
-  await page.goto(`/s/${SESSION_ID}`)
+  await page.goto(`/s/${SESSION_ID}`, { waitUntil: 'networkidle' })
   await expect(page.locator('h1').first()).toBeVisible()
-  await page.evaluate(() => document.fonts.ready)
+  await assertFontsLoaded(page, APP_FONTS, 'app')
 }
