@@ -1,12 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { act, render, screen, fireEvent } from '@testing-library/react'
+import { useState } from 'react'
 import type { Decision } from '@brief/schema'
-import type { ReaderState } from '@/features/reader-state'
-import { ReaderStateProvider } from '@/features/reader-state'
-import { DecisionSection, SupportTabs, PromptReview, buildReplyPrompt } from '@/features/decisions'
+import type { ReaderState, ReaderStateStore } from '@/features/reader-state'
+import { ReaderStateProvider, useReaderStateStore } from '@/features/reader-state'
+import { PromptReviewSheet, SupportTabs, buildReplyPrompt } from '@/features/decisions'
+import type { TabKey } from '@/features/decisions'
 
 function emptyState(overrides: Partial<ReaderState> = {}): ReaderState {
-  return { highlights: [], dsel: {}, dnote: {}, ...overrides }
+  return { highlights: [], dsel: {}, dnote: {}, dother: {}, ...overrides }
 }
 
 describe('buildReplyPrompt', () => {
@@ -61,6 +63,39 @@ describe('buildReplyPrompt', () => {
     expect(text).toContain('  - Choice: US; APAC')
   })
 
+  it('prints a single-select Other answer as "Other: <text>"', () => {
+    const text = buildReplyPrompt(decisions, emptyState({ dother: { d1: '  Redis  ' } }), 'Doc', 's1')
+    expect(text).toContain('[d1] Which cache?\n  - Choice: Other: Redis\n')
+  })
+
+  it('joins a multi-select Other answer after the agent options', () => {
+    const state = emptyState({ dsel: { d2: ['eu', 'us'] }, dother: { d2: 'LATAM' } })
+    const text = buildReplyPrompt(decisions, state, 'Doc', 's1')
+    expect(text).toContain('  - Choice: US; EU; Other: LATAM')
+  })
+
+  it('prints Other picked with no text yet as "Other:"', () => {
+    const text = buildReplyPrompt(decisions, emptyState({ dother: { d1: '' } }), 'Doc', 's1')
+    expect(text).toContain('  - Choice: Other:\n')
+  })
+
+  it('builds the prompt with open questions: answered ones resolved, open ones "(not answered)"', () => {
+    const text = buildReplyPrompt(decisions, emptyState({ dother: { d1: 'Redis' } }), 'Doc', 's1')
+    expect(text).toBe(
+      [
+        'Reply to the "Doc" doc (session s1) - my decisions:',
+        '',
+        '[d1] Which cache?',
+        '  - Choice: Other: Redis',
+        '',
+        '[d2] Which regions?',
+        '  - Choice: (not answered)',
+        '',
+        'Please act on the answers above; consider the extra context for any item that has a note',
+      ].join('\n'),
+    )
+  })
+
   it('includes a Note line only when the note is non-empty after trimming', () => {
     const withNote = buildReplyPrompt(decisions, emptyState({ dnote: { d1: '  needs low latency  ' } }), 'Doc', 's1')
     expect(withNote).toContain('  - Note: needs low latency')
@@ -87,6 +122,11 @@ describe('buildReplyPrompt', () => {
 })
 
 describe('SupportTabs', () => {
+  function Tabs({ decision }: { decision: Decision }) {
+    const [picked, setPicked] = useState<TabKey>()
+    return <SupportTabs decision={decision} picked={picked} onPick={setPicked} />
+  }
+
   const withAll: Decision = {
     id: 'd1',
     q: 'Which cache?',
@@ -105,20 +145,20 @@ describe('SupportTabs', () => {
   }
 
   it('renders nothing when the decision has no why/cmp/dia', () => {
-    const { container } = render(<SupportTabs decision={withNone} />)
+    const { container } = render(<Tabs decision={withNone} />)
     expect(container.firstChild).toBeNull()
   })
 
   it('renders a tab only for each field that is present', () => {
     const onlyWhy: Decision = { ...withNone, why: 'Because reasons.' }
-    render(<SupportTabs decision={onlyWhy} />)
+    render(<Tabs decision={onlyWhy} />)
     expect(screen.getByRole('tab', { name: 'Explanation' })).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Compare' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Diagram' })).not.toBeInTheDocument()
   })
 
   it('renders all three tabs when why/cmp/dia are all present, Explanation active by default', () => {
-    render(<SupportTabs decision={withAll} />)
+    render(<Tabs decision={withAll} />)
     const explanationTab = screen.getByRole('tab', { name: 'Explanation' })
     expect(explanationTab).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Compare' })).toHaveAttribute('aria-selected', 'false')
@@ -127,7 +167,7 @@ describe('SupportTabs', () => {
   })
 
   it('switching to the Compare tab renders the cmp table head and rows', () => {
-    render(<SupportTabs decision={withAll} />)
+    render(<Tabs decision={withAll} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Compare' }))
 
     expect(screen.getByRole('tab', { name: 'Compare' })).toHaveAttribute('aria-selected', 'true')
@@ -138,145 +178,163 @@ describe('SupportTabs', () => {
   })
 
   it('switching to the Diagram tab renders the string label as a caption note (dia is not a diagram spec)', () => {
-    render(<SupportTabs decision={withAll} />)
+    render(<Tabs decision={withAll} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Diagram' }))
     expect(screen.getByText('[diagram: kv-write-path]')).toBeInTheDocument()
   })
 })
 
-describe('PromptReview', () => {
-  it('renders the hint line, current text, and close aria-label', () => {
-    render(
-      <PromptReview text="hello world" onChange={() => {}} onRebuild={() => {}} onClose={() => {}} />,
+describe('PromptReviewSheet', () => {
+  const decisions: Decision[] = [
+    { id: 'd1', q: 'Which cache?', multi: false, opts: [{ id: 'kv', label: 'KV' }, { id: 'none', label: 'None' }] },
+    { id: 'd2', q: 'Which region?', multi: false, opts: [{ id: 'us', label: 'US' }, { id: 'eu', label: 'EU' }] },
+  ]
+
+  let store: ReaderStateStore
+  function GrabStore() {
+    store = useReaderStateStore()
+    return null
+  }
+
+  function renderSheet({
+    seed = (s: ReaderStateStore) => s.actions.pickOption('d1', 'kv', false),
+    copyText = vi.fn(),
+    onClose = vi.fn(),
+    onGoTo = vi.fn(),
+  }: {
+    seed?: (s: ReaderStateStore) => void
+    copyText?: (text: string) => void
+    onClose?: () => void
+    onGoTo?: (id: string) => void
+  } = {}) {
+    function Sheet() {
+      return (
+        <PromptReviewSheet
+          decisions={decisions}
+          docTitle="Rate Limiter"
+          sessionId="prompt-review-test"
+          copyText={copyText}
+          onClose={onClose}
+          onGoTo={onGoTo}
+        />
+      )
+    }
+    const utils = render(
+      <ReaderStateProvider sessionId="prompt-review-test" persist={false}>
+        <GrabStore />
+      </ReaderStateProvider>,
     )
-    expect(screen.getByText(/Edit the text below as you like/)).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Prompt text' })).toHaveValue('hello world')
+    act(() => seed(store))
+    utils.rerender(
+      <ReaderStateProvider sessionId="prompt-review-test" persist={false}>
+        <GrabStore />
+        <Sheet />
+      </ReaderStateProvider>,
+    )
+    return { copyText, onClose, onGoTo, textarea: screen.getByRole('textbox', { name: 'Prompt text' }) as HTMLTextAreaElement }
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('is a modal dialog titled with the board copy, sub line and close label', () => {
+    renderSheet()
+    const dialog = screen.getByRole('dialog', { name: 'Review prompt before copying' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByText('Edit freely. This text goes back to the agent.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close prompt review' })).toBeInTheDocument()
   })
 
-  it('calls onChange as the textarea is edited', () => {
-    const onChange = vi.fn()
-    render(
-      <PromptReview text="original" onChange={onChange} onRebuild={() => {}} onClose={() => {}} />,
-    )
-    fireEvent.change(screen.getByRole('textbox', { name: 'Prompt text' }), {
-      target: { value: 'edited' },
+  it('opens with open questions: the built prompt prints them as "(not answered)"', () => {
+    const { textarea } = renderSheet()
+    expect(textarea.value).toBe(buildReplyPrompt(decisions, store.getState(), 'Rate Limiter', 'prompt-review-test'))
+    expect(textarea.value).toContain('[d1] Which cache?\n  - Choice: KV')
+    expect(textarea.value).toContain('[d2] Which region?\n  - Choice: (not answered)')
+  })
+
+  it('counts answered, open and notes, and links to the first open question', () => {
+    const { onGoTo } = renderSheet({
+      seed: (s) => {
+        s.actions.pickOption('d1', 'kv', false)
+        s.actions.setDecisionNote('d1', 'low latency')
+      },
     })
-    expect(onChange).toHaveBeenCalledWith('edited')
+    expect(screen.getByText('1 answered')).toBeInTheDocument()
+    expect(screen.getByText('1 open')).toBeInTheDocument()
+    expect(screen.getByText('1 note')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to d2' }))
+    expect(onGoTo).toHaveBeenCalledWith('d2')
   })
 
-  it('calls onRebuild when "Rebuild from answers" is clicked', () => {
-    const onRebuild = vi.fn()
-    render(<PromptReview text="x" onChange={() => {}} onRebuild={onRebuild} onClose={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: '↻ Rebuild from answers' }))
-    expect(onRebuild).toHaveBeenCalledTimes(1)
+  it('shows no open chip and no Go to link once every question is answered', () => {
+    renderSheet({
+      seed: (s) => {
+        s.actions.pickOption('d1', 'kv', false)
+        s.actions.pickOther('d2', false)
+      },
+    })
+    expect(screen.getByText('2 answered')).toBeInTheDocument()
+    expect(screen.getByText('0 notes')).toBeInTheDocument()
+    expect(screen.queryByText(/open$/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Go to/ })).not.toBeInTheDocument()
   })
 
-  it('calls onClose when the close button is clicked', () => {
-    const onClose = vi.fn()
-    render(<PromptReview text="x" onChange={() => {}} onRebuild={() => {}} onClose={onClose} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Close prompt review' }))
-    expect(onClose).toHaveBeenCalledTimes(1)
+  it('focuses the prompt text without selecting it, and counts its characters', () => {
+    const { textarea } = renderSheet()
+    expect(textarea).toHaveFocus()
+    expect(textarea.selectionStart).toBe(0)
+    expect(textarea.selectionEnd).toBe(0)
+    expect(screen.getByText(`${textarea.value.length} chars`)).toBeInTheDocument()
   })
 
-  it('copy invokes copyText with the current textarea content, then onCopied', () => {
-    const copyText = vi.fn()
-    const onCopied = vi.fn()
-    render(
-      <PromptReview
-        text="copy me"
-        onChange={() => {}}
-        onRebuild={() => {}}
-        onClose={() => {}}
-        onCopied={onCopied}
-        copyText={copyText}
-      />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: '⧉ Copy prompt' }))
-    expect(copyText).toHaveBeenCalledWith('copy me')
-    expect(onCopied).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('DecisionSection prompt generation wiring', () => {
-  const decisions: Decision[] = [
-    {
-      id: 'd1',
-      q: 'Which cache?',
-      multi: false,
-      opts: [
-        { id: 'kv', label: 'KV' },
-        { id: 'none', label: 'None' },
-      ],
-    },
-  ]
-
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
-  })
-
-  afterEach(() => {
-    localStorage.clear()
-    vi.unstubAllGlobals()
-  })
-
-  function renderReady(sessionId = 'prompt-wiring-test') {
-    const utils = render(
-      <ReaderStateProvider sessionId={sessionId}>
-        <DecisionSection decisions={decisions} no={1} docTitle="Rate Limiter" sessionId={sessionId} />
-      </ReaderStateProvider>,
-    )
-    fireEvent.click(screen.getByRole('button', { name: /KV/ }))
-    return utils
-  }
-
-  it('"Generate prompt" opens the panel with the built prompt text', () => {
-    renderReady()
-    fireEvent.click(screen.getByRole('button', { name: /Generate prompt/ }))
-
-    const textarea = screen.getByRole('textbox', { name: 'Prompt text' }) as HTMLTextAreaElement
-    expect(textarea.value).toContain('Reply to the "Rate Limiter" doc (session prompt-wiring-test) - my decisions:')
-    expect(textarea.value).toContain('[d1] Which cache?')
-    expect(textarea.value).toContain('  - Choice: KV')
-  })
-
-  it('editing the textarea keeps the user text until Rebuild is clicked, even as the note field changes', () => {
-    renderReady()
-    fireEvent.click(screen.getByRole('button', { name: /Generate prompt/ }))
-
-    const textarea = screen.getByRole('textbox', { name: 'Prompt text' }) as HTMLTextAreaElement
+  it('keeps hand edits until Rebuild, even as the answers change', () => {
+    const { textarea } = renderSheet()
     fireEvent.change(textarea, { target: { value: 'my hand-edited prompt' } })
+    expect(screen.getByText('21 chars')).toBeInTheDocument()
+
+    act(() => store.actions.setDecisionNote('d1', 'a new note'))
     expect(textarea.value).toBe('my hand-edited prompt')
 
-    // A further store mutation (typing a note) does not touch the
-    // already-open panel's independently-owned text.
-    fireEvent.change(screen.getByPlaceholderText(/business reason/), {
-      target: { value: 'a new note' },
-    })
-    expect(textarea.value).toBe('my hand-edited prompt')
+    fireEvent.click(screen.getByRole('button', { name: 'Rebuild from answers' }))
+    expect(textarea.value).toContain('  - Choice: KV\n  - Note: a new note')
   })
 
-  it('"Rebuild from answers" replaces hand-edited text with a freshly regenerated prompt', () => {
-    renderReady()
-    fireEvent.click(screen.getByRole('button', { name: /Generate prompt/ }))
-
-    const textarea = screen.getByRole('textbox', { name: 'Prompt text' }) as HTMLTextAreaElement
-    fireEvent.change(textarea, { target: { value: 'stale hand-edited text' } })
-    expect(textarea.value).toBe('stale hand-edited text')
-
-    fireEvent.click(screen.getByRole('button', { name: '↻ Rebuild from answers' }))
-    expect(textarea.value).toContain('[d1] Which cache?')
-    expect(textarea.value).toContain('  - Choice: KV')
-    expect(textarea.value).not.toContain('stale hand-edited text')
+  it('Copy prompt copies the current text, edits included', () => {
+    const { textarea, copyText } = renderSheet()
+    fireEvent.change(textarea, { target: { value: 'copy me' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Copy prompt/ }))
+    expect(copyText).toHaveBeenCalledWith('copy me')
   })
 
-  it('"Close" (✕) hides the panel without clearing answers', () => {
-    renderReady()
-    fireEvent.click(screen.getByRole('button', { name: /Generate prompt/ }))
-    expect(screen.getByRole('textbox', { name: 'Prompt text' })).toBeInTheDocument()
+  it('Cmd or Ctrl Enter copies from anywhere in the sheet', () => {
+    const { textarea, copyText } = renderSheet()
+    fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Rebuild from answers' }), { key: 'Enter', metaKey: true })
+    expect(copyText).toHaveBeenCalledTimes(2)
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(copyText).toHaveBeenCalledTimes(2)
+  })
 
+  it('shows the mod key chip on Copy prompt', () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel')
+    renderSheet()
+    expect(screen.getByRole('button', { name: /^Copy prompt/ })).toHaveTextContent('Copy prompt⌘ Enter')
+  })
+
+  it('closes from the close button, Escape and the scrim, never from a click inside, and keeps the answers', () => {
+    const { onClose } = renderSheet()
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onClose).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Close prompt review' }))
-    expect(screen.queryByRole('textbox', { name: 'Prompt text' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /KV/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('dialog').parentElement!)
+    expect(onClose).toHaveBeenCalledTimes(3)
+    expect(store.getState().dsel).toEqual({ d1: ['kv'] })
+  })
+
+  it('never prints', () => {
+    renderSheet()
+    expect(screen.getByRole('dialog').parentElement).toHaveClass('print:hidden')
   })
 })

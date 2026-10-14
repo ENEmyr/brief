@@ -45,11 +45,16 @@ function viewport(width: number) {
 const CSS_NARROW = 'not all and (min-width: 880px)'
 
 function PickOption() {
-  const { pickOption } = useReaderActions()
+  const { pickOption, pickOther } = useReaderActions()
   return (
-    <button type="button" onClick={() => pickOption('D1', 'a', false)}>
-      pick D1 A
-    </button>
+    <>
+      <button type="button" onClick={() => pickOption('D1', 'a', false)}>
+        pick D1 A
+      </button>
+      <button type="button" onClick={() => pickOther('D1', false)}>
+        pick D1 Other
+      </button>
+    </>
   )
 }
 
@@ -57,10 +62,27 @@ function Harness() {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <DockSlot decisions={decisions} open={open} onOpenChange={setOpen}>
-        <p>dock content</p>
-        <PickOption />
-      </DockSlot>
+      <button type="button" onClick={() => setOpen(true)}>
+        open from the page
+      </button>
+      <DockSlot
+        decisions={decisions}
+        open={open}
+        onOpenChange={setOpen}
+        column={
+          <>
+            <p>dock content</p>
+            <PickOption />
+          </>
+        }
+        sheet={
+          <>
+            <p>sheet content</p>
+            <PickOption />
+          </>
+        }
+        sheetAction={<button type="button">sheet action</button>}
+      />
     </>
   )
 }
@@ -82,11 +104,12 @@ afterEach(() => {
 })
 
 describe('DockSlot', () => {
-  it('wide: a complementary landmark holding the content, no peek bar', () => {
+  it('wide: a complementary landmark holding the column, no peek bar', () => {
     viewport(1440)
     renderDock()
     const dock = screen.getByRole('complementary', { name: 'Decision dock' })
     expect(within(dock).getByText('dock content')).toBeInTheDocument()
+    expect(screen.queryByText('sheet content')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open dock' })).not.toBeInTheDocument()
   })
 
@@ -124,6 +147,9 @@ describe('DockSlot', () => {
     const sheet = screen.getByRole('dialog', { name: 'Decision dock' })
     expect(sheet).toHaveAttribute('aria-modal', 'true')
     expect(within(sheet).getByText('DECISIONS / 0/3')).toBeInTheDocument()
+    expect(within(sheet).getByText('sheet content')).toBeInTheDocument()
+    expect(within(sheet).queryByText('dock content')).not.toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'sheet action' })).toBeInTheDocument()
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Close dock' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -132,6 +158,15 @@ describe('DockSlot', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('narrow: an Other answer counts as answered in the peek bar', () => {
+    viewport(390)
+    renderDock()
+    fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'pick D1 Other' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close dock' }))
+    expect(screen.getByText('1 of 3, next D2')).toBeInTheDocument()
   })
 
   it('narrow: answering inside the open sheet keeps focus on the control', () => {
@@ -144,5 +179,32 @@ describe('DockSlot', () => {
     fireEvent.click(pick)
     expect(within(sheet).getByText('DECISIONS / 1/3')).toBeInTheDocument()
     expect(pick).toHaveFocus()
+  })
+
+  it('narrow: Tab from the last control and Shift+Tab from the first stay inside the open sheet', () => {
+    viewport(390)
+    renderDock()
+    fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
+    const sheet = screen.getByRole('dialog', { name: 'Decision dock' })
+    const first = within(sheet).getByRole('button', { name: 'sheet action' })
+    const last = within(sheet).getByRole('button', { name: 'pick D1 Other' })
+
+    last.focus()
+    fireEvent.keyDown(last, { key: 'Tab' })
+    expect(first).toHaveFocus()
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
+    expect(last).toHaveFocus()
+  })
+
+  it('narrow: closing a sheet opened from the page returns focus there, not to Open dock', () => {
+    viewport(390)
+    renderDock()
+    expect(document.body).toHaveFocus()
+    const opener = screen.getByRole('button', { name: 'open from the page' })
+    opener.focus()
+    fireEvent.click(opener)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
   })
 })

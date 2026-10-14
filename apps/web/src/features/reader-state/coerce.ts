@@ -49,11 +49,20 @@ export function coerceHighlights(raw: unknown): Highlight[] {
   return raw.map(coerceHighlight).filter((h): h is Highlight => h !== null)
 }
 
+function coerceStrings(raw: unknown): Record<string, string> {
+  if (!isRecord(raw)) return {}
+  return Object.fromEntries(
+    Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  )
+}
+
 export function coerceState(raw: unknown): ReaderState {
   const value = isRecord(raw) ? raw : {}
   return {
     highlights: coerceHighlights(value.highlights),
     dsel: isRecord(value.dsel) ? (value.dsel as ReaderState['dsel']) : {},
     dnote: isRecord(value.dnote) ? (value.dnote as ReaderState['dnote']) : {},
+    // State saved before Other existed has no dother; it reads as nothing picked.
+    dother: coerceStrings(value.dother),
   }
 }

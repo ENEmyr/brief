@@ -45,6 +45,78 @@
       "hasNotText": "Copy manually",
       "contains": "Archiving keeps this doc",
       "nth": 2
+    },
+    {
+      "name": "reader-dark-dock-header",
+      "board": "B-Reader",
+      "selector": "aside[aria-label=\"Decision dock\"] > div",
+      "nth": 0,
+      "contains": "DECISIONS"
+    },
+    {
+      "name": "reader-dark-dock-option-picked",
+      "board": "B-Reader",
+      "selector": "aside[aria-label=\"Decision dock\"] button[role=\"radio\"]",
+      "nth": 0,
+      "contains": "Rate limiting binding"
+    },
+    {
+      "name": "reader-dark-dock-option-idle",
+      "board": "B-Reader",
+      "selector": "aside[aria-label=\"Decision dock\"] button[role=\"radio\"]",
+      "nth": 1,
+      "contains": "KV counter"
+    },
+    {
+      "name": "reader-dark-dock-checkbox-picked",
+      "board": "B-Reader",
+      "selector": "aside[aria-label=\"Decision dock\"] button[role=\"checkbox\"]",
+      "nth": 0,
+      "contains": "API key"
+    },
+    {
+      "name": "reader-dark-dock-copy",
+      "board": "B-Reader",
+      "selector": "aside[aria-label=\"Decision dock\"] button",
+      "hasText": "Copy prompt for agent",
+      "nth": 0,
+      "contains": "Copy prompt for agent"
+    },
+    {
+      "name": "reader-light-dock-header",
+      "board": "B-Reader-Light",
+      "selector": "aside[aria-label=\"Decision dock\"] > div",
+      "nth": 0,
+      "contains": "DECISIONS"
+    },
+    {
+      "name": "reader-light-dock-option-picked",
+      "board": "B-Reader-Light",
+      "selector": "aside[aria-label=\"Decision dock\"] button[role=\"radio\"]",
+      "nth": 0,
+      "contains": "Rate limiting binding"
+    },
+    {
+      "name": "reader-light-dock-option-idle",
+      "board": "B-Reader-Light",
+      "selector": "aside[aria-label=\"Decision dock\"] button[role=\"radio\"]",
+      "nth": 1,
+      "contains": "KV counter"
+    },
+    {
+      "name": "reader-light-dock-checkbox-picked",
+      "board": "B-Reader-Light",
+      "selector": "aside[aria-label=\"Decision dock\"] button[role=\"checkbox\"]",
+      "nth": 0,
+      "contains": "API key"
+    },
+    {
+      "name": "reader-light-dock-copy",
+      "board": "B-Reader-Light",
+      "selector": "aside[aria-label=\"Decision dock\"] button",
+      "hasText": "Copy prompt for agent",
+      "nth": 0,
+      "contains": "Copy prompt for agent"
     }
   ]
 }

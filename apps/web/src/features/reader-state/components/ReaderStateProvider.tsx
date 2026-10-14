@@ -21,7 +21,7 @@ const SYNC_TO_SAVE: Record<SyncStatus, SaveStatus> = {
 
 const SaveStatusContext = createContext<SaveStatus>('saved')
 
-const SERVER_SNAPSHOT: ReaderState = { highlights: [], dsel: {}, dnote: {} }
+const SERVER_SNAPSHOT: ReaderState = { highlights: [], dsel: {}, dnote: {}, dother: {} }
 
 /** Owns one reader-state store per sessionId: creates it (hydrating from
  * localStorage synchronously, which is safe on the server since that read

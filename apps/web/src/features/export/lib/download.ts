@@ -1,5 +1,6 @@
 import { payloadToMarkdown } from '@brief/schema'
 import type { Decision, Payload } from '@brief/schema'
+import { answerLabels, otherLabel } from '@/features/decisions'
 import type { Highlight, ReaderState } from '@/features/reader-state'
 
 /**
@@ -38,9 +39,11 @@ function decisionsSection(decisions: Decision[], state: ReaderState): string {
     for (const o of d.opts) {
       lines.push(`- [${selected.includes(o.id) ? 'x' : ' '}] ${o.label}`)
     }
+    const other = otherLabel(d, state)
+    if (other !== undefined) lines.push(`- [x] ${other}`)
     lines.push('')
-    const answerLabels = d.opts.filter((o) => selected.includes(o.id)).map((o) => o.label)
-    lines.push(`- **Answer:** ${answerLabels.length ? answerLabels.join('; ') : '_(not answered)_'}`)
+    const labels = answerLabels(d, state)
+    lines.push(`- **Answer:** ${labels.length ? labels.join('; ') : '_(not answered)_'}`)
     const note = (state.dnote[d.id] ?? '').trim()
     lines.push(`- **Free-text note:** ${note || '_(none)_'}`, '')
   }

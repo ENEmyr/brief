@@ -48,7 +48,7 @@ describe('startKvSync hydration precedence', () => {
     const store = createReaderStateStore(sessionId)
     const stop = startKvSync(sessionId, store)
     await flushMicrotasks()
-    expect(store.getState()).toEqual({ highlights: [], dsel: {}, dnote: {} })
+    expect(store.getState()).toEqual({ highlights: [], dsel: {}, dnote: {}, dother: {} })
     stop()
   })
 })
@@ -83,6 +83,40 @@ describe('startKvSync debounce', () => {
     const state = JSON.parse(body.state)
     expect(state.dsel).toEqual({ d1: ['b'] })
     expect(state.dnote).toEqual({ d1: 'hi' })
+    expect(state.dother).toEqual({})
+    stop()
+  })
+
+  it('sends the Other answers in the PUT body', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null })))
+    vi.stubGlobal('fetch', mockFetch)
+    const store = createReaderStateStore(sessionId)
+    const stop = startKvSync(sessionId, store)
+    await flushMicrotasks()
+    mockFetch.mockClear()
+
+    store.actions.pickOther('d2', false)
+    store.actions.setOtherText('d2', '300 a minute')
+    vi.advanceTimersByTime(5000)
+    await flushMicrotasks()
+
+    const [, init] = mockFetch.mock.calls[0]!
+    expect(JSON.parse(JSON.parse(init.body).state)).toEqual({
+      dsel: {},
+      dnote: {},
+      dother: { d2: '300 a minute' },
+      highlights: [],
+    })
+    stop()
+  })
+
+  it('hydrates the Other answers from remote state', async () => {
+    const remote = { highlights: [], dsel: {}, dnote: {}, dother: { d2: 'from another device' } }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: JSON.stringify(remote) }))))
+    const store = createReaderStateStore(sessionId)
+    const stop = startKvSync(sessionId, store)
+    await flushMicrotasks()
+    expect(store.getState().dother).toEqual({ d2: 'from another device' })
     stop()
   })
 
@@ -278,5 +312,87 @@ describe('startKvSync status (save chip)', () => {
     resolvePut(new Response('{}', { status: 500 }))
     await flushMicrotasks()
     expect(statuses).toEqual(['saving'])
+  })
+})
+
+describe('startKvSync when the page hides', () => {
+  function setVisibility(state: DocumentVisibilityState) {
+    Object.defineProperty(document, 'visibilityState', { value: state, configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+  }
+
+  afterEach(() => {
+    delete (document as { visibilityState?: DocumentVisibilityState }).visibilityState
+  })
+
+  async function startSyncing(putResult: () => Promise<Response> = () => Promise.resolve(new Response(null, { status: 204 }))) {
+    const mockFetch = vi.fn((_url: string, init?: RequestInit) =>
+      init?.method === 'PUT' ? putResult() : Promise.resolve(new Response(JSON.stringify({ state: null }))),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+    const store = createReaderStateStore(sessionId)
+    const statuses: string[] = []
+    const stop = startKvSync(sessionId, store, (s) => statuses.push(s))
+    await flushMicrotasks()
+    mockFetch.mockClear()
+    const puts = () => mockFetch.mock.calls.map(([, init]) => init!)
+    return { store, statuses, stop, puts }
+  }
+
+  it('a reload inside the debounce sends the pending PUT at once, with keepalive, and only once', async () => {
+    const { store, stop, puts } = await startSyncing()
+    window.dispatchEvent(new Event('pagehide'))
+    expect(puts()).toEqual([])
+
+    store.actions.pickOption('d1', 'a', false)
+    vi.advanceTimersByTime(1000)
+    window.dispatchEvent(new Event('pagehide'))
+    setVisibility('hidden')
+    expect(puts()).toHaveLength(1)
+    expect(puts()[0]).toMatchObject({ method: 'PUT', keepalive: true })
+    expect(JSON.parse(JSON.parse(String(puts()[0]!.body)).state).dsel).toEqual({ d1: ['a'] })
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(puts()).toHaveLength(1)
+    stop()
+  })
+
+  it('switching away from the tab sends the pending PUT; coming back does not', async () => {
+    const { store, stop, puts } = await startSyncing()
+    store.actions.setDecisionNote('d1', 'cheaper')
+    setVisibility('visible')
+    expect(puts()).toEqual([])
+    setVisibility('hidden')
+    expect(puts()).toHaveLength(1)
+    expect(JSON.parse(JSON.parse(String(puts()[0]!.body)).state).dnote).toEqual({ d1: 'cheaper' })
+    stop()
+  })
+
+  it('reports the flushed PUT to the save chip', async () => {
+    const { store, statuses, stop } = await startSyncing(() => Promise.reject(new TypeError('Failed to fetch')))
+    store.actions.pickOption('d1', 'a', false)
+    window.dispatchEvent(new Event('pagehide'))
+    await flushMicrotasks()
+    expect(statuses).toEqual(['saving', 'failed'])
+    stop()
+  })
+
+  it('sends a state past the 64 KiB keepalive limit without keepalive', async () => {
+    const { store, stop, puts } = await startSyncing()
+    store.actions.setDecisionNote('d1', 'x'.repeat(70_000))
+    window.dispatchEvent(new Event('pagehide'))
+    expect(puts()).toHaveLength(1)
+    expect(puts()[0]).toMatchObject({ method: 'PUT', keepalive: false })
+    stop()
+  })
+
+  it('sends nothing on a hide after cleanup, so a session encrypted mid-view never leaks', async () => {
+    const { store, stop, puts } = await startSyncing()
+    store.actions.pickOption('d1', 'a', false)
+    stop()
+    window.dispatchEvent(new Event('pagehide'))
+    setVisibility('hidden')
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(puts()).toEqual([])
   })
 })

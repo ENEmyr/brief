@@ -14,7 +14,15 @@ import {
 } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 import { AskPopover, NotePopover, SelectionToolbar } from '@/features/annotations'
-import { DecisionSection } from '@/features/decisions'
+import {
+  DecisionDock,
+  DecisionSheet,
+  PromptReviewSheet,
+  ResetAnswers,
+  buildReplyPrompt,
+  nextOpenDecision,
+} from '@/features/decisions'
+import type { DockTarget } from '@/features/decisions'
 import { ExportProvider, useExport } from '@/features/export'
 import { SaveModal, UnlockCard } from '@/features/save'
 import { CommandPalette, buildDocumentEntries } from '@/features/palette'
@@ -109,6 +117,9 @@ function SessionReady({
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [dockOpen, setDockOpen] = useState(false)
+  // The decision the dock should show: focused in the column, current in the sheet.
+  const [dockTarget, setDockTarget] = useState<DockTarget | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
   // seq restarts the flash when the same section is jumped to twice.
   const [flash, setFlash] = useState<{ id: string; seq: number } | null>(null)
   const [pendingJump, setPendingJump] = useState<string | null>(null)
@@ -197,13 +208,35 @@ function SessionReady({
     else jumpTo(mark.sectionId)
   }
 
-  function openDock() {
-    if (narrow) {
-      setDockOpen(true)
-      return
-    }
-    const dock = document.getElementById('dock')
-    if (dock) scrollToElement(dock, 'nearest')
+  const showDecision = useCallback((id: string) => setDockTarget((prev) => ({ id, seq: (prev?.seq ?? 0) + 1 })), [])
+  // A sheet chip switches the question without taking focus off the chip.
+  const selectDecision = useCallback((id: string) => setDockTarget((prev) => ({ id, seq: prev?.seq ?? 0 })), [])
+
+  function goToDecision(id: string) {
+    showDecision(id)
+    if (narrow) setDockOpen(true)
+  }
+
+  // "Open dock" starts on the next open decision, as B-Mobile's peek bar says.
+  const openDockSheet = useCallback(
+    (open: boolean) => {
+      const first = payload.decisions[0]
+      if (open && first) showDecision((nextOpenDecision(payload.decisions, readerStateStore.getState()) ?? first).id)
+      setDockOpen(open)
+    },
+    [payload.decisions, readerStateStore, showDecision],
+  )
+
+  // Copies at once and opens the review with the same text, to edit and copy again.
+  function copyPrompt() {
+    void copy(buildReplyPrompt(payload.decisions, readerStateStore.getState(), payload.meta.title, data.id))
+    setReviewOpen(true)
+  }
+
+  function goToNextDecision() {
+    const from = document.activeElement?.closest<HTMLElement>('[data-decision]')?.dataset.decision
+    const next = nextOpenDecision(payload.decisions, readerStateStore.getState(), from)
+    if (next) goToDecision(next.id)
   }
 
   function openNote(id: string) {
@@ -239,6 +272,7 @@ function SessionReady({
   const closePalette = useCallback(() => setPaletteOpen(false), [])
   const closeShortcuts = useCallback(() => setShortcutsOpen(false), [])
   const closeTocDrawer = useCallback(() => setTocDrawerOpen(false), [])
+  const closeReview = useCallback(() => setReviewOpen(false), [])
   const openSaveModal = protectedSession ? undefined : () => setSaveModalOpen(true)
   const openPalette = () => setPaletteOpen(true)
   const openShortcuts = () => setShortcutsOpen(true)
@@ -252,6 +286,11 @@ function SessionReady({
     palette: openPalette,
     nextSection: () => jumpAdjacent(1),
     prevSection: () => jumpAdjacent(-1),
+    nextDecision: goToNextDecision,
+    copyPrompt: () => {
+      if (!document.getElementById('dock')?.contains(document.activeElement)) return false
+      copyPrompt()
+    },
     help: openShortcuts,
   })
 
@@ -269,7 +308,7 @@ function SessionReady({
 
   function selectEntry(entry: PaletteEntry) {
     if (entry.kind === 'section' || entry.kind === 'block') jumpTo(entry.sectionId)
-    else if (entry.kind === 'decision') openDock()
+    else if (entry.kind === 'decision') goToDecision(entry.decisionId)
     else entry.run()
   }
 
@@ -342,15 +381,21 @@ function SessionReady({
               )}
             </main>
             {hasDecisions && (
-              <DockSlot decisions={payload.decisions} open={dockOpen} onOpenChange={setDockOpen}>
-                <DecisionSection
-                  decisions={payload.decisions}
-                  no={sections.length + 1}
-                  docTitle={payload.meta.title}
-                  sessionId={data.id}
-                  copyText={copy}
-                />
-              </DockSlot>
+              <DockSlot
+                decisions={payload.decisions}
+                open={dockOpen}
+                onOpenChange={openDockSheet}
+                column={<DecisionDock decisions={payload.decisions} target={dockTarget} onCopyPrompt={copyPrompt} />}
+                sheet={
+                  <DecisionSheet
+                    decisions={payload.decisions}
+                    target={dockTarget}
+                    onSelect={selectDecision}
+                    onCopyPrompt={copyPrompt}
+                  />
+                }
+                sheetAction={<ResetAnswers decisions={payload.decisions} variant="sheet" />}
+              />
             )}
           </div>
         </DiagramViewerProvider>
@@ -369,6 +414,19 @@ function SessionReady({
       )}
       {paletteOpen && <CommandPalette entries={paletteEntries} onSelect={selectEntry} onClose={closePalette} />}
       {shortcutsOpen && <ShortcutSheet onClose={closeShortcuts} />}
+      {reviewOpen && (
+        <PromptReviewSheet
+          decisions={payload.decisions}
+          docTitle={payload.meta.title}
+          sessionId={data.id}
+          copyText={copy}
+          onClose={closeReview}
+          onGoTo={(id) => {
+            closeReview()
+            goToDecision(id)
+          }}
+        />
+      )}
       {!protectedSession && saveModalOpen && (
         <SaveModal
           sessionId={data.id}
