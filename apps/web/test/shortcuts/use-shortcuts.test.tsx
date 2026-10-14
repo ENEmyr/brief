@@ -175,6 +175,46 @@ describe('useShortcuts', () => {
     expect(copyPrompt).toHaveBeenCalledTimes(1)
   })
 
+  it("inside the dock's own sheet N, the digits and Cmd or Ctrl Enter still work, J and ? do not", () => {
+    const handlers = { nextDecision: vi.fn(), pickOption: vi.fn(), copyPrompt: vi.fn(), nextSection: vi.fn(), help: vi.fn() }
+    renderHook(() => useShortcuts(handlers))
+    render(
+      <aside role="dialog" aria-modal="true" data-dock="">
+        <button type="button">KV</button>
+      </aside>,
+    )
+    screen.getByRole('button', { name: 'KV' }).focus()
+
+    press({ key: 'n', code: 'KeyN' })
+    press({ key: '2', code: 'Digit2' })
+    press({ key: 'Enter', ctrlKey: true })
+    press({ key: 'j', code: 'KeyJ' })
+    press({ key: '?', shiftKey: true })
+    expect(handlers.nextDecision).toHaveBeenCalledTimes(1)
+    expect(handlers.pickOption).toHaveBeenCalledWith('2')
+    expect(handlers.copyPrompt).toHaveBeenCalledTimes(1)
+    expect(handlers.nextSection).not.toHaveBeenCalled()
+    expect(handlers.help).not.toHaveBeenCalled()
+  })
+
+  it('any other dialog blocks the decision keys too', () => {
+    const handlers = { nextDecision: vi.fn(), pickOption: vi.fn(), copyPrompt: vi.fn() }
+    renderHook(() => useShortcuts(handlers))
+    render(
+      <div role="dialog" aria-modal="true">
+        <button type="button">Close</button>
+      </div>,
+    )
+    screen.getByRole('button', { name: 'Close' }).focus()
+
+    press({ key: 'n', code: 'KeyN' })
+    press({ key: '2', code: 'Digit2' })
+    press({ key: 'Enter', metaKey: true })
+    expect(handlers.nextDecision).not.toHaveBeenCalled()
+    expect(handlers.pickOption).not.toHaveBeenCalled()
+    expect(handlers.copyPrompt).not.toHaveBeenCalled()
+  })
+
   it('calls the handler from the latest render, once', () => {
     const first = vi.fn()
     const second = vi.fn()

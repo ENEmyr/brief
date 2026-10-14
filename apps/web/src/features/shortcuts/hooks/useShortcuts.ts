@@ -7,7 +7,9 @@ import type { ShortcutId } from '../lib/registry'
  * key unbound. A handler that returns false declines the key, so another
  * component's handler for the same binding still gets it.
  */
-export function useShortcuts(handlers: Partial<Record<ShortcutId, (key: string) => boolean | void>>): void {
+export function useShortcuts(
+  handlers: Partial<Record<ShortcutId, (key: string) => boolean | void>>,
+): void {
   const handlersRef = useRef(handlers)
   useEffect(() => {
     handlersRef.current = handlers

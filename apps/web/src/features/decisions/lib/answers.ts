@@ -8,7 +8,10 @@ export function otherPicked(decisionId: string, state: Pick<ReaderState, 'dother
 }
 
 /** "Other: <text>" when the reader picked Other (text may still be empty), else undefined. */
-export function otherLabel(decision: Decision, state: Pick<ReaderState, 'dother'>): string | undefined {
+export function otherLabel(
+  decision: Decision,
+  state: Pick<ReaderState, 'dother'>,
+): string | undefined {
   if (!otherPicked(decision.id, state)) return undefined
   return `Other: ${(state.dother[decision.id] ?? '').trim()}`.trimEnd()
 }
@@ -33,7 +36,10 @@ export interface DecisionCounts {
   notes: number
 }
 
-export function decisionCounts(decisions: Decision[], state: Pick<ReaderState, 'dsel' | 'dother' | 'dnote'>): DecisionCounts {
+export function decisionCounts(
+  decisions: Decision[],
+  state: Pick<ReaderState, 'dsel' | 'dother' | 'dnote'>,
+): DecisionCounts {
   const answered = decisions.filter((d) => isAnswered(d, state)).length
   const notes = decisions.filter((d) => (state.dnote[d.id] ?? '').trim() !== '').length
   return { answered, open: decisions.length - answered, notes }

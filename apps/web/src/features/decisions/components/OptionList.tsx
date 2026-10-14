@@ -7,14 +7,18 @@ import { otherPicked } from '../lib/answers'
 
 export type DockVariant = 'dock' | 'sheet'
 
-const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
+const FOCUS_RING =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
 
 /**
  * B-Reader's dock and B-Mobile's sheet. The boards size the kbd and the Other
  * input as content boxes, so a "height: 18px" kbd with its border renders 20
  * and a "min-height: 34px" input 36; these are the rendered sizes.
  */
-const VARIANTS: Record<DockVariant, { group: string; option: string; idle: string; kbd: string; other: string }> = {
+const VARIANTS: Record<
+  DockVariant,
+  { group: string; option: string; idle: string; kbd: string; other: string }
+> = {
   dock: {
     group: 'gap-1',
     option: 'min-h-[34px] gap-[10px] rounded-[4px] px-2 text-[13px]',
@@ -145,7 +149,9 @@ export function OptionList({
             <kbd
               aria-hidden="true"
               className={`flex items-center justify-center border font-mono ${look.kbd} ${
-                item.on ? 'border-accent-line bg-accent text-on-accent' : 'border-line2 bg-transparent text-sub'
+                item.on
+                  ? 'border-accent-line bg-accent text-on-accent'
+                  : 'border-line2 bg-transparent text-sub'
               }`}
             >
               {i + 1}
@@ -153,7 +159,10 @@ export function OptionList({
             <span className="grow">
               {item.label}
               {item.detail && (
-                <span id={`${detailId}-${i}`} className="block text-[12px] leading-[18px] text-faint">
+                <span
+                  id={`${detailId}-${i}`}
+                  className="block text-[12px] leading-[18px] text-faint"
+                >
                   {item.detail}
                 </span>
               )}
