@@ -28,11 +28,10 @@ export function decisionAnswerLines(decisions: Decision[], state: ReaderState): 
   return lines
 }
 
-/** Builds the "Generate prompt" reply text (Reader.dc.html's buildPrompt,
- * lines 354-359): the per-decision lines above, opened with a doc/session
- * line and closed with a fixed action line. Pure and synchronous so
- * DecisionSection can call it both for "Generate prompt" and "Rebuild from
- * answers".
+/** Builds the copy-back prompt (Reader.dc.html's buildPrompt, lines
+ * 354-359): the per-decision lines above, opened with a doc/session line and
+ * closed with a fixed action line. Pure and synchronous so "Copy prompt for
+ * agent" and the review sheet's "Rebuild from answers" build the same text.
  *
  * Deviation from the prototype: the prototype's opening line uses an em
  * dash ("... my decisions:" with a dash before "my"), this uses a plain

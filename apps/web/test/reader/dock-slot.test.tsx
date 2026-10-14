@@ -21,23 +21,40 @@ function narrowScreen(matches: boolean) {
 }
 
 function PickOption() {
-  const { pickOption } = useReaderActions()
+  const { pickOption, pickOther } = useReaderActions()
   return (
-    <button type="button" onClick={() => pickOption('D1', 'a', false)}>
-      pick D1 A
-    </button>
+    <>
+      <button type="button" onClick={() => pickOption('D1', 'a', false)}>
+        pick D1 A
+      </button>
+      <button type="button" onClick={() => pickOther('D1', false)}>
+        pick D1 Other
+      </button>
+    </>
   )
 }
 
 function Harness() {
   const [open, setOpen] = useState(false)
   return (
-    <>
-      <DockSlot decisions={decisions} open={open} onOpenChange={setOpen}>
-        <p>dock content</p>
-        <PickOption />
-      </DockSlot>
-    </>
+    <DockSlot
+      decisions={decisions}
+      open={open}
+      onOpenChange={setOpen}
+      column={
+        <>
+          <p>dock content</p>
+          <PickOption />
+        </>
+      }
+      sheet={
+        <>
+          <p>sheet content</p>
+          <PickOption />
+        </>
+      }
+      sheetAction={<button type="button">sheet action</button>}
+    />
   )
 }
 
@@ -58,11 +75,12 @@ afterEach(() => {
 })
 
 describe('DockSlot', () => {
-  it('wide: a complementary landmark holding the content, no peek bar', () => {
+  it('wide: a complementary landmark holding the column, no peek bar', () => {
     narrowScreen(false)
     renderDock()
     const dock = screen.getByRole('complementary', { name: 'Decision dock' })
     expect(within(dock).getByText('dock content')).toBeInTheDocument()
+    expect(screen.queryByText('sheet content')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open dock' })).not.toBeInTheDocument()
   })
 
@@ -84,6 +102,9 @@ describe('DockSlot', () => {
     const sheet = screen.getByRole('dialog', { name: 'Decision dock' })
     expect(sheet).toHaveAttribute('aria-modal', 'true')
     expect(within(sheet).getByText('DECISIONS / 0/3')).toBeInTheDocument()
+    expect(within(sheet).getByText('sheet content')).toBeInTheDocument()
+    expect(within(sheet).queryByText('dock content')).not.toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'sheet action' })).toBeInTheDocument()
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Close dock' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -92,6 +113,15 @@ describe('DockSlot', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('narrow: an Other answer counts as answered in the peek bar', () => {
+    narrowScreen(true)
+    renderDock()
+    fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'pick D1 Other' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close dock' }))
+    expect(screen.getByText('1 of 3, next D2')).toBeInTheDocument()
   })
 
   it('narrow: answering inside the open sheet keeps focus on the control', () => {

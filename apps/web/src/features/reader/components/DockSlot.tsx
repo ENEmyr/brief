@@ -2,28 +2,12 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Decision } from '@brief/schema'
-import { isAnswered } from '@/features/decisions'
+import { DecisionSegments, isAnswered } from '@/features/decisions'
 import { useDialogFocus } from '@/features/export'
 import { useReaderState } from '@/features/reader-state'
-import type { ReaderState } from '@/features/reader-state'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { ChevronDownIcon } from './icons'
 import { TOUCH_BUTTON } from './topbarChrome'
-
-/** One segment per decision: answered accent, the first open one warn, the rest line. */
-function DecisionSegments({ decisions, state }: { decisions: Decision[]; state: ReaderState }) {
-  const firstOpen = decisions.findIndex((d) => !isAnswered(d, state))
-  return (
-    <div className="flex gap-[3px]" aria-hidden="true">
-      {decisions.map((d, i) => {
-        let tone = 'bg-line'
-        if (isAnswered(d, state)) tone = 'bg-accent'
-        else if (i === firstOpen) tone = 'bg-[var(--c-warn-fill)]'
-        return <span key={d.id} className={`h-1 flex-1 rounded-[2px] ${tone}`} />
-      })}
-    </div>
-  )
-}
 
 function SheetFocus({ panelRef, onClose }: { panelRef: RefObject<HTMLElement | null>; onClose: () => void }) {
   useDialogFocus(panelRef, onClose)
@@ -35,19 +19,24 @@ const HANDLE = 'h-1 w-9 shrink-0 self-center rounded-[2px] bg-line2'
 /**
  * The decision dock's place in the layout. 1101 and up: a 340 column, sticky
  * at 64. 880 to 1100: under the document at full width. Under 880 (B-Mobile):
- * a peek bar at the bottom that opens as a bottom sheet. Phase 3 builds the
- * dock's content; until then it holds whatever it is given.
+ * a peek bar at the bottom that opens as a bottom sheet. It shows `column` in
+ * the first two and `sheet` in the open sheet, with `sheetAction` beside
+ * "Close dock".
  */
 export function DockSlot({
   decisions,
   open,
   onOpenChange,
-  children,
+  column,
+  sheet: sheetContent,
+  sheetAction,
 }: {
   decisions: Decision[]
   open: boolean
   onOpenChange: (open: boolean) => void
-  children: React.ReactNode
+  column: React.ReactNode
+  sheet: React.ReactNode
+  sheetAction?: React.ReactNode
 }) {
   const narrow = useIsNarrow()
   const state = useReaderState()
@@ -121,6 +110,7 @@ export function DockSlot({
                 <span className="grow font-mono text-[11px] text-faint">
                   DECISIONS / {answered}/{total}
                 </span>
+                {sheetAction}
                 <button type="button" onClick={close} aria-label="Close dock" className={TOUCH_BUTTON}>
                   <ChevronDownIcon />
                 </button>
@@ -128,11 +118,8 @@ export function DockSlot({
             </div>
           </>
         )}
-        <div
-          data-dock-body=""
-          className={sheet ? 'min-h-0 grow overflow-y-auto px-[14px] pb-[14px] pt-[6px]' : 'p-[14px] max-[880px]:hidden'}
-        >
-          {children}
+        <div data-dock-body="" className={`flex min-h-0 grow flex-col ${sheet ? '' : 'max-[880px]:hidden'}`}>
+          {sheet ? sheetContent : column}
         </div>
       </aside>
     </>

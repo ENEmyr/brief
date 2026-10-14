@@ -38,3 +38,17 @@ export function decisionCounts(decisions: Decision[], state: Pick<ReaderState, '
   const notes = decisions.filter((d) => (state.dnote[d.id] ?? '').trim() !== '').length
   return { answered, open: decisions.length - answered, notes }
 }
+
+/** The first unanswered decision after `fromId` (wrapping, never `fromId` itself), or from the top without one. */
+export function nextOpenDecision(
+  decisions: Decision[],
+  state: Answers,
+  fromId?: string,
+): Decision | undefined {
+  const start = fromId === undefined ? -1 : decisions.findIndex((d) => d.id === fromId)
+  for (let step = 1; step <= decisions.length; step++) {
+    const decision = decisions[(start + step) % decisions.length]!
+    if (decision.id !== fromId && !isAnswered(decision, state)) return decision
+  }
+  return undefined
+}
