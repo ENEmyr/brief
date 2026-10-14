@@ -67,6 +67,74 @@ describe('SessionPage / SessionView', () => {
     )
   })
 
+  // B-States:48-51.
+  it('a missing session shows its id and a link home', async () => {
+    window.history.replaceState(null, '', '/s/missing1234567/')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":"x"}', { status: 404 })))
+
+    render(<SessionPage />)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Session not found or expired.' })).toBeInTheDocument()
+    expect(screen.getByText('404 / missing1234567')).toBeInTheDocument()
+    expect(screen.getByText('Check the link, or ask the agent to publish the brief again.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Go to brief home' })).toHaveAttribute('href', '/')
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+  })
+
+  it('a link with no valid session id shows 404 without an id', async () => {
+    window.history.replaceState(null, '', '/s/short/')
+    vi.stubGlobal('fetch', vi.fn())
+
+    render(<SessionPage />)
+
+    expect(await screen.findByText('404')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Session not found or expired.' })).toBeInTheDocument()
+  })
+
+  it('a failed load is an alert with Retry and the reassurance line', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}', { status: 500 })))
+
+    render(<SessionPage />)
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('load failed')
+    expect(within(alert).getByRole('heading', { level: 1, name: 'Something went wrong loading this session.' })).toBeInTheDocument()
+    expect(alert).toHaveTextContent('Your answers saved on this device are safe.')
+    expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+  })
+
+  it('a protected session with no unlock parameters is an alert with no action', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    const corrupt = { ...validEnvelope, encrypted: true, encParams: null, payload: 'cipher' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(corrupt))))
+
+    render(<SessionPage />)
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('protected')
+    expect(within(alert).getByRole('heading', { level: 1, name: 'Protected session data is corrupted.' })).toBeInTheDocument()
+    expect(alert).toHaveTextContent('The encrypted copy is missing what it needs to unlock. Ask the agent to publish it again.')
+    expect(within(alert).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  // B-States:115-119.
+  it('a brief with no decisions shows the empty dock note and no dock', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
+
+    render(<SessionPage />)
+
+    expect(
+      await screen.findByText((_, el) =>
+        el?.tagName === 'P' &&
+        el.textContent ===
+          'This brief asks nothing. Read it, highlight what matters, then copy your notes back with Edit > Copy edit prompt.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Decision dock' })).not.toBeInTheDocument()
+  })
+
   // The decisions moved from the end of the document into the decision dock,
   // and the outline lists only payload sections (B-Reader has no Decisions row).
   it('renders the Decisions section inside the decision dock, with no outline entry for it', async () => {

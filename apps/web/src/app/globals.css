@@ -368,15 +368,28 @@ body {
   }
 }
 
+/* B-States loading: the skeleton appears only after 300ms, so a fast load
+ * shows no flash. */
 @keyframes sk-shimmer {
-  0% { background-position: -480px 0; }
-  100% { background-position: 480px 0; }
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
 }
-.sk {
-  background: linear-gradient(90deg, var(--c-elev) 25%, var(--c-skeleton-mid) 37%, var(--c-elev) 63%);
-  background-size: 480px 100%;
-  animation: sk-shimmer 1.4s infinite linear;
-  border-radius: 8px;
+.sk-delay {
+  animation: console-in 0s 300ms both;
+}
+/* In the components layer, so a radius utility on one bar wins. */
+@layer components {
+  .sk {
+    background: linear-gradient(90deg, var(--c-elev) 0%, var(--c-skeleton-mid) 50%, var(--c-elev) 100%);
+    background-size: 200% 100%;
+    animation: sk-shimmer 1.6s linear infinite;
+    border-radius: 3px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sk {
+      animation: none;
+    }
+  }
 }
 
 .shiki .hl-line {

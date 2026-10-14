@@ -38,6 +38,8 @@ import { adjacentSectionId, findSection, scrollToElement } from '../lib/sectionN
 import { DockSlot } from './DockSlot'
 import { RawView } from './RawView'
 import { Skeleton } from './Skeleton'
+import { HomeLink, STATUS_ACTION, StatusPage } from './StatusPage'
+import { NoDecisionsNote } from './NoDecisionsNote'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
 import { Topbar, themeToggleLabel } from './Topbar'
@@ -60,19 +62,6 @@ function storeTocCollapsed(collapsed: boolean) {
   } catch {
     // private mode: collapse state just does not persist
   }
-}
-
-function StatusCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-page">
-      <Topbar />
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="rounded-xl border border-line bg-card p-6 text-center text-sub shadow-[var(--shadow-card)]">
-          {children}
-        </div>
-      </main>
-    </div>
-  )
 }
 
 /** Reader highlights for the outline's "Your marks", in reading order. */
@@ -365,6 +354,7 @@ function SessionReady({
                 scroll. Wide blocks scroll inside their own box instead. */}
             <main className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
               <MetaHeader meta={payload.meta} />
+              {!hasDecisions && <NoDecisionsNote />}
               {view === 'raw' ? (
                 <RawView markdown={rawMarkdown} />
               ) : (
@@ -449,6 +439,21 @@ function SessionReady({
   )
 }
 
+function LoadError() {
+  return (
+    <StatusPage
+      line={{ tone: 'failed', text: 'load failed' }}
+      title="Something went wrong loading this session."
+      help="Your answers saved on this device are safe."
+      action={
+        <button type="button" onClick={() => window.location.reload()} className={STATUS_ACTION}>
+          Retry
+        </button>
+      }
+    />
+  )
+}
+
 export function SessionView({ id }: { id: string | null }) {
   const { status, data } = useSession(id)
   // Memory-only: never written to sessionStorage/localStorage/IndexedDB.
@@ -457,23 +462,17 @@ export function SessionView({ id }: { id: string | null }) {
   const [decrypted, setDecrypted] = useState<Payload | null>(null)
 
   if (status === 'notfound') {
-    return <StatusCard>Session not found or expired.</StatusCard>
-  }
-
-  if (status === 'error') {
     return (
-      <StatusCard>
-        <p className="mb-4">Something went wrong loading this session.</p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="rounded-lg border border-line bg-elev px-4 py-2 font-medium text-text hover:bg-chip"
-        >
-          Retry
-        </button>
-      </StatusCard>
+      <StatusPage
+        line={{ tone: 'plain', text: id ? `404 / ${id}` : '404' }}
+        title="Session not found or expired."
+        help="Check the link, or ask the agent to publish the brief again."
+        action={<HomeLink />}
+      />
     )
   }
+
+  if (status === 'error') return <LoadError />
 
   if (status !== 'ready' || !data) {
     return <Skeleton />
@@ -487,29 +486,40 @@ export function SessionView({ id }: { id: string | null }) {
         // leave the device unencrypted. Same-key encrypted sync is a
         // roadmap enhancement.
         <ReaderStateProvider key={data.id} sessionId={data.id} persist={false}>
-          <ExportProvider sessionId={data.id} payload={decrypted} encrypted={data.encrypted}>
+          <ExportProvider sessionId={data.id} payload={decrypted} encrypted={data.encrypted} expiresAt={data.expiresAt}>
             <SessionReady data={{ ...data, payload: decrypted }} protectedSession />
           </ExportProvider>
         </ReaderStateProvider>
       )
     }
     if (!data.encParams) {
-      return <StatusCard>Protected session data is corrupted.</StatusCard>
+      return (
+        <StatusPage
+          line={{ tone: 'locked', text: 'protected' }}
+          title="Protected session data is corrupted."
+          help="The encrypted copy is missing what it needs to unlock. Ask the agent to publish it again."
+        />
+      )
     }
     return (
-      <StatusCard>
-        <UnlockCard ciphertext={data.raw} encParams={data.encParams} onUnlock={setDecrypted} />
-      </StatusCard>
+      // B-Overlays:79-89.
+      <div className="flex min-h-screen flex-col bg-page text-text">
+        <div className="flex h-[45px] shrink-0 items-center gap-2 border-b border-line px-[14px] font-mono text-[13px] leading-[normal]">
+          <span aria-hidden="true" className="size-[18px] shrink-0 rounded-ctrl bg-accent" />
+          brief<span className="text-faint">/s/{data.id}</span>
+        </div>
+        <main className="flex grow items-center justify-center p-4">
+          <UnlockCard ciphertext={data.raw} encParams={data.encParams} onUnlock={setDecrypted} />
+        </main>
+      </div>
     )
   }
 
-  if (!data.payload) {
-    return <StatusCard>Something went wrong loading this session.</StatusCard>
-  }
+  if (!data.payload) return <LoadError />
 
   return (
     <ReaderStateProvider key={data.id} sessionId={data.id}>
-      <ExportProvider sessionId={data.id} payload={data.payload} encrypted={data.encrypted}>
+      <ExportProvider sessionId={data.id} payload={data.payload} encrypted={data.encrypted} expiresAt={data.expiresAt}>
         <SessionReady data={{ ...data, payload: data.payload }} />
       </ExportProvider>
     </ReaderStateProvider>

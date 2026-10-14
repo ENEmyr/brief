@@ -1,28 +1,38 @@
+const OUTLINE_ROWS = ['w-[60%]', 'w-[86%]', 'w-[72%]', 'w-[80%]', 'w-[64%]']
+
+/** The loading state (B-States:33-40). */
 export function Skeleton() {
   return (
-    <div className="min-h-screen" role="status" aria-label="Loading session">
-      <div className="max-w-[1180px] mx-auto px-7 pt-5">
-        <div className="flex justify-between mb-[26px]">
-          <div className="sk w-[220px] h-[26px]" />
-          <div className="sk w-[150px] h-[26px]" />
+    <div role="status" aria-label="Loading session" className="sk-delay flex min-h-screen flex-col bg-page">
+      <div className="flex h-[53px] shrink-0 items-center gap-3 border-b border-line bg-card px-4">
+        <span className="size-[18px] shrink-0 rounded-ctrl bg-accent" />
+        <span className="sk h-3 w-[220px] min-w-0" />
+        <span className="grow" />
+        <span className="sk h-7 w-[260px] max-[880px]:hidden" />
+        <span className="sk h-7 w-24 max-[880px]:hidden" />
+      </div>
+      <div className="grid grow grid-cols-[236px_minmax(0,1fr)_340px] max-[1101px]:grid-cols-[236px_minmax(0,1fr)] max-[880px]:grid-cols-[minmax(0,1fr)]">
+        <div className="flex flex-col gap-3 border-r border-line px-4 py-5 max-[880px]:hidden">
+          {OUTLINE_ROWS.map((width) => (
+            <span key={width} className={`sk h-[10px] ${width}`} />
+          ))}
         </div>
-        <div className="sk w-full h-[118px] mb-[26px]" />
-        <div className="min-[880px]:grid min-[880px]:grid-cols-[172px_1fr] min-[880px]:gap-9">
-          <div>
-            <div className="sk h-4 w-full mb-3" />
-            <div className="sk h-3.5 w-4/5 mb-[9px]" />
-            <div className="sk h-3.5 w-[90%] mb-[9px]" />
-            <div className="sk h-3.5 w-[70%]" />
-          </div>
-          <div>
-            <div className="sk w-[46%] h-6 mb-[18px]" />
-            <div className="sk h-3.5 w-full mb-2.5" />
-            <div className="sk h-3.5 w-[97%] mb-2.5" />
-            <div className="sk h-3.5 w-[88%] mb-[22px]" />
-            <div className="sk w-full h-[200px] mb-[22px]" />
-            <div className="sk h-3.5 w-full mb-2.5" />
-            <div className="sk h-3.5 w-[92%]" />
-          </div>
+        <div className="flex flex-col gap-3 px-10 py-7 max-[880px]:px-3 max-[880px]:py-[14px]">
+          <span className="sk h-[22px] w-[46%]" />
+          <span className="sk h-[10px] w-[30%]" />
+          <span className="h-[6px]" />
+          <span className="sk h-3 w-full" />
+          <span className="sk h-3 w-[96%]" />
+          <span className="sk h-3 w-[88%]" />
+          <span className="sk h-[150px] w-full rounded-panel" />
+        </div>
+        <div className="flex flex-col gap-[10px] border-l border-line px-4 py-5 max-[1101px]:hidden">
+          <span className="sk h-[6px] w-full" />
+          <span className="sk h-[14px] w-[70%]" />
+          <span className="sk h-9 w-full" />
+          <span className="sk h-9 w-full" />
+          <span className="sk h-9 w-full" />
+          <span className="sk h-[34px] w-full" />
         </div>
       </div>
     </div>
