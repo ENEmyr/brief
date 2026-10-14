@@ -61,24 +61,29 @@ function PickOption() {
 function Harness() {
   const [open, setOpen] = useState(false)
   return (
-    <DockSlot
-      decisions={decisions}
-      open={open}
-      onOpenChange={setOpen}
-      column={
-        <>
-          <p>dock content</p>
-          <PickOption />
-        </>
-      }
-      sheet={
-        <>
-          <p>sheet content</p>
-          <PickOption />
-        </>
-      }
-      sheetAction={<button type="button">sheet action</button>}
-    />
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        open from the page
+      </button>
+      <DockSlot
+        decisions={decisions}
+        open={open}
+        onOpenChange={setOpen}
+        column={
+          <>
+            <p>dock content</p>
+            <PickOption />
+          </>
+        }
+        sheet={
+          <>
+            <p>sheet content</p>
+            <PickOption />
+          </>
+        }
+        sheetAction={<button type="button">sheet action</button>}
+      />
+    </>
   )
 }
 
@@ -174,5 +179,32 @@ describe('DockSlot', () => {
     fireEvent.click(pick)
     expect(within(sheet).getByText('DECISIONS / 1/3')).toBeInTheDocument()
     expect(pick).toHaveFocus()
+  })
+
+  it('narrow: Tab from the last control and Shift+Tab from the first stay inside the open sheet', () => {
+    viewport(390)
+    renderDock()
+    fireEvent.click(screen.getByRole('button', { name: 'Open dock' }))
+    const sheet = screen.getByRole('dialog', { name: 'Decision dock' })
+    const first = within(sheet).getByRole('button', { name: 'sheet action' })
+    const last = within(sheet).getByRole('button', { name: 'pick D1 Other' })
+
+    last.focus()
+    fireEvent.keyDown(last, { key: 'Tab' })
+    expect(first).toHaveFocus()
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
+    expect(last).toHaveFocus()
+  })
+
+  it('narrow: closing a sheet opened from the page returns focus there, not to Open dock', () => {
+    viewport(390)
+    renderDock()
+    expect(document.body).toHaveFocus()
+    const opener = screen.getByRole('button', { name: 'open from the page' })
+    opener.focus()
+    fireEvent.click(opener)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
   })
 })

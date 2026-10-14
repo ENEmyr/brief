@@ -148,4 +148,28 @@ test.describe('dock edges', () => {
       }
     })
   }
+
+  test('the dock sheet keeps Tab inside at both edges and hands focus back to Open dock', async ({
+    page,
+    createSession,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'the dock is a modal sheet only under 880')
+    const { id } = await createSession()
+    await page.goto(`/s/${id}`)
+    await page.getByRole('button', { name: 'Open dock' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Decision dock' })
+    const copy = sheet.getByRole('button', { name: /^Copy prompt for agent/ })
+    const close = sheet.getByRole('button', { name: 'Close dock' })
+
+    await copy.focus()
+    await page.keyboard.press('Tab')
+    await expect(close).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
+    await expect(copy).toBeFocused()
+
+    await page.keyboard.press('Escape')
+    await expect(sheet).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Open dock' })).toBeFocused()
+  })
 })
