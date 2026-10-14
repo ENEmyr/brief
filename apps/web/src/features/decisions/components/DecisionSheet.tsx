@@ -1,11 +1,12 @@
 'use client'
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { Decision } from '@brief/schema'
 import { useReaderActions, useReaderState } from '@/features/reader-state'
 import { isAnswered } from '../lib/answers'
 import type { DockTarget } from './DecisionDock'
 import { OptionList } from './OptionList'
 import { SupportTabs } from './SupportTabs'
+import type { TabKey } from './SupportTabs'
 
 const FOCUS_RING =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
@@ -34,6 +35,7 @@ export function DecisionSheet({
   const reasonId = useId()
   const answeredId = useId()
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [tabs, setTabs] = useState<Partial<Record<string, TabKey>>>({})
   // A chip keeps the request number (0 before any), so only N and "Go to" move focus.
   const handledSeq = useRef(target?.seq ?? 0)
   const current = decisions.find((d) => d.id === target?.id) ?? decisions[0]!
@@ -98,7 +100,11 @@ export function DecisionSheet({
             placeholder="optional"
             className={`-mt-1 resize-none rounded-[6px] border border-line bg-[var(--c-code-bg)] px-3 py-2 text-[16px] leading-6 text-text outline-none ${FOCUS_RING}`}
           />
-          <SupportTabs decision={current} />
+          <SupportTabs
+            decision={current}
+            picked={tabs[current.id]}
+            onPick={(key) => setTabs((prev) => ({ ...prev, [current.id]: key }))}
+          />
         </div>
       </div>
       <div className="shrink-0 border-t border-line px-3 pb-[30px] pt-[10px]">

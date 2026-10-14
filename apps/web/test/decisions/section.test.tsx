@@ -362,14 +362,14 @@ describe('DecisionDock', () => {
 describe('DecisionSheet', () => {
   // Wraps the sheet the way the reader does: inside the dock's own dialog, a
   // chip keeps the request number and "show d2" (N, Go to) raises it.
-  function renderSheet(onCopyPrompt = () => {}) {
+  function renderSheet(onCopyPrompt = () => {}, list: Decision[] = decisions) {
     function Harness() {
       const [target, setTarget] = useState<DockTarget | null>(null)
       return (
         <ReaderStateProvider sessionId="decisions-test" persist={false}>
           <aside id="dock" role="dialog" aria-modal="true" aria-label="Decision dock" data-dock="">
             <DecisionSheet
-              decisions={decisions}
+              decisions={list}
               target={target}
               onSelect={(id) => setTarget((prev) => ({ id, seq: prev?.seq ?? 0 }))}
               onCopyPrompt={onCopyPrompt}
@@ -439,6 +439,21 @@ describe('DecisionSheet', () => {
     expect(screen.getByRole('textbox', { name: 'Reason / extra context' })).toHaveValue('')
     fireEvent.click(chip('d1'))
     expect(screen.getByRole('textbox', { name: 'Reason / extra context' })).toHaveValue('cheaper')
+  })
+
+  it('remembers the details tab picked on each question across chip switches', () => {
+    const [d1, d2] = decisions as [Decision, Decision]
+    renderSheet(undefined, [
+      { ...d1, why: 'Reads stay at the edge.', cmp: { head: ['Option', 'Cost'], rows: [['KV', 'low']] } },
+      { ...d2, why: 'Latency per region.', cmp: { head: ['Region', 'RTT'], rows: [['US', '20 ms']] } },
+    ])
+    fireEvent.click(screen.getByRole('tab', { name: 'Compare' }))
+    fireEvent.click(chip('d2'))
+    expect(screen.getByRole('tab', { name: 'Explanation' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Latency per region.')
+    fireEvent.click(chip('d1'))
+    expect(screen.getByRole('tab', { name: 'Compare' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('KVlow')
   })
 
   it('Copy prompt for agent hands off to the reader', () => {

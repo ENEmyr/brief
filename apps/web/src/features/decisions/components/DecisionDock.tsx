@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { Decision } from '@brief/schema'
 import { useReaderActions, useReaderState } from '@/features/reader-state'
 import { modKeyLabel } from '@/features/shortcuts'
@@ -8,6 +8,7 @@ import { DecisionSegments } from './DecisionSegments'
 import { OptionList } from './OptionList'
 import { ResetAnswers } from './ResetAnswers'
 import { SupportTabs } from './SupportTabs'
+import type { TabKey } from './SupportTabs'
 
 const FOCUS_RING =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
@@ -27,6 +28,7 @@ function DockDecision({ decision, current }: { decision: Decision; current: bool
   const state = useReaderState()
   const actions = useReaderActions()
   const questionId = useId()
+  const [tab, setTab] = useState<TabKey>()
   const done = isAnswered(decision, state)
   let word = 'open'
   if (done) word = 'done'
@@ -57,7 +59,7 @@ function DockDecision({ decision, current }: { decision: Decision; current: bool
         placeholder="Reason / extra context (optional)"
         className={`block min-h-[34px] resize-none rounded-[4px] border border-line bg-[var(--c-code-bg)] px-[10px] py-1 text-[16px] leading-6 text-text outline-none [field-sizing:content] ${FOCUS_RING}`}
       />
-      <SupportTabs decision={decision} />
+      <SupportTabs decision={decision} picked={tab} onPick={setTab} />
     </div>
   )
 }
