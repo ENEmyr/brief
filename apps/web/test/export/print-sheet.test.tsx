@@ -1,10 +1,30 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
-import type { Payload } from '@brief/schema'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
+import type { Root, Element as HastElement } from 'hast'
+import type { Payload, Section } from '@brief/schema'
 import type { Highlight, ReaderState } from '@/features/reader-state'
 import { ReaderStateProvider } from '@/features/reader-state'
 import { ExportProvider } from '@/features/export'
 import { insertPrintNotes, printedLine, sessionLine } from '@/features/export/lib/printSheet'
+import { SectionView } from '@/features/reader/components/SectionView'
+
+const { highlightMock } = vi.hoisted(() => ({ highlightMock: vi.fn() }))
+vi.mock('@/features/reader/services/shiki', () => ({ highlightToHast: highlightMock }))
+
+/** A shiki-shaped tree, one `span.line` per line (as in test/reader/code-blocks.test.tsx). */
+function hastFor(lines: string[]): Root {
+  const children: (HastElement | { type: 'text'; value: string })[] = []
+  lines.forEach((line, i) => {
+    if (i > 0) children.push({ type: 'text', value: '\n' })
+    children.push({ type: 'element', tagName: 'span', properties: { class: 'line' }, children: [{ type: 'text', value: line }] })
+  })
+  return {
+    type: 'root',
+    children: [
+      { type: 'element', tagName: 'pre', properties: { class: 'shiki' }, children: [{ type: 'element', tagName: 'code', properties: {}, children }] },
+    ],
+  }
+}
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -105,13 +125,61 @@ describe('insertPrintNotes', () => {
     insertPrintNotes(root, [highlight('a', 'first')])
     expect([...root.querySelectorAll('[data-print-note]')].map((n) => n.textContent)).toEqual(['Note: first'])
   })
+})
 
-  it('puts a note on code after the listing', () => {
-    const root = page(
-      '<div><pre><code><span data-sid="1" data-bid="2"><mark data-mark-id="c">b.tokens -= 1</mark></span></code></pre></div>',
+describe('insertPrintNotes on a rendered section', () => {
+  const section: Section = {
+    id: 's1',
+    no: 1,
+    title: 'Overview',
+    blocks: [
+      { type: 'p', text: 'Hello world' },
+      { type: 'table', head: ['a', 'b'], rows: [['x', 'y']] },
+      { type: 'code', language: 'ts', code: 'one\ntwo' },
+    ],
+  }
+  const at = (id: string, bid: number | null, path: string, start: number, text: string, extra: Partial<Highlight>) => ({
+    id,
+    sid: 0,
+    bid,
+    path,
+    start,
+    end: start + text.length,
+    text,
+    note: null,
+    ...extra,
+  })
+  const highlights: Highlight[] = [
+    at('t', null, 'title', 0, 'Over', { note: 'on the title' }),
+    at('p', 0, 'text', 6, 'world', { note: 'on the paragraph', question: 'why?' }),
+    at('c', 1, 'rows.0.0', 0, 'x', { note: 'on a cell' }),
+    at('k', 2, 'code.1', 0, 'two', { note: 'on code' }),
+  ]
+
+  it('puts each note where the reader will look for it', async () => {
+    highlightMock.mockImplementation(async (code: string) => hastFor(code.split('\n')))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+    localStorage.setItem('idocs:notes', JSON.stringify({ highlights, dsel: {}, dnote: {}, dother: {} }))
+    const { container } = render(
+      <ReaderStateProvider sessionId="notes">
+        <SectionView section={section} sid={0} />
+      </ReaderStateProvider>,
     )
-    insertPrintNotes(root, [highlight('c', 'race?')])
-    expect(root.querySelector('pre')!.nextElementSibling!.textContent).toBe('Note: race?')
+    await waitFor(() => expect(container.querySelectorAll('mark')).toHaveLength(4))
+
+    insertPrintNotes(container, highlights)
+
+    const head = container.querySelector('section > div:first-child')
+    const body = container.querySelector('section > div:last-child')
+    const after = (el: Element | null | undefined) => el?.nextElementSibling?.textContent
+    expect(after(head)).toBe('Note: on the title')
+    expect([...container.querySelector('p')!.querySelectorAll('[data-print-note]')].map((n) => n.textContent)).toEqual([
+      'Note: on the paragraph',
+      'Question: why?',
+    ])
+    expect(after(body!.querySelector('table')!.closest('section > div > *'))).toBe('Note: on a cell')
+    expect(after(body!.querySelector('pre')!.parentElement)).toBe('Note: on code')
+    expect(container.querySelector('mark[data-highlight-id="k"]')).not.toBeNull()
   })
 })
 
