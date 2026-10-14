@@ -5,7 +5,7 @@ import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 import { useChartCard } from '../fullScreen'
 import { useTheme } from '@/features/theme'
-import { chartPalette, chartTooltip, useEChart } from '../../services/echarts'
+import { chartPalette, chartTooltip, encodeHTML, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type HistogramBlockType = Extract<Block, { type: 'histogram' }>
@@ -38,7 +38,7 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
       formatter: (params: unknown) => {
         const [first] = params as { dataIndex: number }[]
         const bin = block.bins[first?.dataIndex ?? 0]
-        return bin ? `${bin.label} / ${binReadout(bin.count, total)}` : ''
+        return bin ? encodeHTML(`${bin.label} / ${binReadout(bin.count, total)}`) : ''
       },
     },
     grid: { top: 0, bottom: TICKS, left: 0, right: 0 },
