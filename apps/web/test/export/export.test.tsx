@@ -228,12 +228,16 @@ describe('copyText chain', () => {
   })
 })
 
-function ExportProbe() {
+function ExportProbe({ retry = () => {} }: { retry?: () => void }) {
   const { copy, toast, print, copyEditPrompt } = useExport()
   return (
     <div>
       <button onClick={() => copy('some text')}>do-copy</button>
-      <button onClick={() => toast('Custom message')}>do-toast</button>
+      <button onClick={() => toast({ kind: 'info', message: 'Custom message' })}>do-toast</button>
+      <button onClick={() => toast({ kind: 'error', message: 'It broke', action: { label: 'Retry', run: retry } })}>
+        do-error
+      </button>
+      <button onClick={() => toast({ kind: 'error', message: 'Already protected' })}>do-final-error</button>
       <button onClick={print}>do-print</button>
       <button onClick={copyEditPrompt}>do-copy-edit-prompt</button>
     </div>
@@ -284,6 +288,58 @@ describe('ExportProvider', () => {
 
     act(() => vi.advanceTimersByTime(1))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  // B-States:155: only an error toast with an action stays; one without leaves after 1.6s like any other.
+  it('an error toast with no action is an alert that leaves after 1.6s and has no Dismiss', () => {
+    vi.useFakeTimers()
+    stubFetch()
+    render(
+      <ReaderStateProvider sessionId="sess-toast-final">
+        <ExportProvider sessionId="sess-toast-final" payload={basePayload}>
+          <ExportProbe />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+
+    act(() => fireEvent.click(screen.getByText('do-final-error')))
+    expect(screen.getByRole('alert')).toHaveTextContent('Already protected')
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1599))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('an error toast with an action is an alert that stays until acted on or dismissed, one toast at a time', () => {
+    vi.useFakeTimers()
+    stubFetch()
+    const retry = vi.fn()
+    render(
+      <ReaderStateProvider sessionId="sess-toast-error">
+        <ExportProvider sessionId="sess-toast-error" payload={basePayload}>
+          <ExportProbe retry={retry} />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+
+    act(() => fireEvent.click(screen.getByText('do-error')))
+    act(() => vi.advanceTimersByTime(5000))
+    expect(screen.getByRole('alert')).toHaveTextContent('It broke')
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Retry' })))
+    expect(retry).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    act(() => fireEvent.click(screen.getByText('do-error')))
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Dismiss' })))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(retry).toHaveBeenCalledTimes(1)
+
+    act(() => fireEvent.click(screen.getByText('do-error')))
+    act(() => fireEvent.click(screen.getByText('do-toast')))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Custom message')
   })
 
   it('copy() shows a "Copied" toast on success', async () => {
@@ -420,19 +476,64 @@ describe('printDocument', () => {
 })
 
 describe('ShareModal', () => {
-  it('renders the share URL, session and version chips, and copies via onCopy', () => {
-    const onClose = vi.fn()
-    const onCopy = vi.fn()
-    render(<ShareModal sessionId="sess-abc" version="1.2.0" onClose={onClose} onCopy={onCopy} />)
+  // B-Overlays:41-42.
+  it('shows the link without its scheme, the session, version and expiry chips, and copies the full URL', async () => {
+    const onCopy = vi.fn().mockResolvedValue('copied')
+    render(
+      <ShareModal
+        sessionId="sess-abc"
+        version="1.2.0"
+        expiresAt={Date.UTC(2026, 10, 13, 9, 0, 0)}
+        onClose={vi.fn()}
+        onCopy={onCopy}
+      />,
+    )
 
-    const url = `${window.location.origin}/s/sess-abc`
     expect(screen.getByRole('dialog', { name: 'Share this doc' })).toBeInTheDocument()
-    expect(screen.getByText(url)).toBeInTheDocument()
+    expect(screen.getByText(`${window.location.host}/s/sess-abc`)).toBeInTheDocument()
     expect(screen.getByText('session sess-abc')).toBeInTheDocument()
     expect(screen.getByText('1.2.0')).toBeInTheDocument()
+    expect(screen.getByText('expires 2026-11-13')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
-    expect(onCopy).toHaveBeenCalledWith(url)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy link' })))
+    expect(onCopy).toHaveBeenCalledWith(`${window.location.origin}/s/sess-abc`)
+  })
+
+  it('takes focus on Copy link, copies on Enter, and reads "Copied" for 1.5s after a copy that worked', async () => {
+    vi.useFakeTimers()
+    const onCopy = vi.fn().mockResolvedValue('copied')
+    render(<ShareModal sessionId="sess-abc" onClose={vi.fn()} onCopy={onCopy} />)
+    const dialog = screen.getByRole('dialog', { name: 'Share this doc' })
+    expect(screen.getByRole('button', { name: 'Copy link' })).toHaveFocus()
+
+    dialog.focus()
+    await act(async () => fireEvent.keyDown(dialog, { key: 'Enter' }))
+    expect(onCopy).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+
+    act(() => vi.advanceTimersByTime(1499))
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
+    expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument()
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy link' })))
+    act(() => vi.advanceTimersByTime(1000))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copied' })))
+    act(() => vi.advanceTimersByTime(1499))
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
+    expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument()
+  })
+
+  it('keeps "Copy link" when the copy fell back to the manual dialog, and Enter on Close does not copy', async () => {
+    const onCopy = vi.fn().mockResolvedValue('fallback')
+    render(<ShareModal sessionId="sess-abc" onClose={vi.fn()} onCopy={onCopy} />)
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy link' })))
+    expect(screen.getByRole('button', { name: 'Copy link' })).toBeInTheDocument()
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Close' }), { key: 'Enter' })
+    expect(onCopy).toHaveBeenCalledTimes(1)
   })
 
   it('closes via the close button, Escape, and backdrop click', () => {
@@ -449,10 +550,11 @@ describe('ShareModal', () => {
     expect(onClose).toHaveBeenCalledTimes(3)
   })
 
-  it('omits the version chip when the payload has no version', () => {
+  it('omits the version and expiry chips when the session has neither', () => {
     render(<ShareModal sessionId="sess-abc" onClose={vi.fn()} onCopy={vi.fn()} />)
     expect(screen.getByText('session sess-abc')).toBeInTheDocument()
     expect(screen.queryByText(/^\d+\.\d+/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^expires/)).not.toBeInTheDocument()
   })
 })
 
@@ -496,11 +598,12 @@ describe('CopyFallbackModal', () => {
     expect(screen.getByRole('dialog', { name: 'Copy manually' })).toBeInTheDocument()
   })
 
-  it('Done closes the modal', () => {
+  // B-Overlays:107.
+  it('Close closes the modal', () => {
     const onClose = vi.fn()
     render(<CopyFallbackModal text="copy me" onClose={onClose} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
-    expect(onClose).toHaveBeenCalledTimes(1)
+    for (const close of screen.getAllByRole('button', { name: 'Close' })) fireEvent.click(close)
+    expect(onClose).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -526,7 +629,7 @@ describe('stacked dialogs (ShareModal + CopyFallbackModal)', () => {
     fireEvent.click(screen.getByText('open-share'))
     expect(screen.getByRole('dialog', { name: 'Share this doc' })).toBeInTheDocument()
 
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy link' })))
     expect(screen.getByRole('dialog', { name: 'Copy manually' })).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Share this doc' })).toBeInTheDocument()
 

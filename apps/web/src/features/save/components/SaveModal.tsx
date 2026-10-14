@@ -1,9 +1,9 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { Payload } from '@brief/schema'
-import { useDialogFocus, useExport } from '@/features/export'
+import { Dialog, DialogActions, DialogIcon, PRIMARY_BUTTON, SECONDARY_BUTTON, useExport } from '@/features/export'
 import { encryptPayload } from '../lib/crypto'
-import { saveSession } from '../lib/api'
+import { ARCHIVE_FAILED, saveSession } from '../lib/api'
 
 const MIN_PASSWORD_LENGTH = 8
 // Server's ciphertext char cap (model.ts saveBody / service.ts MAX_CIPHERTEXT_BYTES) --
@@ -11,6 +11,18 @@ const MIN_PASSWORD_LENGTH = 8
 const MAX_CIPHERTEXT_CHARS = 1_950_000
 
 type SaveMode = 'plain' | 'encrypt'
+
+/** The radiogroup's rows, one line of help each (B-Overlays:58-61). */
+const MODES: readonly { mode: SaveMode; label: string; help: string }[] = [
+  { mode: 'plain', label: 'Archive', help: 'No password.' },
+  { mode: 'encrypt', label: 'Archive with password', help: 'Encrypted on this device before upload.' },
+]
+
+const TOO_LARGE = 'Document too large to encrypt'
+const ARCHIVED = 'Archived. Kept 90 days from last open.'
+const NOT_RETRYABLE = new Set([409, 413])
+
+const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
 
 /**
  * Projects the base64 ciphertext length AES-256-GCM will produce for a given
@@ -21,13 +33,7 @@ function projectedCiphertextChars(plaintextBytes: number): number {
   return Math.ceil((plaintextBytes + 16) / 3) * 4
 }
 
-/**
- * Archive dialog (design language follows ShareModal chrome -- prototype has
- * no direct save-modal reference). Two archive modes: plain (mode: 'plain')
- * or end-to-end encrypted (mode: 'encrypt', password never leaves this
- * device). Joins the shared dialog stack via useDialogFocus (bug-214) so
- * Escape only closes this dialog when it is topmost.
- */
+/** "Archive this doc" (B-Overlays:54-71). */
 export function SaveModal({
   sessionId,
   payload,
@@ -40,27 +46,33 @@ export function SaveModal({
   onClose: () => void
   onSaved: (mode: SaveMode) => void
   /**
-   * Fires instead of onSaved when a save the user CANCELLED (Cancel/Escape/
-   * backdrop/unmount while the PUT was in flight) later resolves OK anyway.
-   * The server-side commit cannot be rolled back at that point, so the UI
-   * must not lie in either direction: no success toast/modal (the user
-   * abandoned the flow), but the caller should still silently reflect
-   * server truth (e.g. show the "archived" chip).
+   * Fires instead of onSaved when a save the user CANCELLED (Cancel, the
+   * close button, or unmount while the PUT was in flight) later resolves OK
+   * anyway. The server-side commit cannot be rolled back at that point, so
+   * the UI must not lie in either direction: no success toast (the user
+   * abandoned the flow), but the caller should still silently reflect server
+   * truth (e.g. show the "archived" chip).
    */
   onBackgroundSaveSettled?: (mode: SaveMode) => void
 }) {
-  const { toast } = useExport()
-  const panelRef = useRef<HTMLDivElement>(null)
-  // Set by every user-driven dismissal (Cancel button, Escape, backdrop, the
-  // header close button) and by unmount cleanup. Checked after each await in
-  // the submit paths: once cancelled, the pending operation is abandoned
-  // client-side -- no state updates, no toast, no onSaved, no onClose.
+  const { toast, dismissToast } = useExport()
+  const radioRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const checkedRadioRef = useRef<HTMLButtonElement | null>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const confirmRef = useRef<HTMLInputElement>(null)
+  const [focusPassword, setFocusPassword] = useState(false)
   const cancelledRef = useRef(false)
+  const errorToastRef = useRef<number | null>(null)
   const [mode, setMode] = useState<SaveMode>('plain')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
+  const fieldId = useId()
+
+  const dismissErrorToast = useCallback(() => {
+    if (errorToastRef.current !== null) dismissToast(errorToastRef.current)
+  }, [dismissToast])
 
   useEffect(() => {
     // Reset on mount: StrictMode's dev-only mount -> cleanup -> remount cycle
@@ -71,20 +83,54 @@ export function SaveModal({
     cancelledRef.current = false
     return () => {
       cancelledRef.current = true
+      dismissErrorToast()
     }
-  }, [])
+  }, [dismissErrorToast])
+
+  useEffect(() => {
+    if (!focusPassword) return
+    setFocusPassword(false)
+    passwordRef.current?.focus()
+  }, [focusPassword])
 
   const dismiss = useCallback(() => {
     cancelledRef.current = true
     onClose()
   }, [onClose])
 
-  useDialogFocus(panelRef, dismiss)
-
-  const passwordTooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH
-  const mismatch = confirm.length > 0 && password !== confirm
+  const passwordTooShort = (submitAttempted || password.length > 0) && password.length < MIN_PASSWORD_LENGTH
+  const mismatch = (submitAttempted || confirm.length > 0) && password !== confirm
   const encryptValid = password.length >= MIN_PASSWORD_LENGTH && password === confirm
-  const canSubmit = !busy && (mode === 'plain' || encryptValid)
+
+  function choose(index: number, focus: 'password' | 'radio') {
+    const next = MODES[index]!.mode
+    if (next !== mode) setSubmitAttempted(false)
+    setMode(next)
+    if (next === 'encrypt' && focus === 'password') setFocusPassword(true)
+    else radioRefs.current[index]?.focus()
+  }
+
+  function handleRadioKeyDown(event: React.KeyboardEvent) {
+    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key]
+    if (step === undefined) return
+    event.preventDefault()
+    const at = MODES.findIndex((m) => m.mode === mode)
+    choose((at + step + MODES.length) % MODES.length, 'radio')
+  }
+
+  const latestSubmitRef = useRef<() => Promise<void>>(async () => {})
+  useEffect(() => {
+    latestSubmitRef.current = handleSubmit
+  })
+
+  function fail(message: string, retryable: boolean) {
+    setBusy(false)
+    errorToastRef.current = toast({
+      kind: 'error',
+      message,
+      ...(retryable ? { action: { label: 'Retry', run: () => void latestSubmitRef.current() } } : {}),
+    })
+  }
 
   /**
    * Shared post-PUT tail for both submit paths. When the user cancelled
@@ -100,12 +146,12 @@ export function SaveModal({
       if (result.ok) onBackgroundSaveSettled?.(saveMode)
       return
     }
-    setBusy(false)
     if (!result.ok) {
-      setError(result.error)
+      fail(result.error, !NOT_RETRYABLE.has(result.status))
       return
     }
-    toast(saveMode === 'encrypt' ? 'Archived with password' : 'Archived')
+    setBusy(false)
+    toast({ kind: 'archived', message: ARCHIVED })
     onSaved(saveMode)
     onClose()
   }
@@ -120,7 +166,7 @@ export function SaveModal({
     const plaintext = JSON.stringify(payload)
     const plaintextBytes = new TextEncoder().encode(plaintext).byteLength
     if (projectedCiphertextChars(plaintextBytes) > MAX_CIPHERTEXT_CHARS) {
-      setError('Document too large to encrypt')
+      fail(TOO_LARGE, false)
       return
     }
 
@@ -131,11 +177,8 @@ export function SaveModal({
     } catch {
       // WebCrypto can throw (unsupported browser/context, key derivation
       // failure) before anything is ever sent -- surface it the same way a
-      // failed PUT does instead of leaving the modal silently stuck busy.
-      if (!cancelledRef.current) {
-        setError('Archive failed')
-        setBusy(false)
-      }
+      // failed PUT does instead of leaving the dialog silently stuck busy.
+      if (!cancelledRef.current) fail(ARCHIVE_FAILED, true)
       return
     }
     // Cancelled while PBKDF2 was still running: nothing has been sent yet,
@@ -149,127 +192,148 @@ export function SaveModal({
     settleSave(result, 'encrypt')
   }
 
+  // B-Overlays:65-69 draws the mismatch with Archive still lit: the button
+  // stays enabled and a submit with invalid fields points at the first one.
   async function handleSubmit() {
-    if (!canSubmit) return
-    setError(null)
+    if (busy) return
+    if (mode === 'encrypt' && !encryptValid) {
+      setSubmitAttempted(true)
+      const firstInvalid = password.length < MIN_PASSWORD_LENGTH ? passwordRef : confirmRef
+      firstInvalid.current?.focus()
+      return
+    }
+    dismissErrorToast()
     if (mode === 'plain') await submitPlain()
     else await submitEncrypt()
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[95] flex justify-center bg-[var(--c-scrim)] px-5 print:hidden"
-      style={{ paddingTop: '14vh' }}
-      onClick={dismiss}
+    <Dialog
+      title="Archive this doc"
+      icon={
+        <DialogIcon>
+          <rect x="3" y="4" width="18" height="5" rx="1" />
+          <path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4" />
+        </DialogIcon>
+      }
+      busy={busy}
+      initialFocusRef={checkedRadioRef}
+      onClose={dismiss}
     >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Archive this doc"
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-        className="h-fit w-[min(92vw,440px)] rounded-[14px] border border-line bg-card p-5 shadow-[var(--shadow-overlay)]"
-        style={{ animation: 'dc-pop .18s ease' }}
-      >
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[15px] font-bold">⛉ Archive this doc</span>
-          <button
-            type="button"
-            onClick={dismiss}
-            aria-label="Close"
-            className="max-[880px]:min-h-11 max-[880px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
-          >
-            ✕
-          </button>
-        </div>
-        <p className="mb-3.5 text-[13px] text-sub">Archiving keeps this doc for 90 days from last open.</p>
-
-        <div className="mb-3 flex flex-col gap-2" role="group" aria-label="Archive mode">
-          <button
-            type="button"
-            aria-pressed={mode === 'plain'}
-            // Distinguishes this option row's accessible name from the footer's
-            // "Archive" submit button (both show the literal word "Archive" per
-            // the design copy) -- a one-attribute addition, harmless for and
-            // arguably helpful to real screen-reader users.
-            aria-label="Archive without a password"
-            onClick={() => setMode('plain')}
-            className={`max-[880px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
-              mode === 'plain' ? 'border-accent-line bg-accent-soft text-text' : 'border-line bg-card text-sub'
-            }`}
-          >
-            <span aria-hidden="true" className="font-semibold">
-              Archive
-            </span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === 'encrypt'}
-            onClick={() => setMode('encrypt')}
-            className={`max-[880px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
-              mode === 'encrypt' ? 'border-accent-line bg-accent-soft text-text' : 'border-line bg-card text-sub'
-            }`}
-          >
-            <span className="font-semibold">Archive with password</span>
-          </button>
+      <div className="flex flex-col gap-[10px] px-[18px] pb-4 pt-[14px]">
+        <p className="m-0 text-[13px] leading-5 text-sub">Archiving keeps this doc for 90 days from last open.</p>
+        <div role="radiogroup" aria-label="Archive mode" onKeyDown={handleRadioKeyDown} className="flex flex-col gap-[6px]">
+          {MODES.map((m, i) => {
+            const on = m.mode === mode
+            return (
+              <button
+                key={m.mode}
+                ref={(el) => {
+                  radioRefs.current[i] = el
+                  if (on) checkedRadioRef.current = el
+                }}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                aria-labelledby={`${fieldId}-${m.mode}`}
+                aria-describedby={`${fieldId}-${m.mode}-help`}
+                tabIndex={on ? 0 : -1}
+                onClick={() => choose(i, 'password')}
+                className={`flex min-h-11 cursor-pointer items-center gap-[10px] rounded-ctrl border px-3 py-[6px] text-left text-text transition-[background-color,border-color,transform] duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none ${
+                  on ? 'border-accent-line bg-accent-soft' : 'border-line2 bg-card'
+                } ${FOCUS_RING}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`flex size-[14px] shrink-0 items-center justify-center rounded-full border-[1.5px] ${on ? 'border-accent-line' : 'border-faint'}`}
+                >
+                  <span className={`size-[6px] rounded-full ${on ? 'bg-accent-line' : 'bg-transparent'}`} />
+                </span>
+                <span className="flex flex-col">
+                  <span id={`${fieldId}-${m.mode}`} className="text-[13px] font-semibold">
+                    {m.label}
+                  </span>
+                  <span id={`${fieldId}-${m.mode}-help`} className="text-[12px] text-faint">
+                    {m.help}
+                  </span>
+                </span>
+              </button>
+            )
+          })}
         </div>
 
         {mode === 'encrypt' && (
-          <div className="mb-3 flex flex-col gap-2.5">
-            <div>
-              <input
-                type="password"
-                autoFocus
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                aria-label="Password"
-                placeholder="Password"
-                className="w-full rounded-[9px] border border-line bg-elev px-3 py-[9px] text-[13px] text-text"
-              />
-              {passwordTooShort && <p className="mt-1 text-[12px] text-bad">Must be at least 8 characters</p>}
-            </div>
-            <div>
-              <input
-                type="password"
-                value={confirm}
-                onChange={(event) => setConfirm(event.target.value)}
-                aria-label="Confirm password"
-                placeholder="Confirm password"
-                className="w-full rounded-[9px] border border-line bg-elev px-3 py-[9px] text-[13px] text-text"
-              />
-              {mismatch && <p className="mt-1 text-[12px] text-bad">Passwords do not match</p>}
-            </div>
-            <aside className="rounded-lg border-l-[3px] border-warn bg-warn-soft px-[15px] py-[11px] text-[12.5px] leading-[1.6] text-text">
+          <div className="flex flex-col gap-2">
+            <PasswordField
+              id={`${fieldId}-pw`}
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              error={passwordTooShort ? 'Must be at least 8 characters' : null}
+              inputRef={passwordRef}
+            />
+            <PasswordField
+              id={`${fieldId}-pw2`}
+              label="Confirm password"
+              value={confirm}
+              onChange={setConfirm}
+              error={mismatch ? 'Passwords do not match' : null}
+              inputRef={confirmRef}
+            />
+            <aside className="rounded-ctrl border border-l-[3px] border-warn-line border-l-warn bg-warn-soft px-[10px] py-2 text-[12px] leading-[18px] text-text">
               The password never leaves this device. If you lose it, the content cannot be recovered.
             </aside>
           </div>
         )}
 
-        {error && (
-          <p role="alert" className="mb-3 text-[12.5px] text-bad">
-            {error}
-          </p>
-        )}
-
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="max-[880px]:min-h-11 flex-1 cursor-pointer rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy && mode === 'encrypt' ? 'Encrypting…' : 'Archive'}
-          </button>
-          <button
-            type="button"
-            onClick={dismiss}
-            className="max-[880px]:min-h-11 cursor-pointer rounded-[9px] border border-line bg-card px-4 py-[9px] text-[13px] font-semibold text-sub"
-          >
+        <DialogActions className="pt-1">
+          <button type="button" onClick={dismiss} className={SECONDARY_BUTTON}>
             Cancel
           </button>
-        </div>
+          <button type="button" onClick={handleSubmit} disabled={busy} className={`${PRIMARY_BUTTON} px-4`}>
+            {busy && mode === 'encrypt' ? 'Encrypting…' : 'Archive'}
+          </button>
+        </DialogActions>
       </div>
+    </Dialog>
+  )
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  error,
+  inputRef,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  error: string | null
+  inputRef?: React.Ref<HTMLInputElement>
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-[12px] text-sub">
+        {label}
+      </label>
+      <input
+        ref={inputRef}
+        id={id}
+        type="password"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={`min-h-[38px] rounded-ctrl border bg-page px-[10px] text-[16px] text-text ${error ? 'border-bad' : 'border-line2'} ${FOCUS_RING}`}
+      />
+      {error && (
+        <span id={`${id}-error`} className="text-[12px] text-bad">
+          {error}
+        </span>
+      )}
     </div>
   )
 }
