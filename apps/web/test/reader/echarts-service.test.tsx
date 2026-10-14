@@ -69,3 +69,52 @@ describe('useEChart ready', () => {
     expect(getByTestId('chart')).toHaveAttribute('data-ready', 'true')
   })
 })
+
+function FailingChart({ loader }: { loader: () => Promise<{ init: () => { setOption: () => void } }> }) {
+  const { containerRef, ready, failed } = useEChart(() => ({}), [], loader as never)
+  return <div ref={containerRef} data-testid="chart" data-ready={String(ready)} data-failed={String(failed)} />
+}
+
+describe('useEChart failed', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const observer = class {
+    observe() {}
+    disconnect() {}
+  }
+
+  it('reports failed when echarts never arrives, so the card stops saying "loading chart"', async () => {
+    vi.stubGlobal('ResizeObserver', observer)
+    let rejectLoader!: (reason: Error) => void
+    const loader = () => new Promise<{ init: () => { setOption: () => void } }>((_, reject) => (rejectLoader = reject))
+
+    const { getByTestId } = render(<FailingChart loader={loader} />)
+    expect(getByTestId('chart')).toHaveAttribute('data-failed', 'false')
+
+    await act(async () => {
+      rejectLoader(new Error('ChunkLoadError: /_next/static/chunks/echarts.js'))
+      await Promise.resolve()
+    })
+    expect(getByTestId('chart')).toHaveAttribute('data-failed', 'true')
+    expect(getByTestId('chart')).toHaveAttribute('data-ready', 'false')
+  })
+
+  it('reports failed when echarts rejects the option', async () => {
+    vi.stubGlobal('ResizeObserver', observer)
+    const loader = () =>
+      Promise.resolve({
+        init: () => ({
+          setOption: () => {
+            throw new Error('bad option')
+          },
+          dispose: () => {},
+        }),
+      })
+
+    const { getByTestId } = render(<FailingChart loader={loader} />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(getByTestId('chart')).toHaveAttribute('data-failed', 'true')
+  })
+})

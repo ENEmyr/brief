@@ -26,6 +26,7 @@ import { Scatter } from './blocks/Scatter'
 import { Plot3d } from './blocks/Plot3d'
 import type { MathBlock as MathBlockComponent } from './blocks/MathBlock'
 import type { MermaidBlock as MermaidBlockComponent } from './blocks/MermaidBlock'
+import { diagramDeclaration, mermaidBoxHeight } from '../lib/mermaidSource'
 
 // next/dynamic renders `loading`, which gets no props, so it reads the block
 // from LazyBlock.
@@ -35,13 +36,23 @@ function LazyBlockLoading() {
   const lazy = useContext(LazyBlock)
   if (lazy === null) return null
   const { block, anchor } = lazy
-  const isMermaid = block.type === 'mermaid'
+  if (block.type === 'mermaid') {
+    // The same box MermaidBlock reserves, so the card keeps its height when the chunk arrives.
+    return (
+      <BlockCard
+        {...cardHeader(block, anchor)}
+        captionSuffix={diagramDeclaration(block.code)}
+        fullScreen="pending"
+        state={LOADING.diagram}
+      >
+        <div className="p-5">
+          <div className="sk rounded-[4px]" style={{ height: mermaidBoxHeight(block.code) }} />
+        </div>
+      </BlockCard>
+    )
+  }
   return (
-    <BlockCard
-      {...cardHeader(block, anchor)}
-      fullScreen={isMermaid ? 'pending' : undefined}
-      state={isMermaid ? LOADING.diagram : LOADING.math}
-    >
+    <BlockCard {...cardHeader(block, anchor)} state={LOADING.math}>
       <div className="p-3">
         <div className="sk h-32" style={{ borderRadius: 4 }} />
       </div>

@@ -3,7 +3,12 @@
  * reaches the reader. A block that can fail adds its own line here.
  */
 export type BlockErrorMessage =
-  'This block could not be drawn.' | `Diagram could not be drawn. Parse error on line ${number}.`
+  | 'This block could not be drawn.'
+  | `Diagram could not be drawn. Parse error on line ${number}.`
+  | 'Diagram could not be drawn.'
+  | 'Chart could not be drawn.'
+  | 'WebGL unavailable - 3D plot cannot render'
+  | 'No data for 3D plot'
 
 export interface BlockErrorProps {
   message: BlockErrorMessage
@@ -26,7 +31,7 @@ export function BlockError({ message, source, lineNumber }: BlockErrorProps) {
   )
 }
 
-function SourceListing({ source, lineNumber }: { source: string; lineNumber?: number }) {
+export function SourceListing({ source, lineNumber }: { source: string; lineNumber?: number }) {
   const lines = source.split('\n')
   const width = String(lines.length).length
   return (

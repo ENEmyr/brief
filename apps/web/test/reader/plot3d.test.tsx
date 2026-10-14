@@ -83,10 +83,12 @@ describe('Plot3d option builder', () => {
     ])
   })
 
-  it('disables the surface wireframe', () => {
+  it('draws the surface wireframe in the plot3d grid color', () => {
+    // Was hidden; B-Blocks2:177 draws the mesh lines in #2A3330 (--c-plot3d-grid).
     const option = buildPlot3dOption(surfaceBlock, palette)
-    const series = option.series as unknown as Array<{ wireframe: { show: boolean } }>
-    expect(series[0]!.wireframe.show).toBe(false)
+    const series = option.series as unknown as Array<{ wireframe: { show: boolean; lineStyle: { color: string } } }>
+    expect(series[0]!.wireframe.show).toBe(true)
+    expect(series[0]!.wireframe.lineStyle.color).toBe(palette.plot3dGrid)
   })
 
   it('sets a continuous visualMap over the z dimension, min/max from the data', () => {
@@ -112,13 +114,15 @@ describe('Plot3d option builder', () => {
     expect(visualMap.max).toBe(6)
   })
 
-  it('uses the info -> accent gradient, low to high', () => {
+  it('maps height to the single-hue lime ramp, low to high, with no legend (B-Blocks2:172-176)', () => {
+    // Was an info -> accent gradient with a visible legend bar.
     const option = buildPlot3dOption(scatterBlock, palette)
-    const visualMap = option.visualMap as unknown as { inRange: { color: string[] } }
-    expect(visualMap.inRange.color).toEqual([palette.info, palette.accentText])
+    const visualMap = option.visualMap as unknown as { show: boolean; inRange: { color: string[] } }
+    expect(visualMap.inRange.color).toEqual(['#b9d98a', '#afd07c', '#99be5f', '#7ea73a', '#5e8c10'])
+    expect(visualMap.show).toBe(false)
   })
 
-  it('names the 3D axes from xLabel/yLabel/zLabel in mono, sub-colored text', () => {
+  it('names the 3D axes from xLabel/yLabel/zLabel in mono 11, faint text (B-Blocks2:178-180)', () => {
     const option = buildPlot3dOption(scatterBlock, palette)
     const opt = option as unknown as {
       xAxis3D: { name?: string; nameTextStyle: { color: string; fontFamily: string } }
@@ -128,7 +132,8 @@ describe('Plot3d option builder', () => {
     expect(opt.xAxis3D.name).toBe('x')
     expect(opt.yAxis3D.name).toBe('y')
     expect(opt.zAxis3D.name).toBe('z')
-    expect(opt.xAxis3D.nameTextStyle.color).toBe(palette.sub)
+    // Was sub; the board's axis names are faint.
+    expect(opt.xAxis3D.nameTextStyle.color).toBe(palette.faint)
     expect(opt.xAxis3D.nameTextStyle.fontFamily).toBe(palette.font)
   })
 
@@ -152,33 +157,37 @@ describe('Plot3d component', () => {
     points: [[0, 0, 1]],
   }
 
-  it('renders a WebGL-unavailable note when the canvas has no webgl context (jsdom default)', () => {
+  it('renders the WebGL-unavailable error card when the canvas has no webgl context (jsdom default)', () => {
+    // Was an info note in the body; now the B-States error card (coordinator note 5).
     render(<Plot3d block={scatterBlock} />)
-    expect(screen.getByText('WebGL unavailable - 3D plot cannot render')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('WebGL unavailable - 3D plot cannot render')
+    expect(screen.getByText('Show raw block')).toBeInTheDocument()
     // The full-screen button (B-Blocks2:166) replaced the 'Expand chart' pill; there
     // is still nothing to open when the chart cannot render.
     expect(screen.queryByRole('button', { name: 'Open diagram full screen' })).not.toBeInTheDocument()
   })
 
-  it('renders a no-data note for scatter3d with no points, even when webgl is available', () => {
+  it('renders the no-data error card for scatter3d with no points, even when webgl is available', () => {
+    // Was a note in the body; a block with nothing to draw is now the B-States error card.
     const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext') as unknown as ReturnType<
       typeof vi.fn
     >
     getContextSpy.mockReturnValue({})
     const empty: Extract<Block, { type: 'plot3d' }> = { type: 'plot3d', kind: 'scatter3d' }
     render(<Plot3d block={empty} />)
-    expect(screen.getByText('No data for 3D plot')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('No data for 3D plot')
     getContextSpy.mockRestore()
   })
 
-  it('renders a no-data note for surface with no grid, even when webgl is available', () => {
+  it('renders the no-data error card for surface with no grid, even when webgl is available', () => {
+    // Was a note in the body; a block with nothing to draw is now the B-States error card.
     const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext') as unknown as ReturnType<
       typeof vi.fn
     >
     getContextSpy.mockReturnValue({})
     const empty: Extract<Block, { type: 'plot3d' }> = { type: 'plot3d', kind: 'surface' }
     render(<Plot3d block={empty} />)
-    expect(screen.getByText('No data for 3D plot')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('No data for 3D plot')
     getContextSpy.mockRestore()
   })
 

@@ -1,11 +1,13 @@
 'use client'
+import { useRef } from 'react'
 import type { EChartsOption } from 'echarts'
 import type { Block } from '@brief/schema'
 import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 import { useChartCard } from '../fullScreen'
+import { FOCUS_RING } from '../topbarChrome'
 import { useTheme } from '@/features/theme'
-import { chartPalette, useEChart, getEChartsGL } from '../../services/echarts'
+import { chartPalette, chartTooltip, useEChart, getEChartsGL } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type Plot3dBlockType = Extract<Block, { type: 'plot3d' }>
@@ -21,32 +23,34 @@ function gridToTriples(grid: number[][]): [number, number, number][] {
   return triples
 }
 
+/** B-Blocks2:170-180: line2 axes, plot3d-grid rules, the axis names in mono 11 faint. */
 function axis3D(name: string | undefined, palette: Palette) {
   return {
     name,
-    nameTextStyle: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
-    axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 9 },
-    axisLine: { lineStyle: { color: palette.sub } },
-    splitLine: { lineStyle: { color: palette.line2 } },
+    nameTextStyle: { color: palette.faint, fontFamily: palette.font, fontSize: 11 },
+    axisLabel: { color: palette.faint, fontFamily: palette.font, fontSize: 10 },
+    axisLine: { lineStyle: { color: palette.line2 } },
+    axisTick: { show: false },
+    splitLine: { lineStyle: { color: palette.plot3dGrid } },
   }
 }
 
+/** echarts-gl's own starting camera distance; the zoom buttons move from here. */
+const DEFAULT_DISTANCE = 200
+/** One zoom press, as the viewer's 25-point step reads at 100%. */
+const ZOOM_FACTOR = 1.25
+
 /**
- * Pure option builder for both plot3d kinds. `scatter3d` maps `block.points`
+ * Option builder for both plot3d kinds. `scatter3d` maps `block.points`
  * straight into a `scatter3D` series; `surface` flattens `block.grid` (a z
- * matrix) into [x,y,z] triples via `gridToTriples` and feeds echarts-gl's
- * data-based `surface` series (no equation). Both share one continuous
- * `visualMap` over the z dimension (index 2) with an info -> accent-text
- * gradient (low -> high), positioned horizontal
- * and bottom-centered (same as Heatmap.tsx's visualMap) so the legend sits
- * under the plot instead of ECharts' default free-floating vertical bar on
- * the far left of the card, and a `grid3D` with `viewControl.autoRotate:
- * false` so the camera only orbits on user drag.
+ * matrix) into [x,y,z] triples for echarts-gl's data-based `surface` series.
+ * Height maps to the single-hue lime ramp of B-Blocks2:172-176 through a
+ * hidden continuous visualMap over z, the surface carries plot3d-grid
+ * wireframe lines (B-Blocks2:177), and the camera only moves when the reader
+ * moves it.
  *
- * Returns `EChartsOption` (the full-package kitchen-sink type, same posture
- * as every other chart builder in this feature) via an `unknown` cast — the
- * GL-only option keys (`xAxis3D`/`grid3D`/`scatter3D`/`surface`/...) aren't
- * part of that type, which only knows the core+charts+components packages.
+ * Returns `EChartsOption` through an `unknown` cast: the GL-only keys
+ * (`xAxis3D`, `grid3D`, `surface`, ...) are not part of that type.
  */
 export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): EChartsOption {
   const data: [number, number, number][] =
@@ -62,32 +66,23 @@ export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): ECh
   const option: Record<string, unknown> = {
     backgroundColor: 'transparent',
     animation: false,
-    tooltip: {
-      backgroundColor: palette.card,
-      textStyle: { color: palette.text, fontFamily: palette.font, fontSize: 11 },
-      borderColor: palette.line2,
-    },
+    tooltip: chartTooltip(palette),
     visualMap: {
       dimension: 2,
       min,
       max,
-      calculable: false,
-      orient: 'horizontal',
-      left: 'center',
-      bottom: 0,
-      show: true,
-      inRange: { color: [palette.info, palette.accentText] },
-      textStyle: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
+      show: false,
+      inRange: { color: [...palette.plot3d] },
     },
     xAxis3D: axis3D(block.xLabel, palette),
     yAxis3D: axis3D(block.yLabel, palette),
     zAxis3D: axis3D(block.zLabel, palette),
     grid3D: {
-      viewControl: { autoRotate: false },
+      viewControl: { autoRotate: false, distance: DEFAULT_DISTANCE },
     },
     series: [
       block.kind === 'surface'
-        ? { type: 'surface', data, wireframe: { show: false } }
+        ? { type: 'surface', data, shading: 'color', wireframe: { show: true, lineStyle: { color: palette.plot3dGrid, width: 1 } } }
         : { type: 'scatter3D', data, symbolSize: 6 },
     ],
   }
@@ -122,24 +117,11 @@ function hasData(block: Plot3dBlockType): boolean {
   return block.kind === 'surface' ? !!block.grid?.length : !!block.points?.length
 }
 
-/**
- * Note-callout-style fallback box, styled like Callout.tsx's 'note' variant
- * (same classes, inlined rather than imported since Callout doesn't export
- * its style map). Used both when WebGL is unavailable (jsdom has none, so
- * this is the natural test path) and when the block is missing the data its
- * `kind` requires (scatter3d without points, surface without grid) — in both
- * cases the chart is skipped entirely, no canvas/container is mounted.
- */
-function FallbackNote({ text }: { text: string }) {
-  return (
-    <aside className="my-3.5 border-l-[3px] border-info rounded-lg bg-info-soft px-[15px] py-[11px] text-[14px] leading-[1.7] text-text">
-      <p>{text}</p>
-    </aside>
-  )
-}
+const CONTROL = `flex shrink-0 items-center justify-center rounded-[4px] border border-line2 bg-elev text-text transition-[background-color,transform] duration-[var(--dur-fast)] hover:bg-chip active:scale-[.97] motion-reduce:transition-none ${FOCUS_RING}`
 
 export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockAnchor) {
   const { theme } = useTheme()
+  const distance = useRef(DEFAULT_DISTANCE)
 
   const webGLAvailable = hasWebGL()
   const dataAvailable = hasData(block)
@@ -148,24 +130,68 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
   // Hook is always called (rules of hooks) — when canRender is false the
   // container div below never mounts, so useEChart's effect finds
   // `containerRef.current` null and never initializes a chart instance.
-  const { containerRef, chartRef, ready } = useEChart(() => buildPlot3dOption(block, chartPalette(theme)), [block, theme], getEChartsGL)
+  const { containerRef, chartRef, ready, failed } = useEChart(
+    () => buildPlot3dOption(block, chartPalette(theme)),
+    [block, theme],
+    getEChartsGL,
+  )
   // pixelRatio 1: echarts-gl's WebGL layer captures blank at pixelRatio > 1
-  const chartCard = useChartCard(chartRef, ready, theme, 1)
+  const chartCard = useChartCard(chartRef, ready, theme, 1, failed, {
+    heading: { kind: block.type, title: block.title },
+  })
+
+  function zoom(factor: number) {
+    distance.current = Math.min(400, Math.max(40, distance.current * factor))
+    chartRef.current?.setOption({ grid3D: { viewControl: { distance: distance.current } } } as unknown as EChartsOption)
+  }
+
+  function resetView() {
+    distance.current = DEFAULT_DISTANCE
+    chartRef.current?.setOption(buildPlot3dOption(block, chartPalette(theme)), true)
+  }
+
+  if (!canRender) {
+    // Nothing can be drawn: the B-States error card, with the block as data.
+    return (
+      <BlockCard
+        {...cardHeader(block, anchor)}
+        state={{
+          status: 'error',
+          message: webGLAvailable ? 'No data for 3D plot' : 'WebGL unavailable - 3D plot cannot render',
+          raw: block,
+        }}
+      />
+    )
+  }
 
   return (
-    <BlockCard {...cardHeader(block, anchor)} {...(canRender ? chartCard : {})}>
-      <div className="p-3">
-        {canRender ? (
-          <div
-            ref={containerRef}
-            className={`h-[280px] w-full ${ready ? '' : 'sk'}`}
-            style={{ borderRadius: 4 }}
-          />
-        ) : (
-          <FallbackNote
-            text={webGLAvailable ? 'No data for 3D plot' : 'WebGL unavailable - 3D plot cannot render'}
-          />
-        )}
+    <BlockCard
+      {...cardHeader(block, anchor)}
+      controls={
+        <button
+          type="button"
+          aria-label="Reset view"
+          disabled={!ready}
+          onClick={resetView}
+          className={`${CONTROL} min-h-8 px-2.5 text-[11px] disabled:opacity-45 max-[880px]:min-h-11`}
+        >
+          reset view
+        </button>
+      }
+      {...chartCard}
+    >
+      <div className="relative bg-[var(--c-code-bg)] p-4">
+        <div ref={containerRef} className={`aspect-[680/300] w-full rounded-[4px] ${ready ? '' : 'sk'}`} />
+        {ready ? (
+          <div className="absolute bottom-6 left-7 flex gap-1.5">
+            <button type="button" aria-label="Zoom in" onClick={() => zoom(1 / ZOOM_FACTOR)} className={`${CONTROL} size-9 text-[16px] max-[880px]:size-11`}>
+              +
+            </button>
+            <button type="button" aria-label="Zoom out" onClick={() => zoom(ZOOM_FACTOR)} className={`${CONTROL} size-9 text-[16px] max-[880px]:size-11`}>
+              −
+            </button>
+          </div>
+        ) : null}
       </div>
     </BlockCard>
   )

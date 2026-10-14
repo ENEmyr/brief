@@ -1,21 +1,12 @@
 /**
- * Shared text helpers for the hand-drawn SVG diagram blocks (seq, state,
- * layers, erd).
+ * Text helpers for the hand-drawn diagram blocks (seq, state, layers, erd).
  *
- * Two things every one of those blocks needs and none of them had:
- *
- * 1. A font stack that can actually draw the payload. Geist Mono has no Thai
- *    coverage, so the stack below puts Noto Sans Thai behind it and per-glyph
- *    fallback lands on a face that has the glyph. Note it is applied through
- *    the `style` prop on purpose: `var()` does not resolve inside an SVG
- *    presentation attribute.
- *
- * 2. A width estimate. There is no measurement API available during render, so
- *    labels are estimated from their advance-bearing character count. Thai
- *    combining vowels and tone marks stack on the preceding consonant and take
- *    no horizontal space, so they must not be counted.
+ * Their layout needs label widths before anything is drawn, and there is no
+ * measurement API during render, so labels are estimated from their
+ * advance-bearing character count. Thai combining vowels and tone marks stack
+ * on the preceding consonant and take no horizontal space, so they must not be
+ * counted. The estimate errs wide; a label drawn as HTML then always fits.
  */
-import type { CSSProperties } from 'react'
 
 /**
  * `--font-geist-mono` and `--font-noto-thai` are the next/font variables defined
@@ -24,11 +15,6 @@ import type { CSSProperties } from 'react'
  */
 export const DIAGRAM_FONT_STACK =
   "var(--font-geist-mono, 'Geist Mono'), var(--font-noto-thai, 'Noto Sans Thai'), ui-monospace, monospace"
-
-/** Style for an SVG <text> node. Merges the diagram font stack with `extra`. */
-export function svgTextStyle(extra?: CSSProperties): CSSProperties {
-  return { fontFamily: DIAGRAM_FONT_STACK, ...extra }
-}
 
 // Thai vowels above/below and tone marks (U+0E31, U+0E34-U+0E3A, U+0E47-U+0E4E)
 // plus generic combining marks: all zero-advance.

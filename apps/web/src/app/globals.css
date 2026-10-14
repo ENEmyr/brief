@@ -363,6 +363,24 @@ body {
   width: 100%;
 }
 
+/* Diagram and chart blocks (B-Blocks, B-Blocks2, B-Overlays). Board colors
+ * tokens.css has no name for; each has a light pair in tools/lightify.py. */
+:root,
+[data-theme='light'] {
+  --c-step-line: #b9d98a; /* current step border: B-Blocks:104, B-Mobile:39 */
+  --c-plot3d-1: #b9d98a; /* plot3d ramp start: B-Blocks2:172 */
+  --c-grid-line: #e9ecee; /* gridlines, layer bands, viewer bars: B-Blocks:130, B-Blocks2:55, B-Overlays:147 */
+  --c-row-hover: #f1f3f4; /* hovered ERD row: B-Blocks2:88 */
+}
+@media not print {
+  [data-theme='dark'] {
+    --c-step-line: #3b4a1c;
+    --c-plot3d-1: #3b4a1c;
+    --c-grid-line: #1a1f23;
+    --c-row-hover: #151a1e;
+  }
+}
+
 /*
  * Print / PDF. The reader is an interactive dark-capable app; paper is none of
  * those things, so this is where the document stops being an app and becomes a

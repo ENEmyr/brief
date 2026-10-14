@@ -164,6 +164,15 @@ describe('every block renders inside one card header', () => {
     expect(screen.getByRole('button', FULL_SCREEN)).toBeDisabled()
   })
 
+  it('mermaid reserves the same box while its chunk loads as once it has drawn: 200 for LR, 400 otherwise', () => {
+    const { container, unmount } = renderBlock({ type: 'mermaid', code: 'flowchart LR\n  A --> B' })
+    expect(container.querySelector<HTMLElement>('.sk')?.style.height).toBe('200px')
+    expect(screen.getByText('mermaid').nextElementSibling).toHaveTextContent('flowchart LR')
+    unmount()
+    const td = renderBlock({ type: 'mermaid', code: 'flowchart TD\n  A --> B' })
+    expect(td.container.querySelector<HTMLElement>('.sk')?.style.height).toBe('400px')
+  })
+
   it('math shows its header while its chunk loads, with no full-screen button', () => {
     renderBlock(SAMPLES.math)
     expect(screen.getByText('math')).toHaveAttribute('data-kind-tag')
@@ -182,6 +191,22 @@ describe('BlockCard', () => {
     expect(screen.getByText('seq')).toHaveAttribute('data-kind-tag')
     expect(screen.getByText('Login flow')).toBeInTheDocument()
     expect(screen.getByRole('button', FULL_SCREEN)).toBeEnabled()
+  })
+
+  it('draws a derived count after the title with " / " (B-Blocks:75, B-Blocks2:28)', () => {
+    render(<BlockCard kind="seq" caption={{ text: 'Login flow', path: 'title' }} captionSuffix="6 messages" />)
+    const caption = screen.getByText('seq').nextElementSibling as HTMLElement
+    expect(caption).toHaveTextContent('Login flow / 6 messages')
+    expect(caption.className).toContain('flex-1')
+    expect(screen.getByText('Login flow')).toBeInTheDocument()
+  })
+
+  it('draws a derived count alone and left-aligned when there is no title (B-Reader:126)', () => {
+    render(<BlockCard kind="seq" captionSuffix="6 messages" meta={<span>log scale</span>} />)
+    const caption = screen.getByText('seq').nextElementSibling as HTMLElement
+    expect(caption).toHaveTextContent(/^6 messages$/)
+    expect(caption.className).toContain('flex-1')
+    expect(caption.nextElementSibling).toHaveTextContent('log scale')
   })
 
   it('renders no full-screen button and no zoom controls without fullScreen', () => {

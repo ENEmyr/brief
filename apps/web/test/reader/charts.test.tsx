@@ -10,9 +10,11 @@ import {
   fmt,
   DEFAULT_MAX_N,
   BigO,
+  curveColors,
+  tickLabel,
 } from '@/features/reader/components/blocks/BigO'
 import { buildHeatmapOption, Heatmap } from '@/features/reader/components/blocks/Heatmap'
-import { buildHistogramOption, Histogram } from '@/features/reader/components/blocks/Histogram'
+import { binReadout, buildHistogramOption, Histogram } from '@/features/reader/components/blocks/Histogram'
 import { buildScatterOption, Scatter } from '@/features/reader/components/blocks/Scatter'
 
 const palette = LIGHT_PALETTE
@@ -100,11 +102,13 @@ describe('BigO option builder', () => {
     expect(series[1]!.name).toContain('capped')
   })
 
-  it('places an accent dashed markLine at the current n on exactly one series', () => {
+  it('places a faint dashed markLine at the current n on exactly one series', () => {
+    // Was accent: on B-Blocks:134 lime is the slowest curve's own line, so the
+    // slider's marker (D5, no board) takes faint to stay apart from it.
     const option = buildBigOOption(block, 42, palette)
     const series = option.series as unknown as Array<{ markLine?: { data: Array<{ xAxis: number }>; lineStyle: { color: string; type: string } } }>
     expect(series[0]!.markLine?.data).toEqual([{ xAxis: 42 }])
-    expect(series[0]!.markLine?.lineStyle.color).toBe(palette.accentText)
+    expect(series[0]!.markLine?.lineStyle.color).toBe(palette.faint)
     expect(series[0]!.markLine?.lineStyle.type).toBe('dashed')
     expect(series[1]!.markLine).toBeUndefined()
   })
@@ -116,6 +120,24 @@ describe('BigO option builder', () => {
 
   it('defaults maxN to 10_000 when the block omits it', () => {
     expect(DEFAULT_MAX_N).toBe(10_000)
+  })
+
+  it('colors curves by growth: the slowest lime, the fastest red, amber between (B-Blocks:132-135)', () => {
+    const series: Extract<Block, { type: 'bigo' }>['series'] = [
+      { label: 'O(n)', curve: 'n' },
+      { label: 'O(log n)', curve: 'logn' },
+      { label: 'O(1)', curve: '1' },
+    ]
+    expect(curveColors(series, palette)).toEqual([palette.bad, palette.warn, palette.accentLine])
+    expect(curveColors([{ label: 'only', curve: 'n2' }], palette)).toEqual([palette.accentLine])
+  })
+
+  it('labels the ends of the n axis, a power of ten as 10 with a superscript (B-Blocks:136)', () => {
+    expect(tickLabel(1)).toBe('1')
+    expect(tickLabel(10)).toBe('10')
+    expect(tickLabel(1_000_000)).toBe('10⁶')
+    expect(tickLabel(10_000)).toBe('10⁴')
+    expect(tickLabel(5_000)).toBe('5,000')
   })
 
   it('formats ops with k/M/B suffixes at 1 decimal place, else the raw value', () => {
@@ -173,16 +195,22 @@ describe('Heatmap option builder', () => {
     expect(visualMap.max).toBe(6)
   })
 
-  it('uses the line2 -> accent gradient', () => {
+  it('steps through the five-step heat ramp, elev to accent (B-Blocks:181-184)', () => {
+    // Was a two-stop line2 -> accent gradient; the board draws five flat steps.
     const option = buildHeatmapOption(block, palette)
-    const visualMap = option.visualMap as unknown as { inRange: { color: string[] } }
-    expect(visualMap.inRange.color).toEqual([palette.line2, palette.accentText])
+    const visualMap = option.visualMap as unknown as { type: string; splitNumber: number; show: boolean; inRange: { color: string[] } }
+    expect(visualMap.type).toBe('piecewise')
+    expect(visualMap.splitNumber).toBe(5)
+    expect(visualMap.show).toBe(false)
+    expect(visualMap.inRange.color).toEqual(['#f9fafa', '#eef8d9', '#e0f5af', '#d3f384', '#c5f05a'])
   })
 
-  it('shows cell value labels when there are fewer than 12 columns', () => {
+  it('shows no cell value labels, at any column count (B-Blocks:181)', () => {
+    // Was: labels under 12 columns. The board's cells carry color only; the
+    // value is in the hover chip (B-Blocks:186).
     const option = buildHeatmapOption(block, palette)
     const series = option.series as unknown as Array<{ label: { show: boolean } }>
-    expect(series[0]!.label.show).toBe(true)
+    expect(series[0]!.label.show).toBe(false)
   })
 
   it('hides cell value labels at 12 or more columns', () => {
@@ -202,13 +230,21 @@ describe('Histogram option builder', () => {
     ],
   }
 
-  it('builds a bar series from bins with accent rounded-top bars', () => {
+  it('builds a bar series from bins with line2 bars, 2px top corners, 6px apart', () => {
+    // Was accent bars with 4px corners; B-Blocks2:135-142 draws line2 bars
+    // with 2px corners 6px apart (red past a threshold the payload lacks).
     const option = buildHistogramOption(block, palette)
-    const series = option.series as unknown as Array<{ type: string; data: number[]; itemStyle: { color: string; borderRadius: number[] } }>
+    const series = option.series as unknown as Array<{ type: string; data: number[]; barCategoryGap: number; itemStyle: { color: string; borderRadius: number[] } }>
     expect(series[0]!.type).toBe('bar')
     expect(series[0]!.data).toEqual([3, 7])
-    expect(series[0]!.itemStyle.color).toBe(palette.accentText)
-    expect(series[0]!.itemStyle.borderRadius).toEqual([4, 4, 0, 0])
+    expect(series[0]!.itemStyle.color).toBe(palette.line2)
+    expect(series[0]!.itemStyle.borderRadius).toEqual([2, 2, 0, 0])
+    expect(series[0]!.barCategoryGap).toBe(6)
+  })
+
+  it('reads a bin out as its count and its share of all counts', () => {
+    expect(binReadout(3, 10)).toBe('3 (30.0%)')
+    expect(binReadout(0, 0)).toBe('0 (0.0%)')
   })
 
   it('uses bin labels as x-axis categories', () => {
@@ -243,33 +279,44 @@ describe('Scatter option builder', () => {
     expect(series[0]!.data).toEqual([[1, 2]])
   })
 
-  it('cycles the series palette after 7 colors', () => {
+  it('cycles the series palette after 7 colors, red then lime first, and the shapes after 4', () => {
+    // Was accent first; B-Blocks2:156-157 draws "before" as red circles and
+    // "after" as lime squares, so red and lime lead and shape tells them apart.
     const option = buildScatterOption(block, palette)
-    const series = option.series as unknown as Array<{ color: string }>
+    const series = option.series as unknown as Array<{ color: string; symbol: string }>
     const colors = [
-      palette.accentText,
+      palette.bad,
+      palette.accentLine,
       palette.info,
-      palette.good,
+      palette.warn,
       palette.dataOrange,
       palette.dataTeal,
-      palette.bad,
-      palette.warn,
+      palette.good,
     ]
-    expect(series[0]!.color).toBe(colors[0])
-    expect(series[6]!.color).toBe(colors[6])
-    expect(series[7]!.color).toBe(colors[0]) // 8th series wraps back to the first hue
+    expect(series.map((s) => s.color)).toEqual([...colors, colors[0]])
+    expect(series.map((s) => s.symbol)).toEqual(['circle', 'rect', 'triangle', 'diamond', 'circle', 'rect', 'triangle', 'diamond'])
   })
 
-  it('sets optional x/y axis names', () => {
+  type Axis = { name?: string; axisLabel: { customValues: number[]; formatter: (v: number) => string } }
+
+  it('names the axes after their last value, as B-Blocks2:158 writes "5k rps" and "3 s"', () => {
+    // Was echarts axis titles; the board puts the unit on the end tick.
     const option = buildScatterOption(block, palette)
-    expect((option.xAxis as unknown as { name?: string }).name).toBe('x')
-    expect((option.yAxis as unknown as { name?: string }).name).toBe('y')
+    const x = option.xAxis as unknown as Axis
+    const y = option.yAxis as unknown as Axis
+    expect(x.name).toBeUndefined()
+    expect(x.axisLabel.customValues).toEqual([0, 15])
+    expect(x.axisLabel.formatter(15)).toBe('15 x')
+    expect(x.axisLabel.formatter(0)).toBe('0')
+    expect(y.axisLabel.customValues).toEqual([16])
+    expect(y.axisLabel.formatter(16)).toBe('16 y')
   })
 
-  it('omits axis names when xLabel/yLabel are absent', () => {
-    const unlabeled: Extract<Block, { type: 'scatter' }> = { type: 'scatter', series: block.series }
+  it('writes the end values alone when xLabel/yLabel are absent', () => {
+    const unlabeled: Extract<Block, { type: 'scatter' }> = { type: 'scatter', series: [{ label: 'A', points: [[5000, 3]] }] }
     const option = buildScatterOption(unlabeled, palette)
-    expect((option.xAxis as unknown as { name?: string }).name).toBeUndefined()
+    expect((option.xAxis as unknown as Axis).axisLabel.formatter(5000)).toBe('5k')
+    expect((option.yAxis as unknown as Axis).axisLabel.formatter(3)).toBe('3')
   })
 })
 
@@ -369,5 +416,32 @@ describe('Heatmap/Histogram/Scatter components (useEChart mocked)', () => {
     expect(useEChartMock).toHaveBeenCalled()
     expect(screen.getByText('scatter')).toHaveAttribute('data-kind-tag')
     expect(screen.queryByText('Scatter plot')).not.toBeInTheDocument()
+  })
+})
+
+describe('chart failures inside the card (B-States:92-98, features.md B6)', () => {
+  it('a heatmap whose rows do not match its labels fails in its card with the bad row marked', () => {
+    const block: Extract<Block, { type: 'heatmap' }> = {
+      type: 'heatmap',
+      xLabels: ['a', 'b', 'c'],
+      yLabels: ['x', 'y'],
+      values: [
+        [1, 2, 3],
+        [4, 5],
+      ],
+    }
+    const { container } = render(<Heatmap block={block} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Chart could not be drawn.')
+    expect(container.querySelector('[data-bad-line]')).toHaveTextContent('[4, 5]')
+    expect(screen.queryByText('hover a cell')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open diagram full screen' })).not.toBeInTheDocument()
+  })
+
+  it('a chart whose echarts never loads leaves "loading chart" for the error card, with no error text of its own', () => {
+    useEChartMock.mockReturnValue({ containerRef: { current: null }, chartRef: { current: null }, ready: false, failed: true })
+    render(<BigO block={{ type: 'bigo', series: [{ label: 'Linear', curve: 'n' }] }} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(/^Chart could not be drawn\.$/)
+    expect(screen.queryByText('loading chart')).not.toBeInTheDocument()
+    expect(screen.queryByText('log scale')).not.toBeInTheDocument()
   })
 })
