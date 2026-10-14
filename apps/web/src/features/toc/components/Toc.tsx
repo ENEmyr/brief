@@ -190,7 +190,6 @@ export function Toc({
     })
   }
 
-  const showFull = !collapsed || hovered
   const toggle = (
     <button
       type="button"
@@ -202,6 +201,16 @@ export function Toc({
         <path d={collapsed ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'} />
       </svg>
     </button>
+  )
+  const full = (
+    <>
+      <div className="flex items-center justify-between pr-[2px]">
+        <span className={LABEL}>OUTLINE</span>
+        {toggle}
+      </div>
+      {renderSections('min-h-8')}
+      {renderMarks('min-h-8')}
+    </>
   )
 
   return (
@@ -220,23 +229,11 @@ export function Toc({
             {renderRail()}
           </>
         ) : (
-          <>
-            <div className="flex items-center justify-between pr-[2px]">
-              <span className={LABEL}>OUTLINE</span>
-              {toggle}
-            </div>
-            {renderSections('min-h-8')}
-            {renderMarks('min-h-8')}
-          </>
+          full
         )}
-        {collapsed && showFull && (
+        {collapsed && hovered && (
           <div className="absolute left-0 top-0 z-10 box-content flex w-[236px] flex-col rounded-[6px] border border-line bg-card p-[6px] shadow-[var(--shadow-overlay)]">
-            <div className="flex items-center justify-between pr-[2px]">
-              <span className={LABEL}>OUTLINE</span>
-              {toggle}
-            </div>
-            {renderSections('min-h-8')}
-            {renderMarks('min-h-8')}
+            {full}
           </div>
         )}
       </nav>
