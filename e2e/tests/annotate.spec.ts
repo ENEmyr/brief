@@ -14,6 +14,15 @@ async function addNote(page: Page, note: string) {
   await page.getByRole('button', { name: 'Done', exact: true }).click()
 }
 
+function storedHighlightTexts(page: Page, sessionId: string): Promise<string[]> {
+  return page.evaluate((key) => {
+    const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as {
+      highlights?: { text: string }[]
+    }
+    return (stored.highlights ?? []).map((h) => h.text)
+  }, `idocs:${sessionId}`)
+}
+
 test.describe('annotate', () => {
   test('selecting text shows the toolbar and Highlight adds a mark', async ({ page, createSession }) => {
     const { id } = await createSession()
@@ -55,6 +64,9 @@ test.describe('annotate', () => {
       const marker = await marks.first().evaluate((mark) => getComputedStyle(mark, '::after').content)
       expect(marker).toContain('●')
 
+      // The reader saves its state to localStorage on a timer after the click.
+      // Reloading before that write lands loses the second highlight.
+      await expect.poll(() => storedHighlightTexts(page, id)).toEqual([noted, later])
       await page.reload()
       await expect(marks).toHaveText([noted, later])
     })
