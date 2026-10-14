@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, render, screen, fireEvent } from '@testing-library/react'
+import { useState } from 'react'
 import type { Decision } from '@brief/schema'
 import type { ReaderState, ReaderStateStore } from '@/features/reader-state'
 import { ReaderStateProvider, useReaderStateStore } from '@/features/reader-state'
 import { PromptReviewSheet, SupportTabs, buildReplyPrompt } from '@/features/decisions'
+import type { TabKey } from '@/features/decisions'
 
 function emptyState(overrides: Partial<ReaderState> = {}): ReaderState {
   return { highlights: [], dsel: {}, dnote: {}, dother: {}, ...overrides }
@@ -120,6 +122,11 @@ describe('buildReplyPrompt', () => {
 })
 
 describe('SupportTabs', () => {
+  function Tabs({ decision }: { decision: Decision }) {
+    const [picked, setPicked] = useState<TabKey>()
+    return <SupportTabs decision={decision} picked={picked} onPick={setPicked} />
+  }
+
   const withAll: Decision = {
     id: 'd1',
     q: 'Which cache?',
@@ -138,20 +145,20 @@ describe('SupportTabs', () => {
   }
 
   it('renders nothing when the decision has no why/cmp/dia', () => {
-    const { container } = render(<SupportTabs decision={withNone} />)
+    const { container } = render(<Tabs decision={withNone} />)
     expect(container.firstChild).toBeNull()
   })
 
   it('renders a tab only for each field that is present', () => {
     const onlyWhy: Decision = { ...withNone, why: 'Because reasons.' }
-    render(<SupportTabs decision={onlyWhy} />)
+    render(<Tabs decision={onlyWhy} />)
     expect(screen.getByRole('tab', { name: 'Explanation' })).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Compare' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Diagram' })).not.toBeInTheDocument()
   })
 
   it('renders all three tabs when why/cmp/dia are all present, Explanation active by default', () => {
-    render(<SupportTabs decision={withAll} />)
+    render(<Tabs decision={withAll} />)
     const explanationTab = screen.getByRole('tab', { name: 'Explanation' })
     expect(explanationTab).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Compare' })).toHaveAttribute('aria-selected', 'false')
@@ -160,7 +167,7 @@ describe('SupportTabs', () => {
   })
 
   it('switching to the Compare tab renders the cmp table head and rows', () => {
-    render(<SupportTabs decision={withAll} />)
+    render(<Tabs decision={withAll} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Compare' }))
 
     expect(screen.getByRole('tab', { name: 'Compare' })).toHaveAttribute('aria-selected', 'true')
@@ -171,7 +178,7 @@ describe('SupportTabs', () => {
   })
 
   it('switching to the Diagram tab renders the string label as a caption note (dia is not a diagram spec)', () => {
-    render(<SupportTabs decision={withAll} />)
+    render(<Tabs decision={withAll} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Diagram' }))
     expect(screen.getByText('[diagram: kv-write-path]')).toBeInTheDocument()
   })

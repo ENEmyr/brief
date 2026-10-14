@@ -1,8 +1,8 @@
 'use client'
-import { useId, useRef, useState } from 'react'
+import { useId, useRef } from 'react'
 import type { Decision } from '@brief/schema'
 
-type TabKey = 'why' | 'cmp' | 'dia'
+export type TabKey = 'why' | 'cmp' | 'dia'
 type CmpTableData = NonNullable<Decision['cmp']>
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
@@ -14,13 +14,20 @@ const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus
  * `dia` is a plain string label in the schema, not a diagram spec, so the
  * Diagram tab shows it as a caption note.
  */
-export function SupportTabs({ decision }: { decision: Decision }) {
+export function SupportTabs({
+  decision,
+  picked,
+  onPick,
+}: {
+  decision: Decision
+  picked: TabKey | undefined
+  onPick: (key: TabKey) => void
+}) {
   const tabs: { key: TabKey; label: string }[] = []
   if (decision.why) tabs.push({ key: 'why', label: 'Explanation' })
   if (decision.cmp) tabs.push({ key: 'cmp', label: 'Compare' })
   if (decision.dia) tabs.push({ key: 'dia', label: 'Diagram' })
 
-  const [picked, setPicked] = useState<TabKey | undefined>(undefined)
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const baseId = useId()
 
@@ -33,7 +40,7 @@ export function SupportTabs({ decision }: { decision: Decision }) {
     event.preventDefault()
     const at = tabs.findIndex((t) => t.key === active)
     const next = (at + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
-    setPicked(tabs[next]!.key)
+    onPick(tabs[next]!.key)
     tabRefs.current[next]?.focus()
   }
 
@@ -59,7 +66,7 @@ export function SupportTabs({ decision }: { decision: Decision }) {
               aria-selected={selected}
               aria-controls={`${baseId}-panel`}
               tabIndex={selected ? 0 : -1}
-              onClick={() => setPicked(t.key)}
+              onClick={() => onPick(t.key)}
               className={`min-h-[30px] rounded-[4px] border-0 px-[10px] text-[13px] transition-[background-color,transform] duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none max-[880px]:min-h-11 ${
                 selected ? 'bg-chip text-text' : 'bg-transparent text-faint hover:bg-chip'
               } ${FOCUS_RING}`}
