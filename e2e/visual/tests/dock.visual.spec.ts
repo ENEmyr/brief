@@ -426,10 +426,12 @@ test.describe('phone sheet', () => {
     const review = page.getByRole('dialog', { name: 'Review prompt before copying' })
     await expect.poll(async () => Math.round((await review.boundingBox())!.x)).toBe(0)
     await expectBox(review, { x: 0, width: 388 })
-    for (const name of ['Close prompt review', 'Go to D2', 'Rebuild from answers']) {
+    for (const name of ['Close prompt review', 'Go to D2']) {
       await expectBoxHeight(review.getByRole('button', { name }), 44)
     }
-    await expectBoxHeight(review.getByRole('button', { name: /^Copy prompt/ }), 44)
+    // One line each: a label that wraps would make the button taller than 44.
+    await expectBox(review.getByRole('button', { name: 'Rebuild from answers' }), { height: 44 })
+    await expectBox(review.getByRole('button', { name: /^Copy prompt/ }), { height: 44 })
   })
 
   test('sheet screen against B-Mobile', async ({ page, theme }) => {
