@@ -1,0 +1,50 @@
+{
+  "crops": [
+    {
+      "name": "components-decision-dock",
+      "board": "B-Components",
+      "selector": "section",
+      "nth": 6,
+      "contains": "Decision dock"
+    },
+    {
+      "name": "components-outline",
+      "board": "B-Components",
+      "selector": "section",
+      "nth": 4,
+      "contains": "Outline"
+    },
+    {
+      "name": "blocks-stat",
+      "board": "B-Blocks",
+      "selector": "section",
+      "nth": 1,
+      "contains": "Peak RPS"
+    },
+    {
+      "name": "blocks-compare",
+      "board": "B-Blocks",
+      "selector": "section",
+      "nth": 2,
+      "contains": "Retry-After"
+    },
+    {
+      "name": "overlays-share-dialog",
+      "board": "B-Overlays",
+      "selector": "div",
+      "hasText": "Share this doc",
+      "hasNotText": "Archive this doc",
+      "contains": "Anyone with this link",
+      "nth": 1
+    },
+    {
+      "name": "overlays-archive-dialog",
+      "board": "B-Overlays",
+      "selector": "div",
+      "hasText": "Archive this doc",
+      "hasNotText": "Copy manually",
+      "contains": "Archiving keeps this doc",
+      "nth": 2
+    }
+  ]
+}
