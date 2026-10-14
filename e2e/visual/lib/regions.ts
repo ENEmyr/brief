@@ -97,6 +97,27 @@ export async function clipOf(locator: Locator): Promise<Clip> {
 }
 
 /**
+ * Moves the element down by less than a pixel so its top edge lands on a whole
+ * pixel. Box edges and text baselines round to pixels separately, so text in a
+ * box that starts between pixels lands a row higher or lower depending on the
+ * fraction, and a flow document (B-Print, the printed reader) puts boxes at
+ * whatever fraction the content above adds up to. The renderer snaps a crop
+ * marked `snap` and the spec snaps the app element, so both sides compare at
+ * the same phase. It uses a relative offset, which is laid out like any other
+ * position; a transform would resample the painted text instead. Table parts
+ * cannot be offset, so their table moves.
+ */
+export async function snapToPixelRow(locator: Locator): Promise<void> {
+  await locator.evaluate((el: HTMLElement) => {
+    window.scrollTo({ left: 0, top: 0, behavior: 'instant' })
+    const top = el.getBoundingClientRect().top
+    const target = el.closest('table') ?? el
+    target.style.position = 'relative'
+    target.style.top = `${Math.ceil(top) - top}px`
+  })
+}
+
+/**
  * B-Mobile phone frames are 390x844 with a 1px border and radius 36; the app
  * screen starts below a 44 px status bar, so it is 388 wide and 842 - 44 = 798
  * high. The mobile spec runs at that viewport so bottom-anchored elements land

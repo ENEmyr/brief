@@ -24,6 +24,7 @@ import {
   THEMES,
   clipOf,
   clipOfRegion,
+  snapToPixelRow,
   type Clip,
 } from './lib/regions'
 
@@ -42,6 +43,8 @@ interface Crop {
   hasNotText?: string
   /** Text the element must contain (case-insensitive); guards against the board changing under the map. */
   contains?: string
+  /** Snap the element to a whole pixel row first (snapToPixelRow); the spec must snap the app side too. */
+  snap?: boolean
 }
 
 const crops = (
@@ -224,6 +227,7 @@ test('element crops from crops.json', async ({ browser }) => {
         throw new Error(`crop ${crop.name}: element does not contain "${crop.contains}"; fix its entry in crops.json`)
       }
     }
+    if (crop.snap) await snapToPixelRow(locator)
     await save(page, `crop-${crop.name}`, await clipOf(locator))
   }
 })

@@ -119,9 +119,9 @@ const CodeLine = memo(function CodeLine({
  * once `highlightToHast` resolves. Both states share the same panel look:
  * `--c-code-bg` with `--c-text`, the same pair shiki's css-variables theme
  * resolves to (see globals.css). The `data-code-panel` attribute on the
- * fallback `<pre>` tells the print stylesheet to keep that tint
- * (`print-color-adjust: exact`). The shiki path doesn't need the attribute --
- * the `.shiki` selector already covers it.
+ * fallback `<pre>` lets the print stylesheet find the panel, which prints
+ * light with a 1px rule. The shiki path doesn't need the attribute -- the
+ * `.shiki` selector already covers it.
  *
  * The highlighted tree is built from shiki's hast output via
  * hast-util-to-jsx-runtime rather than `dangerouslySetInnerHTML`: nothing

@@ -117,6 +117,61 @@
       "hasText": "Copy prompt for agent",
       "nth": 0,
       "contains": "Copy prompt for agent"
+    },
+    {
+      "name": "print-title",
+      "board": "B-Print",
+      "selector": "h1",
+      "contains": "Rate limit",
+      "snap": true
+    },
+    {
+      "name": "print-session-line",
+      "board": "B-Print",
+      "selector": "p",
+      "nth": 0,
+      "contains": "session k2p9x4Qm7Zr1Ta / 4 sections",
+      "snap": true
+    },
+    {
+      "name": "print-section-heading",
+      "board": "B-Print",
+      "selector": "h2",
+      "nth": 0,
+      "contains": "ภาพรวม",
+      "snap": true
+    },
+    {
+      "name": "print-note",
+      "board": "B-Print",
+      "selector": "p",
+      "hasText": "ตัวเลขนี้มาจาก",
+      "contains": "Note:",
+      "snap": true
+    },
+    {
+      "name": "print-answers-heading",
+      "board": "B-Print",
+      "selector": "h2",
+      "hasText": "Your answers",
+      "contains": "Your answers",
+      "snap": true
+    },
+    {
+      "name": "print-answers-intro",
+      "board": "B-Print",
+      "selector": "p",
+      "hasText": "As of printing",
+      "contains": "As of printing",
+      "snap": true
+    },
+    {
+      "name": "print-answers-rows",
+      "board": "B-Print",
+      "selector": "tbody",
+      "nth": 2,
+      "contains": "(not answered)",
+      "snap": true
     }
   ]
 }

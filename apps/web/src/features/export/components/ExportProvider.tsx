@@ -6,6 +6,8 @@ import { useReaderStateStore } from '@/features/reader-state'
 import { copyText } from '../lib/copy'
 import { downloadMarkdown as downloadMarkdownFile } from '../lib/download'
 import { printDocument } from '../lib/print'
+import { usePrintSnapshot } from '../hooks/usePrintSnapshot'
+import { PrintAnswers, PrintHeader } from './PrintSheet'
 import { Toast } from './Toast'
 import { ShareModal } from './ShareModal'
 import { CopyFallbackModal } from './CopyFallbackModal'
@@ -78,6 +80,7 @@ export function ExportProvider({
   const [shareOpen, setShareOpen] = useState(false)
   const [fallbackText, setFallbackText] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const printSnapshot = usePrintSnapshot(store, sessionId)
 
   const toast = useCallback((message: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -123,7 +126,9 @@ export function ExportProvider({
 
   return (
     <ExportContext.Provider value={value}>
+      {printSnapshot && <PrintHeader payload={payload} sessionId={sessionId} snapshot={printSnapshot} />}
       {children}
+      {printSnapshot && <PrintAnswers decisions={payload.decisions} state={printSnapshot.state} />}
       <Toast message={toastMessage} />
       {shareOpen && (
         <ShareModal
