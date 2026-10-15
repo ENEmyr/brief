@@ -12,8 +12,9 @@ export interface BackTarget {
  * "Back to D2" after a context chip jump (D7). No board draws it, so it is the
  * toast's box (components.md "Toast"): chip fill, line2 border, toast shadow,
  * 24 above the viewport's bottom edge, and under 880 24 above the dock's peek
- * bar (97 high, B-Mobile). It leaves on Escape, and once the section it jumped
- * to has been on screen and is scrolled out of view.
+ * bar (97 high, B-Mobile), on the peek bar's layer so the open sheet, dialogs
+ * and toasts cover it. It leaves on Escape, and once the section it jumped to
+ * has been on screen and is scrolled out of view.
  */
 export function BackPill({
   target,
@@ -50,7 +51,7 @@ export function BackPill({
       type="button"
       data-back-pill=""
       onClick={onBack}
-      className="console-toast fixed inset-x-0 bottom-6 z-[110] mx-auto flex min-h-[42px] w-fit cursor-pointer items-center gap-2 rounded-panel border border-line2 bg-chip px-[14px] text-[13px] font-semibold leading-[normal] text-text shadow-[var(--shadow-toast)] transition-transform duration-[var(--dur-fast)] active:scale-[.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line motion-reduce:transition-none max-[880px]:bottom-[121px] max-[880px]:min-h-11 print:hidden"
+      className="console-toast fixed inset-x-0 bottom-6 z-40 mx-auto flex min-h-[42px] w-fit cursor-pointer items-center gap-2 rounded-panel border border-line2 bg-chip px-[14px] text-[13px] font-semibold leading-[normal] text-text shadow-[var(--shadow-toast)] transition-transform duration-[var(--dur-fast)] active:scale-[.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line motion-reduce:transition-none max-[880px]:bottom-[121px] max-[880px]:min-h-11 print:hidden"
     >
       <svg
         width="14"

@@ -93,6 +93,25 @@ test.describe('decision context chips (D7)', () => {
     await expect(pill).toBeHidden()
   })
 
+  test('under 880 the open sheet covers the pill', async ({ page, createSession, isMobile }) => {
+    test.skip(!isMobile, 'the sheet exists under 880 only')
+    const { id } = await createSession(payload)
+    await page.goto(`/s/${id}`)
+    const dock = await openDock(page, true)
+    await dock.getByRole('group', { name: 'Question D1' }).getByRole('link').click()
+    const pill = page.getByRole('button', { name: 'Back to D1' })
+    await expect(pill).toBeVisible()
+    const box = (await pill.boundingBox())!
+
+    await openDock(page, true)
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'))
+    const topmost = await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-back-pill]') === null,
+      { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+    )
+    expect(topmost).toBe(true)
+  })
+
   test('no refs, empty refs and refs that resolve to no section render no chips', async ({
     page,
     createSession,
