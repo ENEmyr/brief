@@ -406,3 +406,102 @@ describe('StateMachine block', () => {
     }
   })
 })
+
+// Round 1 board fields (pr-body-schema-r1.md): seq.steps[].text, and the
+// state and transition tone.
+describe('Round 1 board fields on seq and state', () => {
+  const withText: Extract<Block, { type: 'seq' }> = {
+    ...seqBlock,
+    steps: [
+      { from: 'Client', to: 'Limiter', label: 'request', text: 'Client sends the request' },
+      { from: 'Limiter', to: 'Limiter', label: 'check token' },
+      { from: 'Limiter', to: 'API', label: 'forward', text: '<img src=x onerror=alert(1)>' },
+    ],
+  }
+
+  it('lists a step by its text, and a step without text as "from → to: label" (B-Blocks:102-107)', () => {
+    const { container } = r(withText)
+    fireEvent.click(button('Next step'))
+    const rows = within(screen.getByRole('list')).getAllByRole('listitem')
+    expect(rows.map((row) => row.textContent)).toEqual([
+      '1Client sends the request',
+      '2Limiter → Limiter: check token',
+      '3<img src=x onerror=alert(1)>',
+    ])
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.getByText('Step 1 of 3: Client sends the request')).toBeInTheDocument()
+  })
+
+  it('keeps the diagram labels on the label, not the text', () => {
+    const { container } = r(withText)
+    const labels = Array.from(container.querySelectorAll('[data-seq-label]')).map((l) => l.textContent)
+    expect(labels).toEqual(['1 request', '2 check token', '3 forward'])
+  })
+
+  it('gives the viewer the step text', () => {
+    render(
+      <DiagramViewerProvider>
+        <BlockRenderer block={withText} />
+      </DiagramViewerProvider>,
+    )
+    fireEvent.click(button('Next step'))
+    fireEvent.click(button('Open diagram full screen'))
+    const viewer = screen.getByRole('dialog', { name: 'Diagram viewer' })
+    expect(within(viewer).getByText('Client sends the request')).toBeInTheDocument()
+  })
+
+  const toned: Extract<Block, { type: 'state' }> = {
+    type: 'state',
+    initial: 'in',
+    states: [
+      { id: 'in', label: 'Received', tone: 'info' },
+      { id: '429', label: '429 limited', tone: 'bad' },
+      { id: 'ok', label: 'Token', tone: 'warn' },
+      { id: 'done', label: 'Done', tone: 'bad' },
+      { id: 'plain', label: 'Plain' },
+    ],
+    transitions: [
+      { from: 'in', to: '429', label: 'no token', tone: 'bad' },
+      { from: '429', to: 'in', label: 'retry', tone: 'warn' },
+      { from: 'in', to: 'ok', label: 'token', tone: 'info' },
+      { from: 'ok', to: 'done', label: 'forward', tone: 'good' },
+      { from: 'ok', to: 'plain' },
+      { from: 'plain', to: 'ok' },
+    ],
+  }
+  const stateNode = (container: HTMLElement, id: string) =>
+    container.querySelector<HTMLElement>(`[data-state-node="${id}"]`)?.className ?? ''
+
+  it('fills a toned state with the soft color and borders it with the line color (B-Blocks2:37)', () => {
+    const { container } = r(toned)
+    expect(stateNode(container, '429')).toContain('border-bad-line')
+    expect(stateNode(container, '429')).toContain('bg-bad-soft')
+    expect(stateNode(container, 'ok')).toContain('border-warn-line')
+    expect(stateNode(container, 'ok')).toContain('bg-warn-soft')
+    expect(stateNode(container, 'plain')).toContain('border-line2')
+    expect(stateNode(container, 'plain')).toContain('bg-elev')
+  })
+
+  it('keeps the initial lime border and the final double border, in the tone (B-Blocks2:36, :40)', () => {
+    const { container } = r(toned)
+    expect(stateNode(container, 'in')).toContain('border-accent-line')
+    expect(stateNode(container, 'in')).toContain('bg-info-soft')
+    expect(stateNode(container, 'done')).toContain('border-double')
+    expect(stateNode(container, 'done')).toContain('border-bad')
+    expect(stateNode(container, 'done')).toContain('bg-bad-soft')
+    expect(screen.getByText('final')).toHaveClass('text-bad')
+  })
+
+  it('draws a toned transition and its label in the tone, keeping the loop back dashed (B-Blocks2:33-35, :44-45)', () => {
+    const { container } = r(toned)
+    const classes = edges(container).map((e) => e.getAttribute('class') ?? '')
+    expect(classes[0]).toContain('stroke-bad')
+    expect(classes[1]).toContain('stroke-warn')
+    expect(edges(container)[1]?.querySelector('path')?.getAttribute('stroke-dasharray')).toBe('6 5')
+    expect(classes[2]).toContain('stroke-info')
+    expect(classes[3]).toContain('stroke-good')
+    expect(classes[4]).toContain('stroke-sub')
+    expect(screen.getByText('no token')).toHaveClass('text-bad')
+    expect(screen.getByText('token')).toHaveClass('text-info')
+  })
+})

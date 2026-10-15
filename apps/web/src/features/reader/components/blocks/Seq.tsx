@@ -86,8 +86,9 @@ const ROW_CLASS: Record<Phase, string> = {
   future: 'px-2.5 py-2 text-faint max-[880px]:p-0',
 }
 
+/** The agent's sentence for the step (B-Blocks:102-107), else "from → to: label". */
 function stepText(step: SeqBlock['steps'][number]): string {
-  return `${step.from} → ${step.to}: ${step.label}`
+  return step.text ?? `${step.from} → ${step.to}: ${step.label}`
 }
 
 function Chevron({ dir, strokeWidth = 2 }: { dir: 'left' | 'right'; strokeWidth?: number }) {

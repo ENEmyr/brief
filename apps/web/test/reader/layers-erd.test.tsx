@@ -289,3 +289,33 @@ describe('Erd block', () => {
     expect(() => r(erdBlock)).not.toThrow()
   })
 })
+
+// Round 1 board field layers.nodes[].diffNode (pr-body-schema-r1.md). The badge
+// needs a diff block, which ships in round 2, so the node only carries the link.
+describe('Layers diffNode before the diff block exists', () => {
+  const linked: Extract<Block, { type: 'layers' }> = {
+    ...layersBlock,
+    layers: [
+      {
+        id: 'flow',
+        label: 'Request flow',
+        nodes: [
+          { id: 'client', label: 'Client' },
+          { id: 'limiter', label: 'Limiter', diffNode: '"><img src=x onerror=alert(1)>' },
+        ],
+        edges: [{ from: 'client', to: 'limiter' }],
+      },
+    ],
+  }
+
+  it('marks the linked node and draws it exactly like an unlinked one', () => {
+    const { container } = r(linked)
+    const limiter = node(container, 'limiter')
+    const client = node(container, 'client')
+    expect(limiter).toHaveAttribute('data-diff-node', '"><img src=x onerror=alert(1)>')
+    expect(client).not.toHaveAttribute('data-diff-node')
+    expect(limiter.className).toBe(client.className)
+    expect(limiter.textContent).toBe('Limiter')
+    expect(container.querySelector('img')).toBeNull()
+  })
+})

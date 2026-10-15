@@ -34,6 +34,12 @@ interface NodeBox {
   col: number
   x: number
   y: number
+  /**
+   * The id of this node in a diff block's map. Its badge (M or new) needs that
+   * diff node's status (B-Blocks2:77), and no diff block exists before round 2,
+   * so the link is only marked on the node.
+   */
+  diffNode?: string
 }
 
 interface EdgeShape {
@@ -59,7 +65,14 @@ function computeLayersLayout(block: LayersBlock): LayersLayout {
     for (const node of layer.nodes) {
       if (seen.has(node.id)) continue
       seen.add(node.id)
-      placed.push({ id: node.id, label: node.label, lines: wrapText(node.label, NODE_WIDTH - 2 * NODE_PAD, 13), band, col })
+      placed.push({
+        id: node.id,
+        label: node.label,
+        lines: wrapText(node.label, NODE_WIDTH - 2 * NODE_PAD, 13),
+        band,
+        col,
+        diffNode: node.diffNode,
+      })
       col += 1
     }
   })
@@ -195,6 +208,7 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
         <div
           key={n.id}
           data-layer-node={n.id}
+          data-diff-node={n.diffNode}
           className="absolute box-border flex items-center justify-center rounded-[6px] border border-line2 bg-elev p-1.5 text-center text-text"
           style={{ left: n.x, top: n.y, width: NODE_WIDTH, height: layout.nodeHeight }}
         >
