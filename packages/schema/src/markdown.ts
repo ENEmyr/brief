@@ -1,4 +1,4 @@
-import type { Align, CodeNote, Decision, GlossaryEntry, StoredBlock, StoredPayload, StoredSection, UnreadableBlock } from './payload'
+import type { Align, CodeNote, Decision, DiffChange, FlowNodeKind, GlossaryEntry, StoredBlock, StoredPayload, StoredSection, UnreadableBlock } from './payload'
 
 type BlockOf<T extends StoredBlock['type']> = Extract<StoredBlock, { type: T }>
 
@@ -153,12 +153,15 @@ function emitList(b: BlockOf<'list'>): string {
   return `${captionPrefix(b.caption)}${items}`
 }
 
+function lineRange(from: number, to?: number): string {
+  return to && to !== from ? `L${from}-${to}` : `L${from}`
+}
+
 function noteLines(notes: (CodeNote & { side?: string })[] | undefined): string {
   if (!notes?.length) return ''
   const lines = notes.map((n) => {
     const side = n.side ? `${n.side} ` : ''
-    const range = n.to && n.to !== n.from ? `L${n.from}-${n.to}` : `L${n.from}`
-    return `- ${side}${range}: ${oneLine(n.text)}`
+    return `- ${side}${lineRange(n.from, n.to)}: ${oneLine(n.text)}`
   })
   return `\n\nAgent notes:\n${lines.join('\n')}`
 }
@@ -244,6 +247,59 @@ function emitPlot3d(b: BlockOf<'plot3d'>): string {
   return `3D plot (${b.kind})${title}${points}`
 }
 
+const FLOW_SHAPE: Record<FlowNodeKind, [string, string]> = { start: ['(["', '"])'], end: ['(["', '"])'], decision: ['{"', '"}'], step: ['["', '"]'] }
+
+function flowchart(nodes: { id: string; label: string; kind?: FlowNodeKind }[], edges: { from: string; to: string; label?: string }[]): string {
+  const lines = ['flowchart TD']
+  for (const n of nodes) {
+    const [open, close] = FLOW_SHAPE[n.kind ?? 'step']
+    lines.push(`  ${mmId(n.id)}${open}${mmText(n.label, { quote: true })}${close}`)
+  }
+  for (const e of edges) {
+    const label = e.label ? `|${mmText(e.label, { pipe: true })}|` : ''
+    lines.push(`  ${mmId(e.from)} --> ${label}${mmId(e.to)}`)
+  }
+  return lines.join('\n')
+}
+
+function emitWalkthrough(b: BlockOf<'walkthrough'>): string {
+  const head = [b.filename && `\`${oneLine(b.filename)}\``, b.title && oneLine(b.title)].filter(Boolean).join(' / ')
+  const steps = b.steps.map((s, i) => `${i + 1}. ${lineRange(s.from, s.to)}: ${oneLine(s.title)} (flow: ${s.nodes.map(oneLine).join(', ')})`)
+  return `${head ? `${head}\n\n` : ''}${fence(oneLine(b.language), b.code)}\n\nWalkthrough:\n${steps.join('\n')}\n\n${fence('mermaid', flowchart(b.flow.nodes, b.flow.edges))}`
+}
+
+function diffChangeLine(c: DiffChange): string {
+  const steps = c.steps?.length ? ` Steps: ${c.steps.map(oneLine).join('; ')}.` : ''
+  return `- ${c.change} \`${oneLine(c.symbol)}\`: ${oneLine(c.summary)}${steps}`
+}
+
+function emitDiffFile(f: BlockOf<'diff'>['files'][number]): string {
+  const path = f.from ? `\`${oneLine(f.from)}\` -> \`${oneLine(f.path)}\`` : `\`${oneLine(f.path)}\``
+  const parts = [`**${f.status}** ${path}${f.folded ? ' (folded)' : ''}`]
+  if (f.changes?.length) parts.push(f.changes.map(diffChangeLine).join('\n'))
+  if (f.patch) parts.push(fence('diff', f.patch))
+  return parts.join('\n\n')
+}
+
+function emitDiff(b: BlockOf<'diff'>): string {
+  const files = b.files.map(emitDiffFile).join('\n\n')
+  if (!b.map) return files
+  const nodes = b.map.nodes.map((n) => ({ id: n.id, label: n.status ? `${n.label} (${n.status})` : n.label }))
+  return `${files}\n\nChange map:\n\n${fence('mermaid', flowchart(nodes, b.map.edges))}`
+}
+
+function emitTrajectory(b: BlockOf<'trajectory'>): string {
+  const totals = [b.steps.length === 1 ? '1 step' : `${b.steps.length} steps`]
+  if (b.stats?.seconds !== undefined) totals.push(`${b.stats.seconds} s`)
+  if (b.stats?.tokens !== undefined) totals.push(`${b.stats.tokens} tokens`)
+  const rows = b.steps.map((s) => [s.at, s.kind, s.title, s.detail ?? '', s.flag ? 'ask the reader' : ''])
+  return `Agent trajectory: ${totals.join(', ')}\n\n${table(['at (UTC)', 'kind', 'step', 'detail', 'flag'], rows)}`
+}
+
+function emitImage(b: BlockOf<'image'>): string {
+  return `${captionPrefix(b.caption && oneLine(b.caption))}[Image \`${b.imageId}\`: ${oneLine(b.alt)}]`
+}
+
 function emitUnreadable(b: UnreadableBlock): string {
   const raw = b.raw as { type?: unknown } | null
   const type = typeof raw?.type === 'string' ? raw.type.replace(/[^\w-]/g, '').slice(0, 40) : ''
@@ -275,6 +331,10 @@ function blockToMarkdown(b: StoredBlock): string {
     case 'scatter': return emitScatter(b)
     case 'plot3d': return emitPlot3d(b)
     case 'list': return emitList(b)
+    case 'walkthrough': return emitWalkthrough(b)
+    case 'diff': return emitDiff(b)
+    case 'trajectory': return emitTrajectory(b)
+    case 'image': return emitImage(b)
     case 'unreadable': return emitUnreadable(b)
     default: return assertNever(b)
   }

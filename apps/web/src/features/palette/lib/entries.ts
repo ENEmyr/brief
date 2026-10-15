@@ -48,6 +48,10 @@ const BLOCK_STRINGS: { [T in Block['type']]: (block: BlockOf<T>) => (string | un
   scatter: (b) => [b.title],
   plot3d: (b) => [b.title],
   list: (b) => [b.caption, ...b.items],
+  walkthrough: (b) => [b.filename, b.title, ...b.code.split('\n'), ...b.steps.map((step) => step.title)],
+  diff: (b) => b.files.flatMap((file) => [file.path, ...(file.changes ?? []).map((change) => `${change.symbol} ${change.summary}`)]),
+  trajectory: (b) => b.steps.flatMap((step) => [step.title, step.detail]),
+  image: (b) => [b.caption],
 }
 
 function blockStrings(block: StoredBlock): string[] {

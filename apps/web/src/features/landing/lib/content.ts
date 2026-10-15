@@ -52,8 +52,8 @@ export type BlockGroup = {
 export const BLOCK_GROUPS: BlockGroup[] = [
   {
     name: 'Text and callouts',
-    blocks: ['p', 'list', 'note', 'warn', 'good'],
-    note: 'Prose with inline code, links, and the three callout tones.',
+    blocks: ['p', 'list', 'note', 'warn', 'good', 'image'],
+    note: 'Prose with inline code, links, the three callout tones, and images.',
   },
   {
     name: 'Data',
@@ -74,6 +74,11 @@ export const BLOCK_GROUPS: BlockGroup[] = [
     name: 'Charts',
     blocks: ['bigo', 'heatmap', 'histogram', 'scatter', 'plot3d'],
     note: 'Complexity curves, heatmaps, histograms, scatter plots, and 3D surfaces.',
+  },
+  {
+    name: 'Agent work',
+    blocks: ['walkthrough', 'diff', 'trajectory'],
+    note: 'Code beside its flowchart, a diff with a note per change, and the agent run as a log you can filter.',
   },
   {
     name: 'Decisions',

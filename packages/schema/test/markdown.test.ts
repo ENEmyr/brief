@@ -446,3 +446,98 @@ describe('round 1 Console fields', () => {
     expect(md).toContain('## 1. S\n\n[Block not shown: this version of Brief cannot read a "hologram" block.]\n\nkept')
   })
 })
+
+describe('round 2 Console block types', () => {
+  type AnyBlock = Payload['sections'][number]['blocks'][number]
+  const blockMd = (block: AnyBlock) =>
+    payloadToMarkdown({ meta: { title: 'R2' }, sections: [{ id: 's1', no: 1, title: 'S', blocks: [block] }], decisions: [] }, { url: 'https://example.test' })
+      .split('## 1. S\n\n')[1]
+
+  it('prints a walkthrough as the listing, a numbered step list with line ranges, and the flow as mermaid', () => {
+    const md = blockMd({
+      type: 'walkthrough', language: 'ts', filename: 'src/limiter.ts', title: 'handle()',
+      code: 'const key = resolveKey(req)\nif (!ok) return tooMany(30)',
+      flow: {
+        nodes: [{ id: 'req', label: 'Request', kind: 'start' }, { id: 'ok', label: 'Token left?', kind: 'decision' }, { id: 'deny', label: 'Reply 429', kind: 'end' }, { id: 'fwd', label: 'Forward' }],
+        edges: [{ from: 'req', to: 'ok' }, { from: 'ok', to: 'deny', label: 'no' }, { from: 'ok', to: 'fwd', label: 'yes' }],
+      },
+      steps: [{ from: 1, title: 'Find the key', nodes: ['req'] }, { from: 2, to: 3, title: 'Out of tokens', nodes: ['ok', 'deny'] }],
+    })
+    expect(md).toBe([
+      '`src/limiter.ts` / handle()', '',
+      '```ts', 'const key = resolveKey(req)', 'if (!ok) return tooMany(30)', '```', '',
+      'Walkthrough:', '1. L1: Find the key (flow: req)', '2. L2-3: Out of tokens (flow: ok, deny)', '',
+      '```mermaid', 'flowchart TD', '  req(["Request"])', '  ok{"Token left?"}', '  deny(["Reply 429"])', '  fwd["Forward"]',
+      '  req --> ok', '  ok --> |no|deny', '  ok --> |yes|fwd', '```', '',
+    ].join('\n'))
+  })
+
+  it('prints each diff file with its status, agent notes per change and the patch, then the change map', () => {
+    const md = blockMd({
+      type: 'diff',
+      files: [
+        {
+          path: 'src/limiter.ts', status: 'modified', patch: '@@ -1 +1 @@\n-return fetch(req.url)\n+return fetch(origin(req))',
+          changes: [{ symbol: 'handle()', change: 'modified', summary: 'Checks the limiter before forwarding.', steps: ['take a token', 'reply 429 when empty'] }],
+        },
+        { path: 'src/keys.ts', status: 'renamed', from: 'src/key.ts' },
+        { path: 'bun.lock', status: 'modified', folded: true },
+      ],
+      map: { nodes: [{ id: 'limiter', label: 'limiter.ts', status: 'modified' }, { id: 'keys', label: 'keys.ts' }], edges: [{ from: 'limiter', to: 'keys' }] },
+    })
+    expect(md).toBe([
+      '**modified** `src/limiter.ts`', '',
+      '- modified `handle()`: Checks the limiter before forwarding. Steps: take a token; reply 429 when empty.', '',
+      '```diff', '@@ -1 +1 @@', '-return fetch(req.url)', '+return fetch(origin(req))', '```', '',
+      '**renamed** `src/key.ts` -> `src/keys.ts`', '',
+      '**modified** `bun.lock` (folded)', '',
+      'Change map:', '',
+      '```mermaid', 'flowchart TD', '  limiter["limiter.ts (modified)"]', '  keys["keys.ts"]', '  limiter --> keys', '```', '',
+    ].join('\n'))
+  })
+
+  it('fences a patch that itself contains a code fence', () => {
+    expect(blockMd({ type: 'diff', files: [{ path: 'README.md', status: 'modified', patch: '+```ts\n+a\n+```' }] }))
+      .toContain('````diff\n+```ts\n+a\n+```\n````')
+  })
+
+  it('prints a trajectory as a table of UTC step times, with flagged steps marked', () => {
+    const md = blockMd({
+      type: 'trajectory', stats: { seconds: 252, tokens: 38_200 },
+      steps: [
+        { at: '2026-10-15T01:00:00Z', kind: 'request', title: 'Do not touch webhook endpoints' },
+        { at: '2026-10-15T01:00:52Z', kind: 'decision', title: 'key = API key, fallback IP', detail: 'B2B | shared NAT', flag: true },
+      ],
+    })
+    expect(md).toBe([
+      'Agent trajectory: 2 steps, 252 s, 38200 tokens', '',
+      '| at (UTC) | kind | step | detail | flag |',
+      '| --- | --- | --- | --- | --- |',
+      '| 2026-10-15T01:00:00Z | request | Do not touch webhook endpoints |  |  |',
+      String.raw`| 2026-10-15T01:00:52Z | decision | key = API key, fallback IP | B2B \| shared NAT | ask the reader |`, '',
+    ].join('\n'))
+    expect(blockMd({ type: 'trajectory', steps: [{ at: '2026-10-15T01:00:00Z', kind: 'note', title: 'n' }] }))
+      .toContain('Agent trajectory: 1 step\n')
+  })
+
+  it('prints an image as its id and alt text, never as a link or an HTML tag', () => {
+    const md = blockMd({ type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'p95 latency per day', caption: 'Figure 1', width: 1200, height: 640 })
+    expect(md).toBe('**Figure 1**\n\n[Image `img_4f9Kq2xZ7bN1`: p95 latency per day]\n')
+    expect(md).not.toContain('](')
+    expect(md).not.toContain('<img')
+  })
+
+  it('collapses newlines in the new single-line texts', () => {
+    const flow = { nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], edges: [] }
+    expect(blockMd({ type: 'walkthrough', language: 'ts', code: 'a', flow, steps: [{ from: 1, title: 'x\n## injected', nodes: ['a'] }] }))
+      .toContain('1. L1: x ## injected (flow: a)')
+    expect(blockMd({ type: 'walkthrough', language: 'ts\n## injected', code: 'a', flow, steps: [{ from: 1, title: 't', nodes: ['a'] }] }))
+      .toContain('```ts ## injected\na\n```')
+    expect(blockMd({ type: 'diff', files: [{ path: 'a\n## injected', status: 'added', changes: [{ symbol: 'f', change: 'added', summary: 's\n## injected' }] }] }))
+      .toBe('**added** `a ## injected`\n\n- added `f`: s ## injected\n')
+    expect(blockMd({ type: 'trajectory', steps: [{ at: '2026-10-15T01:00:00Z', kind: 'note', title: 't\n## injected', detail: 'd\n## injected' }] }))
+      .toContain('| note | t ## injected | d ## injected |')
+    expect(blockMd({ type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'a\n## injected', caption: 'c\n## injected' }))
+      .toBe('**c ## injected**\n\n[Image `img_4f9Kq2xZ7bN1`: a ## injected]\n')
+  })
+})

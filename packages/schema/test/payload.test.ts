@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { payloadSchema, MAX_PAYLOAD_BYTES, blockSchema, sectionSchema, decisionSchema, metaSchema, BLOCK_TYPES, BIGO_CURVES, TONES, STAT_TONES, ALIGNS, BA_SIDES, type Block, type Decision, type Payload } from '../src'
+import { payloadSchema, MAX_PAYLOAD_BYTES, blockSchema, sectionSchema, decisionSchema, metaSchema, BLOCK_TYPES, BIGO_CURVES, TONES, STAT_TONES, ALIGNS, BA_SIDES, FLOW_NODE_KINDS, DIFF_FILE_STATUSES, DIFF_CHANGE_KINDS, DIFF_MAP_STATUSES, TRAJECTORY_KINDS, type Block, type Decision, type Payload } from '../src'
 
 const minimal: Payload = {
   meta: { title: 'PR 42 review' },
@@ -46,6 +46,10 @@ describe('payloadSchema', () => {
       { type: 'scatter', series: [{ label: 'v1', points: [[1, 2]] }] },
       { type: 'plot3d', kind: 'scatter3d', points: [[1, 2, 3]] },
       { type: 'list', items: ['one'] },
+      { type: 'walkthrough', language: 'ts', code: 'a', flow: { nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], edges: [] }, steps: [{ from: 1, title: 'go', nodes: ['a'] }] },
+      { type: 'diff', files: [{ path: 'src/a.ts', status: 'modified' }] },
+      { type: 'trajectory', steps: [{ at: '2026-10-15T01:00:00Z', kind: 'read', title: 'src/a.ts' }] },
+      { type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'Latency before and after' },
     ]
     full.sections[0]!.blocks = blocks
     const parsed = payloadSchema.safeParse(full)
@@ -148,12 +152,13 @@ describe('payloadSchema', () => {
     expect(meta.success).toBe(true)
   })
 
-  it('exports BLOCK_TYPES array with 23 types', () => {
-    expect(BLOCK_TYPES).toHaveLength(23)
+  it('exports BLOCK_TYPES array with 27 types', () => {
+    expect(BLOCK_TYPES).toHaveLength(27)
     expect(BLOCK_TYPES).toContain('list')
     expect(BLOCK_TYPES).toContain('p')
     expect(BLOCK_TYPES).toContain('details')
     expect(BLOCK_TYPES).toContain('plot3d')
+    for (const type of ['walkthrough', 'diff', 'trajectory', 'image']) expect(BLOCK_TYPES).toContain(type)
   })
 
   it('exports BIGO_CURVES enum', () => {
@@ -289,5 +294,93 @@ describe('round 1 Console fields', () => {
     expect(STAT_TONES).toEqual(['mauve', 'blue', 'green', 'red', 'peach', 'teal', 'yellow'])
     expect(ALIGNS).toEqual(['left', 'center', 'right'])
     expect(BA_SIDES).toEqual(['before', 'after'])
+  })
+})
+
+const node = (id: string) => ({ id, label: id.toUpperCase() })
+const walkthrough = (extra: object) => withBlock({
+  type: 'walkthrough', language: 'ts', code: 'a\nb',
+  flow: { nodes: [{ ...node('a'), kind: 'start' }, { ...node('b'), kind: 'end' }], edges: [{ from: 'a', to: 'b', label: 'ok' }] },
+  steps: [{ from: 1, to: 2, title: 'Take a token', nodes: ['a', 'b'] }],
+  ...extra,
+})
+const change = { symbol: 'handle()', change: 'added', summary: 'Rate-limits each request by key.', steps: ['take a token'] }
+const diffFile = { path: 'src/limiter.ts', status: 'modified', patch: '@@ -1 +1 @@\n-a\n+b', folded: false, changes: [change] }
+const diff = (file: object, extra: object = {}) => withBlock({ type: 'diff', files: [{ ...diffFile, ...file }], ...extra })
+const step = { at: '2026-10-15T01:00:14Z', kind: 'decision', title: 'key = API key', detail: 'B2B customers share a NAT', flag: true }
+const trajectory = (s: object, extra: object = {}) => withBlock({ type: 'trajectory', steps: [{ ...step, ...s }], ...extra })
+const image = (extra: object) => withBlock({ type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'p95 latency per day', ...extra })
+
+/** Round 2 Console block types: each accepts a valid example and rejects one past its cap, enum or format. */
+const blockCases: { name: string; payload: Payload; valid: boolean }[] = [
+  { name: 'walkthrough', payload: walkthrough({ filename: 'src/limiter.ts', title: 'handle()' }), valid: true },
+  { name: 'walkthrough code over 20000', payload: walkthrough({ code: chars(20_001) }), valid: false },
+  { name: 'walkthrough empty code', payload: walkthrough({ code: '' }), valid: false },
+  { name: 'walkthrough flow with one node', payload: walkthrough({ flow: { nodes: [node('a')], edges: [] } }), valid: false },
+  { name: 'walkthrough flow over 40 nodes', payload: walkthrough({ flow: { nodes: many(41, node('a')), edges: [] } }), valid: false },
+  { name: 'walkthrough flow over 80 edges', payload: walkthrough({ flow: { nodes: [node('a'), node('b')], edges: many(81, { from: 'a', to: 'b' }) } }), valid: false },
+  { name: 'walkthrough node kind outside the enum', payload: walkthrough({ flow: { nodes: [{ ...node('a'), kind: 'loop' }, node('b')], edges: [] } }), valid: false },
+  { name: 'walkthrough over 40 steps', payload: walkthrough({ steps: many(41, { from: 1, title: 't', nodes: ['a'] }) }), valid: false },
+  { name: 'walkthrough step with no nodes', payload: walkthrough({ steps: [{ from: 1, title: 't', nodes: [] }] }), valid: false },
+  { name: 'walkthrough step line 0', payload: walkthrough({ steps: [{ from: 0, title: 't', nodes: ['a'] }] }), valid: false },
+  { name: 'diff', payload: diff({}, { map: { nodes: [{ id: 'limiter', label: 'limiter.ts', status: 'modified' }], edges: [] } }), valid: true },
+  { name: 'diff renamed file with its old path', payload: diff({ status: 'renamed', from: 'src/old.ts' }), valid: true },
+  { name: 'diff with no files', payload: withBlock({ type: 'diff', files: [] }), valid: false },
+  { name: 'diff over 50 files', payload: withBlock({ type: 'diff', files: many(51, diffFile) }), valid: false },
+  { name: 'diff patch over 50000', payload: diff({ patch: chars(50_001) }), valid: false },
+  { name: 'diff file status outside the enum', payload: diff({ status: 'copied' }), valid: false },
+  { name: 'diff change summary over 280', payload: diff({ changes: [{ ...change, summary: chars(281) }] }), valid: false },
+  { name: 'diff changes over 30', payload: diff({ changes: many(31, change) }), valid: false },
+  { name: 'diff change steps over 8', payload: diff({ changes: [{ ...change, steps: many(9, 's') }] }), valid: false },
+  { name: 'diff change kind outside the enum', payload: diff({ changes: [{ ...change, change: 'deleted' }] }), valid: false },
+  { name: 'diff map over 40 nodes', payload: diff({}, { map: { nodes: many(41, node('a')), edges: [] } }), valid: false },
+  { name: 'diff map node status renamed', payload: diff({}, { map: { nodes: [{ ...node('a'), status: 'renamed' }], edges: [] } }), valid: false },
+  { name: 'trajectory', payload: trajectory({}, { stats: { seconds: 252, tokens: 38_200 } }), valid: true },
+  { name: 'trajectory with fractional seconds', payload: trajectory({ at: '2026-10-15T01:00:14.250Z' }), valid: true },
+  { name: 'trajectory step time with an offset', payload: trajectory({ at: '2026-10-15T08:00:14+07:00' }), valid: false },
+  { name: 'trajectory step time without a zone', payload: trajectory({ at: '2026-10-15T01:00:14' }), valid: false },
+  { name: 'trajectory step date only', payload: trajectory({ at: '2026-10-15' }), valid: false },
+  { name: 'trajectory step seconds since start', payload: trajectory({ at: 14 }), valid: false },
+  { name: 'trajectory over 200 steps', payload: withBlock({ type: 'trajectory', steps: many(201, step) }), valid: false },
+  { name: 'trajectory step detail over 400', payload: trajectory({ detail: chars(401) }), valid: false },
+  { name: 'trajectory step kind outside the enum', payload: trajectory({ kind: 'think' }), valid: false },
+  { name: 'trajectory negative tokens', payload: trajectory({}, { stats: { tokens: -1 } }), valid: false },
+  { name: 'image', payload: image({ caption: 'Figure 1', width: 1200, height: 640 }), valid: true },
+  { name: 'image alt over 300', payload: image({ alt: chars(301) }), valid: false },
+  { name: 'image without alt', payload: image({ alt: undefined }), valid: false },
+  { name: 'image caption over 300', payload: image({ caption: chars(301) }), valid: false },
+  { name: 'image width over 10000', payload: image({ width: 10_001 }), valid: false },
+  { name: 'image id that is a URL', payload: image({ imageId: 'https://evil.test/x.png' }), valid: false },
+  { name: 'image id that is a protocol-relative URL', payload: image({ imageId: '//evil.test/x' }), valid: false },
+  { name: 'image id that is inline data', payload: image({ imageId: 'data:image/png;base64,AAAA' }), valid: false },
+  { name: 'image id that is a path', payload: image({ imageId: '../etc/passwd' }), valid: false },
+  { name: 'image id under 8 characters', payload: image({ imageId: 'img_1' }), valid: false },
+  { name: 'image id over 64 characters', payload: image({ imageId: chars(65) }), valid: false },
+  { name: 'image with a src URL instead of an id', payload: withBlock({ type: 'image', src: 'https://evil.test/x.png', alt: 'a' }), valid: false },
+]
+
+describe('round 2 Console block types', () => {
+  it.each(blockCases)('$name: valid=$valid', ({ payload, valid }) => {
+    const result = payloadSchema.safeParse(payload)
+    expect(result.success, JSON.stringify(result.error?.issues)).toBe(valid)
+  })
+
+  it('drops a URL or inline data field from an image block instead of keeping it', () => {
+    const parsed = payloadSchema.parse(image({ src: 'https://evil.test/x.png', data: 'AAAA' }))
+    expect(parsed.sections[0]!.blocks[0]).toEqual({ type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'p95 latency per day' })
+  })
+
+  it('accepts the new types inside a details block', () => {
+    const inner = (walkthrough({}).sections[0]!.blocks[0]) as Block
+    expect(payloadSchema.safeParse(withBlock({ type: 'details', summary: 'more', blocks: [inner] })).success).toBe(true)
+  })
+
+  it('exports the enum values the reader lanes map to labels and tokens', () => {
+    expect(BLOCK_TYPES.slice(-4)).toEqual(['walkthrough', 'diff', 'trajectory', 'image'])
+    expect(FLOW_NODE_KINDS).toEqual(['start', 'step', 'decision', 'end'])
+    expect(DIFF_FILE_STATUSES).toEqual(['added', 'modified', 'deleted', 'renamed'])
+    expect(DIFF_CHANGE_KINDS).toEqual(['added', 'modified', 'removed', 'moved', 'config'])
+    expect(DIFF_MAP_STATUSES).toEqual(['added', 'modified', 'deleted'])
+    expect(TRAJECTORY_KINDS).toEqual(['request', 'read', 'run', 'edit', 'decision', 'assumption', 'note'])
   })
 })

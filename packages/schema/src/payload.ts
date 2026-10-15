@@ -5,7 +5,8 @@ export const MAX_PAYLOAD_BYTES = 1_900_000
 export const BLOCK_TYPES = [
   'p', 'note', 'warn', 'good', 'table', 'compare', 'stat', 'coverage', 'details',
   'seq', 'state', 'layers', 'ba', 'bigo', 'code', 'mermaid', 'math', 'erd',
-  'heatmap', 'histogram', 'scatter', 'plot3d', 'list',
+  'heatmap', 'histogram', 'scatter', 'plot3d', 'list', 'walkthrough', 'diff', 'trajectory',
+  'image',
 ] as const
 
 /** Semantic tones; each maps to the --c-<tone>, -soft and -line tokens. */
@@ -13,6 +14,11 @@ export const TONES = ['info', 'good', 'warn', 'bad'] as const
 export const STAT_TONES = ['mauve', 'blue', 'green', 'red', 'peach', 'teal', 'yellow'] as const
 export const ALIGNS = ['left', 'center', 'right'] as const
 export const BA_SIDES = ['before', 'after'] as const
+export const FLOW_NODE_KINDS = ['start', 'step', 'decision', 'end'] as const
+export const DIFF_FILE_STATUSES = ['added', 'modified', 'deleted', 'renamed'] as const
+export const DIFF_CHANGE_KINDS = ['added', 'modified', 'removed', 'moved', 'config'] as const
+export const DIFF_MAP_STATUSES = ['added', 'modified', 'deleted'] as const
+export const TRAJECTORY_KINDS = ['request', 'read', 'run', 'edit', 'decision', 'assumption', 'note'] as const
 
 const text = z.string().min(1)
 const label = z.string().min(1).max(300)
@@ -182,11 +188,81 @@ const listBlock = z.object({
   items: z.array(z.string().min(1).max(500)).min(1).max(100),
 })
 
+const flowNode = z.object({ id: label, label, kind: z.enum(FLOW_NODE_KINDS).optional() })
+const flowEdge = z.object({ from: label, to: label, label: label.optional() })
+
+const walkthroughBlock = z.object({
+  type: z.literal('walkthrough'),
+  language: label,
+  filename: label.optional(),
+  title: label.optional(),
+  code: z.string().min(1).max(20_000),
+  flow: z.object({ nodes: z.array(flowNode).min(2).max(40), edges: z.array(flowEdge).max(80) }),
+  steps: z.array(z.object({
+    from: position,
+    to: position.optional(),
+    title: label,
+    nodes: z.array(label).min(1).max(40),
+  })).min(1).max(40),
+})
+
+const diffChange = z.object({
+  symbol: label,
+  change: z.enum(DIFF_CHANGE_KINDS),
+  summary: z.string().min(1).max(280),
+  steps: z.array(label).max(8).optional(),
+})
+
+const diffBlock = z.object({
+  type: z.literal('diff'),
+  files: z.array(z.object({
+    path: label,
+    status: z.enum(DIFF_FILE_STATUSES),
+    from: label.optional(),
+    patch: z.string().max(50_000).optional(),
+    folded: z.boolean().optional(),
+    changes: z.array(diffChange).max(30).optional(),
+  })).min(1).max(50),
+  map: z.object({
+    nodes: z.array(z.object({ id: label, label, status: z.enum(DIFF_MAP_STATUSES).optional() })).min(1).max(40),
+    edges: z.array(z.object({ from: label, to: label })).max(80),
+  }).optional(),
+})
+
+const count = z.number().int().min(0)
+
+/** Each step carries its own UTC time; the reader shows it as time since the first step. */
+const trajectoryBlock = z.object({
+  type: z.literal('trajectory'),
+  steps: z.array(z.object({
+    at: z.iso.datetime(),
+    kind: z.enum(TRAJECTORY_KINDS),
+    title: label,
+    detail: z.string().min(1).max(400).optional(),
+    flag: z.boolean().optional(),
+  })).min(1).max(200),
+  stats: z.object({ seconds: count.optional(), tokens: count.optional() }).optional(),
+})
+
+/** An id the image API issued. The charset leaves no room for a URL, a path or inline data. */
+export const IMAGE_ID_PATTERN = /^[\w-]{8,64}$/
+const pixels = z.number().int().min(1).max(10_000)
+
+const imageBlock = z.object({
+  type: z.literal('image'),
+  imageId: z.string().regex(IMAGE_ID_PATTERN),
+  alt: label,
+  caption: label.optional(),
+  width: pixels.optional(),
+  height: pixels.optional(),
+})
+
 const nonRecursiveBlock = z.discriminatedUnion('type', [
   pBlock, noteBlock, warnBlock, goodBlock, tableBlock, compareBlock, statBlock,
   coverageBlock, seqBlock, stateBlock, layersBlock, baBlock, bigoBlock, codeBlock,
   mermaidBlock, mathBlock, erdBlock, heatmapBlock, histogramBlock, scatterBlock, plot3dBlock,
   listBlock,
+  walkthroughBlock, diffBlock, trajectoryBlock, imageBlock,
 ])
 
 const detailsBlock = z.object({
@@ -254,6 +330,12 @@ export type BaNote = z.infer<typeof baNote>
 export type ListBlock = z.infer<typeof listBlock>
 export type TableCell = NonNullable<z.infer<typeof tableBlock>['cells']>[number]
 export type HistogramThreshold = NonNullable<z.infer<typeof histogramBlock>['threshold']>
+export type FlowNodeKind = (typeof FLOW_NODE_KINDS)[number]
+export type WalkthroughBlock = z.infer<typeof walkthroughBlock>
+export type DiffBlock = z.infer<typeof diffBlock>
+export type DiffChange = z.infer<typeof diffChange>
+export type TrajectoryBlock = z.infer<typeof trajectoryBlock>
+export type ImageBlock = z.infer<typeof imageBlock>
 
 /** A stored block the deployed schema cannot read (a type from a newer or
  * rolled-back schema, or a shape a cap now rejects), kept verbatim. */
