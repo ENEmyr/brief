@@ -70,7 +70,7 @@ export function Walkthrough({
         type="button"
         aria-pressed={step === current}
         onClick={() => setCurrent(step)}
-        className={`block w-full select-none pl-7 text-left font-sans text-[12px] ${HUNK_CLASS[phase].caption} ${FOCUS_RING}`}
+        className={`flex w-full select-none items-center pl-7 text-left font-sans text-[12px] max-[880px]:min-h-11 ${HUNK_CLASS[phase].caption} ${FOCUS_RING}`}
       >
         {`${STEP_NUMBER.format(step + 1)} ${block.steps[step]!.title}`}
       </button>
