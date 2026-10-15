@@ -614,6 +614,29 @@ body {
     line-height: 18px;
     color: var(--c-text);
   }
+  /* B-Print:53: a figure prints bare, its caption below it in 12/18 sub. */
+  figure:has(> [data-image-body]) {
+    display: flex;
+    flex-direction: column-reverse;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+  figure:has(> [data-image-body]) > div:first-child {
+    margin: 6px 0 18px;
+    padding: 0;
+    border: 0;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--c-sub);
+  }
+  figure:has(> [data-image-body]) [data-kind-tag] {
+    display: none;
+  }
+  figure:has(> [data-image-body]) > [data-image-body] {
+    padding: 0;
+  }
   pre.shiki,
   pre[data-code-panel] {
     overflow: visible;

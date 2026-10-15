@@ -86,3 +86,34 @@ export async function decryptPayload(ciphertext: string, password: string, encPa
   )
   return new TextDecoder().decode(plaintextBuffer)
 }
+
+/**
+ * The key a protected session's images share with its payload: the same
+ * password, salt and iterations. Held in memory only, non-extractable.
+ */
+export function deriveSessionKey(password: string, encParams: EncParams): Promise<CryptoKey> {
+  return deriveKey(password, base64ToBytes(encParams.salt), encParams.iterations)
+}
+
+/**
+ * An encrypted image is one blob, `iv || ciphertext`: the image API stores
+ * opaque bytes and no IV field, so the IV travels inside the blob.
+ */
+export async function encryptImage(bytes: Uint8Array, key: CryptoKey): Promise<Uint8Array<ArrayBuffer>> {
+  const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_BYTES))
+  const ciphertext = await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, bytes as BufferSource)
+  const blob = new Uint8Array(IV_BYTES + ciphertext.byteLength)
+  blob.set(iv)
+  blob.set(new Uint8Array(ciphertext), IV_BYTES)
+  return blob
+}
+
+// Throws on a wrong key or tampered bytes, like decryptPayload.
+export function decryptImage(blob: ArrayBuffer, key: CryptoKey): Promise<ArrayBuffer> {
+  const bytes = new Uint8Array(blob)
+  return globalThis.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: bytes.subarray(0, IV_BYTES) as BufferSource },
+    key,
+    bytes.subarray(IV_BYTES) as BufferSource,
+  )
+}

@@ -26,6 +26,7 @@ import { flagPromptLines } from '@/features/trajectory'
 import { ExportProvider, useExport } from '@/features/export'
 import { GlossaryProvider } from '@/features/glossary'
 import { SaveModal, UnlockCard } from '@/features/save'
+import { ImageKeyContext } from './blocks/ImageBlock'
 import { CommandPalette, buildDocumentEntries } from '@/features/palette'
 import type { PaletteEntry } from '@/features/palette'
 import { ShortcutSheet, modKeyLabel, useShortcuts } from '@/features/shortcuts'
@@ -513,6 +514,7 @@ export function SessionView({ id }: { id: string | null }) {
   // Losing this state (reload, navigating away) re-locks the session, which
   // is the intended behavior for a zero-knowledge protected doc.
   const [decrypted, setDecrypted] = useState<StoredPayload | null>(null)
+  const [sessionKey, setSessionKey] = useState<CryptoKey | null>(null)
 
   if (status === 'notfound') {
     return (
@@ -540,7 +542,9 @@ export function SessionView({ id }: { id: string | null }) {
         // roadmap enhancement.
         <ReaderStateProvider key={data.id} sessionId={data.id} persist={false}>
           <ExportProvider sessionId={data.id} payload={decrypted} encrypted={data.encrypted} expiresAt={data.expiresAt}>
-            <SessionReady data={{ ...data, payload: decrypted }} protectedSession />
+            <ImageKeyContext.Provider value={sessionKey}>
+              <SessionReady data={{ ...data, payload: decrypted }} protectedSession />
+            </ImageKeyContext.Provider>
           </ExportProvider>
         </ReaderStateProvider>
       )
@@ -562,7 +566,12 @@ export function SessionView({ id }: { id: string | null }) {
           brief<span className="text-faint">/s/{data.id}</span>
         </div>
         <main className="flex grow items-center justify-center p-4">
-          <UnlockCard ciphertext={data.raw} encParams={data.encParams} onUnlock={setDecrypted} />
+          <UnlockCard
+            ciphertext={data.raw}
+            encParams={data.encParams}
+            onUnlock={setDecrypted}
+            onKey={setSessionKey}
+          />
         </main>
       </div>
     )

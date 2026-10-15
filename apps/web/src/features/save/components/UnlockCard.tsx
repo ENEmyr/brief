@@ -1,7 +1,7 @@
 'use client'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { parseStoredPayload, type EncParams, type StoredPayload } from '@brief/schema'
-import { decryptPayload } from '../lib/crypto'
+import { decryptPayload, deriveSessionKey } from '../lib/crypto'
 
 /**
  * Protected-session password unlock card (ADR-0001, decision log 131), drawn
@@ -20,10 +20,13 @@ export function UnlockCard({
   ciphertext,
   encParams,
   onUnlock,
+  onKey,
 }: {
   ciphertext: string
   encParams: EncParams
   onUnlock: (payload: StoredPayload) => void
+  /** Receives the key that decrypts the session's encrypted images, before onUnlock. */
+  onKey?: (key: CryptoKey) => void
 }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -37,13 +40,17 @@ export function UnlockCard({
     setBusy(true)
     setError(null)
     try {
-      const plaintext = await decryptPayload(ciphertext, password, encParams)
+      const [plaintext, key] = await Promise.all([
+        decryptPayload(ciphertext, password, encParams),
+        onKey === undefined ? null : deriveSessionKey(password, encParams),
+      ])
       const payload = parseStoredPayload(JSON.parse(plaintext))
       // The caller (SessionView) swaps to the ready view with the decrypted
       // payload once onUnlock fires, normally unmounting this component --
       // busy still resets here regardless, matching SaveModal's settleSave
       // convention of always clearing busy before the success tail runs.
       setBusy(false)
+      if (key !== null) onKey?.(key)
       onUnlock(payload)
     } catch {
       // Same copy for a WebCrypto auth failure (wrong password), a JSON.parse

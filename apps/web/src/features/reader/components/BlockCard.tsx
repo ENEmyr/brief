@@ -50,6 +50,7 @@ export const LOADING = {
   chart: { status: 'loading', label: 'loading chart' },
   diagram: { status: 'loading', label: 'loading diagram' },
   math: { status: 'loading', label: 'loading math' },
+  image: { status: 'loading', label: 'loading image' },
 } as const satisfies Record<string, BlockCardState>
 
 /**

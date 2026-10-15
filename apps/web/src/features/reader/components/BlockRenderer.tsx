@@ -28,6 +28,7 @@ import { Plot3d } from './blocks/Plot3d'
 import { List } from './blocks/List'
 import { Walkthrough } from './blocks/Walkthrough'
 import { Diff } from './blocks/Diff'
+import { ImageBlock } from './blocks/ImageBlock'
 import type { MathBlock as MathBlockComponent } from './blocks/MathBlock'
 import type { MermaidBlock as MermaidBlockComponent } from './blocks/MermaidBlock'
 import { diagramDeclaration, mermaidBoxHeight } from '../lib/mermaidSource'
@@ -179,6 +180,8 @@ function renderBlock(block: StoredBlock, anchor: BlockAnchor): ReactNode {
       return <Walkthrough block={block} {...anchor} />
     case 'diff':
       return <Diff block={block} {...anchor} />
+    case 'image':
+      return <ImageBlock block={block} {...anchor} />
     default:
       return <UnknownBlock block={block} />
   }
