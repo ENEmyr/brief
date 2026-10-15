@@ -1,6 +1,5 @@
 'use client'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { serializeStoredPayload, type StoredPayload } from '@brief/schema'
 import { Dialog, DialogActions, DialogIcon, PRIMARY_BUTTON, SECONDARY_BUTTON, useExport } from '@/features/export'
 import { encryptPayload } from '../lib/crypto'
 import { ARCHIVE_FAILED, saveSession } from '../lib/api'
@@ -36,13 +35,18 @@ function projectedCiphertextChars(plaintextBytes: number): number {
 /** "Archive this doc" (B-Overlays:54-71). */
 export function SaveModal({
   sessionId,
-  payload,
+  storedJson,
   onClose,
   onSaved,
   onBackgroundSaveSettled,
 }: {
   sessionId: string
-  payload: StoredPayload
+  /**
+   * The payload exactly as the server stores it. Encrypting this string rather
+   * than a re-serialized parse keeps every field this reader's schema does not
+   * know (a newer agent's field after a rollback), which a parse strips.
+   */
+  storedJson: string
   onClose: () => void
   onSaved: (mode: SaveMode) => void
   /**
@@ -163,8 +167,7 @@ export function SaveModal({
   }
 
   async function submitEncrypt() {
-    const plaintext = serializeStoredPayload(payload)
-    const plaintextBytes = new TextEncoder().encode(plaintext).byteLength
+    const plaintextBytes = new TextEncoder().encode(storedJson).byteLength
     if (projectedCiphertextChars(plaintextBytes) > MAX_CIPHERTEXT_CHARS) {
       fail(TOO_LARGE, false)
       return
@@ -173,7 +176,7 @@ export function SaveModal({
     setBusy(true)
     let encrypted: Awaited<ReturnType<typeof encryptPayload>>
     try {
-      encrypted = await encryptPayload(plaintext, password)
+      encrypted = await encryptPayload(storedJson, password)
     } catch {
       // WebCrypto can throw (unsupported browser/context, key derivation
       // failure) before anything is ever sent -- surface it the same way a

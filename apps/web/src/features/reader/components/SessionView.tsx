@@ -464,7 +464,7 @@ function SessionReady({
       {!protectedSession && saveModalOpen && (
         <SaveModal
           sessionId={data.id}
-          payload={payload}
+          storedJson={data.raw}
           onClose={closeSaveModal}
           onSaved={(mode) => {
             setSavedOverride(true)
