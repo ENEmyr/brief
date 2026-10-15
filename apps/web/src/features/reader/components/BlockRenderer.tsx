@@ -27,6 +27,7 @@ import { Scatter } from './blocks/Scatter'
 import { Plot3d } from './blocks/Plot3d'
 import { List } from './blocks/List'
 import { Walkthrough } from './blocks/Walkthrough'
+import { Diff } from './blocks/Diff'
 import type { MathBlock as MathBlockComponent } from './blocks/MathBlock'
 import type { MermaidBlock as MermaidBlockComponent } from './blocks/MermaidBlock'
 import { diagramDeclaration, mermaidBoxHeight } from '../lib/mermaidSource'
@@ -176,6 +177,8 @@ function renderBlock(block: StoredBlock, anchor: BlockAnchor): ReactNode {
       return <Trajectory block={block} {...anchor} />
     case 'walkthrough':
       return <Walkthrough block={block} {...anchor} />
+    case 'diff':
+      return <Diff block={block} {...anchor} />
     default:
       return <UnknownBlock block={block} />
   }
