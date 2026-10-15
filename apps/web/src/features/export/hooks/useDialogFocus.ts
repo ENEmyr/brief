@@ -101,3 +101,9 @@ export function useDialogFocus(
     }
   }, [panelRef, initialFocusRef, dialogId])
 }
+
+/** useDialogFocus for a panel whose component stays mounted while closed: render this only while it is open. */
+export function DialogFocus({ panelRef, onClose }: { panelRef: RefObject<HTMLElement | null>; onClose: () => void }) {
+  useDialogFocus(panelRef, onClose)
+  return null
+}

@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { DialogFocus } from '@/features/export'
 
 export interface TocSection {
   id: string
@@ -57,7 +58,6 @@ export function Toc({
 }: TocProps) {
   const [hovered, setHovered] = useState(false)
   const drawerPanelRef = useRef<HTMLDivElement>(null)
-  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
 
   function handleToggleCollapsed() {
     setHovered(false)
@@ -75,51 +75,6 @@ export function Toc({
     onCloseDrawer()
     onMarkJump(mark)
   }
-
-  // Drawer a11y: on open, remember whatever had focus so it can be restored,
-  // and move focus into the panel. Escape closes via the controlling parent's
-  // onCloseDrawer. The cleanup below only runs after an open (drawerOpen was
-  // true), so it doubles as the "restore focus" step on close.
-  useEffect(() => {
-    if (!drawerOpen) return
-
-    previouslyFocusedRef.current = document.activeElement as HTMLElement | null
-    drawerPanelRef.current?.focus()
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onCloseDrawer()
-        return
-      }
-
-      // Simple focus containment: wrap Tab/Shift+Tab between the first and
-      // last focusable element inside the drawer panel. Not a full focus-trap
-      // (no live re-scan, no iframe/shadow-DOM support) — sufficient given the
-      // drawer's small, static set of focusable children.
-      if (event.key === 'Tab' && drawerPanelRef.current) {
-        const focusable = drawerPanelRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        )
-        const first = focusable[0]
-        const last = focusable[focusable.length - 1]
-        if (!first || !last) return
-
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault()
-          last.focus()
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault()
-          first.focus()
-        }
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      previouslyFocusedRef.current?.focus()
-    }
-  }, [drawerOpen, onCloseDrawer])
 
   function renderSections(rowSize: string) {
     return sections.map((s) => {
@@ -260,6 +215,7 @@ export function Toc({
             onClick={(event) => event.stopPropagation()}
             className="absolute inset-y-0 left-0 flex w-[260px] flex-col overflow-y-auto border-r border-line bg-card p-[6px] text-[14px] leading-[normal] shadow-[var(--shadow-overlay)] outline-none"
           >
+            <DialogFocus panelRef={drawerPanelRef} onClose={onCloseDrawer} />
             <span className={LABEL}>OUTLINE</span>
             {renderSections('min-h-11')}
             {renderMarks('min-h-11')}
