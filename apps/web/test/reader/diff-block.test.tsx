@@ -15,7 +15,11 @@ const BLOCK: DiffBlock = {
       patch:
         '@@ -1,4 +1,6 @@\n export async function handle(req, env) {\n   const key = resolveKey(req)\n+  const { success } = await env.LIMITER.limit({ key })\n+  if (!success) return tooMany(30)\n-  return fetch(req.url)\n+  return fetch(origin(req))',
       changes: [
-        { symbol: 'handle()', change: 'modified', summary: 'Checks the rate limiter before forwarding.' },
+        {
+          symbol: 'handle()',
+          change: 'modified',
+          summary: 'Checks the rate limiter before forwarding.',
+        },
         {
           symbol: 'resolveKey()',
           change: 'added',
@@ -24,7 +28,11 @@ const BLOCK: DiffBlock = {
         },
       ],
     },
-    { path: 'wrangler.toml', status: 'modified', changes: [{ symbol: '[limits]', change: 'config', summary: 'Adds the LIMITER binding.' }] },
+    {
+      path: 'wrangler.toml',
+      status: 'modified',
+      changes: [{ symbol: '[limits]', change: 'config', summary: 'Adds the LIMITER binding.' }],
+    },
     { path: 'bun.lock', status: 'modified', folded: true, patch: '+lock' },
   ],
   map: {
@@ -41,13 +49,14 @@ const BLOCK: DiffBlock = {
 }
 
 const files = () => within(screen.getByRole('navigation', { name: 'Changed files' }))
-const mode = (name: string) => within(screen.getByRole('group', { name: 'Diff mode' })).getByRole('button', { name })
+const mode = (name: string) =>
+  within(screen.getByRole('group', { name: 'Diff mode' })).getByRole('button', { name })
 
 describe('parsePatch', () => {
   it('classifies hunk, added, removed and context lines, file headers as context', () => {
-    expect(parsePatch('--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n same').map((l) => l.kind)).toEqual([
-      'ctx', 'ctx', 'hunk', 'del', 'add', 'ctx',
-    ])
+    expect(
+      parsePatch('--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n same').map((l) => l.kind),
+    ).toEqual(['ctx', 'ctx', 'hunk', 'del', 'add', 'ctx'])
     expect(patchCounts(parsePatch(BLOCK.files[0]!.patch!))).toEqual({ added: 3, removed: 1 })
   })
 })
@@ -55,7 +64,9 @@ describe('parsePatch', () => {
 describe('Diff block', () => {
   it('gives every change map node its stable data-diff-node id', () => {
     const { container } = render(<BlockRenderer block={BLOCK} />)
-    const ids = [...container.querySelectorAll('[data-diff-node]')].map((n) => n.getAttribute('data-diff-node'))
+    const ids = [...container.querySelectorAll('[data-diff-node]')].map((n) =>
+      n.getAttribute('data-diff-node'),
+    )
     expect(ids).toEqual(['client', 'edge', 'limiter'])
     expect(container.querySelector('[data-diff-node="limiter"]')).toHaveClass('pl-4')
     expect(container.querySelector('[data-diff-node="edge"]')).not.toHaveClass('pl-4')
@@ -76,7 +87,9 @@ describe('Diff block', () => {
     const steps = screen.getByRole('list', { name: '' }) as HTMLElement
     expect(steps.tagName).toBe('OL')
     expect([...steps.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
-      '1read x-api-key', '2fall back to CF-Connecting-IP', '3lowercase and prefix',
+      '1read x-api-key',
+      '2fall back to CF-Connecting-IP',
+      '3lowercase and prefix',
     ])
   })
 
@@ -96,7 +109,15 @@ describe('Diff block', () => {
     fireEvent.click(mode('raw'))
     expect(mode('raw')).toHaveAttribute('aria-pressed', 'true')
     const lines = [...container.querySelectorAll('[data-line]')]
-    expect(lines.map((l) => l.getAttribute('data-line'))).toEqual(['hunk', 'ctx', 'ctx', 'add', 'add', 'del', 'add'])
+    expect(lines.map((l) => l.getAttribute('data-line'))).toEqual([
+      'hunk',
+      'ctx',
+      'ctx',
+      'add',
+      'add',
+      'del',
+      'add',
+    ])
     expect(lines[5]!.textContent).toBe('-  return fetch(req.url)')
     expect(lines[5]).toHaveClass('bg-bad-soft')
     expect(lines[3]).toHaveClass('bg-good-soft')

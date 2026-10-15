@@ -18,7 +18,10 @@ const FILE_STATUS: Record<DiffFile['status'], { letter: string; text: string }> 
   renamed: { letter: 'R', text: 'text-info' },
 }
 
-const MAP_STATUS: Record<NonNullable<MapNode['status']>, { letter: string; fill: string; text: string }> = {
+const MAP_STATUS: Record<
+  NonNullable<MapNode['status']>,
+  { letter: string; fill: string; text: string }
+> = {
   added: { letter: 'A', fill: 'bg-good', text: 'text-good' },
   modified: { letter: 'M', fill: 'bg-warn', text: 'text-warn' },
   deleted: { letter: 'D', fill: 'bg-bad', text: 'text-bad' },
@@ -41,7 +44,7 @@ const RAW_TONE: Record<PatchLineKind, string> = {
   ctx: '',
 }
 
-const TOUCH = 'max-[880px]:min-h-11'
+const TOUCH = 'max-[880px]:min-h-11 max-[880px]:min-w-11'
 
 function modeButtonClass(active: boolean): string {
   const base = `min-h-[26px] rounded-[3px] border-0 px-2 font-mono text-[11px] ${TOUCH} ${FOCUS_RING}`
@@ -49,7 +52,9 @@ function modeButtonClass(active: boolean): string {
 }
 
 /**
- * B-NewBlocks:153-209. The changed-files list scopes both views to one file
+ * B-NewBlocks:153-209. The file list and the views sit side by side while
+ * 260 + 560 px fit in the card, as the board's flex-wrap does, and stack
+ * below that. The changed-files list scopes both views to one file
  * (pressed again, back to all). Semantic lists each change with the agent's
  * note and, for an added function, its steps; raw prints the patch as text.
  */
@@ -110,9 +115,19 @@ export function Diff({
     })
 
   const modeGroup = (
-    <div role="group" aria-label="Diff mode" className="flex shrink-0 gap-0.5 rounded-[4px] border border-line bg-page p-0.5">
+    <div
+      role="group"
+      aria-label="Diff mode"
+      className="flex shrink-0 gap-0.5 rounded-[4px] border border-line bg-page p-0.5"
+    >
       {(['semantic', 'raw'] as const).map((m) => (
-        <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={modeButtonClass(mode === m)}>
+        <button
+          key={m}
+          type="button"
+          aria-pressed={mode === m}
+          onClick={() => setMode(m)}
+          className={modeButtonClass(mode === m)}
+        >
           {m}
         </button>
       ))}
@@ -163,9 +178,14 @@ export function Diff({
             const noteOpen = !closedNotes.has(key)
             const at = `files.${i}.changes.${c}`
             return (
-              <div key={c} className="flex flex-col gap-2 border-t border-line px-3.5 py-3 first-of-type:border-t-0">
+              <div
+                key={c}
+                className="flex flex-col gap-2 border-t border-line px-3.5 py-3 first-of-type:border-t-0"
+              >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-[3px] px-1.5 py-px font-mono text-[11px] ${CHANGE_CHIP[change.change]}`}>
+                  <span
+                    className={`rounded-[3px] px-1.5 py-px font-mono text-[11px] ${CHANGE_CHIP[change.change]}`}
+                  >
                     {change.change}
                   </span>
                   {leaf(change.symbol, `${at}.symbol`, 'break-all font-mono text-[13px]')}
@@ -184,7 +204,10 @@ export function Diff({
                   </button>
                 </div>
                 {noteOpen ? (
-                  <div data-diff-note className="rounded-[4px] border border-info-line bg-info-soft px-2.5 py-2 text-[13px] leading-5">
+                  <div
+                    data-diff-note
+                    className="rounded-[4px] border border-info-line bg-info-soft px-2.5 py-2 text-[13px] leading-5"
+                  >
                     {leaf(change.summary, `${at}.summary`, 'break-words')}
                   </div>
                 ) : null}
@@ -217,7 +240,11 @@ export function Diff({
         <div className="overflow-x-auto py-2.5 font-mono text-[12.5px] leading-[21px]">
           <div className="w-max min-w-full">
             {patches[i]?.lines.map((line: PatchLine, n) => (
-              <div key={n} data-line={line.kind} className={`whitespace-pre px-3.5 ${RAW_TONE[line.kind]}`}>
+              <div
+                key={n}
+                data-line={line.kind}
+                className={`whitespace-pre px-3.5 ${RAW_TONE[line.kind]}`}
+              >
                 {line.text === '' ? ' ' : line.text}
               </div>
             ))}
@@ -231,7 +258,9 @@ export function Diff({
     (block.map?.nodes ?? []).flatMap((node) => (node.status === undefined ? [] : [node.id])),
   )
   const nested = new Set(
-    (block.map?.edges ?? []).flatMap((edge) => (changed.has(edge.from) && edge.from !== edge.to ? [edge.to] : [])),
+    (block.map?.edges ?? []).flatMap((edge) =>
+      changed.has(edge.from) && edge.from !== edge.to ? [edge.to] : [],
+    ),
   )
 
   return (
@@ -246,71 +275,88 @@ export function Diff({
       }
       controls={modeGroup}
     >
-      <div className="flex max-[880px]:flex-col">
-        <nav
-          aria-label="Changed files"
-          className="flex shrink-0 basis-[260px] flex-col gap-0.5 border-r border-line p-2 text-[13px] max-[880px]:basis-auto max-[880px]:border-b max-[880px]:border-r-0"
-        >
-          {block.map === undefined ? null : (
-            <>
-              <span className="px-2 py-1.5 font-mono text-[10px] text-faint">CHANGE MAP</span>
-              <ul aria-label="Change map" className="m-0 flex list-none flex-col gap-1.5 px-2 pb-3 pt-1 text-[12px]">
-                {block.map.nodes.map((node) => {
-                  const status = node.status === undefined ? undefined : MAP_STATUS[node.status]
-                  return (
-                    <li
-                      key={node.id}
-                      data-diff-node={node.id}
-                      className={`flex items-center gap-2 ${nested.has(node.id) ? 'pl-4' : ''}`}
-                    >
-                      <span
-                        aria-hidden
-                        className={`size-2 shrink-0 rounded-[2px] ${status === undefined ? 'border border-faint' : status.fill}`}
-                      />
-                      <span className={`min-w-0 break-words ${status === undefined ? 'text-sub' : ''}`}>{node.label}</span>
-                      {status === undefined ? null : (
-                        <span className={`font-mono text-[10px] ${status.text}`}>{status.letter}</span>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </>
-          )}
-          <span className="px-2 py-1.5 font-mono text-[10px] text-faint">FILES</span>
-          {block.files.map((file, i) => {
-            const status = FILE_STATUS[file.status]
-            const active = only === i
-            const tone = active ? 'bg-chip text-text' : file.folded ? 'text-faint' : 'text-sub'
-            const counts = patches[i]
-            return (
-              <button
-                key={i}
-                type="button"
-                aria-pressed={active}
-                onClick={() => pickFile(i)}
-                className={`flex min-h-8 items-center gap-2 rounded-[4px] border-0 px-2 text-left ${tone} ${active ? '' : 'bg-transparent hover:bg-chip'} ${TOUCH} ${FOCUS_RING}`}
-              >
-                <span className={`w-3 shrink-0 font-mono text-[11px] ${status.text}`}>{status.letter}</span>
-                <span className="min-w-0 flex-1 break-all font-mono text-[12px]">{file.path}</span>
-                {file.folded ? (
-                  <span className="shrink-0 font-mono text-[11px]">folded</span>
-                ) : counts !== undefined && counts.added + counts.removed > 0 ? (
-                  <span className="flex shrink-0 gap-1.5 font-mono text-[11px]">
-                    {counts.added > 0 ? <span className="text-good">+{counts.added}</span> : null}
-                    {counts.removed > 0 ? <span className="text-bad">−{counts.removed}</span> : null}
+      <div className="@container">
+        <div className="flex @max-[820px]:flex-col">
+          <nav
+            aria-label="Changed files"
+            className="flex shrink-0 basis-[260px] flex-col gap-0.5 border-r border-line p-2 text-[13px] @max-[820px]:basis-auto @max-[820px]:border-b @max-[820px]:border-r-0"
+          >
+            {block.map === undefined ? null : (
+              <>
+                <span className="px-2 py-1.5 font-mono text-[10px] text-faint">CHANGE MAP</span>
+                <ul
+                  aria-label="Change map"
+                  className="m-0 flex list-none flex-col gap-1.5 px-2 pb-3 pt-1 text-[12px]"
+                >
+                  {block.map.nodes.map((node) => {
+                    const status = node.status === undefined ? undefined : MAP_STATUS[node.status]
+                    return (
+                      <li
+                        key={node.id}
+                        data-diff-node={node.id}
+                        className={`flex items-center gap-2 ${nested.has(node.id) ? 'pl-4' : ''}`}
+                      >
+                        <span
+                          aria-hidden
+                          className={`size-2 shrink-0 rounded-[2px] ${status === undefined ? 'border border-faint' : status.fill}`}
+                        />
+                        <span
+                          className={`min-w-0 break-words ${status === undefined ? 'text-sub' : ''}`}
+                        >
+                          {node.label}
+                        </span>
+                        {status === undefined ? null : (
+                          <span className={`font-mono text-[10px] ${status.text}`}>
+                            {status.letter}
+                          </span>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            )}
+            <span className="px-2 py-1.5 font-mono text-[10px] text-faint">FILES</span>
+            {block.files.map((file, i) => {
+              const status = FILE_STATUS[file.status]
+              const active = only === i
+              const tone = active ? 'bg-chip text-text' : file.folded ? 'text-faint' : 'text-sub'
+              const counts = patches[i]
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => pickFile(i)}
+                  className={`flex min-h-8 items-center gap-2 rounded-[4px] border-0 px-2 text-left ${tone} ${active ? '' : 'bg-transparent hover:bg-chip'} ${TOUCH} ${FOCUS_RING}`}
+                >
+                  <span className={`w-3 shrink-0 font-mono text-[11px] ${status.text}`}>
+                    {status.letter}
                   </span>
-                ) : null}
-              </button>
-            )
-          })}
-        </nav>
-        <div className="flex min-w-0 flex-1 flex-col" data-diff-mode={mode}>
-          {visible.map((i) => {
-            const file = block.files[i]
-            if (file === undefined) return null
-            return mode === 'semantic' ? semanticFile(file, i) : rawFile(file, i)
-          })}
+                  <span className="min-w-0 flex-1 break-all font-mono text-[12px]">
+                    {file.path}
+                  </span>
+                  {file.folded ? (
+                    <span className="shrink-0 font-mono text-[11px]">folded</span>
+                  ) : counts !== undefined && counts.added + counts.removed > 0 ? (
+                    <span className="flex shrink-0 gap-1.5 font-mono text-[11px]">
+                      {counts.added > 0 ? <span className="text-good">+{counts.added}</span> : null}
+                      {counts.removed > 0 ? (
+                        <span className="text-bad">−{counts.removed}</span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </nav>
+          <div className="flex min-w-0 flex-1 flex-col" data-diff-mode={mode}>
+            {visible.map((i) => {
+              const file = block.files[i]
+              if (file === undefined) return null
+              return mode === 'semantic' ? semanticFile(file, i) : rawFile(file, i)
+            })}
+          </div>
         </div>
       </div>
     </BlockCard>
