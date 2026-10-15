@@ -283,7 +283,8 @@ test.describe('toasts (B-States sync)', () => {
     if (theme === 'dark') await crop(page, archived, 'crop-states-toast-archived.png')
 
     await routeSave(page, 500)
-    dialog = await openFromBar(page, 'Archive')
+    await page.getByRole('button', { name: 'Archived', exact: true }).click()
+    dialog = await afterEnterAnimation(page.getByRole('dialog', { name: 'Archive this doc' }))
     await dialog.getByRole('button', { name: 'Archive', exact: true }).click()
     const failed = page.getByRole('alert').filter({ hasText: 'Could not archive. Nothing was changed.' })
     await expect(failed).toBeVisible()
