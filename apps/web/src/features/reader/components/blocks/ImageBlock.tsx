@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { Block } from '@brief/schema'
 import { decryptImage } from '@/features/save'
 import { API_URL } from '@/shared/api'
-import { BlockCard, LOADING, cardHeader, type BlockCardState } from '../BlockCard'
+import { BlockCard, cardHeader, type BlockCardState } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 
 type ImageBlockData = Extract<Block, { type: 'image' }>
@@ -14,6 +14,7 @@ export const ImageKeyContext = createContext<CryptoKey | null>(null)
 type ImageLoad = { status: 'loading' } | { status: 'ready'; url: string } | { status: 'missing' }
 
 const MISSING: BlockCardState = { status: 'error', message: 'Image is missing or has expired.' }
+const READY: BlockCardState = { status: 'ready' }
 
 /**
  * The served type says what the bytes are: the image API stores ciphertext as
@@ -66,11 +67,10 @@ function ImageCard({
   }, [block.imageId, imageKey])
 
   const sized = block.width !== undefined && block.height !== undefined
-  const state: BlockCardState =
-    load.status === 'missing' ? MISSING : load.status === 'loading' ? LOADING.image : { status: 'ready' }
-
+  // No header "loading" label: it wraps the header at phone width, and the
+  // header shrinking on load would shift the card the box was reserved for.
   return (
-    <BlockCard {...cardHeader(block, anchor)} state={state}>
+    <BlockCard {...cardHeader(block, anchor)} state={load.status === 'missing' ? MISSING : READY}>
       <div data-image-body className="p-3">
         <div
           className={`mx-auto max-w-full ${sized || load.status !== 'ready' ? '' : 'w-fit'}`}
@@ -86,7 +86,7 @@ function ImageCard({
               className={sized ? 'block size-full' : 'block h-auto max-w-full'}
             />
           ) : (
-            <div aria-hidden="true" className={`sk rounded-[4px] ${sized ? 'h-full' : 'h-32'}`} />
+            <div data-image-loading aria-hidden="true" className={`sk rounded-[4px] ${sized ? 'h-full' : 'h-32'}`} />
           )}
         </div>
       </div>

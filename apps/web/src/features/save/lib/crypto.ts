@@ -76,9 +76,11 @@ export async function encryptPayload(
 // tampered ciphertext -- this is WebCrypto's natural behavior and must never
 // be caught here to produce a silent/garbled fallback result.
 export async function decryptPayload(ciphertext: string, password: string, encParams: EncParams): Promise<string> {
-  const salt = base64ToBytes(encParams.salt)
+  return decryptPayloadWithKey(ciphertext, await deriveSessionKey(password, encParams), encParams)
+}
+
+export async function decryptPayloadWithKey(ciphertext: string, key: CryptoKey, encParams: EncParams): Promise<string> {
   const iv = base64ToBytes(encParams.iv)
-  const key = await deriveKey(password, salt, encParams.iterations)
   const plaintextBuffer = await globalThis.crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: iv as BufferSource },
     key,

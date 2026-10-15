@@ -73,7 +73,7 @@ describe('ImageBlock', () => {
     const { container } = render(<BlockRenderer block={image} />)
 
     expect(screen.queryByRole('img')).toBeNull()
-    expect(screen.getByText('loading image')).toBeInTheDocument()
+    expect(container.querySelector('[data-image-loading]')).not.toBeNull()
     const box = container.querySelector('[data-image-body] > div') as HTMLElement
     expect(box.style.width).toBe('1200px')
     expect(box.style.aspectRatio).toBe('1200 / 640')

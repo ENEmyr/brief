@@ -1,7 +1,7 @@
 'use client'
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { parseStoredPayload, type EncParams, type StoredPayload } from '@brief/schema'
-import { decryptPayload, deriveSessionKey } from '../lib/crypto'
+import { decryptPayload, decryptPayloadWithKey, deriveSessionKey } from '../lib/crypto'
 
 /**
  * Protected-session password unlock card (ADR-0001, decision log 131), drawn
@@ -40,10 +40,12 @@ export function UnlockCard({
     setBusy(true)
     setError(null)
     try {
-      const [plaintext, key] = await Promise.all([
-        decryptPayload(ciphertext, password, encParams),
-        onKey === undefined ? null : deriveSessionKey(password, encParams),
-      ])
+      // One key derivation either way: 600k PBKDF2 rounds are the slow part of unlock.
+      const key = onKey === undefined ? null : await deriveSessionKey(password, encParams)
+      const plaintext =
+        key === null
+          ? await decryptPayload(ciphertext, password, encParams)
+          : await decryptPayloadWithKey(ciphertext, key, encParams)
       const payload = parseStoredPayload(JSON.parse(plaintext))
       // The caller (SessionView) swaps to the ready view with the decrypted
       // payload once onUnlock fires, normally unmounting this component --
