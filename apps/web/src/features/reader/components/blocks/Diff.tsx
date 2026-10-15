@@ -27,7 +27,7 @@ const MAP_STATUS: Record<
   deleted: { letter: 'D', fill: 'bg-bad', text: 'text-bad' },
 }
 
-/** B-NewBlocks:177,191: each change kind is a soft chip in its tone. */
+/** B-NewBlocks:178,191,198: each change kind is a soft chip in its tone. */
 const CHANGE_CHIP: Record<DiffChange['change'], string> = {
   added: 'bg-good-soft text-good',
   modified: 'bg-warn-soft text-warn',
@@ -36,7 +36,7 @@ const CHANGE_CHIP: Record<DiffChange['change'], string> = {
   config: 'bg-warn-soft text-warn',
 }
 
-/** B-NewBlocks:201-207: hunk headers in info, added and removed lines on the good and bad tints. */
+/** B-NewBlocks:202-209: hunk headers in info, added and removed lines on the good and bad tints. */
 const RAW_TONE: Record<PatchLineKind, string> = {
   hunk: 'text-info',
   add: 'bg-good-soft',
@@ -52,7 +52,7 @@ function modeButtonClass(active: boolean): string {
 }
 
 /**
- * B-NewBlocks:153-209. The file list and the views wrap like the board's
+ * B-NewBlocks:151-213. The file list and the views wrap like the board's
  * 260 px and 560 px flex items; the 1 px gap over the line colour is the
  * divider in either arrangement. The changed-files list scopes both views to one file
  * (pressed again, back to all). Semantic lists each change with the agent's
