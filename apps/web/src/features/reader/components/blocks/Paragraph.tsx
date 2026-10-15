@@ -32,6 +32,7 @@ export function Paragraph({
       sid={sid}
       bid={bid ?? null}
       path={`${pathPrefix}text`}
+      markdown
       annotatable={annotatable && bid !== undefined}
       onMarkClick={onMarkClick}
     />
