@@ -3,6 +3,7 @@ import type { AppEnv } from '../../env'
 import { MAX_PAYLOAD_BYTES, parseStoredPayload, payloadToMarkdown } from '@brief/schema'
 import { createSessionBody } from './model'
 import { createSession, getSession } from './service'
+import { imageIdsIn, linkImages } from '../image'
 
 export function sessionFeature(env: AppEnv) {
   return new Elysia({ name: 'session' })
@@ -39,7 +40,9 @@ export function sessionFeature(env: AppEnv) {
         set.status = 413
         return { error: `Payload exceeds ${MAX_PAYLOAD_BYTES} bytes.` }
       }
-      const { id } = await createSession(env.DB, payloadStr, parsed.data.payload.meta.title, Date.now())
+      const now = Date.now()
+      const { id } = await createSession(env.DB, payloadStr, parsed.data.payload.meta.title, now)
+      await linkImages(env.DB, id, imageIdsIn(parsed.data.payload), now)
       set.status = 201
       return { id, url: `${env.PUBLIC_WEB_ORIGIN}/s/${id}` }
     })
