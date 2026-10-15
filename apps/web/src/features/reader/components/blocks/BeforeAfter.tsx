@@ -107,7 +107,11 @@ export function BeforeAfter({
   )
 
   return (
-    <BlockCard {...cardHeader(block, { ...anchor, pathPrefix, annotatable })} controls={toggle}>
+    <BlockCard
+      {...cardHeader(block, { ...anchor, pathPrefix, annotatable })}
+      captionSuffix={block.filename === undefined ? undefined : 'before and after'}
+      controls={toggle}
+    >
       <div
         className={`font-mono text-[13px] leading-[22px] ${view === 'split' ? 'grid grid-cols-2 max-[880px]:grid-cols-1' : ''}`}
       >

@@ -14,7 +14,7 @@ import {
   tickLabel,
 } from '@/features/reader/components/blocks/BigO'
 import { buildHeatmapOption, Heatmap } from '@/features/reader/components/blocks/Heatmap'
-import { binReadout, buildHistogramOption, Histogram } from '@/features/reader/components/blocks/Histogram'
+import { binReadout, buildHistogramOption, Histogram, thresholdStart } from '@/features/reader/components/blocks/Histogram'
 import { buildScatterOption, Scatter } from '@/features/reader/components/blocks/Scatter'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
 
@@ -530,5 +530,74 @@ describe('chart tooltips keep payload text literal', () => {
   it('bigo keeps echarts\' own tooltip, which escapes series names itself', () => {
     const bigo = buildBigOOption({ type: 'bigo', series: [{ label: HOSTILE, curve: 'n' }] }, 10, palette)
     expect((bigo.tooltip as { formatter?: unknown }).formatter).toBeUndefined()
+  })
+})
+
+describe('Histogram threshold (B-Blocks2:132, 140-146)', () => {
+  const bins = ['0.1', '0.3', '0.5', '0.8', '1.2', '2', '3', '5 s'].map((label, i) => ({ label, count: 8 - i }))
+  const block: Extract<Block, { type: 'histogram' }> = {
+    type: 'histogram',
+    title: 'Latency during the burst',
+    bins,
+    threshold: { bin: 6, label: 'p95', value: '2.4 s' },
+  }
+  type Bar = number | { value: number; itemStyle: { color: string; opacity: number } }
+  const data = (b: Extract<Block, { type: 'histogram' }>) =>
+    (buildHistogramOption(b, palette).series as unknown as Array<{ data: Bar[] }>)[0]!.data
+
+  it('turns the threshold bin and every bin after it red at .8, the rest stay plain counts', () => {
+    expect(data(block)).toEqual([
+      8, 7, 6, 5, 4,
+      { value: 3, itemStyle: { color: palette.bad, opacity: 0.8 } },
+      { value: 2, itemStyle: { color: palette.bad, opacity: 0.8 } },
+      { value: 1, itemStyle: { color: palette.bad, opacity: 0.8 } },
+    ])
+  })
+
+  it('ignores a threshold bin past the last bin', () => {
+    const outside = { ...block, threshold: { bin: 9, label: 'p95' } }
+    expect(thresholdStart(outside)).toBeNull()
+    expect(data(outside)).toEqual([8, 7, 6, 5, 4, 3, 2, 1])
+  })
+
+  it('marks the threshold: header meta, a dashed line on the bin edge with its label, and the footer', () => {
+    render(<Histogram block={block} />)
+    const kind = screen.getByText('histogram')
+    expect(kind.parentElement!.textContent).toBe('histogramLatency during the burst / 8 binsp95 marked')
+    const line = document.querySelector<HTMLElement>('[data-threshold-line]')!
+    expect(line.style.left).toBe('62.5%')
+    expect(line.className).toContain('border-dashed')
+    expect(line.className).toContain('border-warn')
+    expect(screen.getByText('p95 2.4 s').style.left).toBe('63.5%')
+    expect(
+      screen.getByText("Bins past the agent's threshold turn red. Hover shows count and share."),
+    ).toBeInTheDocument()
+  })
+
+  it('labels a threshold without a value with its label alone', () => {
+    render(<Histogram block={{ ...block, threshold: { bin: 1, label: 'SLO' } }} />)
+    expect(screen.getByText('SLO')).toBeInTheDocument()
+    expect(screen.getByText('SLO marked')).toBeInTheDocument()
+    expect(document.querySelector<HTMLElement>('[data-threshold-line]')!.style.left).toBe('0%')
+  })
+
+  it('renders without a threshold, or with one that does not resolve, exactly as before', () => {
+    const { unmount } = render(<Histogram block={{ ...block, threshold: undefined }} />)
+    expect(screen.getByText('histogram').parentElement!.textContent).toBe('histogramLatency during the burst / 8 bins')
+    expect(document.querySelector('[data-threshold-line]')).toBeNull()
+    expect(screen.queryByText(/threshold turn red/)).toBeNull()
+    unmount()
+    render(<Histogram block={{ ...block, threshold: { bin: 99, label: 'p95' } }} />)
+    expect(screen.queryByText('p95 marked')).toBeNull()
+    expect(document.querySelector('[data-threshold-line]')).toBeNull()
+  })
+
+  it('shows a hostile threshold label and value as text, and no element is made', () => {
+    const HOSTILE = '<img src=x onerror="window.__xss=1">'
+    render(<Histogram block={{ ...block, threshold: { bin: 2, label: HOSTILE, value: HOSTILE } }} />)
+    expect(screen.getByText(`${HOSTILE} ${HOSTILE}`)).toBeInTheDocument()
+    expect(screen.getByText(`${HOSTILE} marked`)).toBeInTheDocument()
+    expect(document.querySelector('img')).toBeNull()
+    expect((window as { __xss?: number }).__xss).toBeUndefined()
   })
 })

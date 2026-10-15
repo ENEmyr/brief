@@ -178,12 +178,15 @@ function captionLeaf(block: CardBlock): CardLeaf | undefined {
   switch (block.type) {
     case 'table':
     case 'compare':
+    case 'stat':
     case 'coverage':
       return block.caption === undefined ? undefined : { text: block.caption, path: 'caption' }
     case 'code':
       return block.filename === undefined
         ? { text: block.language, path: 'language' }
         : { text: block.filename, path: 'filename' }
+    case 'ba':
+      return block.filename === undefined ? undefined : { text: block.filename, path: 'filename' }
     case 'seq':
     case 'state':
     case 'layers':
@@ -199,8 +202,6 @@ function captionLeaf(block: CardBlock): CardLeaf | undefined {
     case 'note':
     case 'warn':
     case 'good':
-    case 'stat':
-    case 'ba':
     case 'details':
     case 'p':
       return undefined

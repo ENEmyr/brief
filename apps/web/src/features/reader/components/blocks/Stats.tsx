@@ -87,10 +87,13 @@ export function Stats({
               phase={phase}
               progress={progress}
             />
+            {item.spark && <Spark values={item.spark} />}
             {item.hint && (
               <Annotatable
                 {...anchor}
-                className="break-words font-mono text-[12px] leading-[normal] text-faint"
+                className={`break-words font-mono text-[12px] leading-[normal] ${
+                  item.hintTone ? statToneClass[item.hintTone] : 'text-faint'
+                }`}
                 text={item.hint}
                 path={`${pathPrefix}items.${i}.hint`}
               />
@@ -99,6 +102,29 @@ export function Stats({
         ))}
       </div>
     </BlockCard>
+  )
+}
+
+const SPARK_HEIGHT = 20
+
+/** B-Blocks:43: 8px bars 3px apart growing from the bottom of a 20px row; the highest is in text. */
+function Spark({ values }: { values: number[] }) {
+  const max = Math.max(...values)
+  const peak = values.indexOf(max)
+  return (
+    <div
+      role="img"
+      aria-label={`trend: ${values.join(', ')}`}
+      className="flex h-5 items-end gap-[3px]"
+    >
+      {values.map((v, i) => (
+        <div
+          key={i}
+          className={`w-2 ${i === peak ? 'bg-text' : 'bg-line2'}`}
+          style={{ height: max === 0 ? 0 : (v / max) * SPARK_HEIGHT }}
+        />
+      ))}
+    </div>
   )
 }
 

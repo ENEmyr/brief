@@ -21,13 +21,22 @@ export function binReadout(count: number, total: number): string {
 }
 
 /**
+ * The 0-based first bin past the threshold, or null when there is none or its
+ * `bin` is outside the bins (an unresolved reference is ignored).
+ */
+export function thresholdStart(block: HistogramBlockType): number | null {
+  const bin = block.threshold?.bin
+  return bin !== undefined && bin <= block.bins.length ? bin - 1 : null
+}
+
+/**
  * B-Blocks2:134-146: line2 bars 6px apart with 2px top corners on a line2
  * baseline, no value axis, and every bin's label in mono 10 faint under it.
- * Bins past a threshold turn red on the board; the payload has no threshold
- * yet (owner ruling D3), so every bar is line2.
+ * Bins from the threshold on are red at .8 opacity (B-Blocks2:140-142).
  */
 export function buildHistogramOption(block: HistogramBlockType, palette: Palette): EChartsOption {
   const total = block.bins.reduce((sum, b) => sum + b.count, 0)
+  const past = thresholdStart(block)
   return {
     backgroundColor: 'transparent',
     animation: false,
@@ -60,7 +69,11 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
     series: [
       {
         type: 'bar',
-        data: block.bins.map((b) => b.count),
+        data: block.bins.map((b, i) =>
+          past !== null && i >= past
+            ? { value: b.count, itemStyle: { color: palette.bad, opacity: 0.8 } }
+            : b.count,
+        ),
         barCategoryGap: 6,
         itemStyle: { color: palette.line2, borderRadius: [2, 2, 0, 0] },
       },
@@ -79,19 +92,45 @@ export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & 
     heading: { kind: block.type, title: block.title },
   })
   const bins = block.bins.length
+  const past = thresholdStart(block)
+  const threshold = past === null ? undefined : block.threshold
+  const left = past === null ? 0 : (past / bins) * 100
 
   return (
     <BlockCard
       {...cardHeader(block, anchor)}
       captionSuffix={`${bins} ${bins === 1 ? 'bin' : 'bins'}`}
+      meta={threshold && <span className="shrink-0">{threshold.label} marked</span>}
       {...chartCard}
     >
-      <div className="px-4 pb-2.5 pt-4">
+      <div className="relative px-4 pb-2.5 pt-4">
         <div
           ref={containerRef}
           className={`w-full rounded-[4px] ${ready ? '' : 'sk'}`}
           style={{ height: PLOT + TICKS }}
         />
+        {threshold && ready ? (
+          // B-Blocks2:143-144: a dashed warn line on the left edge of the
+          // threshold bin over the plot, its label 1% to the right of it.
+          <div className="pointer-events-none absolute inset-x-4 top-4" style={{ height: PLOT }}>
+            <div
+              data-threshold-line
+              className="absolute inset-y-0 w-0 border-l-[1.5px] border-dashed border-warn"
+              style={{ left: `${left}%` }}
+            />
+            <span
+              className="absolute top-0.5 whitespace-nowrap font-mono text-[11px] leading-[normal] text-warn"
+              style={{ left: `${left + 1}%` }}
+            >
+              {threshold.value === undefined ? threshold.label : `${threshold.label} ${threshold.value}`}
+            </span>
+          </div>
+        ) : null}
+        {threshold ? (
+          <p className="mb-0 mt-1.5 text-[12px] leading-[normal] text-sub">
+            Bins past the agent's threshold turn red. Hover shows count and share.
+          </p>
+        ) : null}
       </div>
     </BlockCard>
   )

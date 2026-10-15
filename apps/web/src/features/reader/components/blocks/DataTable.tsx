@@ -1,7 +1,12 @@
-import type { Block } from '@brief/schema'
+import type { Align, Block, Tone } from '@brief/schema'
 import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
 import { BlockCard, cardHeader } from '../BlockCard'
+
+// B-Blocks:117-120: a column's alignment applies to its header cell too. A
+// column with no entry is left, the default /raw writes as `---`.
+const alignClass = { left: 'text-left', center: 'text-center', right: 'text-right' } as const satisfies Record<Align, string>
+const toneClass = { info: 'text-info', good: 'text-good', warn: 'text-warn', bad: 'text-bad' } as const satisfies Record<Tone, string>
 
 /**
  * Every cell is its own annotatable leaf (`head.2`, `rows.1.0`), which is the
@@ -29,6 +34,13 @@ export function DataTable({
     annotatable: annotatable && bid !== undefined,
     onMarkClick,
   }
+  const align = (col: number) => alignClass[block.align?.[col] ?? 'left']
+  // `cells` positions are 1-based; one outside the table is never looked up.
+  const tones = new Map(block.cells?.map((c) => [`${c.row - 1}:${c.col - 1}`, c.tone]))
+  const tone = (row: number, col: number) => {
+    const t = tones.get(`${row}:${col}`)
+    return t ? toneClass[t] : 'text-text'
+  }
 
   return (
     <BlockCard
@@ -47,7 +59,7 @@ export function DataTable({
           <thead>
             <tr className="bg-elev text-left text-sub">
               {block.head.map((cell, i) => (
-                <th key={i} className="px-3 py-2 text-left font-medium">
+                <th key={i} className={`px-3 py-2 font-medium ${align(i)}`}>
                   <Annotatable {...anchor} text={cell} path={`${pathPrefix}head.${i}`} />
                 </th>
               ))}
@@ -67,12 +79,12 @@ export function DataTable({
                     <th
                       key={j}
                       scope="row"
-                      className="px-3 py-[9px] text-left font-normal text-text"
+                      className={`px-3 py-[9px] font-normal ${align(j)} ${tone(i, j)}`}
                     >
                       {content}
                     </th>
                   ) : (
-                    <td key={j} className="px-3 py-[9px] text-left text-text">
+                    <td key={j} className={`px-3 py-[9px] ${align(j)} ${tone(i, j)}`}>
                       {content}
                     </td>
                   )
