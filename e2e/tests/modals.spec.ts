@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import type { Payload } from '@brief/schema'
 import { test, expect, testPayload } from './fixtures'
 
 // Headless Chromium hides scrollbars; a classic one is what shifts the page
@@ -6,6 +7,24 @@ import { test, expect, testPayload } from './fixtures'
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
 const scrollY = (page: Page) => page.evaluate(() => window.scrollY)
+
+// The shared payload alone scrolls under 400 px on the block card layout, too
+// little room to tell a locked page from one that hit its end.
+const tallPayload: Payload = {
+  ...testPayload,
+  sections: [
+    ...testPayload.sections,
+    {
+      id: 'room',
+      no: 3,
+      title: 'Room to scroll',
+      blocks: Array.from({ length: 6 }, (_, i) => ({
+        type: 'p' as const,
+        text: `Paragraph ${i + 1} adds height so the page scrolls well past the wheel distance.`,
+      })),
+    },
+  ],
+}
 
 const LEFT_OF_CENTERED_OR_RIGHT_PANEL = { x: 40, y: 400 }
 const ABOVE_PHONE_DOCK_SHEET = { x: 195, y: 60 }
@@ -41,7 +60,7 @@ test.describe('dialogs lock page scroll', () => {
       })
       document.execCommand = () => false
     })
-    const { id } = await createSession()
+    const { id } = await createSession(tallPayload)
     await page.goto(`/s/${id}`)
     const title = page.getByRole('heading', { level: 1, name: testPayload.meta.title })
     await expect(title).toBeVisible()
