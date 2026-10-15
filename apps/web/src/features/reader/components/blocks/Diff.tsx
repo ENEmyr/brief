@@ -52,9 +52,9 @@ function modeButtonClass(active: boolean): string {
 }
 
 /**
- * B-NewBlocks:153-209. The file list and the views sit side by side while
- * 260 + 560 px fit in the card, as the board's flex-wrap does, and stack
- * below that. The changed-files list scopes both views to one file
+ * B-NewBlocks:153-209. The file list and the views wrap like the board's
+ * 260 px and 560 px flex items; the 1 px gap over the line colour is the
+ * divider in either arrangement. The changed-files list scopes both views to one file
  * (pressed again, back to all). Semantic lists each change with the agent's
  * note and, for an added function, its steps; raw prints the patch as text.
  */
@@ -83,7 +83,8 @@ export function Diff({
     (sum, p) => ({ added: sum.added + p.added, removed: sum.removed + p.removed }),
     { added: 0, removed: 0 },
   )
-  const visible = only === null ? block.files.map((_, i) => i) : [only]
+  const visible =
+    only === null || only >= block.files.length ? block.files.map((_, i) => i) : [only]
 
   const leaf = (text: string, path: string, className?: string) => (
     <Annotatable
@@ -180,7 +181,7 @@ export function Diff({
             return (
               <div
                 key={c}
-                className="flex flex-col gap-2 border-t border-line px-3.5 py-3 first-of-type:border-t-0"
+                className={`flex flex-col gap-2 px-3.5 py-3 ${c > 0 ? 'border-t border-line' : ''}`}
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span
@@ -275,88 +276,87 @@ export function Diff({
       }
       controls={modeGroup}
     >
-      <div className="@container">
-        <div className="flex @max-[820px]:flex-col">
-          <nav
-            aria-label="Changed files"
-            className="flex shrink-0 basis-[260px] flex-col gap-0.5 border-r border-line p-2 text-[13px] @max-[820px]:basis-auto @max-[820px]:border-b @max-[820px]:border-r-0"
-          >
-            {block.map === undefined ? null : (
-              <>
-                <span className="px-2 py-1.5 font-mono text-[10px] text-faint">CHANGE MAP</span>
-                <ul
-                  aria-label="Change map"
-                  className="m-0 flex list-none flex-col gap-1.5 px-2 pb-3 pt-1 text-[12px]"
-                >
-                  {block.map.nodes.map((node) => {
-                    const status = node.status === undefined ? undefined : MAP_STATUS[node.status]
-                    return (
-                      <li
-                        key={node.id}
-                        data-diff-node={node.id}
-                        className={`flex items-center gap-2 ${nested.has(node.id) ? 'pl-4' : ''}`}
+      <div className="flex flex-wrap gap-px bg-line">
+        <nav
+          aria-label="Changed files"
+          className="flex shrink-0 grow basis-[260px] flex-col gap-0.5 bg-card p-2 text-[13px]"
+        >
+          {block.map === undefined ? null : (
+            <>
+              <span className="px-2 py-1.5 font-mono text-[10px] text-faint">CHANGE MAP</span>
+              <ul
+                aria-label="Change map"
+                className="m-0 flex list-none flex-col gap-1.5 px-2 pb-3 pt-1 text-[12px]"
+              >
+                {block.map.nodes.map((node) => {
+                  const status = node.status === undefined ? undefined : MAP_STATUS[node.status]
+                  return (
+                    <li
+                      key={node.id}
+                      data-diff-node={node.id}
+                      className={`flex items-center gap-2 ${nested.has(node.id) ? 'pl-4' : ''}`}
+                    >
+                      <span
+                        aria-hidden
+                        className={`size-2 shrink-0 rounded-[2px] ${status === undefined ? 'border border-faint' : status.fill}`}
+                      />
+                      <span
+                        className={`min-w-0 break-words ${status === undefined ? 'text-sub' : ''}`}
                       >
-                        <span
-                          aria-hidden
-                          className={`size-2 shrink-0 rounded-[2px] ${status === undefined ? 'border border-faint' : status.fill}`}
-                        />
-                        <span
-                          className={`min-w-0 break-words ${status === undefined ? 'text-sub' : ''}`}
-                        >
-                          {node.label}
+                        {node.label}
+                      </span>
+                      {status === undefined ? null : (
+                        <span className={`font-mono text-[10px] ${status.text}`}>
+                          {status.letter}
                         </span>
-                        {status === undefined ? null : (
-                          <span className={`font-mono text-[10px] ${status.text}`}>
-                            {status.letter}
-                          </span>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </>
-            )}
-            <span className="px-2 py-1.5 font-mono text-[10px] text-faint">FILES</span>
-            {block.files.map((file, i) => {
-              const status = FILE_STATUS[file.status]
-              const active = only === i
-              const tone = active ? 'bg-chip text-text' : file.folded ? 'text-faint' : 'text-sub'
-              const counts = patches[i]
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => pickFile(i)}
-                  className={`flex min-h-8 items-center gap-2 rounded-[4px] border-0 px-2 text-left ${tone} ${active ? '' : 'bg-transparent hover:bg-chip'} ${TOUCH} ${FOCUS_RING}`}
-                >
-                  <span className={`w-3 shrink-0 font-mono text-[11px] ${status.text}`}>
-                    {status.letter}
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+          <span className="px-2 py-1.5 font-mono text-[10px] text-faint">FILES</span>
+          {block.files.map((file, i) => {
+            const status = FILE_STATUS[file.status]
+            const active = only === i
+            const tone = active ? 'bg-chip text-text' : file.folded ? 'text-faint' : 'text-sub'
+            const counts = patches[i]
+            return (
+              <button
+                key={i}
+                type="button"
+                aria-pressed={active}
+                onClick={() => pickFile(i)}
+                className={`flex min-h-8 items-center gap-2 rounded-[4px] border-0 px-2 text-left ${tone} ${active ? '' : 'bg-transparent hover:bg-chip'} ${TOUCH} ${FOCUS_RING}`}
+              >
+                <span className={`w-3 shrink-0 font-mono text-[11px] ${status.text}`}>
+                  {status.letter}
+                </span>
+                <span className="min-w-0 flex-1 break-all font-mono text-[12px]">{file.path}</span>
+                {file.folded ? (
+                  <span className="shrink-0 font-mono text-[11px]">folded</span>
+                ) : counts !== undefined && counts.added + counts.removed > 0 ? (
+                  <span className="flex shrink-0 gap-1.5 font-mono text-[11px]">
+                    {counts.added > 0 ? <span className="text-good">+{counts.added}</span> : null}
+                    {counts.removed > 0 ? (
+                      <span className="text-bad">−{counts.removed}</span>
+                    ) : null}
                   </span>
-                  <span className="min-w-0 flex-1 break-all font-mono text-[12px]">
-                    {file.path}
-                  </span>
-                  {file.folded ? (
-                    <span className="shrink-0 font-mono text-[11px]">folded</span>
-                  ) : counts !== undefined && counts.added + counts.removed > 0 ? (
-                    <span className="flex shrink-0 gap-1.5 font-mono text-[11px]">
-                      {counts.added > 0 ? <span className="text-good">+{counts.added}</span> : null}
-                      {counts.removed > 0 ? (
-                        <span className="text-bad">−{counts.removed}</span>
-                      ) : null}
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </nav>
-          <div className="flex min-w-0 flex-1 flex-col" data-diff-mode={mode}>
-            {visible.map((i) => {
-              const file = block.files[i]
-              if (file === undefined) return null
-              return mode === 'semantic' ? semanticFile(file, i) : rawFile(file, i)
-            })}
-          </div>
+                ) : null}
+              </button>
+            )
+          })}
+        </nav>
+        <div
+          className="flex min-w-0 shrink grow-[999] basis-[560px] flex-col bg-card"
+          data-diff-mode={mode}
+        >
+          {visible.map((i) => {
+            const file = block.files[i]
+            if (file === undefined) return null
+            return mode === 'semantic' ? semanticFile(file, i) : rawFile(file, i)
+          })}
         </div>
       </div>
     </BlockCard>
