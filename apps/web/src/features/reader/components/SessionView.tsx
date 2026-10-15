@@ -34,6 +34,8 @@ import { useIsNarrow } from '../hooks/useIsNarrow'
 import { DIAGRAM_BLOCK_TYPES, hasDiagrams } from '../lib/views'
 import type { ReaderView } from '../lib/views'
 import { adjacentSectionId, findSection, scrollToElement } from '../lib/sectionNav'
+import { BackPill } from './BackPill'
+import type { BackTarget } from './BackPill'
 import { DockSlot } from './DockSlot'
 import { RawView } from './RawView'
 import { Skeleton } from './Skeleton'
@@ -111,6 +113,7 @@ function SessionReady({
   // seq restarts the flash when the same section is jumped to twice.
   const [flash, setFlash] = useState<{ id: string; seq: number } | null>(null)
   const [pendingJump, setPendingJump] = useState<string | null>(null)
+  const [backTo, setBackTo] = useState<BackTarget | null>(null)
   const [tocCollapsed, setTocCollapsed] = useState(false)
   const [tocDrawerOpen, setTocDrawerOpen] = useState(false)
   // Note/Ask popovers are mutually exclusive -- opening one always closes
@@ -204,6 +207,17 @@ function SessionReady({
     showDecision(id)
     if (narrow) setDockOpen(true)
   }
+
+  // A context chip (D7): the sheet closes so the section shows, and the Back pill returns.
+  const jumpToContext = useCallback(
+    (sectionId: string, decisionId: string) => {
+      setDockOpen(false)
+      jumpTo(sectionId)
+      setBackTo({ sectionId, decisionId })
+    },
+    [jumpTo],
+  )
+  const dismissBack = useCallback(() => setBackTo(null), [])
 
   // "Open dock" starts on the next open decision, as B-Mobile's peek bar says.
   const openDockSheet = useCallback(
@@ -374,13 +388,23 @@ function SessionReady({
                 decisions={payload.decisions}
                 open={dockOpen}
                 onOpenChange={openDockSheet}
-                column={<DecisionDock decisions={payload.decisions} target={dockTarget} onCopyPrompt={copyPrompt} />}
+                column={
+                  <DecisionDock
+                    decisions={payload.decisions}
+                    sections={sections}
+                    target={dockTarget}
+                    onCopyPrompt={copyPrompt}
+                    onJumpToContext={jumpToContext}
+                  />
+                }
                 sheet={
                   <DecisionSheet
                     decisions={payload.decisions}
+                    sections={sections}
                     target={dockTarget}
                     onSelect={selectDecision}
                     onCopyPrompt={copyPrompt}
+                    onJumpToContext={jumpToContext}
                   />
                 }
                 sheetAction={<ResetAnswers decisions={payload.decisions} variant="sheet" />}
@@ -389,6 +413,17 @@ function SessionReady({
           </div>
         </DiagramViewerProvider>
       </>
+      {backTo && (
+        <BackPill
+          key={`${backTo.decisionId}:${backTo.sectionId}`}
+          target={backTo}
+          onDismiss={dismissBack}
+          onBack={() => {
+            setBackTo(null)
+            goToDecision(backTo.decisionId)
+          }}
+        />
+      )}
       <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} copyText={copy} />
       {notePopId && <NotePopover id={notePopId} onClose={closeNotePopover} />}
       {askPopId && (
