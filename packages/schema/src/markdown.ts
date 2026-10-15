@@ -1,4 +1,4 @@
-import type { Decision, StoredBlock, StoredPayload, UnreadableBlock } from './payload'
+import type { Align, CodeNote, Decision, GlossaryEntry, StoredBlock, StoredPayload, StoredSection, UnreadableBlock } from './payload'
 
 type BlockOf<T extends StoredBlock['type']> = Extract<StoredBlock, { type: T }>
 
@@ -15,8 +15,12 @@ interface MmTextOptions {
   quote?: boolean
 }
 
+function oneLine(s: string): string {
+  return s.replace(/\r\n|\r|\n/g, ' ')
+}
+
 function mmText(s: string, extra?: MmTextOptions): string {
-  let out = s.replace(/\r\n|\r|\n/g, ' ')
+  let out = oneLine(s)
   if (extra?.pipe) out = out.replaceAll('|', '')
   if (extra?.quote) out = out.replaceAll('"', '')
   return out
@@ -85,13 +89,15 @@ function erdToMermaid(b: BlockOf<'erd'>): string {
 }
 
 function tableCell(s: string): string {
-  return s.replaceAll('|', String.raw`\|`).replace(/\r\n|\r|\n/g, ' ')
+  return oneLine(s.replaceAll('|', String.raw`\|`))
 }
 
-function table(head: string[], rows: string[][]): string {
+const ALIGN_RULE: Record<Align, string> = { left: ':---', center: ':---:', right: '---:' }
+
+function table(head: string[], rows: string[][], align?: Align[]): string {
   return [
     `| ${head.map(tableCell).join(' | ')} |`,
-    `| ${head.map(() => '---').join(' | ')} |`,
+    `| ${head.map((_, i) => { const a = align?.[i]; return a ? ALIGN_RULE[a] : '---' }).join(' | ')} |`,
     ...rows.map((r) => `| ${r.map(tableCell).join(' | ')} |`),
   ].join('\n')
 }
@@ -132,12 +138,31 @@ function emitCompare(b: BlockOf<'compare'>): string {
 }
 
 function emitStat(b: BlockOf<'stat'>): string {
-  return b.items
+  const items = b.items
     .map((i) => {
       const hint = i.hint ? ` (${i.hint})` : ''
-      return `- **${i.label}**: ${i.value}${hint}`
+      const spark = i.spark ? `; trend: ${i.spark.join(', ')}` : ''
+      return `- **${i.label}**: ${i.value}${hint}${spark}`
     })
     .join('\n')
+  return `${captionPrefix(b.caption)}${items}`
+}
+
+function noteLines(notes: (CodeNote & { side?: string })[] | undefined): string {
+  if (!notes?.length) return ''
+  const lines = notes.map((n) => {
+    const side = n.side ? `${n.side} ` : ''
+    const range = n.to && n.to !== n.from ? `L${n.from}-${n.to}` : `L${n.from}`
+    return `- ${side}${range}: ${oneLine(n.text)}`
+  })
+  return `\n\nAgent notes:\n${lines.join('\n')}`
+}
+
+function emitSeq(b: BlockOf<'seq'>): string {
+  const diagram = fence('mermaid', seqToMermaid(b))
+  if (!b.steps.some((s) => s.text)) return diagram
+  const steps = b.steps.map((s, i) => `${i + 1}. ${oneLine(s.text ?? s.label)}`).join('\n')
+  return `${diagram}\n\nSteps:\n${steps}`
 }
 
 function emitCoverage(b: BlockOf<'coverage'>): string {
@@ -156,9 +181,10 @@ function emitDetails(b: BlockOf<'details'>): string {
 }
 
 function emitBeforeAfter(b: BlockOf<'ba'>): string {
+  const filename = b.filename ? `\`${b.filename}\`\n\n` : ''
   const beforeTitle = b.titleBefore ? ` (${b.titleBefore})` : ''
   const afterTitle = b.titleAfter ? ` (${b.titleAfter})` : ''
-  return `**Before**${beforeTitle}\n\n${fence(b.language, b.before)}\n\n**After**${afterTitle}\n\n${fence(b.language, b.after)}`
+  return `${filename}**Before**${beforeTitle}\n\n${fence(b.language, b.before)}\n\n**After**${afterTitle}\n\n${fence(b.language, b.after)}${noteLines(b.notes)}`
 }
 
 function emitBigO(b: BlockOf<'bigo'>): string {
@@ -168,7 +194,7 @@ function emitBigO(b: BlockOf<'bigo'>): string {
 
 function emitCode(b: BlockOf<'code'>): string {
   const filename = b.filename ? `\`${b.filename}\`\n\n` : ''
-  return `${filename}${fence(b.language, b.code)}`
+  return `${filename}${fence(b.language, b.code)}${noteLines(b.notes)}`
 }
 
 function emitHeatmap(b: BlockOf<'heatmap'>): string {
@@ -180,7 +206,16 @@ function emitHeatmap(b: BlockOf<'heatmap'>): string {
 function emitHistogram(b: BlockOf<'histogram'>): string {
   const title = b.title ? `: ${b.title}` : ''
   const rows = b.bins.map((x) => [x.label, String(x.count)])
-  return `Histogram${title}\n\n${table(['bin', 'count'], rows)}`
+  return `Histogram${title}\n\n${table(['bin', 'count'], rows)}${histogramThreshold(b)}`
+}
+
+function histogramThreshold(b: BlockOf<'histogram'>): string {
+  if (!b.threshold) return ''
+  const { bin, label, value } = b.threshold
+  const named = oneLine(value ? `${label} ${value}` : label)
+  const from = b.bins[bin - 1]
+  const past = from ? ` (bins from "${oneLine(from.label)}" on are past it)` : ''
+  return `\n\nThreshold: ${named}${past}`
 }
 
 function emitScatter(b: BlockOf<'scatter'>): string {
@@ -216,12 +251,12 @@ function blockToMarkdown(b: StoredBlock): string {
     case 'note': return emitCallout('NOTE', b)
     case 'warn': return emitCallout('WARNING', b)
     case 'good': return emitCallout('TIP', b)
-    case 'table': return `${captionPrefix(b.caption)}${table(b.head, b.rows)}`
+    case 'table': return `${captionPrefix(b.caption)}${table(b.head, b.rows, b.align)}`
     case 'compare': return emitCompare(b)
     case 'stat': return emitStat(b)
     case 'coverage': return emitCoverage(b)
     case 'details': return emitDetails(b)
-    case 'seq': return fence('mermaid', seqToMermaid(b))
+    case 'seq': return emitSeq(b)
     case 'state': return fence('mermaid', stateToMermaid(b))
     case 'layers': return fence('mermaid', layersToMermaid(b))
     case 'erd': return fence('mermaid', erdToMermaid(b))
@@ -239,7 +274,20 @@ function blockToMarkdown(b: StoredBlock): string {
   }
 }
 
-function decisionToMarkdown(d: Decision): string {
+function decisionContext(d: Decision, sections: StoredSection[]): string {
+  const named = (d.refs ?? []).flatMap((ref) => {
+    const s = sections.find((x) => x.id === ref)
+    return s ? [`${String(s.no).padStart(2, '0')} ${oneLine(s.title)}`] : []
+  })
+  return named.length ? `\n\nContext: ${named.join('; ')}` : ''
+}
+
+function glossaryLine(g: GlossaryEntry): string {
+  const aliases = g.aliases?.length ? ` (also: ${g.aliases.map(oneLine).join(', ')})` : ''
+  return `- **${oneLine(g.term)}**${aliases}: ${oneLine(g.def)}`
+}
+
+function decisionToMarkdown(d: Decision, sections: StoredSection[]): string {
   const opts = d.opts
     .map((o) => {
       const detail = o.detail ? ` : ${o.detail}` : ''
@@ -248,7 +296,7 @@ function decisionToMarkdown(d: Decision): string {
     .join('\n')
   const mode = d.multi ? 'multi-select' : 'single-select'
   const why = d.why ? `\n\nWhy this matters: ${d.why}` : ''
-  return `### ${d.q}\n\n(id: \`${d.id}\`, ${mode})\n\n${opts}${why}`
+  return `### ${d.q}\n\n(id: \`${d.id}\`, ${mode})${decisionContext(d, sections)}\n\n${opts}${why}`
 }
 
 export function payloadToMarkdown(payload: StoredPayload, opts: { url: string }): string {
@@ -273,7 +321,10 @@ export function payloadToMarkdown(payload: StoredPayload, opts: { url: string })
   }
   if (payload.decisions.length) {
     parts.push('## Decisions')
-    for (const d of payload.decisions) parts.push(decisionToMarkdown(d))
+    for (const d of payload.decisions) parts.push(decisionToMarkdown(d, payload.sections))
+  }
+  if (payload.glossary?.length) {
+    parts.push('## Glossary', payload.glossary.map(glossaryLine).join('\n'))
   }
   return parts.join('\n\n') + '\n'
 }

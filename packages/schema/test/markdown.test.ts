@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { payloadToMarkdown, type Payload } from '../src'
+import { parseStoredPayload, payloadToMarkdown, type Payload } from '../src'
 
 const payload: Payload = {
   meta: { title: 'Cache design', author: 'Claude' },
@@ -325,5 +325,118 @@ describe('injection hardening', () => {
     // inside the sanitized name.
     expect(attrLine).toContain('display__name')
     expect(attrLine).not.toContain('"')
+  })
+})
+
+describe('round 1 Console fields', () => {
+  type AnyBlock = Payload['sections'][number]['blocks'][number]
+  const url = { url: 'https://example.test' }
+  const blockMd = (block: AnyBlock) =>
+    payloadToMarkdown({ meta: { title: 'R1' }, sections: [{ id: 's1', no: 1, title: 'S', blocks: [block] }], decisions: [] }, url)
+  const withDecisions = (refs: string[] | undefined, glossary?: Payload['glossary']): Payload => ({
+    meta: { title: 'R1' },
+    sections: [
+      { id: 'bucket', no: 2, title: 'Token bucket', blocks: [{ type: 'p', text: 'x' }] },
+      { id: 'kv', no: 3, title: 'KV counter', blocks: [{ type: 'p', text: 'y' }] },
+    ],
+    decisions: [{ id: 'D1', q: 'Which limiter?', multi: false, opts: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], refs }],
+    glossary,
+  })
+
+  it('lists resolved decision refs as a Context line under the question, skipping unknown ids', () => {
+    const md = payloadToMarkdown(withDecisions(['bucket', 'missing', 'kv']), url)
+    expect(md).toContain('### Which limiter?\n\n(id: `D1`, single-select)\n\nContext: 02 Token bucket; 03 KV counter\n\n- [ ] `a` A')
+  })
+
+  it('prints no Context line when no ref resolves', () => {
+    expect(payloadToMarkdown(withDecisions(['missing']), url)).not.toContain('Context:')
+    expect(payloadToMarkdown(withDecisions(undefined), url)).not.toContain('Context:')
+  })
+
+  it('ends the export with a Glossary section after the decisions', () => {
+    const md = payloadToMarkdown(withDecisions(undefined, [
+      { term: 'token bucket', def: 'A counter that refills.', aliases: ['bucket', 'TB'] },
+      { term: 'p95', def: 'The 95th percentile.' },
+    ]), url)
+    expect(md.endsWith('## Glossary\n\n- **token bucket** (also: bucket, TB): A counter that refills.\n- **p95**: The 95th percentile.\n')).toBe(true)
+    expect(md.indexOf('## Decisions')).toBeLessThan(md.indexOf('## Glossary'))
+    expect(payloadToMarkdown(withDecisions(undefined), url)).not.toContain('## Glossary')
+  })
+
+  it('prints code notes as agent notes under the listing', () => {
+    const md = blockMd({ type: 'code', language: 'ts', code: 'a\nb', notes: [{ from: 1, text: 'why' }, { from: 1, to: 2, text: 'range' }] })
+    expect(md).toContain('```ts\na\nb\n```\n\nAgent notes:\n- L1: why\n- L1-2: range')
+  })
+
+  it('prints the ba filename before the pair and each note with its side', () => {
+    const md = blockMd({
+      type: 'ba', language: 'ts', before: 'a', after: 'b', filename: 'src/limiter.ts',
+      notes: [{ side: 'after', from: 1, to: 1, text: 'new guard' }, { side: 'before', from: 1, text: 'old bug' }],
+    })
+    expect(md).toContain('`src/limiter.ts`\n\n**Before**')
+    expect(md).toContain('Agent notes:\n- after L1: new guard\n- before L1: old bug')
+  })
+
+  it('prints the stat caption and spark series, but not the hint tone', () => {
+    const md = blockMd({
+      type: 'stat', caption: 'Flash sale',
+      items: [{ label: 'Peak RPS', value: '4,800', hint: 'up', hintTone: 'teal', spark: [6, 9, 20] }],
+    })
+    expect(md).toContain('**Flash sale**\n\n- **Peak RPS**: 4,800 (up); trend: 6, 9, 20')
+    expect(md).not.toContain('teal')
+  })
+
+  it('writes table align as a GFM alignment row and leaves cell tones out', () => {
+    const md = blockMd({
+      type: 'table', head: ['option', 'latency', 'note'], rows: [['KV', '5 ms', 'x']],
+      align: ['left', 'right'], cells: [{ row: 1, col: 2, tone: 'warn' }],
+    })
+    expect(md).toContain('| option | latency | note |\n| :--- | ---: | --- |')
+    expect(md).not.toContain('warn')
+  })
+
+  it('adds a numbered step list after a seq diagram when any step has list text', () => {
+    const md = blockMd({
+      type: 'seq', actors: ['web', 'api'],
+      steps: [{ from: 'web', to: 'api', label: 'GET /orders', text: 'Client sends GET /orders' }, { from: 'api', to: 'web', label: '200' }],
+    })
+    expect(md).toContain('web->>api: GET /orders')
+    expect(md).toContain('```\n\nSteps:\n1. Client sends GET /orders\n2. 200')
+    expect(blockMd({ type: 'seq', actors: ['web', 'api'], steps: [{ from: 'web', to: 'api', label: 'GET' }] })).not.toContain('Steps:')
+  })
+
+  it('names the histogram threshold and the first bin past it', () => {
+    const bins = [{ label: '1', count: 4 }, { label: '2', count: 2 }, { label: '3 s', count: 1 }]
+    expect(blockMd({ type: 'histogram', bins, threshold: { bin: 3, label: 'p95', value: '2.4 s' } }))
+      .toContain('| 3 s | 1 |\n\nThreshold: p95 2.4 s (bins from "3 s" on are past it)')
+    expect(blockMd({ type: 'histogram', bins, threshold: { bin: 9, label: 'SLO' } })).toMatch(/Threshold: SLO\n?$/)
+  })
+
+  it('leaves state and transition tones and the layers diff link out of the mermaid', () => {
+    const state = blockMd({
+      type: 'state', initial: 'a',
+      states: [{ id: 'a', label: 'A', tone: 'good' }, { id: 'b', label: 'B', tone: 'bad' }],
+      transitions: [{ from: 'a', to: 'b', label: 'fail', tone: 'bad' }],
+    })
+    expect(state).toContain('  a: A\n  b: B\n  a --> b: fail\n```')
+    const layers = blockMd({ type: 'layers', layers: [{ id: 'l', label: 'L', nodes: [{ id: 'n', label: 'N', diffNode: 'limiter' }], edges: [] }] })
+    expect(layers).toContain('    n["N"]\n  end')
+    expect(layers).not.toContain('limiter')
+  })
+
+  it('collapses newlines in new single-line texts', () => {
+    expect(blockMd({ type: 'code', language: 'ts', code: 'a', notes: [{ from: 1, text: 'x\n## injected' }] })).toContain('- L1: x ## injected')
+    const glossary = payloadToMarkdown(withDecisions(undefined, [{ term: 't', def: 'a\n## injected' }]), url)
+    expect(glossary).toContain('- **t**: a ## injected')
+  })
+
+  it('prints a placeholder line for a stored block the schema cannot read', () => {
+    const stored = parseStoredPayload({
+      meta: { title: 'R1' },
+      sections: [{ id: 's1', no: 1, title: 'S', blocks: [{ type: 'hologram' }, { type: 'p', text: 'kept' }] }],
+      decisions: [],
+    })
+    const md = payloadToMarkdown(stored, url)
+    expect(md).toContain('## 1. S\n\n[Block not shown: this version of Brief cannot read a "hologram" block.]\n\nkept')
   })
 })

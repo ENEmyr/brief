@@ -8,8 +8,21 @@ export const BLOCK_TYPES = [
   'heatmap', 'histogram', 'scatter', 'plot3d',
 ] as const
 
+/** Semantic tones; each maps to the --c-<tone>, -soft and -line tokens. */
+export const TONES = ['info', 'good', 'warn', 'bad'] as const
+export const STAT_TONES = ['mauve', 'blue', 'green', 'red', 'peach', 'teal', 'yellow'] as const
+export const ALIGNS = ['left', 'center', 'right'] as const
+export const BA_SIDES = ['before', 'after'] as const
+
 const text = z.string().min(1)
 const label = z.string().min(1).max(300)
+const short = z.string().min(1).max(40)
+const position = z.number().int().min(1)
+const tone = z.enum(TONES)
+const statTone = z.enum(STAT_TONES)
+
+const codeNote = z.object({ from: position, to: position.optional(), text: z.string().min(1).max(280) })
+const baNote = codeNote.extend({ side: z.enum(BA_SIDES) })
 
 const pBlock = z.object({ type: z.literal('p'), text })
 const noteBlock = z.object({ type: z.literal('note'), text, title: label.optional() })
@@ -21,6 +34,8 @@ const tableBlock = z.object({
   head: z.array(label).min(1),
   rows: z.array(z.array(z.string())).min(1),
   caption: label.optional(),
+  align: z.array(z.enum(ALIGNS)).max(50).optional(),
+  cells: z.array(z.object({ row: position, col: position, tone })).max(200).optional(),
 })
 
 const compareSide = z.object({
@@ -38,11 +53,14 @@ const compareBlock = z.object({
 
 const statBlock = z.object({
   type: z.literal('stat'),
+  caption: label.optional(),
   items: z.array(z.object({
     label,
     value: z.string(),
     hint: z.string().optional(),
-    tone: z.enum(['mauve', 'blue', 'green', 'red', 'peach', 'teal', 'yellow']).optional(),
+    tone: statTone.optional(),
+    hintTone: statTone.optional(),
+    spark: z.array(z.number().min(0)).min(2).max(32).optional(),
   })).min(1),
 })
 
@@ -56,15 +74,15 @@ const seqBlock = z.object({
   type: z.literal('seq'),
   title: label.optional(),
   actors: z.array(label).min(2),
-  steps: z.array(z.object({ from: label, to: label, label: z.string(), note: z.string().optional() })).min(1),
+  steps: z.array(z.object({ from: label, to: label, label: z.string(), note: z.string().optional(), text: label.optional() })).min(1),
 })
 
 const stateBlock = z.object({
   type: z.literal('state'),
   title: label.optional(),
   initial: label,
-  states: z.array(z.object({ id: label, label })).min(1),
-  transitions: z.array(z.object({ from: label, to: label, label: z.string().optional() })),
+  states: z.array(z.object({ id: label, label, tone: tone.optional() })).min(1),
+  transitions: z.array(z.object({ from: label, to: label, label: z.string().optional(), tone: tone.optional() })),
 })
 
 const layersBlock = z.object({
@@ -73,7 +91,7 @@ const layersBlock = z.object({
   layers: z.array(z.object({
     id: label,
     label,
-    nodes: z.array(z.object({ id: label, label })).min(1),
+    nodes: z.array(z.object({ id: label, label, diffNode: label.optional() })).min(1),
     edges: z.array(z.object({ from: label, to: label, label: z.string().optional() })),
   })).min(1),
 })
@@ -85,6 +103,8 @@ const baBlock = z.object({
   after: z.string(),
   titleBefore: label.optional(),
   titleAfter: label.optional(),
+  filename: label.optional(),
+  notes: z.array(baNote).max(30).optional(),
 })
 
 export const BIGO_CURVES = ['1', 'logn', 'sqrt', 'n', 'nlogn', 'n2', 'n3', '2n'] as const
@@ -101,6 +121,7 @@ const codeBlock = z.object({
   code: z.string(),
   filename: label.optional(),
   highlight: z.array(z.number().int().min(1)).optional(),
+  notes: z.array(codeNote).max(30).optional(),
 })
 
 const mermaidBlock = z.object({ type: z.literal('mermaid'), code: z.string().min(1), title: label.optional() })
@@ -132,6 +153,7 @@ const histogramBlock = z.object({
   type: z.literal('histogram'),
   title: label.optional(),
   bins: z.array(z.object({ label, count: z.number() })).min(1),
+  threshold: z.object({ bin: position, label: short, value: short.optional() }).optional(),
 })
 
 const scatterBlock = z.object({
@@ -182,6 +204,7 @@ export const decisionSchema = z.object({
   why: z.string().optional(),
   cmp: tableBlock.omit({ type: true }).optional(),
   dia: z.string().optional(),
+  refs: z.array(label).max(6).optional(),
 })
 
 export const metaSchema = z.object({
@@ -196,10 +219,17 @@ export const metaSchema = z.object({
   subtitle: label.optional(),
 })
 
+export const glossaryEntrySchema = z.object({
+  term: label,
+  def: z.string().min(1).max(400),
+  aliases: z.array(label).max(5).optional(),
+})
+
 export const payloadSchema = z.object({
   meta: metaSchema,
   sections: z.array(sectionSchema).min(1),
   decisions: z.array(decisionSchema),
+  glossary: z.array(glossaryEntrySchema).max(60).optional(),
 })
 
 export type Payload = z.infer<typeof payloadSchema>
@@ -207,6 +237,14 @@ export type Section = z.infer<typeof sectionSchema>
 export type Block = z.infer<typeof blockSchema>
 export type Decision = z.infer<typeof decisionSchema>
 export type Meta = z.infer<typeof metaSchema>
+export type GlossaryEntry = z.infer<typeof glossaryEntrySchema>
+export type Tone = (typeof TONES)[number]
+export type StatTone = (typeof STAT_TONES)[number]
+export type Align = (typeof ALIGNS)[number]
+export type CodeNote = z.infer<typeof codeNote>
+export type BaNote = z.infer<typeof baNote>
+export type TableCell = NonNullable<z.infer<typeof tableBlock>['cells']>[number]
+export type HistogramThreshold = NonNullable<z.infer<typeof histogramBlock>['threshold']>
 
 /** A stored block the deployed schema cannot read (a type from a newer or
  * rolled-back schema, or a shape a cap now rejects), kept verbatim. */
