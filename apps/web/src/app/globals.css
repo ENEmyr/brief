@@ -615,6 +615,21 @@ body {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
+  /* B-Print:58-66: agent notes on code print as letters after the line and a
+     lettered list under the listing, not as hover text. */
+  [data-print-letter]::after {
+    content: '[' attr(data-print-letter) ']';
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  [data-print-notes] {
+    margin: 8px 0 4px;
+    padding: 0 10px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 22px;
+  }
 
   /* Reset any pan/zoom the reader left on a diagram: the transform is inline,
      and printing it mid-gesture crops the diagram against its own card.

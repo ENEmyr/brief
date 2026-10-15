@@ -1,13 +1,16 @@
 'use client'
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import type { Element as HastElement } from 'hast'
 import { useReaderState } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
+import type { CodeNote } from '@brief/schema'
 import { highlightToHast } from '../../services/shiki'
 import type { BlockAnchor } from '../blockAnchor'
+import { FOCUS_RING } from '../topbarChrome'
+import { notesByLine, placeNotes, type PlacedNote } from './codeNotes'
 import {
   extractLineNodes,
   highlightsForLine,
@@ -193,6 +196,7 @@ export function CodeRow({
   number,
   gutter,
   tone,
+  notes = NO_NOTES,
   sid,
   bid,
   path,
@@ -206,6 +210,8 @@ export function CodeRow({
   /** Width class of the gutter: the boards draw 26 for code, 28 for before and after. */
   gutter: string
   tone?: LineTone
+  /** Agent notes whose range ends on this line (B-NewBlocks:126-131). */
+  notes?: PlacedNote[]
   sid?: number
   bid?: number
   path: string
@@ -216,8 +222,20 @@ export function CodeRow({
   const style = tone === undefined ? undefined : ROW_TONE[tone]
   // A stable plain line until shiki's arrives, so CodeLine's memo holds.
   const line = useMemo(() => node ?? plainLine(text), [node, text])
-  return (
-    <span data-tone={tone} className={`flex px-3 ${style?.row ?? ''}`}>
+  const [pinned, setPinned] = useState<ReadonlySet<string>>(NO_PINS)
+  const setPin = (key: string, on: boolean) =>
+    setPinned((prev) => {
+      if (prev.has(key) === on) return prev
+      const next = new Set(prev)
+      if (on) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  const row = (
+    <span
+      data-tone={tone}
+      className={`flex px-3 ${style?.row ?? ''} ${notes.length ? 'group/row hover:bg-[var(--c-code-line)]' : ''}`}
+    >
       <span
         aria-hidden="true"
         className={`${gutter} shrink-0 select-none ${style?.number ?? 'text-faint'}`}
@@ -234,7 +252,106 @@ export function CodeRow({
         highlights={highlights}
         onMarkClick={onMarkClick ?? ignoreMarkClick}
       />
+      {notes.map((note) => (
+        <NoteMarker
+          key={note.key}
+          note={note}
+          pinned={pinned.has(note.key)}
+          onPin={(on) => setPin(note.key, on)}
+        />
+      ))}
     </span>
+  )
+  if (!notes.length) return row
+  return (
+    <>
+      {row}
+      {notes.map((note) =>
+        pinned.has(note.key) ? <PinnedNote key={note.key} note={note} /> : null,
+      )}
+    </>
+  )
+}
+
+const NO_NOTES: PlacedNote[] = []
+const NO_PINS: ReadonlySet<string> = new Set()
+
+/**
+ * The diamond at the end of a noted line (B-NewBlocks:127-129). Hovering the
+ * row or focusing the diamond shows the note as ghost text; Enter or a click
+ * pins it under the line and the diamond becomes the bordered "note" chip;
+ * Escape unpins. It sits outside the line's [data-hl] leaf and is unselectable,
+ * so highlight offsets and copied code never see it.
+ */
+function NoteMarker({
+  note,
+  pinned,
+  onPin,
+}: {
+  note: PlacedNote
+  pinned: boolean
+  onPin: (on: boolean) => void
+}) {
+  function handleKeyDown(ev: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (ev.key === 'Escape' && pinned) {
+      ev.stopPropagation()
+      onPin(false)
+    }
+  }
+  return (
+    <>
+      <button
+        type="button"
+        data-code-note={note.range}
+        aria-expanded={pinned}
+        aria-label={`Agent note ${note.range}`}
+        onClick={() => onPin(!pinned)}
+        onKeyDown={handleKeyDown}
+        className={`group/note relative ml-3 inline-flex min-h-6 shrink-0 select-none items-center self-center whitespace-nowrap rounded-[3px] border px-1.5 font-mono text-[11px] leading-6 text-info max-[880px]:-my-2.5 max-[880px]:min-h-11 max-[880px]:min-w-11 max-[880px]:justify-center print:hidden ${pinned ? 'border-info-line bg-info-soft' : 'border-transparent bg-transparent'} ${FOCUS_RING}`}
+      >
+        <span aria-hidden="true">{pinned ? '\u25C6 note' : '\u25C6'}</span>
+        {pinned ? null : (
+          <span
+            data-code-note-ghost=""
+            className="console-fade ml-1 hidden font-sans text-[12px] group-hover/row:inline group-focus-visible/note:inline"
+          >
+            {note.text}
+          </span>
+        )}
+      </button>
+      <span
+        aria-hidden="true"
+        data-print-letter={note.letter}
+        className="hidden select-none print:ml-3 print:inline"
+      />
+    </>
+  )
+}
+
+/** B-NewBlocks:131: the pinned note, under the line, labelled with its range. */
+function PinnedNote({ note }: { note: PlacedNote }) {
+  return (
+    <span
+      data-code-note-pinned={note.range}
+      className="console-pop mt-1 mr-3 mb-1.5 ml-[38px] flex select-none flex-col gap-1 whitespace-normal rounded-[4px] border border-info-line bg-info-soft px-3 py-2.5 font-sans text-[13px] leading-5 text-text [contain:inline-size] print:hidden"
+    >
+      <span className="font-mono text-[10px] leading-normal text-info">AGENT / {note.range}</span>
+      {note.text}
+    </span>
+  )
+}
+
+/** B-Print:65-68: agent notes print as lettered notes under the listing. */
+export function PrintedNotes({ notes }: { notes: readonly PlacedNote[] }) {
+  if (!notes.length) return null
+  return (
+    <ol data-print-notes="" className="hidden list-none print:block">
+      {notes.map((note) => (
+        <li key={note.key}>
+          <b>[{note.letter}]</b> {note.text}
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -246,6 +363,7 @@ export function CodePre({
   code,
   language,
   highlightLines,
+  notes,
   pathPrefix = '',
   annotatable = true,
   ...anchor
@@ -254,27 +372,35 @@ export function CodePre({
   language: string
   /** 1-based lines the agent marked (code.highlight); tinted as on B-Reader:157. */
   highlightLines?: number[]
+  notes?: readonly CodeNote[]
 } & BlockAnchor) {
   const highlighted = useHighlightedCode(code, language)
   const { highlights } = useReaderState()
   const marked = new Set(highlightLines)
+  const lines = code.split('\n')
+  const placed = useMemo(() => placeNotes(notes, { code: lines.length }), [notes, lines.length])
+  const byLine = useMemo(() => notesByLine(placed), [placed])
 
   return (
-    <CodePanel highlighted={highlighted} className="py-2 text-[13px] leading-6">
-      {code.split('\n').map((text, i) => (
-        <CodeRow
-          key={i}
-          node={highlighted?.lines[i]}
-          text={text}
-          number={i + 1}
-          gutter="w-[26px]"
-          tone={marked.has(i + 1) ? 'mark' : undefined}
-          path={`${pathPrefix}code.${i}`}
-          annotatable={annotatable}
-          highlights={highlights}
-          {...anchor}
-        />
-      ))}
-    </CodePanel>
+    <>
+      <CodePanel highlighted={highlighted} className="py-2 text-[13px] leading-6">
+        {lines.map((text, i) => (
+          <CodeRow
+            key={i}
+            node={highlighted?.lines[i]}
+            text={text}
+            number={i + 1}
+            gutter="w-[26px]"
+            tone={marked.has(i + 1) ? 'mark' : undefined}
+            notes={byLine.get(`code.${i}`)}
+            path={`${pathPrefix}code.${i}`}
+            annotatable={annotatable}
+            highlights={highlights}
+            {...anchor}
+          />
+        ))}
+      </CodePanel>
+      <PrintedNotes notes={placed} />
+    </>
   )
 }
