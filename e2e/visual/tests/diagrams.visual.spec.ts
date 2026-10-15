@@ -468,8 +468,9 @@ test.describe('at 1440', () => {
 
     // B-Blocks2:168-170: a code-bg pane padded 16; 36px zoom buttons 28 from
     // the left and 24 from the bottom, 6 apart.
+    // B-Blocks2:166: the kind leads the caption.
     const plot3d = card(page, 'plot3d')
-    await expect(captionOf(plot3d)).toHaveText('latency by RPS and bucket size / surface')
+    await expect(captionOf(plot3d)).toHaveText('surface / latency by RPS and bucket size')
     const pane = plot3d.getByRole('button', { name: 'Zoom in' }).locator('../..')
     await expectComputed(pane, { 'background-color': c.codeBg, 'padding-top': '16px' })
     const zoomIn = plot3d.getByRole('button', { name: 'Zoom in' })
