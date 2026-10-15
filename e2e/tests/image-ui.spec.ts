@@ -25,7 +25,7 @@ const withImage = (imageId: string, title = 'Image UI'): Payload => ({
 
 const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64')
 
-async function sessionKey(password: string, salt: Uint8Array, iterations: number) {
+async function sessionKey(password: string, salt: Uint8Array<ArrayBuffer>, iterations: number) {
   const subtle = globalThis.crypto.subtle
   const base = await subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey'])
   return subtle.deriveKey(
@@ -37,7 +37,7 @@ async function sessionKey(password: string, salt: Uint8Array, iterations: number
   )
 }
 
-async function seal(key: CryptoKey, bytes: Uint8Array) {
+async function seal(key: CryptoKey, bytes: Uint8Array<ArrayBuffer>) {
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12))
   const ciphertext = new Uint8Array(await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes))
   return { iv, ciphertext }
@@ -102,7 +102,7 @@ test.describe('image block in the reader', () => {
     const key = await sessionKey(password, salt, iterations)
 
     const { id } = await createSession(withImage('img_placeholder00001', 'Before encrypt'))
-    const sealed = await seal(key, PNG)
+    const sealed = await seal(key, new Uint8Array(PNG))
     const blob = Buffer.concat([Buffer.from(sealed.iv), Buffer.from(sealed.ciphertext)])
     const upload = await request.post(`${API_URL}/api/session/${id}/image`, {
       headers: { 'content-type': 'application/octet-stream' },
