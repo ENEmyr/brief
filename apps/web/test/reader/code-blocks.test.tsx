@@ -164,6 +164,24 @@ describe('CodeBlock', () => {
     expect(lineSpans[1]).not.toHaveAttribute('data-hl')
   })
 
+  it('renders each blank line as a line break so a copy keeps it, before and after shiki', async () => {
+    // jsdom cannot copy; e2e/tests/code-copy.spec.ts checks the clipboard.
+    const pending = deferred<Root>()
+    highlightMock.mockReturnValue(pending.promise)
+    const lineHtml = () =>
+      [...document.querySelectorAll('code > span > span:last-child')].map((line) => line.innerHTML)
+
+    r({ type: 'code', language: 'ts', code: 'a\n\n\nb\n' })
+
+    expect(lineHtml()).toEqual(['a', '<br>', '<br>', 'b', '<br>'])
+    pending.resolve(hastFor(['a', '', '', 'b', '']))
+    await waitFor(() => expect(document.querySelector('pre.shiki')).not.toBeNull())
+    expect(lineHtml()).toEqual(['a', '<br>', '<br>', 'b', '<br>'])
+    expect(
+      [...document.querySelectorAll('code [data-hl]')].map((line) => line.textContent),
+    ).toEqual(['a', 'b'])
+  })
+
   it('paints a highlight anchored to one code line as a mark', async () => {
     highlightMock.mockReturnValue(Promise.resolve(hastFor(['const a = 1'])))
 

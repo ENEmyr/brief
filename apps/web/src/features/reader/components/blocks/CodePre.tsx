@@ -98,6 +98,9 @@ const CodeLine = memo(function CodeLine({
         : {})}
     >
       {rendered}
+      {/* A row is a block, and a copy gives an empty block no newline; the
+          <br> is the blank line. Empty lines are never [data-hl] leaves. */}
+      {text ? null : <br />}
     </span>
   )
 })
