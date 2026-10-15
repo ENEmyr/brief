@@ -1,6 +1,6 @@
 'use client'
 import { useId, useRef, useState, type FormEvent } from 'react'
-import { payloadSchema, type EncParams, type Payload } from '@brief/schema'
+import { parseStoredPayload, type EncParams, type StoredPayload } from '@brief/schema'
 import { decryptPayload } from '../lib/crypto'
 
 /**
@@ -12,7 +12,7 @@ import { decryptPayload } from '../lib/crypto'
  * component's React state only (never persisted to storage), and a wrong
  * password vs. corrupt/tampered ciphertext are deliberately indistinguishable
  * in the UI -- `decryptPayload` throwing (GCM auth failure) and a successful
- * decrypt that then fails `JSON.parse` or `payloadSchema` both surface the
+ * decrypt that then fails `JSON.parse` or `parseStoredPayload` both surface the
  * exact same copy, so a wrong-password guess can't be told apart from
  * corrupted data by an attacker probing the UI.
  */
@@ -23,7 +23,7 @@ export function UnlockCard({
 }: {
   ciphertext: string
   encParams: EncParams
-  onUnlock: (payload: Payload) => void
+  onUnlock: (payload: StoredPayload) => void
 }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -38,14 +38,13 @@ export function UnlockCard({
     setError(null)
     try {
       const plaintext = await decryptPayload(ciphertext, password, encParams)
-      const parsed = payloadSchema.safeParse(JSON.parse(plaintext))
-      if (!parsed.success) throw new Error('Decrypted payload failed schema validation.')
+      const payload = parseStoredPayload(JSON.parse(plaintext))
       // The caller (SessionView) swaps to the ready view with the decrypted
       // payload once onUnlock fires, normally unmounting this component --
       // busy still resets here regardless, matching SaveModal's settleSave
       // convention of always clearing busy before the success tail runs.
       setBusy(false)
-      onUnlock(parsed.data)
+      onUnlock(payload)
     } catch {
       // Same copy for a WebCrypto auth failure (wrong password), a JSON.parse
       // failure (corrupt ciphertext), and a schema-validation failure

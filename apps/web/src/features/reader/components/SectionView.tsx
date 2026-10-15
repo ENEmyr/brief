@@ -1,4 +1,4 @@
-import type { Block, Section } from '@brief/schema'
+import type { StoredBlock, StoredSection } from '@brief/schema'
 import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
 import { BlockRenderer } from './BlockRenderer'
@@ -20,11 +20,11 @@ export function SectionView({
   flash,
   only,
 }: {
-  section: Section
+  section: StoredSection
   sid: number
   onMarkClick?: (highlight: Highlight) => void
   flash?: number
-  only?: ReadonlySet<Block['type']>
+  only?: ReadonlySet<StoredBlock['type']>
 }) {
   let flashName: 'a' | 'b' | undefined
   if (flash !== undefined) flashName = flash % 2 === 0 ? 'a' : 'b'

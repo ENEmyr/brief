@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import type { Block } from '@brief/schema'
+import type { StoredDetailsBlock } from '@brief/schema'
 import type { Highlight } from '@/features/reader-state'
 import { BlockRenderer } from '../BlockRenderer'
 import { BlockCard, cardHeader } from '../BlockCard'
@@ -24,7 +24,7 @@ export function Details({
   annotatable = true,
   onMarkClick,
 }: {
-  block: Extract<Block, { type: 'details' }>
+  block: StoredDetailsBlock
   sid?: number
   bid?: number
   pathPrefix?: string

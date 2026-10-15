@@ -1,6 +1,6 @@
 'use client'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import type { Payload } from '@brief/schema'
+import type { StoredPayload } from '@brief/schema'
 import { buildEditPrompt } from '@/features/annotations'
 import { useReaderStateStore } from '@/features/reader-state'
 import { copyText } from '../lib/copy'
@@ -78,7 +78,7 @@ export function ExportProvider({
   children,
 }: {
   sessionId: string
-  payload: Payload
+  payload: StoredPayload
   /** When the session expires (epoch ms, from the session GET). */
   expiresAt?: number
   /** Whether the server only holds ciphertext for this session; threaded

@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { payloadToMarkdown } from '@brief/schema'
-import type { Payload } from '@brief/schema'
+import type { StoredPayload } from '@brief/schema'
 import { Toc, useActiveSection } from '@/features/toc'
 import type { TocMark } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
@@ -64,7 +64,7 @@ function storeTocCollapsed(collapsed: boolean) {
 }
 
 /** Reader highlights for the outline's "Your marks", in reading order. */
-function marksOf(highlights: Highlight[], sections: Payload['sections']): TocMark[] {
+function marksOf(highlights: Highlight[], sections: StoredPayload['sections']): TocMark[] {
   return [...highlights]
     .sort((a, b) => a.sid - b.sid || (a.bid ?? -1) - (b.bid ?? -1) || a.start - b.start)
     .flatMap((h) => {
@@ -458,7 +458,7 @@ export function SessionView({ id }: { id: string | null }) {
   // Memory-only: never written to sessionStorage/localStorage/IndexedDB.
   // Losing this state (reload, navigating away) re-locks the session, which
   // is the intended behavior for a zero-knowledge protected doc.
-  const [decrypted, setDecrypted] = useState<Payload | null>(null)
+  const [decrypted, setDecrypted] = useState<StoredPayload | null>(null)
 
   if (status === 'notfound') {
     return (

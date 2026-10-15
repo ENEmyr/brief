@@ -161,7 +161,7 @@ test.describe('at 1440', () => {
     await openReader(page)
     const figure = page.locator('section#s2 figure').filter({ has: page.locator('[data-actor]') })
     const canvas = seqCanvas(figure)
-    // B-Reader:131: 640 x 400, centered in a body padded 16 top and bottom.
+    // B-Reader:128: 640 x 400, centered in a body padded 16 top and bottom.
     expectNear(await rel(canvas, canvas), { width: 640, height: 400 }, 'canvas')
     await expect(captionOf(figure)).toHaveText('6 messages')
     // B-Reader:128: Play is the accent button; at rest there is no step label.

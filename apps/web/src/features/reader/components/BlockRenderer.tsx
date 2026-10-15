@@ -2,9 +2,9 @@
 import { Component, createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import dynamic from 'next/dynamic'
-import type { Block } from '@brief/schema'
+import type { Block, StoredBlock } from '@brief/schema'
 import type { BlockAnchor } from './blockAnchor'
-import { BlockCard, LOADING, cardHeader } from './BlockCard'
+import { BlockCard, LOADING, MATH_BODY, cardHeader } from './BlockCard'
 import { Paragraph } from './blocks/Paragraph'
 import { Callout } from './blocks/Callout'
 import { DataTable } from './blocks/DataTable'
@@ -41,7 +41,7 @@ function LazyBlockLoading() {
     return (
       <BlockCard
         {...cardHeader(block, anchor)}
-        captionSuffix={diagramDeclaration(block.code)}
+        captionPrefix={diagramDeclaration(block.code)}
         fullScreen="pending"
         state={LOADING.diagram}
       >
@@ -53,8 +53,8 @@ function LazyBlockLoading() {
   }
   return (
     <BlockCard {...cardHeader(block, anchor)} state={LOADING.math}>
-      <div className="p-3">
-        <div className="sk h-32" style={{ borderRadius: 4 }} />
+      <div className={MATH_BODY}>
+        <div className="sk self-stretch flex-1 rounded-[4px]" />
       </div>
     </BlockCard>
   )
@@ -70,14 +70,14 @@ const DynamicMermaidBlock = dynamic<{ block: Extract<Block, { type: 'mermaid' }>
   { ssr: false, loading: LazyBlockLoading },
 )
 
-class BlockBoundary extends Component<{ block: Block; children: ReactNode }, { failed: boolean }> {
+class BlockBoundary extends Component<{ block: StoredBlock; children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
 
   static getDerivedStateFromError() {
     return { failed: true }
   }
 
-  componentDidUpdate(previous: { block: Block }) {
+  componentDidUpdate(previous: { block: StoredBlock }) {
     if (this.state.failed && previous.block !== this.props.block) this.setState({ failed: false })
   }
 
@@ -103,7 +103,7 @@ export function BlockRenderer({
   pathPrefix = '',
   annotatable = true,
   onMarkClick,
-}: { block: Block } & BlockAnchor) {
+}: { block: StoredBlock } & BlockAnchor) {
   // Every block takes the same anchor: which section, which block, and where in
   // the payload this block's leaves live. A diagram or a code block gets it too
   // — its title/filename header is prose the reader can question, and used to be
@@ -113,7 +113,7 @@ export function BlockRenderer({
   return <BlockBoundary block={block}>{renderBlock(block, anchor)}</BlockBoundary>
 }
 
-function renderBlock(block: Block, anchor: BlockAnchor): ReactNode {
+function renderBlock(block: StoredBlock, anchor: BlockAnchor): ReactNode {
   switch (block.type) {
     case 'p':
       return <Paragraph block={block} {...anchor} />
@@ -165,6 +165,8 @@ function renderBlock(block: Block, anchor: BlockAnchor): ReactNode {
       return <Scatter block={block} {...anchor} />
     case 'plot3d':
       return <Plot3d block={block} {...anchor} />
+    case 'unreadable':
+      return <UnknownBlock block={block.raw} />
     default:
       return <UnknownBlock block={block} />
   }

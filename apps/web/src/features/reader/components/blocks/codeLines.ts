@@ -60,8 +60,7 @@ function isElementWithTag(tagName: string) {
 /**
  * shiki is inconsistent about how it stores an element's `class`: a plain,
  * never-transformed line is a space-joined STRING (`"line"`), but its own
- * `addClassToHast` (used by the `highlightLines` transformer in shiki.ts)
- * rewrites it into a string ARRAY the moment a second class is added
+ * `addClassToHast` rewrites it into a string ARRAY the moment a second class is added
  * (`["line", "hl-line"]`). Every reader here has to accept both shapes, or a
  * highlighted line silently falls out of a `typeof === 'string'` check.
  */

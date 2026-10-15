@@ -1,4 +1,4 @@
-import type { Block, Payload } from '@brief/schema'
+import type { Block, StoredBlock, StoredPayload } from '@brief/schema'
 
 export type PaletteEntry =
   | { kind: 'decision'; key: string; decisionId: string; label: string; keywords: string }
@@ -49,8 +49,9 @@ const BLOCK_STRINGS: { [T in Block['type']]: (block: BlockOf<T>) => (string | un
   plot3d: (b) => [b.title],
 }
 
-function blockStrings(block: Block): string[] {
-  const extract = BLOCK_STRINGS[block.type] as (block: Block) => (string | undefined)[]
+function blockStrings(block: StoredBlock): string[] {
+  if (block.type === 'unreadable') return []
+  const extract = BLOCK_STRINGS[block.type] as (block: StoredBlock) => (string | undefined)[]
   return extract(block).flatMap((text) => {
     const label = text?.trim()
     return label ? [label] : []
@@ -58,7 +59,7 @@ function blockStrings(block: Block): string[] {
 }
 
 /** Sections, blocks and decisions of a payload (no actions; the shell adds those). */
-export function buildDocumentEntries(payload: Payload): PaletteEntry[] {
+export function buildDocumentEntries(payload: StoredPayload): PaletteEntry[] {
   const decisions = payload.decisions.map(
     (decision): PaletteEntry => ({
       kind: 'decision',

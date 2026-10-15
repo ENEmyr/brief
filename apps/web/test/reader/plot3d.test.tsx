@@ -278,10 +278,10 @@ describe('Plot3d component', () => {
     expect(screen.getByText('Loss surface')).toBeInTheDocument()
   })
 
-  it('names the plot kind in the caption, after the title when there is one (B-Blocks2:166)', () => {
+  it('names the plot kind in the caption, before the title when there is one (B-Blocks2:166)', () => {
     const { rerender } = render(<Plot3d block={{ ...scatterBlock, kind: 'surface' }} />)
     expect(screen.getByText('plot3d').nextElementSibling).toHaveTextContent(/^surface$/)
     rerender(<Plot3d block={{ ...scatterBlock, kind: 'surface', title: 'latency by RPS' }} />)
-    expect(screen.getByText('plot3d').nextElementSibling).toHaveTextContent(/^latency by RPS \/ surface$/)
+    expect(screen.getByText('plot3d').nextElementSibling).toHaveTextContent(/^surface \/ latency by RPS$/)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react'
 import { BLOCK_TYPES, type Block } from '@brief/schema'
 import { BlockRenderer } from '@/features/reader'
 import { ReaderStateProvider } from '@/features/reader-state'
@@ -209,6 +209,23 @@ describe('BlockCard', () => {
     expect(caption.nextElementSibling).toHaveTextContent('log scale')
   })
 
+  it('draws a kind word before the title with " / ", and alone without one (B-Blocks2:97, B-Blocks2:166, B-States:93)', () => {
+    const { rerender } = render(
+      <BlockCard kind="plot3d" captionPrefix="surface" caption={{ text: 'latency by RPS', path: 'title' }} />,
+    )
+    const caption = () => screen.getByText('plot3d').nextElementSibling as HTMLElement
+    expect(caption()).toHaveTextContent(/^surface \/ latency by RPS$/)
+    rerender(<BlockCard kind="plot3d" captionPrefix="surface" />)
+    expect(caption()).toHaveTextContent(/^surface$/)
+    rerender(<BlockCard kind="erd" captionPrefix="a" caption={{ text: 'b', path: 'title' }} captionSuffix="c" />)
+    expect(screen.getByText('erd').nextElementSibling).toHaveTextContent(/^a \/ b \/ c$/)
+  })
+
+  it('mermaid leads its loading caption with the declaration, as the drawn card does (B-Blocks2:97)', () => {
+    renderBlock({ type: 'mermaid', code: 'flowchart LR\n  A --> B', title: 'Login flow' })
+    expect(screen.getByText('mermaid').nextElementSibling).toHaveTextContent(/^flowchart LR \/ Login flow$/)
+  })
+
   it('renders no full-screen button and no zoom controls without fullScreen', () => {
     render(
       <BlockCard kind="code">
@@ -371,6 +388,24 @@ describe('unknown block (B-States)', () => {
     const summary = screen.getByText('Show raw block')
     expect(summary.tagName).toBe('SUMMARY')
     expect(summary.closest('details')?.textContent).toContain('"MARKER"')
+  })
+})
+
+describe('unreadable stored block (B6)', () => {
+  it('draws the stored type and its raw JSON in a details element, inside details too', () => {
+    const hologram = { type: 'hologram', frames: 3 }
+    renderBlock({ type: 'unreadable', raw: hologram } as never)
+    expect(screen.getByText('hologram')).toHaveAttribute('data-kind-tag')
+    expect(screen.getByText('Show raw block').closest('details')?.textContent).toContain('"frames": 3')
+    cleanup()
+    renderBlock({
+      type: 'details',
+      summary: 'More',
+      blocks: [{ type: 'p', text: 'inner' }, { type: 'unreadable', raw: hologram }],
+    } as never)
+    fireEvent.click(screen.getByText('More'))
+    expect(screen.getByText('inner')).toBeInTheDocument()
+    expect(screen.getByText('hologram')).toHaveAttribute('data-kind-tag')
   })
 })
 

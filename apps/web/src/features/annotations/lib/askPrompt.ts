@@ -1,4 +1,4 @@
-import type { Section } from '@brief/schema'
+import type { StoredSection } from '@brief/schema'
 import { DEFAULT_HIGHLIGHT_PATH } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 
@@ -30,7 +30,7 @@ export function describeLocation(h: Highlight): string {
  * fragment, mirroring the prototype's own fallback. */
 export function buildAskPrompt(
   h: Highlight,
-  sections: Section[],
+  sections: StoredSection[],
   sessionId: string,
   origin: string,
   docTitle: string,

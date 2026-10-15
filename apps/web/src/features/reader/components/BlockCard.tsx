@@ -1,6 +1,6 @@
 'use client'
-import type { ReactNode } from 'react'
-import type { Block } from '@brief/schema'
+import { Fragment, type ReactNode } from 'react'
+import type { StoredBlock, UnreadableBlock } from '@brief/schema'
 import { CardCaption } from './CardCaption'
 import { BlockError, RawBlock, type BlockErrorMessage } from './BlockError'
 import { FOCUS_RING } from './topbarChrome'
@@ -32,6 +32,8 @@ export interface BlockCardProps extends CaptionAnchor {
    * (B-Reader:126).
    */
   captionSuffix?: string
+  /** A kind word drawn before the title: "surface / title" (B-Blocks2:166), "flowchart LR / title" (B-Blocks2:97). */
+  captionPrefix?: string
   /** Right-hand header text the boards draw: "3 rows", "log scale", "p95 marked". */
   meta?: ReactNode
   controls?: ReactNode
@@ -50,9 +52,17 @@ export const LOADING = {
   math: { status: 'loading', label: 'loading math' },
 } as const satisfies Record<string, BlockCardState>
 
+/**
+ * A lazy block keeps its final height from first paint (B-States:105-108). The
+ * math body reserves the board's formula box, 49 high (B-Blocks:169), from the
+ * chunk's loading card through the KaTeX source to the drawn formula.
+ */
+export const MATH_BODY = 'flex min-h-[49px] items-center justify-center-safe overflow-x-auto p-3'
+
 export function BlockCard({
   kind,
   caption,
+  captionPrefix,
   captionSuffix,
   meta,
   controls,
@@ -84,16 +94,20 @@ export function BlockCard({
           {kind}
         </span>
         <span className="min-w-0 flex-1 break-words">
-          {state.status === 'unsupported' ? (
-            'not supported here'
-          ) : caption ? (
-            <>
-              <CardCaption {...anchor} text={caption.text} path={caption.path} />
-              {captionSuffix ? ` / ${captionSuffix}` : null}
-            </>
-          ) : (
-            captionSuffix
-          )}
+          {state.status === 'unsupported'
+            ? 'not supported here'
+            : [
+                captionPrefix,
+                caption && <CardCaption {...anchor} text={caption.text} path={caption.path} />,
+                captionSuffix,
+              ]
+                .filter(Boolean)
+                .map((part, i) => (
+                  <Fragment key={i}>
+                    {i > 0 ? ' / ' : null}
+                    {part}
+                  </Fragment>
+                ))}
         </span>
         {meta}
         {state.status === 'loading' ? (
@@ -157,7 +171,10 @@ function FullScreenIcon() {
   )
 }
 
-function captionLeaf(block: Block): CardLeaf | undefined {
+/** Every block a card header can name; an unreadable block draws UnknownBlock's card instead. */
+type CardBlock = Exclude<StoredBlock, UnreadableBlock>
+
+function captionLeaf(block: CardBlock): CardLeaf | undefined {
   switch (block.type) {
     case 'table':
     case 'compare':
@@ -195,7 +212,7 @@ function captionLeaf(block: Block): CardLeaf | undefined {
 }
 
 export function cardHeader(
-  block: Block,
+  block: CardBlock,
   { sid, bid, pathPrefix = '', annotatable = true, onMarkClick }: BlockAnchor,
 ): Pick<BlockCardProps, 'kind' | 'caption' | 'sid' | 'bid' | 'annotatable' | 'onMarkClick'> {
   const leaf = captionLeaf(block)

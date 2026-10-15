@@ -1,4 +1,4 @@
-import type { Payload } from '@brief/schema'
+import type { StoredPayload } from '@brief/schema'
 import { decisionAnswerLines, isAnswered } from '@/features/decisions'
 import type { ReaderState } from '@/features/reader-state'
 import { API_URL } from '@/shared/api'
@@ -25,7 +25,7 @@ import { describeLocation, pad } from './askPrompt'
  * to refuse to copy anything and say so instead.
  */
 export function buildEditPrompt(
-  payload: Payload,
+  payload: StoredPayload,
   state: ReaderState,
   sessionId: string,
   origin: string,

@@ -1,4 +1,4 @@
-import type { Decision, Payload } from '@brief/schema'
+import type { Decision, StoredPayload } from '@brief/schema'
 import { otherLabel } from '@/features/decisions'
 import type { ReaderState } from '@/features/reader-state'
 import { printedLine, sessionLine, type PrintSnapshot } from '../lib/printSheet'
@@ -12,7 +12,7 @@ export function PrintHeader({
   sessionId,
   snapshot,
 }: {
-  payload: Payload
+  payload: StoredPayload
   sessionId: string
   snapshot: PrintSnapshot
 }) {

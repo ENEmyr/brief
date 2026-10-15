@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import type { Payload } from '@brief/schema'
+import { serializeStoredPayload, type StoredPayload } from '@brief/schema'
 import { Dialog, DialogActions, DialogIcon, PRIMARY_BUTTON, SECONDARY_BUTTON, useExport } from '@/features/export'
 import { encryptPayload } from '../lib/crypto'
 import { ARCHIVE_FAILED, saveSession } from '../lib/api'
@@ -42,7 +42,7 @@ export function SaveModal({
   onBackgroundSaveSettled,
 }: {
   sessionId: string
-  payload: Payload
+  payload: StoredPayload
   onClose: () => void
   onSaved: (mode: SaveMode) => void
   /**
@@ -163,7 +163,7 @@ export function SaveModal({
   }
 
   async function submitEncrypt() {
-    const plaintext = JSON.stringify(payload)
+    const plaintext = serializeStoredPayload(payload)
     const plaintextBytes = new TextEncoder().encode(plaintext).byteLength
     if (projectedCiphertextChars(plaintextBytes) > MAX_CIPHERTEXT_CHARS) {
       fail(TOO_LARGE, false)

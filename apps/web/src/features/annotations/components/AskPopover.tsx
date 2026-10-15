@@ -1,5 +1,5 @@
 'use client'
-import type { Section } from '@brief/schema'
+import type { StoredSection } from '@brief/schema'
 import { useReaderActions, useReaderState } from '@/features/reader-state'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { defaultCopyText } from '../lib/clipboard'
@@ -23,7 +23,7 @@ export function AskPopover({
   copyText = defaultCopyText,
 }: {
   id: string
-  sections: Section[]
+  sections: StoredSection[]
   sessionId: string
   docTitle: string
   onClose: () => void

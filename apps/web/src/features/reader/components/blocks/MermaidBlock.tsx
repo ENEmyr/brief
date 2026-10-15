@@ -214,7 +214,7 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
       source: block.code,
       lineNumber: failure.line,
     }
-    return <BlockCard {...cardHeader(block, anchor)} captionSuffix={declaration} state={state} />
+    return <BlockCard {...cardHeader(block, anchor)} captionPrefix={declaration} state={state} />
   }
 
   const controls = diagram ? <ViewToggle view={view} onChange={setView} /> : undefined
@@ -222,7 +222,7 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
   return (
     <BlockCard
       {...cardHeader(block, anchor)}
-      captionSuffix={declaration}
+      captionPrefix={declaration}
       controls={controls}
       fullScreen={diagram ? onFullScreen : 'pending'}
       state={diagram ? undefined : LOADING.diagram}

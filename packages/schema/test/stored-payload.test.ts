@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseStoredPayload } from '../src'
+import { parseStoredPayload, serializeStoredPayload } from '../src'
 
 const stored = (blocks: unknown[]) => ({
   meta: { title: 'Stored' },
@@ -23,6 +23,15 @@ describe('parseStoredPayload', () => {
       { type: 'unreadable', raw: tooWide },
       { type: 'details', summary: 'More', blocks: [{ type: 'p', text: 'inner' }, { type: 'unreadable', raw: hologram }] },
     ])
+  })
+
+  it('writes every unreadable block back as the JSON it was read from', () => {
+    const original = stored([
+      { type: 'p', text: 'kept' },
+      { type: 'hologram', frames: 3 },
+      { type: 'details', summary: 'More', blocks: [{ type: 'p', text: 'inner' }, { type: 'hologram', frames: 4 }] },
+    ])
+    expect(JSON.parse(serializeStoredPayload(parseStoredPayload(original)))).toEqual(original)
   })
 
   it('still rejects a payload whose damage is outside the blocks', () => {
