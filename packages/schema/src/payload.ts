@@ -207,3 +207,44 @@ export type Section = z.infer<typeof sectionSchema>
 export type Block = z.infer<typeof blockSchema>
 export type Decision = z.infer<typeof decisionSchema>
 export type Meta = z.infer<typeof metaSchema>
+
+/** A stored block the deployed schema cannot read (a type from a newer or
+ * rolled-back schema, or a shape a cap now rejects), kept verbatim. */
+export interface UnreadableBlock {
+  type: 'unreadable'
+  raw: unknown
+}
+type NonRecursiveBlock = z.infer<typeof nonRecursiveBlock>
+type DetailsBlock = z.infer<typeof detailsBlock>
+export type StoredDetailsBlock = Omit<DetailsBlock, 'blocks'> & { blocks: (NonRecursiveBlock | UnreadableBlock)[] }
+export type StoredBlock = Exclude<Block, DetailsBlock> | StoredDetailsBlock | UnreadableBlock
+export type StoredSection = Omit<Section, 'blocks'> & { blocks: StoredBlock[] }
+export type StoredPayload = Omit<Payload, 'sections'> & { sections: StoredSection[] }
+
+const looseDetailsSchema = detailsBlock.extend({ blocks: z.array(z.unknown()).min(1) })
+const storedPayloadSchema = payloadSchema.extend({
+  sections: z.array(sectionSchema.extend({ blocks: z.array(z.unknown()).min(1) })).min(1),
+})
+
+function readNestedBlock(raw: unknown): NonRecursiveBlock | UnreadableBlock {
+  const parsed = nonRecursiveBlock.safeParse(raw)
+  return parsed.success ? parsed.data : { type: 'unreadable', raw }
+}
+
+function readBlock(raw: unknown): StoredBlock {
+  const parsed = blockSchema.safeParse(raw)
+  if (parsed.success) return parsed.data
+  const details = looseDetailsSchema.safeParse(raw)
+  if (details.success) return { ...details.data, blocks: details.data.blocks.map(readNestedBlock) }
+  return { type: 'unreadable', raw }
+}
+
+/**
+ * Parses a payload read back from storage. Unlike `payloadSchema`, a block the
+ * schema rejects becomes an `UnreadableBlock` instead of failing the whole
+ * document. Anything outside the blocks must still parse; that throws.
+ */
+export function parseStoredPayload(data: unknown): StoredPayload {
+  const loose = storedPayloadSchema.parse(data)
+  return { ...loose, sections: loose.sections.map((s) => ({ ...s, blocks: s.blocks.map(readBlock) })) }
+}

@@ -1,6 +1,6 @@
-import type { Block, Decision, Payload } from './payload'
+import type { Decision, StoredBlock, StoredPayload, UnreadableBlock } from './payload'
 
-type BlockOf<T extends Block['type']> = Extract<Block, { type: T }>
+type BlockOf<T extends StoredBlock['type']> = Extract<StoredBlock, { type: T }>
 
 const mmId = (s: string) => s.replace(/\W/g, '_')
 
@@ -204,7 +204,13 @@ function emitPlot3d(b: BlockOf<'plot3d'>): string {
   return `3D plot (${b.kind})${title}${points}`
 }
 
-function blockToMarkdown(b: Block): string {
+function emitUnreadable(b: UnreadableBlock): string {
+  const raw = b.raw as { type?: unknown } | null
+  const type = typeof raw?.type === 'string' ? raw.type.replace(/[^\w-]/g, '').slice(0, 40) : ''
+  return `[Block not shown: this version of Brief cannot read a "${type || 'unknown'}" block.]`
+}
+
+function blockToMarkdown(b: StoredBlock): string {
   switch (b.type) {
     case 'p': return b.text
     case 'note': return emitCallout('NOTE', b)
@@ -228,6 +234,7 @@ function blockToMarkdown(b: Block): string {
     case 'histogram': return emitHistogram(b)
     case 'scatter': return emitScatter(b)
     case 'plot3d': return emitPlot3d(b)
+    case 'unreadable': return emitUnreadable(b)
     default: return assertNever(b)
   }
 }
@@ -244,7 +251,7 @@ function decisionToMarkdown(d: Decision): string {
   return `### ${d.q}\n\n(id: \`${d.id}\`, ${mode})\n\n${opts}${why}`
 }
 
-export function payloadToMarkdown(payload: Payload, opts: { url: string }): string {
+export function payloadToMarkdown(payload: StoredPayload, opts: { url: string }): string {
   const parts: string[] = []
   parts.push(
     `<!--\nThis file is the complete machine-readable source of the Brief session at\n${opts.url}\nAgents: read this file directly. Do not scrape the HTML page.\nBlock semantics: mermaid fences are diagrams, $$ fences are LaTeX math,\ncode fences carry the original language tag, github alerts are callouts.\n-->`,
