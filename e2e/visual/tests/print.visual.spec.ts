@@ -83,14 +83,14 @@ test('prints code light inside a 1px rule, with its note after the listing', asy
     'background-color': 'rgba(0, 0, 0, 0)',
     'white-space': 'pre-wrap',
   })
-  const panel = page.locator('div:has(> pre.shiki)').first()
+  const panel = page.locator('figure:has(> pre.shiki)').first()
   await expectComputed(panel, {
     'border-top-width': '1px',
     'border-top-style': 'solid',
     'border-top-color': INK,
   })
-  await expectComputed(code.locator('.hl-line').first(), {
-    'background-color': 'rgb(238, 248, 217)',
+  await expectComputed(code.locator('[data-tone="mark"]').first(), {
+    'background-color': 'rgb(241, 243, 244)',
     'print-color-adjust': 'exact',
   })
   await expect(panel.locator('xpath=following-sibling::*[1]')).toHaveText('Note: สอง request พร้อมกันอาจหักซ้ำ')

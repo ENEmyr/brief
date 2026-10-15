@@ -156,8 +156,9 @@ function plainLine(text: string): HastElement {
 /**
  * The code panel: shiki's `<pre>` class and colors once highlighted, the
  * plain panel before. Rows fill the scroll width, so a tinted row runs to the
- * edge however long its line. `data-code-panel` keeps the row tints on paper
- * (globals.css print rules) before shiki's `.shiki` class arrives.
+ * edge however long its line. `data-code-panel` lets the print rules find the
+ * panel before shiki's `.shiki` class arrives; only a marked row
+ * (`data-tone="mark"`) keeps its tint on paper.
  */
 export function CodePanel({
   highlighted,
@@ -216,7 +217,7 @@ export function CodeRow({
   // A stable plain line until shiki's arrives, so CodeLine's memo holds.
   const line = useMemo(() => node ?? plainLine(text), [node, text])
   return (
-    <span className={`flex px-3 ${style?.row ?? ''}`}>
+    <span data-tone={tone} className={`flex px-3 ${style?.row ?? ''}`}>
       <span
         aria-hidden="true"
         className={`${gutter} shrink-0 select-none ${style?.number ?? 'text-faint'}`}

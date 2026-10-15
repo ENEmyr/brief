@@ -558,20 +558,20 @@ body {
     --shiki-token-deleted: var(--c-text);
     --shiki-token-changed: var(--c-text);
   }
-  div:has(> pre.shiki),
-  div:has(> pre[data-code-panel]) {
+  figure:has(> pre.shiki),
+  figure:has(> pre[data-code-panel]) {
     border: 1px solid var(--c-text);
     border-radius: 3px;
     background: none;
   }
-  div:has(> pre.shiki) > div:first-child,
-  div:has(> pre[data-code-panel]) > div:first-child {
+  figure:has(> pre.shiki) > div:first-child,
+  figure:has(> pre[data-code-panel]) > div:first-child {
     padding: 6px 10px;
     border-bottom: 1px solid var(--c-text);
     background: none;
   }
-  div:has(> pre.shiki) > div:first-child > *,
-  div:has(> pre[data-code-panel]) > div:first-child > * {
+  figure:has(> pre.shiki) > div:first-child > *,
+  figure:has(> pre[data-code-panel]) > div:first-child > * {
     font-size: 12px;
     line-height: 18px;
     color: var(--c-text);
@@ -585,7 +585,7 @@ body {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
-  .shiki .hl-line {
+  [data-tone='mark'] {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
