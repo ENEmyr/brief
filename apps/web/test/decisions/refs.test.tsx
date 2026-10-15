@@ -72,7 +72,7 @@ describe('decision context chips (D7)', () => {
     expect(chip.querySelector('img')).toBeNull()
   })
 
-  it('shows the chips in the sheet for the current decision', () => {
+  it('shows the chips in the sheet for the current decision, without the label', () => {
     const onJump = vi.fn()
     render(
       <ReaderStateProvider sessionId="refs-sheet-test" persist={false}>
@@ -86,6 +86,8 @@ describe('decision context chips (D7)', () => {
         />
       </ReaderStateProvider>,
     )
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['§02Token bucket', '§01Intro'])
+    expect(screen.queryByText('context')).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: '§02 Token bucket' }))
     expect(onJump).toHaveBeenCalledWith('bucket', 'D1')
   })

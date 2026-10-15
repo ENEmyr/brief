@@ -61,7 +61,7 @@ function DockDecision({
         <span className={`font-mono text-[10px] ${done ? 'text-good' : 'text-warn'}`}>{word}</span>
       </div>
       {onJumpToContext && sections && (
-        <RefChips decision={decision} sections={sections} onJump={onJumpToContext} />
+        <RefChips decision={decision} sections={sections} onJump={onJumpToContext} variant="dock" />
       )}
       <OptionList decision={decision} variant="dock" labelledBy={questionId} />
       {/* B-Reader draws an input 32 high plus its border; a one-row textarea looks

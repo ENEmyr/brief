@@ -95,7 +95,7 @@ export function DecisionSheet({
             {current.q}
           </span>
           {onJumpToContext && sections && (
-            <RefChips decision={current} sections={sections} onJump={onJumpToContext} />
+            <RefChips decision={current} sections={sections} onJump={onJumpToContext} variant="sheet" />
           )}
           <OptionList decision={current} variant="sheet" labelledBy={questionId} />
           <label htmlFor={reasonId} className="text-[13px] text-sub">
