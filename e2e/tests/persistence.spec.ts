@@ -99,4 +99,57 @@ test.describe('persistence', () => {
       .toBe(reason.length)
     await expect(page.getByRole('status').filter({ hasText: 'saved' })).toBeVisible()
   })
+
+  test('a device holding an older synced state takes the newer server copy at reload and never sends its own', async ({
+    page,
+    browser,
+    baseURL,
+    request,
+    createSession,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'the two-device sync path does not depend on the viewport')
+    const { id } = await createSession()
+    const stateUrl = `${API_URL}/api/session/${id}/state`
+    const isPut = (res: { url(): string; request(): { method(): string } }) =>
+      res.url() === stateUrl && res.request().method() === 'PUT'
+    const reasonBox = (p: Page) =>
+      p.getByRole('complementary', { name: 'Decision dock' }).getByRole('textbox', { name: `${d1.id} Reason` })
+    const serverReason = async () => {
+      const { state } = (await (await request.get(stateUrl)).json()) as { state: string | null }
+      return state === null ? null : (JSON.parse(state) as { dnote: Record<string, string> }).dnote[d1.id]
+    }
+
+    await page.goto(`/s/${id}`)
+    const oldSaved = page.waitForResponse(isPut)
+    await reasonBox(page).fill('OLD')
+    await oldSaved
+    expect(await serverReason()).toBe('OLD')
+
+    const otherContext = await browser.newContext({ baseURL })
+    const other = await otherContext.newPage()
+    await other.goto(`/s/${id}`)
+    await expect(reasonBox(other)).toHaveValue('OLD')
+    const newerSaved = other.waitForResponse(isPut)
+    await reasonBox(other).fill('NEWER')
+    await newerSaved
+    expect(await serverReason()).toBe('NEWER')
+
+    const putsAfterReload: string[] = []
+    page.on('request', (req) => {
+      if (req.url() === stateUrl && req.method() === 'PUT') putsAfterReload.push(req.postData() ?? '')
+    })
+    const reloadGet = page.waitForResponse((res) => res.url() === stateUrl && res.request().method() === 'GET')
+    await page.reload()
+    await reloadGet
+    await expect(reasonBox(page)).toHaveValue('NEWER')
+    await expect(page.getByRole('status').filter({ hasText: 'saved' })).toBeVisible()
+    expect(putsAfterReload.filter((body) => body.includes('OLD'))).toEqual([])
+    expect(await serverReason()).toBe('NEWER')
+
+    await other.reload()
+    await expect(reasonBox(other)).toHaveValue('NEWER')
+    expect(await serverReason()).toBe('NEWER')
+    await otherContext.close()
+  })
 })

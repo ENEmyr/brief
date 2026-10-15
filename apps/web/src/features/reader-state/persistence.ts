@@ -43,6 +43,31 @@ export function clearPersistedState(sessionId: string): void {
   }
 }
 
+function syncMarkKey(sessionId: string): string {
+  return `idocs-synced:${sessionId}`
+}
+
+/** The fingerprint of the server copy this browser last saw (a GET it matched or
+ * hydrated from, or a PUT the server accepted), or null when it never synced.
+ * sync.ts compares it with the server copy at load to tell whether another device
+ * wrote since. Never throws. */
+export function loadSyncMark(sessionId: string): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage.getItem(syncMarkKey(sessionId))
+  } catch {
+    return null
+  }
+}
+
+export function saveSyncMark(sessionId: string, mark: string): void {
+  try {
+    window.localStorage.setItem(syncMarkKey(sessionId), mark)
+  } catch {
+    // private mode / quota exceeded: the next load falls back to local wins
+  }
+}
+
 const pendingWrites = new Map<string, { timer: ReturnType<typeof setTimeout>; state: ReaderState }>()
 
 function writeState(sessionId: string, state: ReaderState): void {

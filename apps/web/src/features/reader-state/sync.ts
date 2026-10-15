@@ -1,5 +1,5 @@
 import { API_URL } from '@/shared/api'
-import { hasPersistedState, loadPersistedState } from './persistence'
+import { hasPersistedState, loadPersistedState, loadSyncMark, saveSyncMark } from './persistence'
 import { coerceState } from './coerce'
 import type { ReaderState, ReaderStateStore } from './store'
 
@@ -20,6 +20,20 @@ interface StateResponseBody {
 
 function serialize({ dsel, dnote, dother, highlights }: ReaderState): string {
   return JSON.stringify({ dsel, dnote, dother, highlights })
+}
+
+// cyrb53: a 53-bit string hash, enough to tell two serialized states apart.
+function fingerprint(text: string): string {
+  let h1 = 0xdeadbeef
+  let h2 = 0x41c6ce57
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i)
+    h1 = Math.imul(h1 ^ c, 2654435761)
+    h2 = Math.imul(h2 ^ c, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
 }
 
 function stateUrl(sessionId: string): string {
@@ -57,7 +71,10 @@ async function fetchRemoteState(sessionId: string): Promise<ReaderState | null> 
  * A flush past 64 KiB, or one the network drops, can still die with the page.
  * So when this browser holds a stored state, the chip reads `saving` from the
  * start, and once the GET answers the local state is PUT at once unless the
- * server copy already equals it. */
+ * server copy already equals it. The state API is last write wins, so a browser
+ * that synced before (it holds a sync mark) takes the server copy instead when
+ * that copy changed since its mark: another device wrote newer state, and it
+ * wins over any edit here that never reached the server. */
 export function startKvSync(
   sessionId: string,
   store: ReaderStateStore,
@@ -78,7 +95,8 @@ export function startKvSync(
   }
 
   function pushState(keepalive = false): void {
-    const body = JSON.stringify({ state: serialize(store.getState()) })
+    const state = serialize(store.getState())
+    const body = JSON.stringify({ state })
     const put = ++lastPut
     fetch(stateUrl(sessionId), {
       method: 'PUT',
@@ -86,7 +104,10 @@ export function startKvSync(
       body,
       keepalive: keepalive && new Blob([body]).size <= KEEPALIVE_MAX_BYTES,
     }).then(
-      (res) => settle(put, res.ok ? 'saved' : 'failed'),
+      (res) => {
+        if (res.ok && !cancelled) saveSyncMark(sessionId, fingerprint(state))
+        settle(put, res.ok ? 'saved' : 'failed')
+      },
       () => settle(put, 'failed'),
     )
   }
@@ -128,16 +149,21 @@ export function startKvSync(
     // and it must neither set the mutation flag nor arm the sync debounce
     // (that would PUT straight back what was just pulled from KV).
     unsubscribe?.()
-    if (!hadLocal && remote && !mutatedSinceStart) {
+    const remoteText = remote === null ? null : serialize(remote)
+    const mark = loadSyncMark(sessionId)
+    const serverMoved = remoteText !== null && mark !== null && fingerprint(remoteText) !== mark
+    if (remote && !mutatedSinceStart && (!hadLocal || serverMoved)) {
       store.actions.hydrate(remote)
     }
+    const inSync = remoteText !== null && remoteText === serialize(store.getState())
+    if (inSync && !mutatedSinceStart) saveSyncMark(sessionId, fingerprint(remoteText))
     unsubscribe = store.subscribe(scheduleSync)
     // A mutation that raced the GET was persisted locally but never armed
     // the debounce (the sync subscription did not exist yet) -- arm it now
     // so that state still reaches KV.
     if (mutatedSinceStart) scheduleSync()
     else if (hasLocal) {
-      if (remote !== null && serialize(remote) === serialize(store.getState())) onStatus('saved')
+      if (inSync) onStatus('saved')
       else pushState()
     }
   })()
