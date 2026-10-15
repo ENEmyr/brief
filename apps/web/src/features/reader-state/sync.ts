@@ -18,8 +18,8 @@ interface StateResponseBody {
   state: string | null
 }
 
-function serialize({ dsel, dnote, dother, highlights }: ReaderState): string {
-  return JSON.stringify({ dsel, dnote, dother, highlights })
+function serialize({ dsel, dnote, dother, tflag, highlights }: ReaderState): string {
+  return JSON.stringify({ dsel, dnote, dother, tflag, highlights })
 }
 
 // cyrb53: a 53-bit string hash, enough to tell two serialized states apart.

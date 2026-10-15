@@ -131,6 +131,9 @@
   /* Archive dialog's warn callout: B-Overlays draws #1A1710 in dark, not
    * --c-warn-soft. Light keeps the warn-soft token value (D8 style). */
   --c-warn-callout: #fbf0da;
+  /* Trajectory row the agent decided alone: B-NewBlocks:276 draws #0F171C in
+   * dark, not --c-info-soft. Light keeps the info-soft token value (D8 style). */
+  --c-info-callout: #e6f2fa;
 
   /* The dock's first open decision (B-Reader:261, B-Reader-Light:261) and the
    * prompt review sheet's leftward shadow (B-Overlays:119, light from
@@ -215,6 +218,7 @@
 
     --c-warn-fill: #f4b740;
     --c-warn-callout: #1a1710;
+    --c-info-callout: #0f171c;
 
     --c-dock-current: #141a12;
     --shadow-sheet: -16px 0 48px rgba(0, 0, 0, 0.45);

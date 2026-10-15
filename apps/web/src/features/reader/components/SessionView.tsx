@@ -22,6 +22,7 @@ import {
   nextOpenDecision,
 } from '@/features/decisions'
 import type { DockTarget } from '@/features/decisions'
+import { flagPromptLines } from '@/features/trajectory'
 import { ExportProvider, useExport } from '@/features/export'
 import { GlossaryProvider } from '@/features/glossary'
 import { SaveModal, UnlockCard } from '@/features/save'
@@ -248,7 +249,8 @@ function SessionReady({
 
   // Copies at once and opens the review with the same text, to edit and copy again.
   function copyPrompt() {
-    void copy(buildReplyPrompt(payload.decisions, readerStateStore.getState(), payload.meta.title, data.id))
+    const state = readerStateStore.getState()
+    void copy(buildReplyPrompt(payload.decisions, state, payload.meta.title, data.id, flagPromptLines(payload, state)))
     setReviewOpen(true)
   }
 
@@ -458,6 +460,7 @@ function SessionReady({
           decisions={payload.decisions}
           docTitle={payload.meta.title}
           sessionId={data.id}
+          flagLines={(state) => flagPromptLines(payload, state)}
           copyText={copy}
           onClose={closeReview}
           onGoTo={(id) => {

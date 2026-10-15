@@ -31,7 +31,7 @@ export interface BlockCardProps extends CaptionAnchor {
    * "title / 6 messages" (B-Blocks:75, B-Blocks2:28), or alone without a title
    * (B-Reader:126).
    */
-  captionSuffix?: string
+  captionSuffix?: ReactNode
   /** A kind word drawn before the title: "surface / title" (B-Blocks2:166), "flowchart LR / title" (B-Blocks2:97). */
   captionPrefix?: string
   /** Right-hand header text the boards draw: "3 rows", "log scale", "p95 marked". */

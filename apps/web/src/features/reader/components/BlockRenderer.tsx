@@ -12,6 +12,7 @@ import { Compare } from './blocks/Compare'
 import { Stats } from './blocks/Stats'
 import { Coverage } from './blocks/Coverage'
 import { Details } from './blocks/Details'
+import { Trajectory } from './blocks/Trajectory'
 import { UnknownBlock } from './blocks/UnknownBlock'
 import { Seq } from './blocks/Seq'
 import { StateMachine } from './blocks/StateMachine'
@@ -170,6 +171,8 @@ function renderBlock(block: StoredBlock, anchor: BlockAnchor): ReactNode {
       return <List block={block} {...anchor} />
     case 'unreadable':
       return <UnknownBlock block={block.raw} />
+    case 'trajectory':
+      return <Trajectory block={block} {...anchor} />
     default:
       return <UnknownBlock block={block} />
   }

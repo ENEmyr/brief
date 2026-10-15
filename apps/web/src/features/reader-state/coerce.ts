@@ -1,4 +1,4 @@
-import type { Highlight, ReaderState } from './store'
+import type { Highlight, ReaderState, TrajectoryMark } from './store'
 
 /**
  * Reader state arrives from localStorage and from KV, and both were previously
@@ -56,13 +56,31 @@ function coerceStrings(raw: unknown): Record<string, string> {
   )
 }
 
+function isMark(value: unknown): value is TrajectoryMark {
+  return value === 'ask' || value === 'ok'
+}
+
+function coerceTflag(raw: unknown): ReaderState['tflag'] {
+  if (!isRecord(raw)) return undefined
+  const kept = Object.entries(raw).flatMap(([blockKey, marks]) => {
+    if (!isRecord(marks)) return []
+    const valid = Object.entries(marks).filter(
+      (entry): entry is [string, TrajectoryMark] => /^\d+$/.test(entry[0]) && isMark(entry[1]),
+    )
+    return valid.length > 0 ? [[blockKey, Object.fromEntries(valid)] as const] : []
+  })
+  return kept.length > 0 ? Object.fromEntries(kept) : undefined
+}
+
 export function coerceState(raw: unknown): ReaderState {
   const value = isRecord(raw) ? raw : {}
-  return {
+  const state: ReaderState = {
     highlights: coerceHighlights(value.highlights),
     dsel: isRecord(value.dsel) ? (value.dsel as ReaderState['dsel']) : {},
     dnote: isRecord(value.dnote) ? (value.dnote as ReaderState['dnote']) : {},
     // State saved before Other existed has no dother; it reads as nothing picked.
     dother: coerceStrings(value.dother),
   }
+  const tflag = coerceTflag(value.tflag)
+  return tflag === undefined ? state : { ...state, tflag }
 }

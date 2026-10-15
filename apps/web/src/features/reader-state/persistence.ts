@@ -78,6 +78,7 @@ function writeState(sessionId: string, state: ReaderState): void {
         dsel: state.dsel,
         dnote: state.dnote,
         dother: state.dother,
+        tflag: state.tflag,
         highlights: state.highlights,
       }),
     )
