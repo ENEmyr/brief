@@ -234,7 +234,7 @@ export function CodeRow({
   const row = (
     <span
       data-tone={tone}
-      className={`flex px-3 ${style?.row ?? ''} ${notes.length ? 'group/row hover:bg-[var(--c-code-line)]' : ''}`}
+      className={`flex px-3 ${style?.row ?? ''} ${notes.length ? `group/row ${style ? '' : 'hover:bg-[var(--c-code-line)]'}` : ''}`}
     >
       <span
         aria-hidden="true"
