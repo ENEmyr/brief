@@ -79,6 +79,7 @@ test.describe('decision context chips (D7)', () => {
     await chip.focus()
     await page.keyboard.press('Enter')
     await expect(section).toHaveAttribute('data-flash', /^[ab]$/)
+    await expect(section).toBeInViewport()
     await expect(pill).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(pill).toBeHidden()

@@ -219,6 +219,19 @@ function SessionReady({
   )
   const dismissBack = useCallback(() => setBackTo(null), [])
 
+  // The sheet takes the request number it mounts with as already handled, so under 880
+  // the focusing request goes out once the sheet is open.
+  function backToDecision(id: string) {
+    setBackTo(null)
+    if (!narrow) {
+      showDecision(id)
+      return
+    }
+    selectDecision(id)
+    setDockOpen(true)
+    requestAnimationFrame(() => showDecision(id))
+  }
+
   // "Open dock" starts on the next open decision, as B-Mobile's peek bar says.
   const openDockSheet = useCallback(
     (open: boolean) => {
@@ -418,10 +431,7 @@ function SessionReady({
           key={`${backTo.decisionId}:${backTo.sectionId}`}
           target={backTo}
           onDismiss={dismissBack}
-          onBack={() => {
-            setBackTo(null)
-            goToDecision(backTo.decisionId)
-          }}
+          onBack={() => backToDecision(backTo.decisionId)}
         />
       )}
       <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} copyText={copy} />
