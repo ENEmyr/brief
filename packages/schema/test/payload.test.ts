@@ -45,6 +45,7 @@ describe('payloadSchema', () => {
       { type: 'histogram', bins: [{ label: '0-10ms', count: 4 }] },
       { type: 'scatter', series: [{ label: 'v1', points: [[1, 2]] }] },
       { type: 'plot3d', kind: 'scatter3d', points: [[1, 2, 3]] },
+      { type: 'list', items: ['one'] },
     ]
     full.sections[0]!.blocks = blocks
     const parsed = payloadSchema.safeParse(full)
@@ -147,8 +148,9 @@ describe('payloadSchema', () => {
     expect(meta.success).toBe(true)
   })
 
-  it('exports BLOCK_TYPES array with 22 types', () => {
-    expect(BLOCK_TYPES).toHaveLength(22)
+  it('exports BLOCK_TYPES array with 23 types', () => {
+    expect(BLOCK_TYPES).toHaveLength(23)
+    expect(BLOCK_TYPES).toContain('list')
     expect(BLOCK_TYPES).toContain('p')
     expect(BLOCK_TYPES).toContain('details')
     expect(BLOCK_TYPES).toContain('plot3d')
@@ -236,6 +238,11 @@ const fieldCases: { name: string; payload: Payload; valid: boolean }[] = [
   { name: 'ba note text over 280', payload: ba({ notes: [{ side: 'before', from: 1, text: chars(281) }] }), valid: false },
   { name: 'ba filename', payload: ba({ filename: 'src/limiter.ts' }), valid: true },
   { name: 'ba filename over 300', payload: ba({ filename: chars(301) }), valid: false },
+  { name: 'list', payload: withBlock({ type: 'list', ordered: true, caption: 'Steps', items: ['a', 'b'] }), valid: true },
+  { name: 'list item over 500', payload: withBlock({ type: 'list', items: [chars(501)] }), valid: false },
+  { name: 'list over 100 items', payload: withBlock({ type: 'list', items: many(101, 'a') }), valid: false },
+  { name: 'list with no items', payload: withBlock({ type: 'list', items: [] }), valid: false },
+  { name: 'list inside details', payload: withBlock({ type: 'details', summary: 's', blocks: [{ type: 'list', items: ['a'] }] }), valid: true },
   { name: 'stat caption', payload: stat({}, { caption: 'Flash sale' }), valid: true },
   { name: 'stat caption over 300', payload: stat({}, { caption: chars(301) }), valid: false },
   { name: 'stat spark', payload: stat({ spark: [6, 9, 7, 12, 20, 10] }), valid: true },

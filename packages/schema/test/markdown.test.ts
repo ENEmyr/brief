@@ -377,6 +377,11 @@ describe('round 1 Console fields', () => {
     expect(md).toContain('Agent notes:\n- after L1: new guard\n- before L1: old bug')
   })
 
+  it('renders a list block as a markdown list, numbered when ordered', () => {
+    expect(blockMd({ type: 'list', caption: 'Checks', items: ['lint', 'test'] })).toContain('**Checks**\n\n- lint\n- test')
+    expect(blockMd({ type: 'list', ordered: true, items: ['lint', 'test'] })).toContain('1. lint\n2. test')
+  })
+
   it('prints the stat caption and spark series, but not the hint tone', () => {
     const md = blockMd({
       type: 'stat', caption: 'Flash sale',
@@ -425,6 +430,7 @@ describe('round 1 Console fields', () => {
   })
 
   it('collapses newlines in new single-line texts', () => {
+    expect(blockMd({ type: 'list', items: ['one\n- injected'] })).toContain('- one - injected')
     expect(blockMd({ type: 'code', language: 'ts', code: 'a', notes: [{ from: 1, text: 'x\n## injected' }] })).toContain('- L1: x ## injected')
     const glossary = payloadToMarkdown(withDecisions(undefined, [{ term: 't', def: 'a\n## injected' }]), url)
     expect(glossary).toContain('- **t**: a ## injected')

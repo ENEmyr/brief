@@ -9,6 +9,7 @@ const payload: Payload = {
       no: 2,
       title: 'Token bucket',
       blocks: [
+        { type: 'list', ordered: true, items: ['Take a token', 'Forward the request'] },
         { type: 'stat', caption: 'Flash sale', items: [{ label: 'Peak RPS', value: '4,800', hintTone: 'red', spark: [6, 9, 20] }] },
         { type: 'table', head: ['option', 'latency'], rows: [['KV', '5 ms']], align: ['left', 'right'], cells: [{ row: 1, col: 2, tone: 'warn' }] },
         { type: 'seq', actors: ['web', 'api'], steps: [{ from: 'web', to: 'api', label: 'GET', text: 'Client sends GET /orders' }] },
@@ -38,6 +39,7 @@ test.describe('round 1 payload fields through the API', () => {
     expect(raw.status()).toBe(200)
     const md = await raw.text()
     for (const line of [
+      '1. Take a token',
       '**Flash sale**',
       '- **Peak RPS**: 4,800; trend: 6, 9, 20',
       '| :--- | ---: |',

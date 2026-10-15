@@ -47,6 +47,7 @@ const BLOCK_STRINGS: { [T in Block['type']]: (block: BlockOf<T>) => (string | un
   histogram: (b) => [b.title],
   scatter: (b) => [b.title],
   plot3d: (b) => [b.title],
+  list: (b) => [b.caption, ...b.items],
 }
 
 function blockStrings(block: StoredBlock): string[] {

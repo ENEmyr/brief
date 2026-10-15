@@ -77,6 +77,7 @@ const SAMPLES: Record<Block['type'], Block> = {
   histogram: { type: 'histogram', bins: [{ label: '0-10', count: 1 }] },
   scatter: { type: 'scatter', series: [{ label: 'A', points: [[1, 2]] }] },
   plot3d: { type: 'plot3d', kind: 'scatter3d', points: [[0, 0, 1]] },
+  list: { type: 'list', items: ['lint', 'test'] },
 }
 
 /** features.md B1 and owner ruling D5: diagrams, plot3d and the four 2D charts. */

@@ -180,6 +180,7 @@ function captionLeaf(block: CardBlock): CardLeaf | undefined {
     case 'compare':
     case 'stat':
     case 'coverage':
+    case 'list':
       return block.caption === undefined ? undefined : { text: block.caption, path: 'caption' }
     case 'code':
       return block.filename === undefined

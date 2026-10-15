@@ -52,8 +52,8 @@ export type BlockGroup = {
 export const BLOCK_GROUPS: BlockGroup[] = [
   {
     name: 'Text and callouts',
-    blocks: ['p', 'note', 'warn', 'good'],
-    note: 'Prose with inline code, links, and the three callout tones.',
+    blocks: ['p', 'list', 'note', 'warn', 'good'],
+    note: 'Prose with inline code, links, bulleted and numbered lists, and the three callout tones.',
   },
   {
     name: 'Data',

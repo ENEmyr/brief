@@ -24,6 +24,7 @@ import { Heatmap } from './blocks/Heatmap'
 import { Histogram } from './blocks/Histogram'
 import { Scatter } from './blocks/Scatter'
 import { Plot3d } from './blocks/Plot3d'
+import { List } from './blocks/List'
 import type { MathBlock as MathBlockComponent } from './blocks/MathBlock'
 import type { MermaidBlock as MermaidBlockComponent } from './blocks/MermaidBlock'
 import { diagramDeclaration, mermaidBoxHeight } from '../lib/mermaidSource'
@@ -165,6 +166,8 @@ function renderBlock(block: StoredBlock, anchor: BlockAnchor): ReactNode {
       return <Scatter block={block} {...anchor} />
     case 'plot3d':
       return <Plot3d block={block} {...anchor} />
+    case 'list':
+      return <List block={block} {...anchor} />
     case 'unreadable':
       return <UnknownBlock block={block.raw} />
     default:

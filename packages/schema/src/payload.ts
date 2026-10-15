@@ -5,7 +5,7 @@ export const MAX_PAYLOAD_BYTES = 1_900_000
 export const BLOCK_TYPES = [
   'p', 'note', 'warn', 'good', 'table', 'compare', 'stat', 'coverage', 'details',
   'seq', 'state', 'layers', 'ba', 'bigo', 'code', 'mermaid', 'math', 'erd',
-  'heatmap', 'histogram', 'scatter', 'plot3d',
+  'heatmap', 'histogram', 'scatter', 'plot3d', 'list',
 ] as const
 
 /** Semantic tones; each maps to the --c-<tone>, -soft and -line tokens. */
@@ -175,10 +175,18 @@ const plot3dBlock = z.object({
   zLabel: label.optional(),
 })
 
+const listBlock = z.object({
+  type: z.literal('list'),
+  ordered: z.boolean().optional(),
+  caption: label.optional(),
+  items: z.array(z.string().min(1).max(500)).min(1).max(100),
+})
+
 const nonRecursiveBlock = z.discriminatedUnion('type', [
   pBlock, noteBlock, warnBlock, goodBlock, tableBlock, compareBlock, statBlock,
   coverageBlock, seqBlock, stateBlock, layersBlock, baBlock, bigoBlock, codeBlock,
   mermaidBlock, mathBlock, erdBlock, heatmapBlock, histogramBlock, scatterBlock, plot3dBlock,
+  listBlock,
 ])
 
 const detailsBlock = z.object({
@@ -243,6 +251,7 @@ export type StatTone = (typeof STAT_TONES)[number]
 export type Align = (typeof ALIGNS)[number]
 export type CodeNote = z.infer<typeof codeNote>
 export type BaNote = z.infer<typeof baNote>
+export type ListBlock = z.infer<typeof listBlock>
 export type TableCell = NonNullable<z.infer<typeof tableBlock>['cells']>[number]
 export type HistogramThreshold = NonNullable<z.infer<typeof histogramBlock>['threshold']>
 

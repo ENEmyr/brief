@@ -148,6 +148,11 @@ function emitStat(b: BlockOf<'stat'>): string {
   return `${captionPrefix(b.caption)}${items}`
 }
 
+function emitList(b: BlockOf<'list'>): string {
+  const items = b.items.map((item, i) => `${b.ordered ? `${i + 1}.` : '-'} ${oneLine(item)}`).join('\n')
+  return `${captionPrefix(b.caption)}${items}`
+}
+
 function noteLines(notes: (CodeNote & { side?: string })[] | undefined): string {
   if (!notes?.length) return ''
   const lines = notes.map((n) => {
@@ -269,6 +274,7 @@ function blockToMarkdown(b: StoredBlock): string {
     case 'histogram': return emitHistogram(b)
     case 'scatter': return emitScatter(b)
     case 'plot3d': return emitPlot3d(b)
+    case 'list': return emitList(b)
     case 'unreadable': return emitUnreadable(b)
     default: return assertNever(b)
   }
