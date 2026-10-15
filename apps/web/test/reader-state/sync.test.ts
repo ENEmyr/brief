@@ -396,3 +396,62 @@ describe('startKvSync when the page hides', () => {
     expect(puts()).toEqual([])
   })
 })
+
+describe('startKvSync when this browser holds a stored state', () => {
+  const reason = 'r'.repeat(70_000)
+  const local = { highlights: [], dsel: { d1: ['a'] }, dnote: { d1: reason }, dother: {} }
+
+  function startWithRemote(remote: object | null, putStatus = 200) {
+    localStorage.setItem(`idocs:${sessionId}`, JSON.stringify(local))
+    const mockFetch = vi.fn((_url: string, init?: RequestInit) =>
+      Promise.resolve(
+        init?.method === 'PUT'
+          ? new Response('{}', { status: putStatus })
+          : new Response(JSON.stringify({ state: remote === null ? null : JSON.stringify(remote) })),
+      ),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+    const store = createReaderStateStore(sessionId)
+    const statuses: string[] = []
+    const stop = startKvSync(sessionId, store, (s) => statuses.push(s))
+    return { mockFetch, statuses, stop }
+  }
+
+  function putBodies(mockFetch: ReturnType<typeof vi.fn>) {
+    return mockFetch.mock.calls
+      .filter(([, init]) => (init as RequestInit | undefined)?.method === 'PUT')
+      .map(([, init]) => JSON.parse(JSON.parse((init as RequestInit).body as string).state as string) as unknown)
+  }
+
+  it('PUTs it at once when the server has no copy, and reports saved only after the PUT answers', async () => {
+    const { mockFetch, statuses, stop } = startWithRemote(null)
+    expect(statuses).toEqual(['saving'])
+    await flushMicrotasks()
+    expect(putBodies(mockFetch)).toEqual([local])
+    expect(statuses).toEqual(['saving', 'saved'])
+    stop()
+  })
+
+  it('PUTs it when the server copy differs', async () => {
+    const { mockFetch, statuses, stop } = startWithRemote({ ...local, dnote: { d1: 'older' } })
+    await flushMicrotasks()
+    expect(putBodies(mockFetch)).toEqual([local])
+    expect(statuses).toEqual(['saving', 'saved'])
+    stop()
+  })
+
+  it('sends no PUT and reports saved when the server copy is the same', async () => {
+    const { mockFetch, statuses, stop } = startWithRemote(local)
+    await flushMicrotasks()
+    expect(putBodies(mockFetch)).toEqual([])
+    expect(statuses).toEqual(['saving', 'saved'])
+    stop()
+  })
+
+  it('reports failed, never saved, when that PUT is rejected', async () => {
+    const { statuses, stop } = startWithRemote(null, 503)
+    await flushMicrotasks()
+    expect(statuses).toEqual(['saving', 'failed'])
+    stop()
+  })
+})

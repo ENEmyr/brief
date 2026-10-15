@@ -43,43 +43,63 @@ export function clearPersistedState(sessionId: string): void {
   }
 }
 
-const pendingWrites = new Map<string, ReturnType<typeof setTimeout>>()
+const pendingWrites = new Map<string, { timer: ReturnType<typeof setTimeout>; state: ReaderState }>()
+
+function writeState(sessionId: string, state: ReaderState): void {
+  try {
+    window.localStorage.setItem(
+      storageKey(sessionId),
+      JSON.stringify({
+        dsel: state.dsel,
+        dnote: state.dnote,
+        dother: state.dother,
+        highlights: state.highlights,
+      }),
+    )
+  } catch {
+    // private mode / quota exceeded: persistence just does not happen
+  }
+}
 
 /** Cancels a pending debounced write scheduled by schedulePersist for this
  * session, if one exists. Used by stopPersistence (bug-250) so a write
  * already queued before persistence was stopped cannot fire afterwards and
  * silently resurrect an entry clearPersistedState just removed. */
 export function cancelPendingPersist(sessionId: string): void {
-  const existing = pendingWrites.get(sessionId)
-  if (existing !== undefined) {
-    clearTimeout(existing)
+  const pending = pendingWrites.get(sessionId)
+  if (pending !== undefined) {
+    clearTimeout(pending.timer)
     pendingWrites.delete(sessionId)
   }
+}
+
+// The deferred write dies with the page, so a reload or a closed tab right
+// after an action would drop it: write everything still pending at once.
+function flushPendingPersists(): void {
+  for (const [sessionId, { state }] of pendingWrites) {
+    cancelPendingPersist(sessionId)
+    writeState(sessionId, state)
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushPendingPersists)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPendingPersists()
+  })
 }
 
 /** Schedules a write of `state` for `sessionId`, deferred to the next timer
  * tick. Multiple calls within the same tick collapse into a single write of
  * the latest state, since each call clears the previous session's pending
- * timer before scheduling a new one. */
+ * timer before scheduling a new one. A write still pending when the page
+ * hides is flushed at once. */
 export function schedulePersist(sessionId: string, state: ReaderState): void {
   if (typeof window === 'undefined') return
-  const existing = pendingWrites.get(sessionId)
-  if (existing !== undefined) clearTimeout(existing)
+  cancelPendingPersist(sessionId)
   const timer = setTimeout(() => {
     pendingWrites.delete(sessionId)
-    try {
-      window.localStorage.setItem(
-        storageKey(sessionId),
-        JSON.stringify({
-          dsel: state.dsel,
-          dnote: state.dnote,
-          dother: state.dother,
-          highlights: state.highlights,
-        }),
-      )
-    } catch {
-      // private mode / quota exceeded: persistence just does not happen
-    }
+    writeState(sessionId, state)
   }, 0)
-  pendingWrites.set(sessionId, timer)
+  pendingWrites.set(sessionId, { timer, state })
 }

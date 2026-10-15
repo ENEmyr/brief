@@ -1,5 +1,5 @@
 import { API_URL } from '@/shared/api'
-import { hasPersistedState } from './persistence'
+import { hasPersistedState, loadPersistedState } from './persistence'
 import { coerceState } from './coerce'
 import type { ReaderState, ReaderStateStore } from './store'
 
@@ -16,6 +16,10 @@ export type SyncStatus = 'saving' | 'saved' | 'failed'
 
 interface StateResponseBody {
   state: string | null
+}
+
+function serialize({ dsel, dnote, dother, highlights }: ReaderState): string {
+  return JSON.stringify({ dsel, dnote, dother, highlights })
 }
 
 function stateUrl(sessionId: string): string {
@@ -48,7 +52,12 @@ async function fetchRemoteState(sessionId: string): Promise<ReaderState | null> 
  * with `keepalive` when its body fits the 64 KiB limit, since the debounce
  * timer dies with the page. Returns a cleanup that cancels any pending PUT,
  * unsubscribes, stops listening for the page hiding, and ignores a GET or PUT
- * that resolves after cleanup. */
+ * that resolves after cleanup.
+ *
+ * A flush past 64 KiB, or one the network drops, can still die with the page.
+ * So when this browser holds a stored state, the chip reads `saving` from the
+ * start, and once the GET answers the local state is PUT at once unless the
+ * server copy already equals it. */
 export function startKvSync(
   sessionId: string,
   store: ReaderStateStore,
@@ -59,6 +68,8 @@ export function startKvSync(
   let cancelled = false
   let mutatedSinceStart = false
   let lastPut = 0
+  const hasLocal = loadPersistedState(sessionId) !== null
+  if (hasLocal) onStatus('saving')
 
   function settle(put: number, status: SyncStatus): void {
     // An older PUT must not report over a newer edit that is still pending.
@@ -67,8 +78,7 @@ export function startKvSync(
   }
 
   function pushState(keepalive = false): void {
-    const { highlights, dsel, dnote, dother } = store.getState()
-    const body = JSON.stringify({ state: JSON.stringify({ dsel, dnote, dother, highlights }) })
+    const body = JSON.stringify({ state: serialize(store.getState()) })
     const put = ++lastPut
     fetch(stateUrl(sessionId), {
       method: 'PUT',
@@ -126,6 +136,10 @@ export function startKvSync(
     // the debounce (the sync subscription did not exist yet) -- arm it now
     // so that state still reaches KV.
     if (mutatedSinceStart) scheduleSync()
+    else if (hasLocal) {
+      if (remote !== null && serialize(remote) === serialize(store.getState())) onStatus('saved')
+      else pushState()
+    }
   })()
 
   return () => {
