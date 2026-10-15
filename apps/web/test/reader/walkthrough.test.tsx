@@ -135,6 +135,9 @@ describe('Walkthrough', () => {
     expect(screen.getByText('hunk 3 / 4')).toBeInTheDocument()
     expect(nodes(container)).toEqual(['req', 'key', 'ok', 'deny'])
     expect(container.querySelector('[data-current]')?.getAttribute('data-node')).toBe('deny')
+    expect(container.querySelector('[data-hunk="2"]')?.textContent).toContain('if (!success) return tooMany(30)')
+    expect(container.querySelector('[data-hunk="2"]')?.className).toContain('bg-accent-soft')
+    expect(container.querySelector('[data-hunk="0"]')?.className).not.toContain('bg-accent-soft')
     expect(screen.getByRole('button', { name: '01 Take the request and find the key' })).toHaveAttribute(
       'aria-pressed',
       'false',
