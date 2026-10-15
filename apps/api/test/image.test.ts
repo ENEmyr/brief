@@ -250,6 +250,18 @@ describe('POST /api/session/:id/image (encrypted)', () => {
     expect(await encrypted.json()).toEqual({ error: 'Session is already encrypted.' })
   })
 
+  it('caps encrypted uploads at 50 per session and does not count linked plaintext images', async () => {
+    const sessionId = await createSession([await uploadId()])
+    const insert = appEnv.DB.prepare(
+      "INSERT INTO images (id, session_id, content_type, encrypted, byte_size, created_at) VALUES (?, ?, 'application/octet-stream', 1, 3, ?)",
+    )
+    await appEnv.DB.batch(Array.from({ length: 49 }, (_, i) => insert.bind(`img_seed${String(i).padStart(12, '0')}`, sessionId, Date.now())))
+    expect((await uploadEncrypted(sessionId, Uint8Array.from([1, 2, 3]))).status).toBe(201)
+    const over = await uploadEncrypted(sessionId, Uint8Array.from([1, 2, 3]))
+    expect(over.status).toBe(409)
+    expect(await over.json()).toEqual({ error: 'A session holds at most 50 encrypted images.' })
+  })
+
   it('another session payload never relinks an encrypted upload', async () => {
     const sessionId = await createSession([])
     const res = await uploadEncrypted(sessionId, Uint8Array.from([9, 9, 9]))

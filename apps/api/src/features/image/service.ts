@@ -54,9 +54,15 @@ export async function storeEncryptedImage(
     .get()
   if (!session || session.expiresAt <= now) return { ok: false, status: 404, error: 'Session not found or expired.' }
   if (session.encrypted) return { ok: false, status: 409, error: 'Session is already encrypted.' }
-  const linked = await db(env.DB).select({ n: count() }).from(images).where(eq(images.sessionId, sessionId)).get()
-  if ((linked?.n ?? 0) >= MAX_IMAGES_PER_SESSION) {
-    return { ok: false, status: 409, error: `A session holds at most ${MAX_IMAGES_PER_SESSION} images.` }
+  // Plaintext copies stay linked until the client finishes its encrypt flow, so only
+  // encrypted rows count toward this route's cap.
+  const stored = await db(env.DB)
+    .select({ n: count() })
+    .from(images)
+    .where(and(eq(images.sessionId, sessionId), eq(images.encrypted, true)))
+    .get()
+  if ((stored?.n ?? 0) >= MAX_IMAGES_PER_SESSION) {
+    return { ok: false, status: 409, error: `A session holds at most ${MAX_IMAGES_PER_SESSION} encrypted images.` }
   }
   const imageId = await storeImage(env, bytes, { contentType: ENCRYPTED_CONTENT_TYPE, encrypted: true, sessionId }, now)
   return { ok: true, imageId }
