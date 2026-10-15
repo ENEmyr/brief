@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { textOffset, selectionRangeIn } from '@/features/annotations'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render } from '@testing-library/react'
+import { Annotatable, textOffset, selectionRangeIn } from '@/features/annotations'
+import { ReaderStateProvider } from '@/features/reader-state'
 
 function makeRange(startNode: Node, startOffset: number, endNode: Node, endOffset: number): Range {
   const range = document.createRange()
@@ -70,6 +72,16 @@ describe('selectionRangeIn', () => {
     expect(selectionRangeIn(root, sel)).toEqual({ start: 0, end: 5, text: 'hello' })
   })
 
+  it('stores the text its offsets span, not the browser selection string', () => {
+    // Measured in Chromium: a range ending before the tone mark of "ที่"
+    // stringifies with the whole cluster, one unit longer than the range.
+    const root = document.createElement('p')
+    root.textContent = 'ลูกค้าที่ใช้'
+    const textNode = root.firstChild!
+    const sel = fakeSelection(makeRange(textNode, 0, textNode, 8), 'ลูกค้าที่')
+    expect(selectionRangeIn(root, sel)).toEqual({ start: 0, end: 8, text: 'ลูกค้าที' })
+  })
+
   it('returns null for a collapsed selection', () => {
     const root = document.createElement('div')
     root.textContent = 'hello world'
@@ -94,8 +106,8 @@ describe('selectionRangeIn', () => {
     const startNode = root.firstChild! // "before "
     const endNode = root.lastChild! // " after"
     const range = makeRange(startNode, 2, endNode, 2)
-    const sel = fakeSelection(range, 'fore bold af')
-    expect(selectionRangeIn(root, sel)).toEqual({ start: 2, end: 13, text: 'fore bold af' })
+    const sel = fakeSelection(range, 'fore bold a')
+    expect(selectionRangeIn(root, sel)).toEqual({ start: 2, end: 13, text: 'fore bold a' })
   })
 
   it('treats an element boundary as a child index, not a character offset', () => {
@@ -124,5 +136,38 @@ describe('selectionRangeIn', () => {
 
     root.remove()
     outside.remove()
+  })
+})
+
+describe('selectionRangeIn after a noted mark', () => {
+  afterEach(() => {
+    localStorage.clear()
+    vi.unstubAllGlobals()
+  })
+
+  it('measures a later selection in model offsets, not shifted by the note marker', () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+    const model = 'ลูกค้าที่ใช้ webhook ส่งเป็นชุดอาจโดน 429 ช่วง burst'
+    localStorage.setItem(
+      'idocs:sess-offsets-test',
+      JSON.stringify({
+        highlights: [{ id: 'h1', sid: 0, bid: 0, start: 0, end: 9, text: 'ลูกค้าที่', note: 'n1' }],
+        dsel: {},
+        dnote: {},
+      }),
+    )
+    const { container } = render(
+      <ReaderStateProvider sessionId="sess-offsets-test">
+        <Annotatable text={model} sid={0} bid={0} as="p" />
+      </ReaderStateProvider>,
+    )
+    const leaf = container.querySelector<HTMLElement>('[data-hl]')!
+    const walker = document.createTreeWalker(leaf, NodeFilter.SHOW_TEXT)
+    let after: Node | null = walker.nextNode()
+    while (after && !after.textContent!.includes('429')) after = walker.nextNode()
+    const at = after!.textContent!.indexOf('429')
+    const sel = fakeSelection(makeRange(after!, at, after!, at + 3), '429')
+
+    expect(selectionRangeIn(leaf, sel)).toEqual({ start: 38, end: 41, text: '429' })
   })
 })

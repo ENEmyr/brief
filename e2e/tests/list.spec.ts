@@ -97,15 +97,9 @@ test.describe('list block', () => {
     await page.getByPlaceholder('Write a short note…').fill('which clients')
     await page.getByRole('button', { name: 'Done' }).click()
     const mark = risk.locator('mark')
-    await expect(mark.locator('sup')).toHaveCount(1)
-    expect(
-      await mark.evaluate((m) =>
-        [...m.childNodes]
-          .filter((n) => n.nodeName !== 'SUP')
-          .map((n) => n.textContent)
-          .join(''),
-      ),
-    ).toBe('Batch webhooks')
+    await expect(mark).toHaveAttribute('data-marker', 'note')
+    expect(await mark.evaluate((m) => getComputedStyle(m, '::after').content)).toContain('●')
+    expect(await mark.textContent()).toBe('Batch webhooks')
   })
 
   test('copying a whole list gives its items as plain text', async ({ page, isMobile }) => {

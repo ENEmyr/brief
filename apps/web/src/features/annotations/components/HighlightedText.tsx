@@ -51,6 +51,7 @@ export function HighlightedText({
       <mark
         key={h.id}
         data-mark-id={h.id}
+        data-marker={isAsk ? 'ask' : h.note !== null ? 'note' : undefined}
         onClick={() => onMarkClick(h)}
         className={
           isAsk
@@ -64,11 +65,6 @@ export function HighlightedText({
         }
       >
         {segment}
-        {isAsk ? (
-          <sup className="ml-px text-[10px] font-bold text-accent-text">?</sup>
-        ) : h.note !== null ? (
-          <sup className="ml-px text-[10px] font-bold text-accent-text">●</sup>
-        ) : null}
       </mark>,
     )
     cur = Math.max(cur, h.end)
