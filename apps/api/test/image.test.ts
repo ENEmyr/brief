@@ -107,6 +107,25 @@ describe('POST /api/image', () => {
     expect(after?.n).toBe(before?.n)
   })
 
+  it('stops a chunked body with no Content-Length at the cap', async () => {
+    const chunk = new Uint8Array(1024 * 1024)
+    chunk.set(PNG)
+    let sent = 0
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (sent >= 8) return controller.close()
+        sent++
+        controller.enqueue(chunk.slice())
+      },
+    })
+    const request = new Request('http://localhost/api/image', { method: 'POST', body, duplex: 'half' } as RequestInit)
+    expect(request.headers.get('content-length')).toBeNull()
+    const res = await app().handle(request)
+    expect(res.status).toBe(413)
+    expect(await res.json()).toEqual({ error: 'Image exceeds 5242880 bytes.' })
+    expect(sent).toBeLessThan(8)
+  })
+
   it('rejects an empty body with a fixed 400 message', async () => {
     const res = await upload(new Uint8Array(0))
     expect(res.status).toBe(400)

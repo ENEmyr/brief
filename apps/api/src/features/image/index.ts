@@ -8,13 +8,32 @@ export { imageIdsIn, linkImages, purgeImages } from './service'
 
 type ReadResult = { ok: true; bytes: Uint8Array } | { ok: false; status: 400 | 413; error: string }
 
+// Counts while reading, so a chunked body with no Content-Length stops at the cap instead
+// of being buffered whole.
 async function readBody(request: Request, cap: number): Promise<ReadResult> {
   const tooLarge = { ok: false, status: 413, error: `Image exceeds ${cap} bytes.` } as const
   const declared = Number(request.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > cap) return tooLarge
-  const bytes = new Uint8Array(await request.arrayBuffer())
-  if (bytes.byteLength > cap) return tooLarge
-  if (bytes.byteLength === 0) return { ok: false, status: 400, error: 'Image body is empty.' }
+  const chunks: Uint8Array[] = []
+  let total = 0
+  const reader = request.body?.getReader()
+  while (reader) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > cap) {
+      await reader.cancel()
+      return tooLarge
+    }
+    chunks.push(value)
+  }
+  if (total === 0) return { ok: false, status: 400, error: 'Image body is empty.' }
+  const bytes = new Uint8Array(total)
+  let at = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, at)
+    at += chunk.byteLength
+  }
   return { ok: true, bytes }
 }
 
