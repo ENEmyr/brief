@@ -26,6 +26,7 @@ import { Histogram } from './blocks/Histogram'
 import { Scatter } from './blocks/Scatter'
 import { Plot3d } from './blocks/Plot3d'
 import { List } from './blocks/List'
+import { Walkthrough } from './blocks/Walkthrough'
 import type { MathBlock as MathBlockComponent } from './blocks/MathBlock'
 import type { MermaidBlock as MermaidBlockComponent } from './blocks/MermaidBlock'
 import { diagramDeclaration, mermaidBoxHeight } from '../lib/mermaidSource'
@@ -173,6 +174,8 @@ function renderBlock(block: StoredBlock, anchor: BlockAnchor): ReactNode {
       return <UnknownBlock block={block.raw} />
     case 'trajectory':
       return <Trajectory block={block} {...anchor} />
+    case 'walkthrough':
+      return <Walkthrough block={block} {...anchor} />
     default:
       return <UnknownBlock block={block} />
   }

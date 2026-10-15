@@ -195,6 +195,7 @@ export function CodeRow({
   text,
   number,
   gutter,
+  inset = 'px-3',
   tone,
   notes = NO_NOTES,
   sid,
@@ -209,6 +210,8 @@ export function CodeRow({
   number: number
   /** Width class of the gutter: the boards draw 26 for code, 28 for before and after. */
   gutter: string
+  /** Row padding; the walkthrough's rows sit 10 after the hunk bar (B-NewBlocks:53). */
+  inset?: string
   tone?: LineTone
   /** Agent notes whose range ends on this line (B-NewBlocks:126-131). */
   notes?: PlacedNote[]
@@ -234,7 +237,7 @@ export function CodeRow({
   const row = (
     <span
       data-tone={tone}
-      className={`flex px-3 ${style?.row ?? ''} ${notes.length ? `group/row ${style ? '' : 'hover:bg-[var(--c-code-line)]'}` : ''}`}
+      className={`flex ${inset} ${style?.row ?? ''} ${notes.length ? `group/row ${style ? '' : 'hover:bg-[var(--c-code-line)]'}` : ''}`}
     >
       <span
         aria-hidden="true"
