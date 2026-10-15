@@ -181,6 +181,7 @@ function captionLeaf(block: CardBlock): CardLeaf | undefined {
     case 'stat':
     case 'coverage':
     case 'list':
+    case 'image':
       return block.caption === undefined ? undefined : { text: block.caption, path: 'caption' }
     case 'code':
       return block.filename === undefined
@@ -188,6 +189,11 @@ function captionLeaf(block: CardBlock): CardLeaf | undefined {
         : { text: block.filename, path: 'filename' }
     case 'ba':
       return block.filename === undefined ? undefined : { text: block.filename, path: 'filename' }
+    case 'walkthrough':
+      if (block.filename !== undefined) return { text: block.filename, path: 'filename' }
+      return block.title === undefined
+        ? { text: block.language, path: 'language' }
+        : { text: block.title, path: 'title' }
     case 'seq':
     case 'state':
     case 'layers':
@@ -205,6 +211,8 @@ function captionLeaf(block: CardBlock): CardLeaf | undefined {
     case 'good':
     case 'details':
     case 'p':
+    case 'diff':
+    case 'trajectory':
       return undefined
     default: {
       const unhandled: never = block

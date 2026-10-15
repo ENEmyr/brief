@@ -3,7 +3,7 @@ import { cleanup, render, screen, fireEvent, within } from '@testing-library/rea
 import { BLOCK_TYPES, type Block } from '@brief/schema'
 import { BlockRenderer } from '@/features/reader'
 import { ReaderStateProvider } from '@/features/reader-state'
-import { BlockCard } from '@/features/reader/components/BlockCard'
+import { BlockCard, cardHeader } from '@/features/reader/components/BlockCard'
 import { BlockError } from '@/features/reader/components/BlockError'
 import { useDiagramFullScreen } from '@/features/reader/components/fullScreen'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
@@ -78,6 +78,25 @@ const SAMPLES: Record<Block['type'], Block> = {
   scatter: { type: 'scatter', series: [{ label: 'A', points: [[1, 2]] }] },
   plot3d: { type: 'plot3d', kind: 'scatter3d', points: [[0, 0, 1]] },
   list: { type: 'list', items: ['lint', 'test'] },
+  walkthrough: {
+    type: 'walkthrough',
+    language: 'ts',
+    code: 'const a = 1',
+    flow: {
+      nodes: [
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' },
+      ],
+      edges: [{ from: 'a', to: 'b' }],
+    },
+    steps: [{ from: 1, title: 'start', nodes: ['a'] }],
+  },
+  diff: { type: 'diff', files: [{ path: 'src/a.ts', status: 'modified' }] },
+  trajectory: {
+    type: 'trajectory',
+    steps: [{ at: '2026-10-15T00:00:00Z', kind: 'read', title: 'read the limiter' }],
+  },
+  image: { type: 'image', imageId: 'img-0001', alt: 'a chart' },
 }
 
 /** features.md B1 and owner ruling D5: diagrams, plot3d and the four 2D charts. */
@@ -429,4 +448,25 @@ describe('BlockError', () => {
       '3    B -- yes --> C[serve',
     )
   })
+})
+
+describe('cardHeader for the round 2 blocks', () => {
+  it.each([
+    [{ ...SAMPLES.walkthrough, filename: 'src/limiter.ts', title: 'handle()' }, 'src/limiter.ts', 'filename'],
+    [{ ...SAMPLES.walkthrough, title: 'handle()' }, 'handle()', 'title'],
+    [SAMPLES.walkthrough, 'ts', 'language'],
+    [{ ...SAMPLES.image, caption: 'p95 by region' }, 'p95 by region', 'caption'],
+  ] as [Block, string, string][])('%#: %o leads with %s', (block, text, path) => {
+    expect(cardHeader(block, { pathPrefix: 'blocks.2.' })).toMatchObject({
+      kind: block.type,
+      caption: { text, path: `blocks.2.${path}` },
+    })
+  })
+
+  it.each([SAMPLES.diff, SAMPLES.trajectory, SAMPLES.image])(
+    '$type: no caption leaf when the payload has none',
+    (block) => {
+      expect(cardHeader(block, {})).toMatchObject({ kind: block.type, caption: undefined })
+    },
+  )
 })
