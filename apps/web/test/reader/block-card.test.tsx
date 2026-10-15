@@ -394,8 +394,8 @@ describe('useDiagramFullScreen', () => {
 
 describe('unknown block (B-States)', () => {
   it('shows its type as a dashed warn tag, "not supported here", and the block as data', () => {
-    renderBlock({ type: 'walkthrough', steps: ['MARKER'] } as never)
-    const tag = screen.getByText('walkthrough')
+    renderBlock({ type: 'future-block', steps: ['MARKER'] } as never)
+    const tag = screen.getByText('future-block')
     expect(tag).toHaveAttribute('data-kind-tag')
     expect(tag.className).toContain('border-dashed')
     expect(tag.className).toContain('text-warn')
