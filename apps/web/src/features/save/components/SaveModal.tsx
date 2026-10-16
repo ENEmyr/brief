@@ -1,8 +1,9 @@
 'use client'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Dialog, DialogActions, DialogIcon, PRIMARY_BUTTON, SECONDARY_BUTTON, useExport } from '@/features/export'
-import { encryptPayload } from '../lib/crypto'
-import { ARCHIVE_FAILED, saveSession } from '../lib/api'
+import { encryptPayloadWithKey, newSessionKey } from '../lib/crypto'
+import { ARCHIVE_FAILED, saveSession, type SaveRequestBody } from '../lib/api'
+import { imageIdsIn, resealImages, withImageIds } from '../lib/images'
 
 const MIN_PASSWORD_LENGTH = 8
 // Server's ciphertext char cap (model.ts saveBody / service.ts MAX_CIPHERTEXT_BYTES) --
@@ -174,24 +175,30 @@ export function SaveModal({
     }
 
     setBusy(true)
-    let encrypted: Awaited<ReturnType<typeof encryptPayload>>
+    let body: SaveRequestBody
     try {
-      encrypted = await encryptPayload(storedJson, password)
+      const sessionKey = await newSessionKey(password)
+      if (cancelledRef.current) return
+      // Images first, with the payload's own key: the save that follows deletes
+      // the plaintext copies, so the payload must already name the encrypted ones.
+      const resealed = await resealImages(sessionId, imageIdsIn(storedJson), sessionKey.key)
+      if (!resealed.ok) {
+        if (!cancelledRef.current) fail(resealed.error, !NOT_RETRYABLE.has(resealed.status))
+        return
+      }
+      const encrypted = await encryptPayloadWithKey(withImageIds(storedJson, resealed.ids), sessionKey)
+      body = { mode: 'encrypt', ...encrypted }
     } catch {
       // WebCrypto can throw (unsupported browser/context, key derivation
-      // failure) before anything is ever sent -- surface it the same way a
+      // failure) before the save is sent -- surface it the same way a
       // failed PUT does instead of leaving the dialog silently stuck busy.
       if (!cancelledRef.current) fail(ARCHIVE_FAILED, true)
       return
     }
-    // Cancelled while PBKDF2 was still running: nothing has been sent yet,
-    // so the whole operation can be abandoned with no server side effect.
+    // Cancelled before the PUT: at most some encrypted image copies were
+    // uploaded, and the brief itself is left unarchived.
     if (cancelledRef.current) return
-    const result = await saveSession(sessionId, {
-      mode: 'encrypt',
-      ciphertext: encrypted.ciphertext,
-      encParams: encrypted.encParams,
-    })
+    const result = await saveSession(sessionId, body)
     settleSave(result, 'encrypt')
   }
 

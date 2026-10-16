@@ -50,13 +50,26 @@ async function deriveKey(password: string, salt: Uint8Array, iterations: number)
   )
 }
 
+export type NewSessionKey = { key: CryptoKey; salt: Uint8Array }
+
+/** A fresh salt and the key it derives, shared by a protected session's payload and images. */
+export async function newSessionKey(password: string): Promise<NewSessionKey> {
+  const salt = globalThis.crypto.getRandomValues(new Uint8Array(SALT_BYTES))
+  return { key: await deriveKey(password, salt, PBKDF2_ITERATIONS), salt }
+}
+
 export async function encryptPayload(
   plaintext: string,
   password: string,
 ): Promise<{ ciphertext: string; encParams: EncParams }> {
-  const salt = globalThis.crypto.getRandomValues(new Uint8Array(SALT_BYTES))
+  return encryptPayloadWithKey(plaintext, await newSessionKey(password))
+}
+
+export async function encryptPayloadWithKey(
+  plaintext: string,
+  { key, salt }: NewSessionKey,
+): Promise<{ ciphertext: string; encParams: EncParams }> {
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_BYTES))
-  const key = await deriveKey(password, salt, PBKDF2_ITERATIONS)
   const ciphertextBuffer = await globalThis.crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: iv as BufferSource },
     key,

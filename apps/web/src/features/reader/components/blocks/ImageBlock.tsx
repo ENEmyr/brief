@@ -18,9 +18,7 @@ const READY: BlockCardState = { status: 'ready' }
 
 /**
  * The served type says what the bytes are: the image API stores ciphertext as
- * application/octet-stream and a plain image under its sniffed image type. A
- * protected brief saved before its images were re-encrypted still serves them
- * plain, so the brief's own lock does not decide the path.
+ * application/octet-stream and a plain image under its sniffed image type.
  */
 async function loadImage(imageId: string, key: CryptoKey | null): Promise<Blob> {
   const res = await fetch(`${API_URL}/api/image/${encodeURIComponent(imageId)}`)
