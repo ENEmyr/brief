@@ -23,6 +23,7 @@ import {
 } from '@/features/decisions'
 import type { DockTarget } from '@/features/decisions'
 import { ExportProvider, useExport } from '@/features/export'
+import { GlossaryProvider, PrintTerms } from '@/features/glossary'
 import { SaveModal, UnlockCard } from '@/features/save'
 import { CommandPalette, buildDocumentEntries } from '@/features/palette'
 import type { PaletteEntry } from '@/features/palette'
@@ -203,10 +204,13 @@ function SessionReady({
   // A sheet chip switches the question without taking focus off the chip.
   const selectDecision = useCallback((id: string) => setDockTarget((prev) => ({ id, seq: prev?.seq ?? 0 })), [])
 
-  function goToDecision(id: string) {
-    showDecision(id)
-    if (narrow) setDockOpen(true)
-  }
+  const goToDecision = useCallback(
+    (id: string) => {
+      showDecision(id)
+      if (narrow) setDockOpen(true)
+    },
+    [showDecision, narrow],
+  )
 
   // A context chip (D7): the sheet closes so the section shows, and the Back pill returns.
   const jumpToContext = useCallback(
@@ -332,6 +336,7 @@ function SessionReady({
   const mod = modKeyLabel()
 
   return (
+    <GlossaryProvider payload={payload} onSection={jumpTo} onDecision={goToDecision}>
     <div className="min-h-screen bg-page">
       <Topbar
         sessionId={data.id}
@@ -395,6 +400,7 @@ function SessionReady({
                   />
                 ))
               )}
+              <PrintTerms />
             </main>
             {hasDecisions && (
               <DockSlot
@@ -480,6 +486,7 @@ function SessionReady({
         />
       )}
     </div>
+    </GlossaryProvider>
   )
 }
 

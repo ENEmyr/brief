@@ -1,6 +1,8 @@
 'use client'
 import { DEFAULT_HIGHLIGHT_PATH, useReaderState } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
+import { GlossaryTerm, useLeafTerms } from '@/features/glossary'
+import type { TermHit } from '@/features/glossary'
 import { Fragment } from 'react'
 import { parseInline } from '../lib/inlineMarkdown'
 
@@ -33,6 +35,7 @@ export function HighlightedText({
   onMarkClick?: (highlight: Highlight) => void
 }) {
   const { highlights } = useReaderState()
+  const terms = useLeafTerms(sid, bid, path)
   const hs = highlights
     .filter(
       (h) =>
@@ -43,7 +46,7 @@ export function HighlightedText({
     )
     .sort((a, b) => a.start - b.start)
 
-  if (markdown) return <InlineMarkdown text={text} highlights={hs} onMarkClick={onMarkClick} />
+  if (markdown) return <InlineMarkdown text={text} highlights={hs} terms={terms} onMarkClick={onMarkClick} />
   if (!hs.length) return <>{text}</>
 
   const out: React.ReactNode[] = []
@@ -119,12 +122,17 @@ const RUN_CLASS = {
 export function InlineMarkdown({
   text,
   highlights,
+  terms = [],
   onMarkClick,
 }: {
   text: string
   highlights: Highlight[]
+  /** Glossary first uses to underline; each lies inside one run's content. */
+  terms?: TermHit[]
   onMarkClick: (highlight: Highlight) => void
 }) {
+  const termAt = new Array<number | null>(text.length).fill(null)
+  for (const t of terms) for (let i = t.start; i < t.end; i++) termAt[i] = t.n
   const owner: (Highlight | null)[] = new Array<Highlight | null>(text.length).fill(null)
   let cur = 0
   for (const h of highlights) {
@@ -147,7 +155,7 @@ export function InlineMarkdown({
   return (
     <>
       {runs.map((run) => {
-        const pieces: React.ReactNode[] = []
+        const pieces: { node: React.ReactNode; term: number | null }[] = []
         const contentStart = run.start + run.marker
         const contentEnd = run.end - run.marker
         let i = run.start
@@ -155,30 +163,61 @@ export function InlineMarkdown({
           const isMarker = i < contentStart || i >= contentEnd
           const zoneEnd = i < contentStart ? contentStart : isMarker ? run.end : contentEnd
           const h = owner[i] ?? null
+          const term = termAt[i] ?? null
           let j = i + 1
-          while (j < zoneEnd && (owner[j] ?? null) === h) j++
+          while (j < zoneEnd && (owner[j] ?? null) === h && (termAt[j] ?? null) === term) j++
           const slice = text.slice(i, j)
           if (isMarker)
-            pieces.push(
-              <span key={i} hidden>
-                {slice}
-              </span>,
-            )
+            pieces.push({
+              node: (
+                <span key={i} hidden>
+                  {slice}
+                </span>
+              ),
+              term,
+            })
           else if (h)
-            pieces.push(
-              markFor(h, slice, `${h.id}:${i}`, lastPiece.get(h.id) === j - 1, onMarkClick),
-            )
-          else pieces.push(slice)
+            pieces.push({
+              node: markFor(h, slice, `${h.id}:${i}`, lastPiece.get(h.id) === j - 1, onMarkClick),
+              term,
+            })
+          else pieces.push({ node: <Fragment key={i}>{slice}</Fragment>, term })
           i = j
         }
-        if (run.kind === 'plain') return <Fragment key={run.start}>{pieces}</Fragment>
+        const content = groupTerms(pieces)
+        if (run.kind === 'plain') return <Fragment key={run.start}>{content}</Fragment>
         const Tag = RUN_TAG[run.kind]
         return (
           <Tag key={run.start} className={RUN_CLASS[run.kind]}>
-            {pieces}
+            {content}
           </Tag>
         )
       })}
     </>
   )
+}
+
+/** Wraps each stretch of pieces that belongs to one glossary term in its
+ * GlossaryTerm, so a highlight crossing a term edge splits into one mark on
+ * each side, the way it already splits at a run edge. */
+function groupTerms(pieces: { node: React.ReactNode; term: number | null }[]): React.ReactNode[] {
+  const out: React.ReactNode[] = []
+  let k = 0
+  while (k < pieces.length) {
+    const term = pieces[k]?.term ?? null
+    if (term === null) {
+      out.push(pieces[k]?.node)
+      k++
+      continue
+    }
+    let m = k
+    while (m < pieces.length && pieces[m]?.term === term) m++
+    out.push(
+      <GlossaryTerm key={`term:${k}`} n={term}>
+        {pieces.slice(k, m).map((p) => p.node)}
+      </GlossaryTerm>,
+    )
+    k = m
+  }
+  return out
 }

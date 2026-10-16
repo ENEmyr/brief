@@ -564,6 +564,14 @@ body {
   mark[data-marker]::after {
     content: none;
   }
+  /* B-Print: a term prints as a numbered reference (<sup> mono 11) to Terms. */
+  [data-term]::after {
+    content: attr(data-term);
+    vertical-align: super;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 0;
+  }
   [data-print-note] {
     display: block;
     margin-top: 8px;
