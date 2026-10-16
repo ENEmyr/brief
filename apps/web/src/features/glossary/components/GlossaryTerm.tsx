@@ -29,6 +29,9 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
   const leaveTimer = useRef<number | undefined>(undefined)
   // Focus handed back on close must not reopen the popover.
   const refocusing = useRef(false)
+  // A press already opens it through hover or focus, so a click toggles only
+  // on touch, from the state the tap started in.
+  const press = useRef<{ touch: boolean; wasOpen: boolean }>({ touch: false, wasOpen: false })
   const tipId = useId()
 
   const cancelLeave = () => window.clearTimeout(leaveTimer.current)
@@ -135,7 +138,13 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
         onBlur={(e) => {
           if (!tipRef.current?.contains(e.relatedTarget as Node)) setOpen(false)
         }}
-        onClick={() => setOpen((o) => !o)}
+        onPointerDown={(e) => {
+          press.current = { touch: e.pointerType === 'touch', wasOpen: open }
+        }}
+        onClick={() => {
+          cancelLeave()
+          setOpen(press.current.touch ? !press.current.wasOpen : true)
+        }}
         onKeyDown={onKeyDown}
       >
         {children}

@@ -139,13 +139,24 @@ describe('glossary terms in a leaf', () => {
     expect(handlers.onSection).toHaveBeenCalledWith('how')
   })
 
-  it('toggles on tap', () => {
+  it('toggles on tap and stays open on a mouse click', () => {
     const { leaf } = renderLeaf()
     const term = leaf.querySelector<HTMLElement>('[data-term="2"]')!
-    fireEvent.click(term)
+    // jsdom has no PointerEvent, so pointerType is set by hand.
+    const press = (pointerType: string) => {
+      const ev = new MouseEvent('pointerdown', { bubbles: true })
+      Object.defineProperty(ev, 'pointerType', { value: pointerType })
+      act(() => void term.dispatchEvent(ev))
+      fireEvent.click(term)
+    }
+    const tap = () => press('touch')
+    tap()
     expect(document.querySelector('[data-glossary-tip="2"]')).not.toBeNull()
-    fireEvent.click(term)
+    tap()
     expect(document.querySelector('[data-glossary-tip="2"]')).toBeNull()
+    press('mouse')
+    press('mouse')
+    expect(document.querySelector('[data-glossary-tip="2"]')).not.toBeNull()
   })
 
   it('prints the numbered Terms list in glossary order', () => {
