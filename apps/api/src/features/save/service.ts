@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { sessions } from '../../db/schema'
 import { db, SAVED_TTL_MS } from '../../shared/db'
+import { deletePlainImages } from '../image'
 import type { SaveBody } from './model'
 
 // Keep in sync with the zod ciphertext cap in ./model.ts. D1's row/value size ceiling is
@@ -20,7 +21,7 @@ export type SaveResult =
   | { ok: false; status: 404 | 409 | 413; error: string }
 
 export async function saveSession(
-  env: { DB: D1Database; KV: KVNamespace },
+  env: { DB: D1Database; KV: KVNamespace; IMAGES: R2Bucket },
   id: string,
   body: SaveBody,
   now: number,
@@ -63,5 +64,6 @@ export async function saveSession(
   // must not outlive encryption. Leaving it in KV would let anyone with the session id read
   // plaintext content via GET /api/session/:id/state after the doc is "protected".
   await env.KV.delete(`state:${id}`)
+  await deletePlainImages(env, id)
   return { ok: true, encrypted: true, expiresAt }
 }

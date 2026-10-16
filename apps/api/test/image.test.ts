@@ -272,6 +272,86 @@ describe('POST /api/session/:id/image (encrypted)', () => {
   })
 })
 
+describe('PUT /api/session/:id/save deletes plaintext images on encrypt', () => {
+  const save = (sessionId: string, body: unknown, overrides: Partial<AppEnv> = {}) =>
+    app(overrides).handle(
+      new Request(`http://localhost/api/session/${sessionId}/save`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+    )
+  // Reading the body releases the R2 stream; an unread one fails isolated storage.
+  const servedStatus = async (imageId: string) => {
+    const res = await serve(imageId)
+    await res.arrayBuffer()
+    return res.status
+  }
+  const encryptBody = {
+    mode: 'encrypt',
+    ciphertext: 'Y2lwaGVydGV4dA==',
+    encParams: { salt: 'c2FsdA==', iv: 'aXY=', iterations: 600_000 },
+  }
+
+  it('removes the R2 object and row of every linked plaintext image and keeps the encrypted copies', async () => {
+    const [top, nested] = [await uploadId(), await uploadId()]
+    const sessionId = await createSession([top], [nested])
+    const sealed = await uploadEncrypted(sessionId, Uint8Array.from([7, 7, 7]))
+    const { imageId: sealedId } = (await sealed.json()) as { imageId: string }
+
+    const res = await save(sessionId, encryptBody)
+    expect(res.status).toBe(200)
+
+    for (const plain of [top, nested]) {
+      expect(await appEnv.IMAGES.head(`images/${plain}`)).toBeNull()
+      expect(await imageRow(plain)).toBeNull()
+      const served = await serve(plain)
+      expect(served.status).toBe(404)
+      expect(await served.json()).toEqual({ error: 'Image not found or expired.' })
+    }
+    const kept = await serve(sealedId)
+    expect(kept.status).toBe(200)
+    expect(new Uint8Array(await kept.arrayBuffer())).toEqual(Uint8Array.from([7, 7, 7]))
+  })
+
+  it('keeps plaintext images on a plain save and on a refused encrypt-save', async () => {
+    const plainSaved = await uploadId()
+    const plainSession = await createSession([plainSaved])
+    expect((await save(plainSession, { mode: 'plain' })).status).toBe(200)
+    expect(await servedStatus(plainSaved)).toBe(200)
+
+    const refused = await uploadId()
+    const refusedSession = await createSession([refused])
+    await appEnv.DB.prepare('UPDATE sessions SET encrypted = 1 WHERE id = ?').bind(refusedSession).run()
+    const conflict = await save(refusedSession, encryptBody)
+    expect(conflict.status).toBe(409)
+    expect(await conflict.json()).toEqual({ error: 'Session is already encrypted.' })
+    expect(await imageRow(refused)).not.toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${refused}`)).not.toBeNull()
+  })
+
+  it('leaves plaintext images alone when the save is rate limited, with the fixed body', async () => {
+    const plain = await uploadId()
+    const sessionId = await createSession([plain])
+    const limiter = { limit: async () => ({ success: false }) } as unknown as AppEnv['RATE_LIMITER']
+    const res = await save(sessionId, encryptBody, { RATE_LIMITER: limiter })
+    expect(res.status).toBe(429)
+    expect(await res.json()).toEqual({ error: 'Rate limit exceeded. Try again in a minute.' })
+    expect(await servedStatus(plain)).toBe(200)
+  })
+
+  it('answers a failed R2 delete with the fixed internal error, and the left-behind copy never serves', async () => {
+    const plain = await uploadId()
+    const sessionId = await createSession([plain])
+    const broken = { delete: async () => Promise.reject(new Error('r2 down at /srv/secret/path.ts')) }
+    const res = await save(sessionId, encryptBody, { IMAGES: broken as unknown as R2Bucket })
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Internal error.' })
+    expect(await imageRow(plain)).not.toBeNull()
+    expect(await servedStatus(plain)).toBe(404)
+  })
+})
+
 describe('purgeExpired with images', () => {
   it('deletes R2 objects and rows of expired, vanished and orphaned images, and keeps live ones', async () => {
     const now = Date.now()

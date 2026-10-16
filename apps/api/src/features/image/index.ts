@@ -4,7 +4,7 @@ import type { AppEnv } from '../../env'
 import { ENCRYPTED_CONTENT_TYPE, MAX_ENCRYPTED_IMAGE_BYTES, MAX_IMAGE_BYTES, sniffImageType } from './model'
 import { getServableImage, storeEncryptedImage, storePlainImage } from './service'
 
-export { imageIdsIn, linkImages, purgeImages } from './service'
+export { deletePlainImages, imageIdsIn, linkImages, purgeImages } from './service'
 
 type ReadResult = { ok: true; bytes: Uint8Array } | { ok: false; status: 400 | 413; error: string }
 

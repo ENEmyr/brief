@@ -1,4 +1,4 @@
-import { and, count, eq, gt, inArray, isNull } from 'drizzle-orm'
+import { and, count, eq, gt, inArray, isNull, or } from 'drizzle-orm'
 import { customAlphabet } from 'nanoid'
 import type { Payload } from '@brief/schema'
 import { images, sessions } from '../../db/schema'
@@ -68,6 +68,22 @@ export async function storeEncryptedImage(
   return { ok: true, imageId }
 }
 
+// Runs after an encrypt-save committed: the client has uploaded encrypted copies and the new
+// payload names only those, so the plaintext copies must not outlive the encryption. Objects go
+// before rows, as in purgeImages, so a failed R2 call never leaves an object without its row.
+export async function deletePlainImages(env: ImageEnv, sessionId: string): Promise<void> {
+  const rows = await db(env.DB)
+    .select({ id: images.id })
+    .from(images)
+    .where(and(eq(images.sessionId, sessionId), eq(images.encrypted, false)))
+    .all()
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const ids = rows.slice(i, i + CHUNK).map((r) => r.id)
+    await env.IMAGES.delete(ids.map(imageKey))
+    await db(env.DB).delete(images).where(inArray(images.id, ids))
+  }
+}
+
 export function imageIdsIn(payload: Payload): string[] {
   const ids = new Set<string>()
   for (const section of payload.sections) {
@@ -110,7 +126,9 @@ export async function getServableImage(env: ImageEnv, id: string, now: number): 
     .select({ contentType: images.contentType, byteSize: images.byteSize, expiresAt: sessions.expiresAt })
     .from(images)
     .innerJoin(sessions, eq(sessions.id, images.sessionId))
-    .where(eq(images.id, id))
+    // A plaintext copy left behind by a failed deletePlainImages must still never serve once
+    // its session is encrypted.
+    .where(and(eq(images.id, id), or(eq(images.encrypted, true), eq(sessions.encrypted, false))))
     .get()
   if (!row || row.expiresAt <= now) return null
   const object = await env.IMAGES.get(imageKey(id))
