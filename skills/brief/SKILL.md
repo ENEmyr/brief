@@ -9,7 +9,7 @@ description: Use when research, analysis, review, or planning work produces find
 
 Brief turns a piece of agent work into a web document the human can act on. You POST one JSON payload; the API returns a URL; the human opens it, reads the sections, highlights passages to ask about or change, answers any decision cards, and pastes a generated reply back into this conversation. You then act on that reply.
 
-The payload has exactly three top-level keys: `meta`, `sections`, and `decisions`. Everything the reader sees is built from those.
+The payload has three required top-level keys, `meta`, `sections`, and `decisions`, and one optional key, `glossary`. Everything the reader sees is built from those.
 
 ## When to use
 
@@ -28,9 +28,9 @@ A document fails this reader in two ways. It buries the point under the story of
 1. **Research and verify.** Read the real files, trace the real code paths, run the real commands. Every number and claim that reaches the payload must come from something you actually saw. Note where each fact came from; that note belongs in an evidence block, not in your sentences.
 2. **List what the reader needs.** Find the kind of work in "What the reader needs" below and write down each fact its row asks for. A fact you could not get is a gap to state in the document, not a row to drop.
 3. **Plan the sections.** Section 1 is a summary of two to four sentences: what you found or did, what it means for the reader, and what they should do now, with no name the reader has not met. Do not restate the request. After it comes one topic per section, in reading order, numbered from 1.
-4. **Pick a block for each fact.** Use "Choosing blocks" below to match each fact to the block built for its shape, then read `BLOCKS.md` in this skill directory for that block's exact fields, enum values, and a valid JSON example. It covers all 22 block types.
+4. **Pick a block for each fact.** Use "Choosing blocks" below to match each fact to the block built for its shape, then read `BLOCKS.md` in this skill directory for that block's exact fields, enum values, and a valid JSON example. It covers all 23 block types.
 5. **Write for the reader.** Follow "Writing for the reader" below.
-6. **Add decisions only for calls the human must make.** Settle every question you can answer by thinking it through or checking, and say in the document what you chose. A decision is for a choice that turns on the human's priorities, money, risk, or taste, with at least two options you would accept. Write those last, so the options reflect what the research found, each with honest `detail` text and usually a `why` that states your recommendation and its cost. When nothing is left to decide, send `"decisions": []`; the reader then shows no decision area.
+6. **Add decisions only for calls the human must make.** Settle every question you can answer by thinking it through or checking, and say in the document what you chose. A decision is for a choice that turns on the human's priorities, money, risk, or taste, with at least two options you would accept. Write those last, so the options reflect what the research found, each with honest `detail` text and usually a `why` that states your recommendation and its cost. Add `refs` with the ids of the sections that set the decision up, so the reader can jump back to the evidence. When nothing is left to decide, send `"decisions": []`; the reader then shows no decision area.
 7. **Reread it as the reader.** Before validating, read the payload as someone who saw none of this session. Every name, path, id, abbreviation, and number is explained where it first appears, or it goes. Every fact from step 2 is there. No sentence describes how you worked.
 8. **Validate before publishing.** Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. It also prints readability hints. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
 9. **Publish and hand over the URL.** Give the human the link and nothing else; the document carries the content now.
@@ -58,8 +58,8 @@ Three rules hold for every kind of work. A claim about code shows the few lines 
 ## Writing for the reader
 
 - **Lead with the point.** The first sentence of each section is its conclusion. Evidence and method follow it, and long evidence goes in a `details` block.
-- **One topic per paragraph.** Six sentences at most, usually two or three, with the topic in the first sentence. A paragraph that counts "first ..., second ..., third ..." is a `table` with one row per item. The validator hints at any paragraph over 400 characters.
-- **Explain or cut every name the reader has not met.** That covers file paths, function and variable names, ticket and PR numbers, decision ids, and the labels you made up while working, such as lanes, phases, or cards. Say what the thing is or does in plain words: "the function that saves the host settings", not `config.SaveHost`. When the reader needs the exact path to act or to check, put it in a table column, a code block's `filename`, or a `details` block.
+- **One topic per paragraph.** Six sentences at most, usually two or three, with the topic in the first sentence. A paragraph that counts "first ..., second ..., third ..." is a `list`, or a `table` with one row per item when each item has more than one attribute. The validator hints at any paragraph over 400 characters.
+- **Explain or cut every name the reader has not met.** That covers file paths, function and variable names, ticket and PR numbers, decision ids, and the labels you made up while working, such as lanes, phases, or cards. Say what the thing is or does in plain words: "the function that saves the host settings", not `config.SaveHost`. When the reader needs the exact path to act or to check, put it in a table column, a code block's `filename`, or a `details` block. A domain term the reader needs but may not know goes in the `glossary`, so its definition shows where the term appears.
 - **Make the document stand alone.** If it follows an earlier document or conversation, restate in one sentence what that one found or decided. Never point to "the card" or "last round".
 - **Leave out how you worked.** Subagents, lanes, verifiers, worktrees, the commands you ran, and the folders your notes live in mean nothing to the reader. Give the result. If the method changes how far to trust it, say so in one sentence or put it in a `details` block.
 - **Say how facts relate.** The reader takes two facts placed side by side as cause and effect. If they are unrelated, say so, or keep them apart.
@@ -86,7 +86,7 @@ Write every text field by the writing rules of ASD-STE100, Simplified Technical 
 - **Use one word for one meaning.** Give each thing one name, the name the product uses, and keep it to the end.
 - **Use three nouns in a row at most.** Break a longer chain with of, for, or a verb in English, and with ของ, ที่, or สำหรับ in Thai.
 - **Do not drop words to make a sentence shorter.** Keep the verbs, the articles, and Thai words such as ที่, ว่า, and ให้. A fragment or a chain of colons makes the reader rebuild the sentence.
-- **Put a complex list in a table with one row per item.** Brief has no list block.
+- **Put a list in a block, not in a sentence.** Use a `list` when each item is one phrase or one step. Use a `table` with one row per item when the items have several attributes.
 
 | Before | After ASD-STE100 |
 | --- | --- |
@@ -116,7 +116,7 @@ Write every text field by the writing rules of ASD-STE100, Simplified Technical 
 The request body wraps the payload in a `payload` key. Nothing else in the body is read.
 
 ```text
-{ "payload": { "meta": <meta object>, "sections": [<section>, ...], "decisions": [<decision>, ...] } }
+{ "payload": { "meta": <meta object>, "sections": [<section>, ...], "decisions": [<decision>, ...], "glossary": [<entry>, ...] } }
 ```
 
 The smallest document the API accepts:
@@ -148,7 +148,11 @@ At least one. Each needs `id` (short, unique, used as the URL fragment), `no` (i
 
 ### `decisions`
 
-May be empty, and then the reader shows no decision area. Each decision needs `id`, `q`, `multi`, and at least two `opts`. Set `multi` to `false` for an either-or choice and `true` when several options can be taken together. The full field reference, including the two fields agents habitually get wrong (`cmp` and `dia`), is in `BLOCKS.md`.
+May be empty, and then the reader shows no decision area. Each decision needs `id`, `q`, `multi`, and at least two `opts`. Set `multi` to `false` for an either-or choice and `true` when several options can be taken together. The optional `refs` field lists the ids of the sections that set the decision up. The full field reference, including the two fields agents habitually get wrong (`cmp` and `dia`), is in `BLOCKS.md`.
+
+### `glossary`
+
+Optional. An array of at most 60 entries, each with a `term`, a `def` of at most 400 characters, and up to five `aliases`. The reader underlines the first use of each term in each section and shows the definition on hover or tap. It looks for terms only in paragraphs and in `note`, `warn`, and `good` callouts. Leave the key out when there is nothing to define. The fields and the matching rules are in `BLOCKS.md`.
 
 ## Choosing blocks
 
@@ -164,7 +168,8 @@ A block is forced when it holds less than a sentence would, or when the reader n
 | A caveat the reader must not miss | `warn` | A `p` starting with "Warning:". |
 | An aside the reader can skip | `note` | `warn`, which signals risk. |
 | A result worth celebrating, or a passing check | `good` | `stat`, which is for numbers. |
-| Enumerable facts with the same shape, such as findings with a severity, steps in order, or options across several criteria | `table`, each cell a phrase, with a caption that says what the table shows | A paragraph that counts "first ..., second ...", or cells that are whole paragraphs. |
+| Enumerable facts with the same shape, such as findings with a severity, steps with an owner each, or options across several criteria | `table`, each cell a phrase, with a caption that says what the table shows | A paragraph that counts "first ..., second ...", or cells that are whole paragraphs. |
+| Items with one attribute each, such as steps to follow, prerequisites, or files to change | `list`, with `ordered` set to `true` when the order matters | A `table` with one column, or a paragraph that counts "first ..., second ...". When each item has two or more attributes, use a `table`. |
 | Two options compared point by point, where each item on one side answers the same point on the other | `compare` | Two unrelated lists of pros and cons. Use a `table` with one row per criterion. |
 | Two or three headline numbers the reader came for | `stat`, with a label and a hint of a few words each | A one-row `table`, or counts of your own process such as findings checked. |
 | What is covered, partly covered, and missing, such as requirements or test cases | `coverage` | A `table` with a "Status" column, or a list of the commands you ran. |
@@ -315,6 +320,13 @@ When the document has decisions, design them so this loop closes in one pass. A 
 | Including `"type": "table"` inside a decision's `cmp` | `cmp` is a table shape with the `type` key removed: `{ head, rows, caption? }`. |
 | Numbers in `table.rows` cells | Cells are strings. Write `"48120"`, not `48120`. |
 | Nesting a `details` inside a `details` | Rejected by the schema. Flatten it. |
+| Counting note lines from 0, or past the end of the code | `code` and `ba` notes count lines from 1, and `to` must not be before `from`. A note outside the listing, or outside its `side` of a `ba`, is dropped without an error. Count the lines of the code you wrote. |
+| A decision id, a section number, or a title in a decision's `refs` | `refs` holds section `id` values, such as `"evidence"`. An id that matches no section is dropped without an error. |
+| Expecting a glossary term to be underlined in a table, a list, a stat tile, or code | The reader looks for terms only in paragraphs and in `note`, `warn`, and `good` callouts. Use the term in a sentence of one of those blocks. |
+| A secret, a credential, or personal data in a code note or a glossary entry | Never put them there. Every reader of the document sees notes and definitions. |
+| `"tone": "red"` on a table cell, state, or transition, or `"tone": "bad"` on a stat tile | Table cells, states, and transitions take `info`, `good`, `warn`, or `bad`. Stat tiles take the colour names `mauve`, `blue`, `green`, `red`, `peach`, `teal`, or `yellow`. |
+| Counting the header row in a table's `cells`, or counting `cells` and a histogram `threshold.bin` from 0 | `row: 1` is the first array in `rows`. Rows, columns, and bins count from 1. A position outside the table or past the last bin is ignored without an error. |
+| A one-column `table` for a list of steps | Use a `list` block with `ordered: true`. |
 | Explaining a flow, a comparison, or a set of numbers in paragraphs | Use the block built for that shape, and keep the paragraph for what the block cannot say, such as why it matters. |
 | A block that repeats the paragraph beside it | Keep whichever carries the fact better and cut the other. |
 | Adding a decision so the document has one | `"decisions": []` is a complete document. A decision is for a choice the human owns, with at least two options you would accept. |
