@@ -11,6 +11,9 @@ const TIP_GAP = 8
 const GUTTER = 16
 // Time for a pointer to cross the 8px gap into the popover before it closes.
 const LEAVE_DELAY = 150
+// Under 880 every control is a 44px touch target (settled rule, STATUS.md).
+const REF_CLASS =
+  'cursor-pointer hover:text-text max-[880px]:inline-flex max-[880px]:min-h-[44px] max-[880px]:min-w-[44px] max-[880px]:items-center max-[880px]:justify-center'
 
 /**
  * A defined term (B-NewBlocks glossary). The wrapper holds only the term's own
@@ -171,12 +174,12 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
               <span>{term.term}</span>
               <span className="flex flex-wrap justify-end gap-[6px] text-faint">
                 {term.sections.map((s) => (
-                  <button key={s.id} type="button" className="cursor-pointer hover:text-text" onClick={go(() => onSection(s.id))}>
+                  <button key={s.id} type="button" className={REF_CLASS} onClick={go(() => onSection(s.id))}>
                     §{pad(s.no)}
                   </button>
                 ))}
                 {term.decisions.map((id) => (
-                  <button key={id} type="button" className="cursor-pointer hover:text-text" onClick={go(() => onDecision(id))}>
+                  <button key={id} type="button" className={REF_CLASS} onClick={go(() => onDecision(id))}>
                     {id}
                   </button>
                 ))}
