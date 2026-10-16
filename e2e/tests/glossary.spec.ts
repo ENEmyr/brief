@@ -174,4 +174,14 @@ test('print numbers each term and lists the Terms', async ({ page, createSession
   const terms = page.locator('[data-print-terms]')
   await expect(terms.getByRole('heading', { name: 'Terms' })).toBeVisible()
   await expect(terms.locator('dt')).toHaveText(['1 token bucket', '2 p95', `3 ${XSS}`])
+
+  // B-Print puts Terms after Your answers, which renders on beforeprint.
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')))
+  await expect(page.locator('[data-print-answers]')).toBeVisible()
+  const answersFirst = await page.evaluate(() => {
+    const answers = document.querySelector('[data-print-answers]')!
+    const list = document.querySelector('[data-print-terms]')!
+    return Boolean(answers.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+  expect(answersFirst).toBe(true)
 })

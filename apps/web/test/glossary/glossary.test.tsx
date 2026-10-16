@@ -89,7 +89,7 @@ function renderLeaf(highlights: Highlight[] = [], handlers = { onSection: vi.fn(
     <ReaderStateProvider sessionId={sessionId}>
       <GlossaryProvider payload={payload} {...handlers}>
         <Annotatable as="p" text={text} sid={0} bid={0} path="text" markdown />
-        <PrintTerms />
+        <PrintTerms glossary={glossary} />
       </GlossaryProvider>
     </ReaderStateProvider>,
   )

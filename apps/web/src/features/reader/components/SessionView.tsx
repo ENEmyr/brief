@@ -23,7 +23,7 @@ import {
 } from '@/features/decisions'
 import type { DockTarget } from '@/features/decisions'
 import { ExportProvider, useExport } from '@/features/export'
-import { GlossaryProvider, PrintTerms } from '@/features/glossary'
+import { GlossaryProvider } from '@/features/glossary'
 import { SaveModal, UnlockCard } from '@/features/save'
 import { CommandPalette, buildDocumentEntries } from '@/features/palette'
 import type { PaletteEntry } from '@/features/palette'
@@ -400,7 +400,6 @@ function SessionReady({
                   />
                 ))
               )}
-              <PrintTerms />
             </main>
             {hasDecisions && (
               <DockSlot

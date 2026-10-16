@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { StoredPayload } from '@brief/schema'
 import { buildEditPrompt } from '@/features/annotations'
 import { useReaderStateStore } from '@/features/reader-state'
+import { PrintTerms } from '@/features/glossary'
 import { copyText } from '../lib/copy'
 import { downloadMarkdown as downloadMarkdownFile } from '../lib/download'
 import { printDocument } from '../lib/print'
@@ -153,6 +154,7 @@ export function ExportProvider({
       {printSnapshot && <PrintHeader payload={payload} sessionId={sessionId} snapshot={printSnapshot} />}
       {children}
       {printSnapshot && <PrintAnswers decisions={payload.decisions} state={printSnapshot.state} />}
+      <PrintTerms glossary={payload.glossary} />
       <Toast toast={shown} onDismiss={() => shown && dismissToast(shown.id)} />
       {shareOpen && (
         <ShareModal
