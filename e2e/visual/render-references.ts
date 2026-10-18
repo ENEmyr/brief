@@ -143,12 +143,7 @@ function writeLandingBoards(): void {
   html = patch(html, /k2p9x4(?!Qm)/g, 'k2p9x4Qm7Zr1Ta', 'R-V2 session id')
   // R-V2 (d056, d057; D7, D9): row 1 lists list and image, and its note says "and images".
   html = patch(html, '>p note warn good<', '>p list note warn good image<', 'R-V2 row 1 types')
-  html = patch(
-    html,
-    'Prose with inline code, links, and the three callout tones.',
-    'Prose with inline code, links, the three callout tones, and images.',
-    'R-V2 row 1 note',
-  )
+  html = patch(html, 'and the three callout tones.', 'the three callout tones, and images.', 'R-V2 row 1 note')
   // The "proposed" tag marks the Agent work row as unshipped (features.md:310);
   // walkthrough, diff and trajectory shipped, so the app draws no tag
   // (recorded difference, pr-body-phase6.md:117).
