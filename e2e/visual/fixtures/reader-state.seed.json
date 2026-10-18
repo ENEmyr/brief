@@ -18,6 +18,17 @@
       "end": 98,
       "text": "ล้มทั้งแถบ",
       "note": null
+    },
+    {
+      "id": "h-seed-2",
+      "sid": 0,
+      "bid": 99,
+      "path": "text",
+      "start": 0,
+      "end": 30,
+      "text": "burst allowance สำหรับ webhook",
+      "note": null,
+      "question": "burst allowance สำหรับ webhook ควรตั้งเท่าไร"
     }
   ]
 }

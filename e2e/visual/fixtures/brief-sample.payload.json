@@ -79,7 +79,10 @@
           "language": "ts",
           "filename": "src/limiter.ts",
           "code": "export async function handle(req, env) {\n  const key = resolveKey(req)\n  const { success } = await env.LIMITER.limit({ key })\n  if (!success) return tooMany(30)\n  return fetch(origin(req))\n}",
-          "highlight": [3, 4]
+          "highlight": [3, 4],
+          "notes": [
+            { "from": 4, "text": "ถ้า token หมดตอบ 429 ทันทีโดยไม่แตะ origin ค่า 30 = วินาทีที่ bucket เติมกลับ" }
+          ]
         }
       ]
     },
@@ -123,6 +126,16 @@
         {
           "type": "warn",
           "text": "ตัวนับใน KV ข้าม region คลาดได้ราว 60 วินาที"
+        },
+        {
+          "type": "trajectory",
+          "steps": [
+            { "at": "2026-10-14T08:00:00Z", "kind": "request", "title": "ตรวจว่าทำไม API ล่มตอน burst" },
+            { "at": "2026-10-14T08:02:10Z", "kind": "read", "title": "อ่าน src/limiter.ts" },
+            { "at": "2026-10-14T08:05:40Z", "kind": "assumption", "title": "สมมติว่า traffic ทั้งหมดผ่าน Edge Worker", "flag": true },
+            { "at": "2026-10-14T08:09:15Z", "kind": "run", "title": "ยิง load test 10 เท่าบน staging", "flag": true },
+            { "at": "2026-10-14T08:14:30Z", "kind": "decision", "title": "เลือก rate limiting binding เป็นค่าเริ่มต้น", "flag": true }
+          ]
         }
       ]
     }
@@ -130,6 +143,7 @@
   "decisions": [
     {
       "id": "D1",
+      "refs": ["s3", "s2"],
       "q": "ใช้ตัวจำกัดอัตราแบบไหน",
       "multi": false,
       "opts": [
@@ -140,6 +154,7 @@
     },
     {
       "id": "D2",
+      "refs": ["s1"],
       "q": "ค่า default limit ต่อผู้ใช้",
       "multi": false,
       "opts": [
@@ -150,6 +165,7 @@
     },
     {
       "id": "D3",
+      "refs": ["s2"],
       "q": "ใช้อะไรเป็น key",
       "multi": true,
       "opts": [
@@ -160,6 +176,7 @@
     },
     {
       "id": "D4",
+      "refs": ["s2", "s1"],
       "q": "ตอบอะไรเมื่อเกิน limit",
       "multi": false,
       "opts": [
@@ -168,5 +185,8 @@
         { "id": "degrade", "label": "ลดคุณภาพ response" }
       ]
     }
+  ],
+  "glossary": [
+    { "term": "token bucket", "def": "ถังเติม token อัตราคงที่ request หนึ่งครั้งใช้หนึ่งใบ ว่างเมื่อไหร่ก็ถูกจำกัด" }
   ]
 }
