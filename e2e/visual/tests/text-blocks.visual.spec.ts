@@ -623,8 +623,6 @@ test('math keeps its height while KaTeX loads and after it draws (B-States:105-1
   expect(Math.abs(after - before)).toBeLessThanOrEqual(1)
 })
 
-const FORMULA_MASK_HEIGHT = 51
-
 test.describe('text blocks against the B-Blocks panels', () => {
   // Pixel crops at the board's panel width (576, or 1168 for ba). Dark only:
   // B-Blocks has no light board.
@@ -653,16 +651,8 @@ test.describe('text blocks against the B-Blocks panels', () => {
       await expect(target).toBeVisible()
       // R-V3 (d201): the app keeps one card per details and KaTeX; the crop is
       // the open details alone, and the formula box (Times italic on the
-      // board) is masked on both sides at the larger box's height, the app's
-      // KaTeX box (crops.json blocks-details maskHeight).
+      // board) is masked on both sides (crops.json blocks-details).
       const formula = target.locator('[data-math]')
-      if (kind === 'details') {
-        expect((await formula.boundingBox())!.height).toBeLessThanOrEqual(FORMULA_MASK_HEIGHT)
-        await formula.evaluate(
-          (el, h) => el.style.setProperty('height', `${h}px`),
-          FORMULA_MASK_HEIGHT,
-        )
-      }
       // Board tint inconsistency (B-Blocks:146,152): line 1 changes
       // (handle(req) to handle(req, env)) but the board tints it on neither
       // side, and the app tints it on both, so line 1 is masked on both sides

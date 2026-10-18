@@ -163,8 +163,8 @@
       "selector": "section",
       "nth": 7,
       "contains": "resolveKey",
-      "css": "div[style^=\"display: flex; padding: 0 12px\"] { white-space: pre }",
-      "mask": "div[style^=\"display: flex; padding: 0 12px\"]:has-text(\"export async function handle\")"
+      "css": "div[style^=\"display: flex; padding: 0px 12px\"] { white-space: pre }",
+      "mask": "div[style^=\"display: flex; padding: 0px 12px\"]:has-text(\"export async function handle\")"
     },
     {
       "name": "blocks-details",
@@ -172,8 +172,7 @@
       "selector": "details",
       "nth": 0,
       "contains": "refill rate",
-      "mask": "details div[style*=\"Times New Roman\"]",
-      "maskHeight": 51
+      "mask": "details div[style*=\"Times New Roman\"]"
     },
     {
       "name": "overlays-copy-title",

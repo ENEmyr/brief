@@ -50,8 +50,6 @@ interface Crop {
   snap?: boolean
   /** Elements masked on both sides; each use cites the ruling that allows it. */
   mask?: string
-  /** Height (px, border box) both sides give the masked element, so the larger box sets the crop on both. */
-  maskHeight?: number
   /** CSS added to the board before the cut; each use cites the board line it corrects. */
   css?: string
 }
@@ -294,11 +292,6 @@ test('element crops from crops.json', async ({ browser }) => {
       }
     }
     if (crop.css !== undefined) await page.addStyleTag({ content: crop.css })
-    if (crop.maskHeight !== undefined) {
-      await page
-        .locator(crop.mask!)
-        .evaluateAll((els, h) => els.forEach((el) => (el as HTMLElement).style.setProperty('height', `${h}px`)), crop.maskHeight)
-    }
     if (crop.snap) await snapToPixelRow(locator)
     const clip = await clipOf(locator)
     if (crop.visibleHeight !== undefined) clip.height = Math.min(clip.height, crop.visibleHeight)
