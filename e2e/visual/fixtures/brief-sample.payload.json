@@ -1,0 +1,172 @@
+{
+  "meta": {
+    "title": "Rate limiting สำหรับ public API",
+    "author": "Claude Code",
+    "role": "backend review",
+    "date": "2026-10-14",
+    "version": "v1.3",
+    "repo": "acme/api-gateway",
+    "readTime": "8 min",
+    "subtitle": "ระบบล่มทุกครั้งที่มี burst traffic เอกสารนี้อธิบายต้นเหตุ เทียบแนวทาง และมี 4 คำถามรอคุณที่ dock ด้านขวา"
+  },
+  "sections": [
+    {
+      "id": "s1",
+      "no": 1,
+      "title": "ปัญหาของ burst traffic",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "เมื่อ request เข้ามาเป็นก้อนใหญ่พร้อมกัน downstream รับไม่ทัน ระบบที่ไม่มีตัวคุมอัตราจึงล้มทั้งแถบ การจำกัดอัตราจึงเป็นด่านแรกที่ปกป้อง API"
+        },
+        {
+          "type": "stat",
+          "items": [
+            { "label": "Peak RPS", "value": "4,800" },
+            { "label": "p95", "value": "2.4 s", "tone": "red" },
+            { "label": "5xx", "value": "11%", "tone": "red" },
+            { "label": "after limiter", "value": "0.2%", "tone": "green" }
+          ]
+        },
+        {
+          "type": "compare",
+          "left": {
+            "title": "ไม่มีตัวคุมอัตรา",
+            "tone": "bad",
+            "tag": "เสี่ยง",
+            "items": [
+              { "text": "burst ทะลุถึง downstream", "ok": false },
+              { "text": "ล้มลูกโซ่เมื่อโหลดพุ่ง", "ok": false },
+              { "text": "ไม่มีสัญญาณให้ client ชะลอ", "ok": false }
+            ]
+          },
+          "right": {
+            "title": "มีตัวคุมอัตรา",
+            "tone": "good",
+            "tag": "ปลอดภัย",
+            "items": [
+              { "text": "traffic เรียบก่อนถึง API", "ok": true },
+              { "text": "ตอบ 429 + Retry-After", "ok": true },
+              { "text": "ล้มเฉพาะส่วนเกิน", "ok": true }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "no": 2,
+      "title": "Token Bucket ทำงานอย่างไร",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "ทุก request ต้องขอ token จาก token bucket ก่อนถึง origin ถ้าหมดตอบ 429 ทันที"
+        },
+        {
+          "type": "seq",
+          "actors": ["Client", "Edge Worker", "Limiter", "Origin API"],
+          "steps": [
+            { "from": "Client", "to": "Edge Worker", "label": "GET /orders" },
+            { "from": "Edge Worker", "to": "Limiter", "label": "take(key, 1)" },
+            { "from": "Limiter", "to": "Edge Worker", "label": "ok · เหลือ 41" },
+            { "from": "Edge Worker", "to": "Origin API", "label": "forward" },
+            { "from": "Origin API", "to": "Edge Worker", "label": "200 OK" },
+            { "from": "Edge Worker", "to": "Client", "label": "200 · เหลือ 41" }
+          ]
+        },
+        {
+          "type": "code",
+          "language": "ts",
+          "filename": "src/limiter.ts",
+          "code": "export async function handle(req, env) {\n  const key = resolveKey(req)\n  const { success } = await env.LIMITER.limit({ key })\n  if (!success) return tooMany(30)\n  return fetch(origin(req))\n}",
+          "highlight": [3, 4]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "no": 3,
+      "title": "ต้นทุนเมื่อ n โต",
+      "blocks": [
+        {
+          "type": "table",
+          "head": ["ตัวเลือก", "แม่น", "latency"],
+          "rows": [
+            ["Binding", "±5%", "<1 ms"],
+            ["KV counter", "±20%", "5–30 ms"],
+            ["Durable Object", "exact", "10–40 ms"]
+          ]
+        },
+        {
+          "type": "bigo",
+          "series": [
+            { "label": "O(n)", "curve": "n" },
+            { "label": "O(log n)", "curve": "logn" },
+            { "label": "O(1)", "curve": "1" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "no": 4,
+      "title": "ความครอบคลุมของการทดสอบ",
+      "blocks": [
+        {
+          "type": "coverage",
+          "items": [
+            { "label": "Burst 10 เท่า", "status": "full" },
+            { "label": "Multi-region", "status": "partial" },
+            { "label": "Retry storm", "status": "missing" }
+          ]
+        },
+        {
+          "type": "warn",
+          "text": "ตัวนับใน KV ข้าม region คลาดได้ราว 60 วินาที"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "q": "ใช้ตัวจำกัดอัตราแบบไหน",
+      "multi": false,
+      "opts": [
+        { "id": "binding", "label": "Rate limiting binding" },
+        { "id": "kv", "label": "KV counter" },
+        { "id": "do", "label": "Durable Object" }
+      ]
+    },
+    {
+      "id": "D2",
+      "q": "ค่า default limit ต่อผู้ใช้",
+      "multi": false,
+      "opts": [
+        { "id": "60", "label": "60 / นาที" },
+        { "id": "600", "label": "600 / นาที" },
+        { "id": "plan", "label": "ตาม plan" }
+      ]
+    },
+    {
+      "id": "D3",
+      "q": "ใช้อะไรเป็น key",
+      "multi": true,
+      "opts": [
+        { "id": "api", "label": "API key" },
+        { "id": "ip", "label": "IP address" },
+        { "id": "user", "label": "User ID" }
+      ]
+    },
+    {
+      "id": "D4",
+      "q": "ตอบอะไรเมื่อเกิน limit",
+      "multi": false,
+      "opts": [
+        { "id": "429", "label": "429 + Retry-After" },
+        { "id": "queue", "label": "เข้าคิวรอ" },
+        { "id": "degrade", "label": "ลดคุณภาพ response" }
+      ]
+    }
+  ]
+}

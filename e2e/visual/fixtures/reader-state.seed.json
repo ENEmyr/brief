@@ -1,0 +1,21 @@
+{
+  "dsel": {
+    "D1": ["binding"],
+    "D2": ["other"],
+    "D3": ["api", "user"],
+    "D4": []
+  },
+  "dnote": {},
+  "highlights": [
+    {
+      "id": "h-seed-1",
+      "sid": 0,
+      "bid": 0,
+      "path": "text",
+      "start": 88,
+      "end": 98,
+      "text": "ล้มทั้งแถบ",
+      "note": null
+    }
+  ]
+}

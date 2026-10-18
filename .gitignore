@@ -26,3 +26,8 @@ CLAUDE.local.md
 .claude/settings.local.json
 docs/design-handoffs/
 .playwright-cli/
+
+# visual suite references, rendered from the design handoff
+e2e/visual/reference/
+e2e/playwright-report-visual/
+e2e/test-results-visual/
