@@ -37,7 +37,11 @@ const corpus: { name: string; mutate: (p: Payload) => void; valid: boolean }[] =
   {
     name: 'a seq with one actor',
     mutate: (p) => {
-      p.sections[1]!.blocks[1] = { type: 'seq', actors: ['Only'], steps: [{ from: 'Only', to: 'Only', label: 'x' }] }
+      p.sections[1]!.blocks[1] = {
+        type: 'seq',
+        actors: ['Only'],
+        steps: [{ from: 'Only', to: 'Only', label: 'x' }],
+      }
     },
     valid: false,
   },
@@ -45,7 +49,10 @@ const corpus: { name: string; mutate: (p: Payload) => void; valid: boolean }[] =
     name: 'a stat tone outside the palette',
     mutate: (p) => {
       // @ts-expect-error deliberately invalid tone
-      p.sections[0]!.blocks[1] = { type: 'stat', items: [{ label: 'a', value: '1', tone: 'purple' }] }
+      p.sections[0]!.blocks[1] = {
+        type: 'stat',
+        items: [{ label: 'a', value: '1', tone: 'purple' }],
+      }
     },
     valid: false,
   },
@@ -81,7 +88,10 @@ const corpus: { name: string; mutate: (p: Payload) => void; valid: boolean }[] =
     name: 'a scatter point as an object instead of a tuple',
     mutate: (p) => {
       // @ts-expect-error points are [x, y] tuples
-      p.sections[0]!.blocks[0] = { type: 'scatter', series: [{ label: 's', points: [{ x: 1, y: 2 }] }] }
+      p.sections[0]!.blocks[0] = {
+        type: 'scatter',
+        series: [{ label: 's', points: [{ x: 1, y: 2 }] }],
+      }
     },
     valid: false,
   },
@@ -104,14 +114,20 @@ const corpus: { name: string; mutate: (p: Payload) => void; valid: boolean }[] =
   {
     name: 'a trajectory step time without Z',
     mutate: (p) => {
-      p.sections[0]!.blocks[0] = { type: 'trajectory', steps: [{ at: '2026-07-12T09:00:00+07:00', kind: 'run', title: 'x' }] }
+      p.sections[0]!.blocks[0] = {
+        type: 'trajectory',
+        steps: [{ at: '2026-07-12T09:00:00+07:00', kind: 'run', title: 'x' }],
+      }
     },
     valid: false,
   },
   {
     name: 'a trajectory step time in UTC',
     mutate: (p) => {
-      p.sections[0]!.blocks[0] = { type: 'trajectory', steps: [{ at: '2026-07-12T09:00:00.250Z', kind: 'run', title: 'x' }] }
+      p.sections[0]!.blocks[0] = {
+        type: 'trajectory',
+        steps: [{ at: '2026-07-12T09:00:00.250Z', kind: 'run', title: 'x' }],
+      }
     },
     valid: true,
   },
@@ -237,7 +253,9 @@ describe("the offline validator's readability hints", () => {
   })
 
   it('flags a table cell that holds a paragraph', () => {
-    const hints = readabilityHints(withBlock({ type: 'table', head: ['Finding'], rows: [['a'.repeat(200)], ['b'.repeat(201)]] }))
+    const hints = readabilityHints(
+      withBlock({ type: 'table', head: ['Finding'], rows: [['a'.repeat(200)], ['b'.repeat(201)]] }),
+    )
     expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.1.0'])
     expect(hints[0]!.message).toMatch(/^201 characters in one table cell\./)
   })
@@ -248,7 +266,11 @@ describe("the offline validator's readability hints", () => {
         type: 'stat',
         items: [
           { label: 'CPU at 10,000 students', value: '83%', hint: 'Estimate' },
-          { label: 'After', value: '77%', hint: 'Estimated from the refit, warm plan cache, bcrypt cost 10 kept' },
+          {
+            label: 'After',
+            value: '77%',
+            hint: 'Estimated from the refit, warm plan cache, bcrypt cost 10 kept',
+          },
         ],
       }),
     )
@@ -256,7 +278,9 @@ describe("the offline validator's readability hints", () => {
   })
 
   it('names the file path it found in running text', () => {
-    const hints = readabilityHints(paragraph('The handler in apps/api/src/index.ts writes the row.'))
+    const hints = readabilityHints(
+      paragraph('The handler in apps/api/src/index.ts writes the row.'),
+    )
     expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.text'])
     expect(hints[0]!.message).toMatch(/^File path in running text \(apps\/api\/src\/index\.ts\)\./)
   })
@@ -279,17 +303,23 @@ describe("the offline validator's readability hints", () => {
 
   it('flags markdown in any text the reader sees, since Brief renders it as typed', () => {
     const hints = readabilityHints(
-      withBlock({ type: 'table', head: ['Field', 'Use'], rows: [['`tone`', 'Colour of the tile']] }),
+      withBlock({
+        type: 'table',
+        head: ['Field', 'Use'],
+        rows: [['`tone`', 'Colour of the tile']],
+      }),
     )
     expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.0.0'])
   })
 
   it('accepts inline code, bold and italic in paragraphs and callouts, which the reader renders', () => {
     expect(readabilityHints(paragraph('Set `tone` to **bad** for a *failing* row.'))).toEqual([])
-    expect(readabilityHints(withBlock({ type: 'warn', title: 'Use `tone`', text: 'Not **color**.' }))).toEqual([])
-    expect(readabilityHints(paragraph('See [the docs](https://brief.algoryth.me).')).map((h) => h.path)).toEqual([
-      'sections.0.blocks.0.text',
-    ])
+    expect(
+      readabilityHints(withBlock({ type: 'warn', title: 'Use `tone`', text: 'Not **color**.' })),
+    ).toEqual([])
+    expect(
+      readabilityHints(paragraph('See [the docs](https://brief.algoryth.me).')).map((h) => h.path),
+    ).toEqual(['sections.0.blocks.0.text'])
   })
 
   it('accepts inline code, bold and italic in list items, which the reader renders, but not links', () => {
@@ -298,7 +328,9 @@ describe("the offline validator's readability hints", () => {
     const link = readabilityHints(list('See [the docs](https://brief.algoryth.me).'))
     expect(link.map((h) => h.path)).toEqual(['sections.0.blocks.0.items.1'])
     expect(link[0]!.message).toMatch(/this link shows as literal characters/)
-    const cell = readabilityHints(withBlock({ type: 'table', head: ['Field'], rows: [['Set `tone` to **bad**']] }))
+    const cell = readabilityHints(
+      withBlock({ type: 'table', head: ['Field'], rows: [['Set `tone` to **bad**']] }),
+    )
     expect(cell.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.0.0'])
     expect(cell[0]!.message).toMatch(/this markdown shows as literal characters/)
   })
@@ -306,13 +338,18 @@ describe("the offline validator's readability hints", () => {
   it('scans a payload-sized unbroken run in linear time', () => {
     const run = 'a'.repeat(1_900_000)
     const hints = readabilityHints(paragraph(`${run} x/y.ts`))
-    expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.text', 'sections.0.blocks.0.text'])
+    expect(hints.map((h) => h.path)).toEqual([
+      'sections.0.blocks.0.text',
+      'sections.0.blocks.0.text',
+    ])
     expect(hints[1]!.message).toContain('(x/y.ts)')
     expect(readabilityHints(withBlock({ type: 'note', text: `[${run}](${run}` }))).toHaveLength(1)
   })
 
   it('leaves code alone', () => {
-    expect(readabilityHints(withBlock({ type: 'code', language: 'md', code: '**bold** and `tick`' }))).toEqual([])
+    expect(
+      readabilityHints(withBlock({ type: 'code', language: 'md', code: '**bold** and `tick`' })),
+    ).toEqual([])
   })
 
   it('reads paragraphs inside a details block and the text of decisions', () => {
@@ -333,7 +370,9 @@ describe("the offline validator's readability hints", () => {
     const file = join(tmp, 'payload.json')
     writeFileSync(file, JSON.stringify(paragraph('a'.repeat(401))))
     try {
-      const run = spawnSync(process.execPath, [resolve(skillDir, 'validate.mjs'), file], { encoding: 'utf8' })
+      const run = spawnSync(process.execPath, [resolve(skillDir, 'validate.mjs'), file], {
+        encoding: 'utf8',
+      })
       expect(run.status).toBe(0)
       expect(run.stderr).toContain('hint     sections.0.blocks.0.text: 401 characters')
       expect(run.stdout).toContain('1 readability hint(s).')

@@ -94,8 +94,10 @@ export function validatePayload(value, schema) {
         if (!best || attempt.errors.length < best.errors.length) best = attempt
       }
       if (best) {
-        for (const e of best.errors) errors.push({ path: joinPath(path, e.path), message: e.message })
-        for (const w of best.warnings) warnings.push({ path: joinPath(path, w.path), message: w.message })
+        for (const e of best.errors)
+          errors.push({ path: joinPath(path, e.path), message: e.message })
+        for (const w of best.warnings)
+          warnings.push({ path: joinPath(path, w.path), message: w.message })
       }
       return
     }
@@ -153,7 +155,8 @@ export function validatePayload(value, schema) {
       }
       if (node.prefixItems) {
         node.prefixItems.forEach((item, i) => {
-          if (i >= val.length) at(`Invalid input: expected ${item.type ?? 'value'} at index ${i}, received nothing`)
+          if (i >= val.length)
+            at(`Invalid input: expected ${item.type ?? 'value'} at index ${i}, received nothing`)
           else walk(item, val[i], `${path}.${i}`)
         })
         if (node.items === false && val.length > node.prefixItems.length) {
@@ -250,7 +253,9 @@ function proseHints(text, path, hints) {
     })
   }
   sentenceHints(text, path, hints)
-  const paths = text.includes('/') ? (text.replace(URL_PATTERN, ' ').match(PATH_PATTERN) ?? []).filter(isFilePath) : []
+  const paths = text.includes('/')
+    ? (text.replace(URL_PATTERN, ' ').match(PATH_PATTERN) ?? []).filter(isFilePath)
+    : []
   if (paths.length > 0) {
     hints.push({
       path,
@@ -316,7 +321,11 @@ export function readabilityHints(payload) {
   const visitStrings = (node, path, inline = false) => {
     if (typeof node === 'string') {
       // Paragraphs, callouts and list items render inline code, bold and italic; links and every other field show as typed.
-      if (inline ? LINK_PATTERN.test(node) : node.includes('`') || node.includes('**') || LINK_PATTERN.test(node)) {
+      if (
+        inline
+          ? LINK_PATTERN.test(node)
+          : node.includes('`') || node.includes('**') || LINK_PATTERN.test(node)
+      ) {
         hints.push({
           path,
           message: inline
@@ -329,7 +338,9 @@ export function readabilityHints(payload) {
     } else if (node && typeof node === 'object') {
       const prose = PROSE_BLOCKS.has(node.type)
       for (const [key, value] of Object.entries(node)) {
-        const rendered = (prose && (key === 'text' || key === 'title')) || (node.type === 'list' && key === 'items')
+        const rendered =
+          (prose && (key === 'text' || key === 'title')) ||
+          (node.type === 'list' && key === 'items')
         if (!CODE_FIELDS.has(key)) visitStrings(value, joinPath(path, key), rendered)
       }
     }
