@@ -7,5 +7,6 @@ declare module 'cloudflare:test' {
     IMAGES: R2Bucket
     PUBLIC_WEB_ORIGIN: string
     TEST_MIGRATIONS: D1Migration[]
+    TEST_LIMITER_PERIODS: Record<string, number>
   }
 }

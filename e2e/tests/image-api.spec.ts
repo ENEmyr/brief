@@ -30,7 +30,7 @@ test.describe('image API through the local Worker and R2', () => {
     expect(headers['content-type']).toBe('image/png')
     expect(headers['x-content-type-options']).toBe('nosniff')
     expect(headers['content-security-policy']).toBe("default-src 'none'; sandbox")
-    expect(headers['cache-control']).toMatch(/^private, max-age=\d+$/)
+    expect(headers['cache-control']).toBe('no-store')
   })
 
   test('an SVG upload is refused with a fixed message', async ({ request, isMobile }) => {

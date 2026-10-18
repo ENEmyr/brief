@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { env } from 'cloudflare:test'
 import { createApp } from '../src/app'
 import { purgeExpired } from '../src/features/purge'
@@ -11,6 +11,14 @@ const PNG = Uint8Array.from(
   atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='),
   (c) => c.charCodeAt(0),
 )
+// 1 x 1 images written by ImageMagick; the GIF87a copy drops the 89a-only extension block.
+const fromBase64 = (b64: string): Uint8Array<ArrayBuffer> => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+const JPEG = fromBase64(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAVAQEBAAAAAAAAAAAAAAAAAAAHCf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/ADoDFU3/2Q==',
+)
+const GIF89 = fromBase64('R0lGODlhAQABAPAAAP8AAAAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==')
+const GIF87 = fromBase64('R0lGODdhAQABAPAAAP8AAAAAACwAAAAAAQABAAACAkQBADs=')
+const WEBP = fromBase64('UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA')
 const bytesOf = (text: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(text)
 const concat = (...parts: Uint8Array[]): Uint8Array<ArrayBuffer> => {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.byteLength, 0))
@@ -78,10 +86,10 @@ describe('POST /api/image', () => {
   })
 
   it.each([
-    ['image/jpeg', Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10])],
-    ['image/gif', bytesOf('GIF89a\x01\x00\x01\x00')],
-    ['image/gif', bytesOf('GIF87a\x01\x00\x01\x00')],
-    ['image/webp', bytesOf('RIFF\x24\x00\x00\x00WEBPVP8 ')],
+    ['image/jpeg', JPEG],
+    ['image/gif', GIF89],
+    ['image/gif', GIF87],
+    ['image/webp', WEBP],
   ])('sniffs %s from magic bytes, whatever the declared type', async (expected, body) => {
     const res = await upload(body, 'text/plain')
     expect(res.status).toBe(201)
@@ -94,6 +102,14 @@ describe('POST /api/image', () => {
     ['a RIFF file that is not WebP', bytesOf('RIFF\x24\x00\x00\x00WAVEfmt '), 'image/webp'],
     ['a bare PNG signature', PNG.slice(0, 8), 'image/png'],
     ['a PNG signature cut off inside its IHDR chunk', PNG.slice(0, 20), 'image/png'],
+    ['a header-only PNG (signature and IHDR, no IDAT or IEND)', PNG.slice(0, 33), 'image/png'],
+    ['a PNG cut off before IEND', PNG.slice(0, -12), 'image/png'],
+    ['a bare JPEG marker', Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]), 'image/jpeg'],
+    ['a JPEG cut off before its end marker', JPEG.slice(0, -2), 'image/jpeg'],
+    ['a bare GIF header', bytesOf('GIF89a\x01\x00\x01\x00'), 'image/gif'],
+    ['a GIF header and trailer with no image', concat(GIF87.slice(0, 19), Uint8Array.from([0x3b])), 'image/gif'],
+    ['a header-only WebP', bytesOf('RIFF\x24\x00\x00\x00WEBPVP8 '), 'image/webp'],
+    ['a WebP whose RIFF size does not match the file', WEBP.slice(0, -2), 'image/webp'],
   ])('rejects %s with a fixed 415 message', async (_name, body, contentType) => {
     const res = await upload(body, contentType)
     expect(res.status).toBe(415)
@@ -145,6 +161,7 @@ describe('POST /api/image', () => {
       }),
     )
     expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBe('60')
     expect(await res.json()).toEqual({ error: 'Rate limit exceeded. Try again in a minute.' })
     expect(keys).toEqual(['image:203.0.113.7'])
   })
@@ -176,10 +193,9 @@ describe('linking at POST /api/session', () => {
 })
 
 describe('GET /api/image/:imageId', () => {
-  it('serves a linked image byte for byte with its type, nosniff, CSP, CORS and a cache that ends at expiry', async () => {
+  it('serves a linked image byte for byte with its type, nosniff, CSP, CORS and no-store', async () => {
     const imageId = await uploadId()
-    const sessionId = await createSession([imageId])
-    const expiresAt = (await appEnv.DB.prepare('SELECT expires_at FROM sessions WHERE id = ?').bind(sessionId).first<{ expires_at: number }>())!.expires_at
+    await createSession([imageId])
     const res = await serve(imageId, 'http://localhost:3000')
     expect(res.status).toBe(200)
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(PNG)
@@ -188,9 +204,8 @@ describe('GET /api/image/:imageId', () => {
     expect(res.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox")
     expect(res.headers.get('content-disposition')).toBe('inline')
     expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:3000')
-    const maxAge = Number(/^private, max-age=(\d+)$/.exec(res.headers.get('cache-control') ?? '')?.[1])
-    expect(maxAge).toBeLessThanOrEqual(Math.ceil((expiresAt - Date.now()) / 1000))
-    expect(maxAge).toBeGreaterThan(7 * 86400 - 60)
+    // A browser must not keep a plaintext copy that outlives a later encrypt.
+    expect(res.headers.get('cache-control')).toBe('no-store')
   })
 
   it('404s an unlinked upload, an unknown id and an id outside the pattern with a fixed message', async () => {
@@ -216,8 +231,9 @@ describe('GET /api/image/:imageId', () => {
 })
 
 describe('POST /api/session/:id/image (encrypted)', () => {
-  it('round-trips client ciphertext byte for byte as application/octet-stream', async () => {
+  it('round-trips client ciphertext byte for byte as application/octet-stream, cached until expiry', async () => {
     const sessionId = await createSession([])
+    const expiresAt = (await appEnv.DB.prepare('SELECT expires_at FROM sessions WHERE id = ?').bind(sessionId).first<{ expires_at: number }>())!.expires_at
     const ciphertext = new Uint8Array(4096)
     crypto.getRandomValues(ciphertext)
     ciphertext.set([0x3c, 0x73, 0x76, 0x67], 0)
@@ -237,6 +253,9 @@ describe('POST /api/session/:id/image (encrypted)', () => {
     expect(served.headers.get('content-type')).toBe('application/octet-stream')
     expect(served.headers.get('content-disposition')).toBe('attachment')
     expect(served.headers.get('x-content-type-options')).toBe('nosniff')
+    const maxAge = Number(/^private, max-age=(\d+)$/.exec(served.headers.get('cache-control') ?? '')?.[1])
+    expect(maxAge).toBeLessThanOrEqual(Math.ceil((expiresAt - Date.now()) / 1000))
+    expect(maxAge).toBeGreaterThan(7 * 86400 - 60)
     expect(new Uint8Array(await served.arrayBuffer())).toEqual(ciphertext)
   })
 
@@ -351,6 +370,21 @@ describe('PUT /api/session/:id/save deletes plaintext images on encrypt', () => 
     expect(await res.json()).toMatchObject({ saved: true, encrypted: true })
     expect(await imageRow(plain)).not.toBeNull()
     expect(await servedStatus(plain)).toBe(404)
+  })
+
+  it('logs a failed R2 delete with the error name only, so error text never reaches the logs', async () => {
+    const plain = await uploadId()
+    const sessionId = await createSession([plain])
+    const broken = { delete: async () => Promise.reject(new TypeError('r2 down at /srv/secret/path.ts')) }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await save(sessionId, encryptBody, { IMAGES: broken as unknown as R2Bucket })
+    const lines = logged.mock.calls.map((call) => call[0] as string)
+    logged.mockRestore()
+    expect(res.status).toBe(200)
+    expect(lines).toHaveLength(1)
+    const line = lines[0]!
+    expect(line).not.toContain('/srv/secret')
+    expect(JSON.parse(line)).toEqual({ event: 'plain_image_delete_error', error: 'TypeError', at: expect.any(String) })
   })
 })
 

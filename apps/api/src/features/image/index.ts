@@ -103,7 +103,8 @@ export function imageFeature(env: AppEnv) {
       set.headers['x-content-type-options'] = 'nosniff'
       set.headers['content-security-policy'] = "default-src 'none'; sandbox"
       set.headers['cross-origin-resource-policy'] = 'cross-origin'
-      set.headers['cache-control'] = `private, max-age=${Math.floor((image.expiresAt - now) / 1000)}`
+      // A cached plaintext copy would outlive a later encrypt; ciphertext is safe to keep.
+      set.headers['cache-control'] = encrypted ? `private, max-age=${Math.floor((image.expiresAt - now) / 1000)}` : 'no-store'
       set.headers['content-disposition'] = encrypted ? 'attachment' : 'inline'
       return new Response(image.body)
     })

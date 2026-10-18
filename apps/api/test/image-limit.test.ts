@@ -58,3 +58,15 @@ describe('upload limiter on the encrypted image route', () => {
     expect(limiter.keys()).toEqual([`image:${IP}`])
   })
 })
+
+describe('retry-after and the limiter period', () => {
+  it('answers retry-after with the period every wrangler.jsonc environment gives the limiter', async () => {
+    const refuse = { limit: async () => ({ success: false }) }
+    const res = await createApp({ ...appEnv, RATE_LIMITER: refuse }).handle(
+      new Request('http://localhost/api/image', { method: 'POST', headers: { 'cf-connecting-ip': IP }, body: Uint8Array.from([1]) }),
+    )
+    expect(res.status).toBe(429)
+    expect(env.TEST_LIMITER_PERIODS).toEqual({ preview: 60, production: 60 })
+    expect(res.headers.get('retry-after')).toBe('60')
+  })
+})
