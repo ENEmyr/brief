@@ -98,7 +98,7 @@ const BOARD_FONT_CSS = fs
  */
 async function newPage(browser: Browser): Promise<Page> {
   const page = await (await browser.newContext({ deviceScaleFactor: 1 })).newPage()
-  await page.route(/^https:\/\/fonts\.googleapis\.com\/css2\?/, (route) =>
+  await page.route(/^https:\/\/fonts\.googleapis\.com\//, (route) =>
     route.fulfill({ contentType: 'text/css', body: BOARD_FONT_CSS }),
   )
   await page.route(/^https:\/\/fonts\.gstatic\.com\//, (route) => {
