@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { EChartsType } from 'echarts/core'
 import type { EChartsOption } from 'echarts'
@@ -124,6 +124,7 @@ export async function getEChartsGL(): Promise<typeof import('echarts/core')> {
 export interface UseEChartResult {
   containerRef: RefObject<HTMLDivElement | null>
   chartRef: RefObject<EChartsType | null>
+  ready: boolean
 }
 
 /**
@@ -144,6 +145,7 @@ export function useEChart(
 ): UseEChartResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<EChartsType | null>(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -156,6 +158,7 @@ export function useEChart(
         if (cancelled || !containerRef.current) return
         chartRef.current ??= echarts.init(containerRef.current)
         chartRef.current.setOption(buildOption(), true)
+        setReady(true)
       })
       .finally(endThemedRender)
     return () => {
@@ -182,5 +185,5 @@ export function useEChart(
     [],
   )
 
-  return { containerRef, chartRef }
+  return { containerRef, chartRef, ready }
 }

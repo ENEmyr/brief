@@ -1,9 +1,9 @@
 'use client'
 import { useId, useMemo, useState } from 'react'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
+import { useDiagramFullScreen } from '../fullScreen'
 import {
   ACTOR_FONT_SIZE,
   computeSeqLayout,
@@ -125,70 +125,73 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
 
   const layout = useMemo(() => computeSeqLayout(actors, steps), [actors, steps])
 
+  const diagram = (
+    <svg
+      width={layout.width}
+      height={layout.height}
+      viewBox={`0 0 ${layout.width} ${layout.height}`}
+      style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
+    >
+      {layout.actors.map((actor) => (
+        <g key={actor.name}>
+          <rect
+            x={actor.x - actor.pillWidth / 2}
+            y={PILL_Y}
+            width={actor.pillWidth}
+            height={PILL_HEIGHT}
+            rx={6}
+            style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
+          />
+          <text
+            x={actor.x}
+            y={PILL_Y + PILL_HEIGHT / 2 + 4}
+            textAnchor="middle"
+            fontSize={ACTOR_FONT_SIZE}
+            fontWeight={600}
+            style={svgTextStyle({ fill: 'var(--c-text)' })}
+          >
+            {actor.name}
+          </text>
+          <line
+            x1={actor.x}
+            y1={PILL_Y + PILL_HEIGHT}
+            x2={actor.x}
+            y2={layout.lifelineBottom}
+            strokeDasharray="3 3"
+            style={{ stroke: 'var(--c-line2)' }}
+          />
+        </g>
+      ))}
+      {layout.steps.map((s, i) => {
+        // The latest revealed step is the path that matters.
+        const isCurrent = i === step - 1
+        return (
+          <g key={i} style={{ opacity: i < step ? 1 : 0.2, transition: 'opacity .3s' }}>
+            <StepArrow step={s} color={isCurrent ? 'var(--c-accent-line)' : 'var(--c-sub)'} markerId={markerId} />
+            <StepLabel step={s} fill={isCurrent ? 'var(--c-accent-text)' : 'var(--c-sub)'} />
+          </g>
+        )
+      })}
+      <defs>
+        <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+  const onFullScreen = useDiagramFullScreen(diagram)
+
   return (
-    <DiagramCard
-      {...titleCaption(anchor, block.title, 'Sequence')}
-      controls={
+    <BlockCard {...cardHeader(block, anchor)} fullScreen={onFullScreen}>
+      <div className="overflow-x-auto py-3">{diagram}</div>
+      <div className="px-3.5 pb-3.5 pt-1.5">
         <SeqControls
           step={step}
           max={steps.length}
           onPrev={() => setStep((s) => Math.max(0, s - 1))}
           onNext={() => setStep((s) => Math.min(steps.length, s + 1))}
         />
-      }
-    >
-      <svg
-        width={layout.width}
-        height={layout.height}
-        viewBox={`0 0 ${layout.width} ${layout.height}`}
-        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
-      >
-        {layout.actors.map((actor) => (
-          <g key={actor.name}>
-            <rect
-              x={actor.x - actor.pillWidth / 2}
-              y={PILL_Y}
-              width={actor.pillWidth}
-              height={PILL_HEIGHT}
-              rx={6}
-              style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
-            />
-            <text
-              x={actor.x}
-              y={PILL_Y + PILL_HEIGHT / 2 + 4}
-              textAnchor="middle"
-              fontSize={ACTOR_FONT_SIZE}
-              fontWeight={600}
-              style={svgTextStyle({ fill: 'var(--c-text)' })}
-            >
-              {actor.name}
-            </text>
-            <line
-              x1={actor.x}
-              y1={PILL_Y + PILL_HEIGHT}
-              x2={actor.x}
-              y2={layout.lifelineBottom}
-              strokeDasharray="3 3"
-              style={{ stroke: 'var(--c-line2)' }}
-            />
-          </g>
-        ))}
-        {layout.steps.map((s, i) => {
-          // The latest revealed step is the path that matters.
-          const isCurrent = i === step - 1
-          return (
-            <g key={i} style={{ opacity: i < step ? 1 : 0.2, transition: 'opacity .3s' }}>
-              <StepArrow step={s} color={isCurrent ? 'var(--c-accent-line)' : 'var(--c-sub)'} markerId={markerId} />
-              <StepLabel step={s} fill={isCurrent ? 'var(--c-accent-text)' : 'var(--c-sub)'} />
-            </g>
-          )
-        })}
-        <defs>
-          <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
-          </marker>
-        </defs>
-      </svg>
-    </DiagramCard>
+      </div>
+    </BlockCard>
   )
 }

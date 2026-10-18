@@ -1,6 +1,7 @@
 import type { Block } from '@brief/schema'
 import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
+import { BlockCard, cardHeader } from '../BlockCard'
 
 type CalloutBlock = Extract<Block, { type: 'note' | 'warn' | 'good' }>
 
@@ -39,19 +40,23 @@ export function Callout({
   }
 
   return (
-    <aside
-      className={`border-l-[3px] rounded-lg px-[15px] py-[11px] my-3.5 text-[14px] leading-[1.7] text-text ${styles[block.type]}`}
-    >
-      {block.title ? (
-        <Annotatable
-          {...anchor}
-          as="p"
-          className="mb-1 font-semibold"
-          text={block.title}
-          path={`${pathPrefix}title`}
-        />
-      ) : null}
-      <Annotatable {...anchor} as="p" text={block.text} path={`${pathPrefix}text`} />
-    </aside>
+    <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
+      <div className="p-3">
+        <aside
+          className={`border-l-[3px] rounded-lg px-[15px] py-[11px] text-[14px] leading-[1.7] text-text ${styles[block.type]}`}
+        >
+          {block.title ? (
+            <Annotatable
+              {...anchor}
+              as="p"
+              className="mb-1 font-semibold"
+              text={block.title}
+              path={`${pathPrefix}title`}
+            />
+          ) : null}
+          <Annotatable {...anchor} as="p" text={block.text} path={`${pathPrefix}text`} />
+        </aside>
+      </div>
+    </BlockCard>
   )
 }

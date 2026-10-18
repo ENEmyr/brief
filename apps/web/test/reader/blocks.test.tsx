@@ -52,16 +52,20 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('careful')).toBeInTheDocument()
   })
 
-  it('renders table head and cells with figcaption chrome', () => {
+  it('renders table head and cells, with the caption in the card header', () => {
     r({ type: 'table', head: ['name'], rows: [['kv']], caption: 'Files' })
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getByText('kv')).toBeInTheDocument()
     expect(screen.getByText('Files')).toBeInTheDocument()
   })
 
-  it('renders table with a fallback figcaption when no caption is given', () => {
+  it('labels an uncaptioned table with its kind tag only', () => {
+    // The old fallback caption 'Table' is gone: on B-Blocks the kind tag
+    // (B-Blocks:113) is what names a block, and a block without a caption shows no
+    // invented one.
     r({ type: 'table', head: ['name'], rows: [['kv']] })
-    expect(screen.getByText('Table')).toBeInTheDocument()
+    expect(screen.getByText('table')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Table')).not.toBeInTheDocument()
   })
 
   it('zebra-stripes odd body rows', () => {
@@ -70,7 +74,8 @@ describe('BlockRenderer text family', () => {
     expect(rows[1]?.className).toContain('bg-[var(--c-table-zebra)]')
   })
 
-  it('renders compare sides with a figcaption', () => {
+  it('renders compare sides under the compare kind tag', () => {
+    // 'Comparison' was a fallback caption; the kind tag replaces it (B-Blocks:51).
     r({
       type: 'compare',
       left: { title: 'A', items: [{ text: 'fast', ok: true }] },
@@ -78,7 +83,8 @@ describe('BlockRenderer text family', () => {
     })
     expect(screen.getByText('A')).toBeInTheDocument()
     expect(screen.getByText('slow')).toBeInTheDocument()
-    expect(screen.getByText('Comparison')).toBeInTheDocument()
+    expect(screen.getByText('compare')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Comparison')).not.toBeInTheDocument()
   })
 
   it('applies a toned pane border when a compare side has a tone', () => {
@@ -105,7 +111,7 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('Recommended')).toBeInTheDocument()
   })
 
-  it('shows the compare caption in the figcaption when present', () => {
+  it('shows the compare caption in the card header when present', () => {
     r({
       type: 'compare',
       caption: 'Before vs after',
@@ -131,16 +137,18 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('12').className).toContain('text-data-mauve')
   })
 
-  it('renders coverage rows with a figcaption, accessible status, and full/partial/missing legend', () => {
+  it('renders coverage rows under the coverage kind tag, with accessible status and full/partial/missing legend', () => {
+    // 'Coverage' was a fallback caption; the kind tag replaces it (B-Blocks:65).
     r({ type: 'coverage', items: [{ label: 'auth', status: 'partial' }] })
-    expect(screen.getByText('Coverage')).toBeInTheDocument()
+    expect(screen.getByText('coverage')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Coverage')).not.toBeInTheDocument()
     expect(screen.getByLabelText('auth: partial')).toBeInTheDocument()
     expect(screen.getByText('full')).toBeInTheDocument()
     expect(screen.getByText('partial')).toBeInTheDocument()
     expect(screen.getByText('missing')).toBeInTheDocument()
   })
 
-  it('shows the coverage caption in the figcaption when present', () => {
+  it('shows the coverage caption in the card header when present', () => {
     r({ type: 'coverage', caption: 'Test coverage', items: [{ label: 'auth', status: 'full' }] })
     expect(screen.getByText('Test coverage')).toBeInTheDocument()
     expect(screen.queryByText('Coverage')).not.toBeInTheDocument()

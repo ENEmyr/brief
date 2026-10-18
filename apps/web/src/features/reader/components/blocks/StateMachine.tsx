@@ -1,9 +1,9 @@
 'use client'
 import { useId, useMemo, useState } from 'react'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
+import { useDiagramFullScreen } from '../fullScreen'
 import { svgTextStyle } from '../../lib/svgText'
 
 type StateBlock = Extract<Block, { type: 'state' }>
@@ -149,77 +149,81 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
 
   const events = transitions.filter((t) => t.from === current)
 
-  return (
-    <DiagramCard
-      {...titleCaption(anchor, block.title, 'State machine')}
-      controls={
-        <StateControls
-          current={current}
-          events={events}
-          onTransition={setCurrent}
-          onReset={() => setCurrent(block.initial)}
-        />
-      }
+  const controls = (
+    <StateControls
+      current={current}
+      events={events}
+      onTransition={setCurrent}
+      onReset={() => setCurrent(block.initial)}
+    />
+  )
+  const diagram = (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
     >
-      <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        style={{ display: 'block', margin: '0 auto', maxWidth: '100%', height: 'auto' }}
-      >
-        {transitions.map((t, i) => {
-          const a = coordsOf(t.from)
-          const b = coordsOf(t.to)
-          return (
-            <line
-              key={i}
-              x1={a.x + 34}
-              y1={a.y + 16}
-              x2={b.x + 2}
-              y2={b.y + 16}
-              strokeWidth={1.4}
-              style={{ stroke: 'var(--c-sub)' }}
-              markerEnd={`url(#${markerId})`}
+      {transitions.map((t, i) => {
+        const a = coordsOf(t.from)
+        const b = coordsOf(t.to)
+        return (
+          <line
+            key={i}
+            x1={a.x + 34}
+            y1={a.y + 16}
+            x2={b.x + 2}
+            y2={b.y + 16}
+            strokeWidth={1.4}
+            style={{ stroke: 'var(--c-sub)' }}
+            markerEnd={`url(#${markerId})`}
+          />
+        )
+      })}
+      {block.states.map((s) => {
+        const { x, y } = coordsOf(s.id)
+        const isCurrent = s.id === current
+        return (
+          <g key={s.id}>
+            <rect
+              x={x}
+              y={y}
+              width={NODE_WIDTH}
+              height={NODE_HEIGHT}
+              rx={9}
+              strokeWidth={isCurrent ? 2 : 1.4}
+              style={{
+                fill: isCurrent ? 'var(--c-accent-soft)' : 'var(--c-elev)',
+                stroke: isCurrent ? 'var(--c-accent-line)' : 'var(--c-line2)',
+                transition: 'all .25s',
+              }}
             />
-          )
-        })}
-        {block.states.map((s) => {
-          const { x, y } = coordsOf(s.id)
-          const isCurrent = s.id === current
-          return (
-            <g key={s.id}>
-              <rect
-                x={x}
-                y={y}
-                width={NODE_WIDTH}
-                height={NODE_HEIGHT}
-                rx={9}
-                strokeWidth={isCurrent ? 2 : 1.4}
-                style={{
-                  fill: isCurrent ? 'var(--c-accent-soft)' : 'var(--c-elev)',
-                  stroke: isCurrent ? 'var(--c-accent-line)' : 'var(--c-line2)',
-                  transition: 'all .25s',
-                }}
-              />
-              <text
-                x={x + NODE_WIDTH / 2}
-                y={y + 20}
-                textAnchor="middle"
-                fontSize={11}
-                fontWeight={isCurrent ? 700 : 500}
-                style={svgTextStyle({ fill: 'var(--c-text)' })}
-              >
-                {s.label}
-              </text>
-            </g>
-          )
-        })}
-        <defs>
-          <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
-          </marker>
-        </defs>
-      </svg>
-    </DiagramCard>
+            <text
+              x={x + NODE_WIDTH / 2}
+              y={y + 20}
+              textAnchor="middle"
+              fontSize={11}
+              fontWeight={isCurrent ? 700 : 500}
+              style={svgTextStyle({ fill: 'var(--c-text)' })}
+            >
+              {s.label}
+            </text>
+          </g>
+        )
+      })}
+      <defs>
+        <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
+        </marker>
+      </defs>
+    </svg>
+  )
+  const onFullScreen = useDiagramFullScreen(diagram)
+
+  return (
+    <BlockCard {...cardHeader(block, anchor)} fullScreen={onFullScreen}>
+      <div className="overflow-x-auto py-3">{diagram}</div>
+      <div className="px-3.5 pb-3.5 pt-1.5">{controls}</div>
+    </BlockCard>
   )
 }

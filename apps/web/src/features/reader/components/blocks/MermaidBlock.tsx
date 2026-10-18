@@ -2,9 +2,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import type { Block } from '@brief/schema'
-import { DiagramCard } from '../DiagramCard'
-import { titleCaption } from '../blockAnchor'
+import { BlockCard, LOADING, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
+import { useDiagramFullScreen } from '../fullScreen'
 import { useTheme, beginThemedRender, readColorTokens, readFontStack } from '@/features/theme'
 import type { Theme } from '@/features/theme'
 
@@ -157,36 +157,42 @@ export function MermaidBlock({ block, ...anchor }: { block: MermaidBlockType } &
   const safeSvg =
     svg === null ? null : DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true, html: true } })
 
-  // Both cards below show the same caption: whether the source rendered has no
-  // bearing on the title the reader annotates.
-  const caption = titleCaption(anchor, block.title, 'Diagram')
+  const diagram = safeSvg ? (
+    <div
+      className="flex justify-center overflow-x-auto"
+      // safeSvg is mermaid-generated markup from this block's own code
+      // (never remote/user HTML) — see the component doc comment above.
+      // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+      dangerouslySetInnerHTML={{ __html: safeSvg }}
+    />
+  ) : null
+  const onFullScreen = useDiagramFullScreen(diagram)
+  const header = cardHeader(block, anchor)
 
   if (failed) {
     return (
-      <DiagramCard {...caption} expandable={false}>
+      <BlockCard {...header}>
         <pre className={FALLBACK_PRE_CLASS}>
           <code>{block.code}</code>
         </pre>
-        <p className="mt-1.5 font-mono text-[10.5px] text-faint">Diagram source could not be rendered</p>
-      </DiagramCard>
+        <p className="m-0 px-4 pb-3 font-mono text-[10.5px] text-faint">Diagram source could not be rendered</p>
+      </BlockCard>
     )
   }
 
   return (
-    <DiagramCard {...caption} expandable={svg !== null}>
-      {safeSvg ? (
-        <div
-          className="flex justify-center overflow-x-auto"
-          // safeSvg is mermaid-generated markup from this block's own code
-          // (never remote/user HTML) — see the component doc comment above.
-          // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
-          dangerouslySetInnerHTML={{ __html: safeSvg }}
-        />
+    <BlockCard
+      {...header}
+      fullScreen={diagram ? onFullScreen : 'pending'}
+      state={diagram ? undefined : LOADING.diagram}
+    >
+      {diagram ? (
+        <div className="p-3">{diagram}</div>
       ) : (
         <pre className={FALLBACK_PRE_CLASS}>
           <code>{block.code}</code>
         </pre>
       )}
-    </DiagramCard>
+    </BlockCard>
   )
 }

@@ -53,23 +53,28 @@ describe('MathBlock', () => {
     expect(screen.getByText('e=mc^2')).toBeInTheDocument()
   })
 
-  it('defaults the caption to "Equation", or uses the block title', () => {
+  it('shows the math kind tag, and the block title as caption when there is one', () => {
+    // The fallback caption 'Equation' is gone: the kind tag names the block
+    // (B-Blocks:163), and an untitled block shows no invented caption.
     renderToStringMock.mockReturnValue('<span>x</span>')
 
     const { rerender } = render(<MathBlock block={mathBlock} />)
-    expect(screen.getByText('Equation')).toBeInTheDocument()
+    expect(screen.getByText('math')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Equation')).not.toBeInTheDocument()
 
     rerender(<MathBlock block={{ ...mathBlock, title: 'Euler identity' }} />)
     expect(screen.getByText('Euler identity')).toBeInTheDocument()
   })
 
-  it('swaps in the katex-rendered html, marked as the expand root, once the import resolves', async () => {
+  it('swaps in the katex-rendered html in place of the raw latex once the import resolves', async () => {
+    // data-expand-root marked what the old Expand pill serialized; math has no
+    // full-screen button any more (see below), so the marker went with it.
     renderToStringMock.mockReturnValue('<span class="katex-html">RENDERED_MATH</span>')
 
-    const { container } = render(<MathBlock block={mathBlock} />)
+    render(<MathBlock block={mathBlock} />)
 
     await waitFor(() => expect(screen.getByText('RENDERED_MATH')).toBeInTheDocument())
-    expect(container.querySelector('[data-expand-root]')).toBeInTheDocument()
+    expect(screen.queryByText('e=mc^2')).not.toBeInTheDocument()
     expect(renderToStringMock).toHaveBeenCalledWith('e=mc^2', {
       throwOnError: false,
       displayMode: true,
@@ -77,15 +82,18 @@ describe('MathBlock', () => {
     })
   })
 
-  it('does not show the Expand button while katex has not resolved yet, and shows it once rendered', async () => {
+  it('has no full-screen button, before or after katex renders', async () => {
+    // Math used to get an Expand pill once rendered. B-Blocks draws math with
+    // no full-screen button (B-Blocks:163-169), and the full-screen set is diagrams,
+    // plot3d, bigo, heatmap, histogram and scatter.
     renderToStringMock.mockReturnValue('<span class="katex-html">RENDERED_MATH</span>')
 
     render(<MathBlock block={mathBlock} />)
 
-    expect(screen.queryByLabelText('Expand diagram')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open diagram full screen' })).not.toBeInTheDocument()
 
     await waitFor(() => expect(screen.getByText('RENDERED_MATH')).toBeInTheDocument())
-    expect(screen.getByLabelText('Expand diagram')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open diagram full screen' })).not.toBeInTheDocument()
   })
 })
 
@@ -98,11 +106,14 @@ describe('MermaidBlock', () => {
     expect(screen.getByText('graph TD; A-->B')).toBeInTheDocument()
   })
 
-  it('defaults the caption to "Diagram", or uses the block title', () => {
+  it('shows the mermaid kind tag, and the block title as caption when there is one', () => {
+    // The fallback caption 'Diagram' is gone: the kind tag names the block
+    // (B-Blocks2:97), and an untitled block shows no invented caption.
     mermaidRenderMock.mockReturnValue(pending())
 
     const { rerender } = render(<MermaidBlock block={mermaidBlock} />)
-    expect(screen.getByText('Diagram')).toBeInTheDocument()
+    expect(screen.getByText('mermaid')).toHaveAttribute('data-kind-tag')
+    expect(screen.queryByText('Diagram')).not.toBeInTheDocument()
 
     rerender(<MermaidBlock block={{ ...mermaidBlock, title: 'Login flow' }} />)
     expect(screen.getByText('Login flow')).toBeInTheDocument()
@@ -116,15 +127,20 @@ describe('MermaidBlock', () => {
     await waitFor(() => expect(screen.getByText('DIAGRAM')).toBeInTheDocument())
   })
 
-  it('does not show the Expand button while mermaid has not resolved yet, and shows it once rendered', async () => {
+  it('keeps the full-screen button disabled while mermaid has not resolved yet, and enables it once rendered', async () => {
+    // The button used to be absent until the svg arrived. It now shows from
+    // the start, disabled, so the header keeps its 45px height (B-Blocks2:97-99)
+    // when the diagram arrives; the header says "loading diagram" meanwhile.
     mermaidRenderMock.mockResolvedValue({ svg: '<svg><text>DIAGRAM</text></svg>' })
 
     render(<MermaidBlock block={mermaidBlock} />)
 
-    expect(screen.queryByLabelText('Expand diagram')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open diagram full screen' })).toBeDisabled()
+    expect(screen.getByText('loading diagram')).toBeInTheDocument()
 
     await waitFor(() => expect(screen.getByText('DIAGRAM')).toBeInTheDocument())
-    expect(screen.getByLabelText('Expand diagram')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open diagram full screen' })).toBeEnabled()
+    expect(screen.queryByText('loading diagram')).not.toBeInTheDocument()
   })
 
   it('falls back to the source in a plain pre with a warning note when mermaid rejects, and never throws', async () => {
