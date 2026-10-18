@@ -16,6 +16,9 @@ export const EXPIRES_AT = Date.UTC(2026, 10, 13, 9, 0, 0)
 
 export const samplePayload = readJson('brief-sample.payload.json')
 export const readerSeed = readJson('reader-state.seed.json')
+/** B-Mobile's own content and answers (D1 binding, D3 api), for the phone screens. */
+export const mobilePayload = readJson('mobile-sample.payload.json')
+export const mobileSeed = readJson('mobile-state.seed.json')
 
 const CORS = {
   'access-control-allow-origin': '*',

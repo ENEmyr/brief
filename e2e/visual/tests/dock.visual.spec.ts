@@ -1,7 +1,7 @@
 import { expect as baseExpect, type Locator, type Page } from '@playwright/test'
 import { expectBox, expectComputed } from '../lib/geometry'
 import { PHONE_VIEWPORT, clipOf, sheetBackdropMask, type Theme } from '../lib/regions'
-import { expect, openReader, test } from '../lib/session'
+import { expect, mobilePayload, mobileSeed, openReader, serveSession, test } from '../lib/session'
 
 // Phase 3: the decision dock (B-Reader:205-231), the B-Mobile sheet and the
 // B-Overlays prompt review sheet. Numbers were measured on the boards with
@@ -492,14 +492,8 @@ test.describe('phone sheet', () => {
   test.use({ viewport: PHONE_VIEWPORT, isMobile: true, hasTouch: true })
 
   // B-Mobile's own answers: D1 binding, D3 api. The sheet opens on D2, the first open one.
-  const mobileSeed = {
-    dsel: { D1: ['binding'], D3: ['api'] },
-    dnote: {},
-    dother: {},
-    highlights: [],
-  }
-
   async function openSheet(page: Page) {
+    await serveSession(page, mobilePayload)
     await openReader(page, mobileSeed)
     await page.getByRole('button', { name: 'Open dock' }).click()
     const sheet = page.getByRole('dialog', { name: 'Decision dock' })
@@ -539,13 +533,14 @@ test.describe('phone sheet', () => {
       'font-weight': '600',
     })
 
-    // B-Mobile has a context link (38 plus the 10 gap, less its -4 margin) above the options: refs are P1.
+    // The context link above the options (the fixture sets D2's refs) is a 44
+    // touch target under 880, 6 taller than B-Mobile's 38.
     const options = sheet.getByRole('group', { name: 'Question D2' }).getByRole('radio')
     await expect(options).toHaveCount(4)
     for (let i = 0; i < 4; i++) {
       await expectRel(options.nth(i), sheet, {
         x: 14,
-        y: 220 + 8 - 44 + 54 * i,
+        y: 220 + 8 + 6 + 54 * i,
         width: 360,
         height: 48,
       })
