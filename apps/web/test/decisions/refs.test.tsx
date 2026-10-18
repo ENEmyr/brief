@@ -88,12 +88,31 @@ describe('decision context chips (D7)', () => {
       </ReaderStateProvider>,
     )
     expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual([
-      `§02Token bucket${HINT}`,
-      `§01Intro${HINT}`,
+      `§02 Token bucket${HINT}`,
+      `§01 Intro${HINT}`,
     ])
     expect(screen.queryByText('context')).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: /^§02 Token bucket/ }))
     expect(onJump).toHaveBeenCalledWith('bucket', 'D1')
+  })
+
+  it('sets the whole sheet chip label, number and title, in the accent mono (B-Mobile:77)', () => {
+    render(
+      <ReaderStateProvider sessionId="refs-sheet-label-test" persist={false}>
+        <DecisionSheet
+          decisions={decisions}
+          sections={sections}
+          target={{ id: 'D1', seq: 0 }}
+          onSelect={() => {}}
+          onCopyPrompt={() => {}}
+          onJumpToContext={() => {}}
+        />
+      </ReaderStateProvider>,
+    )
+    const label = screen.getAllByRole('link')[0]!.firstElementChild!
+    expect(label.textContent).toBe('§02 Token bucket')
+    expect(label.className).toContain('font-mono')
+    expect(label.className).toContain('text-accent-text')
   })
 
   it('draws no sheet hint in the dock', () => {

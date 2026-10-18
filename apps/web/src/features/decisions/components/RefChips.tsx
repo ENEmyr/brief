@@ -51,9 +51,20 @@ export function RefChips({
           }}
           className={`flex items-center rounded-[4px] border border-line2 ${CHIP[variant]} text-sub no-underline transition-colors duration-[var(--dur-fast)] hover:bg-chip focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line motion-reduce:transition-none max-[880px]:min-h-11`}
         >
-          <span className="font-mono text-[11px] text-accent-text">§{pad(ref.no)}</span>
-          {variant === 'dock' ? <span className="truncate">{ref.title}</span> : ref.title}
-          {variant === 'sheet' && <span>Read the context; the dock shrinks to a bar</span>}
+          {variant === 'dock' ? (
+            <>
+              <span className="font-mono text-[11px] text-accent-text">§{pad(ref.no)}</span>
+              <span className="truncate">{ref.title}</span>
+            </>
+          ) : (
+            <>
+              {/* B-Mobile:77 sets the whole label, number and title, in the accent mono. */}
+              <span className="font-mono text-[11px] text-accent-text">
+                §{pad(ref.no)} {ref.title}
+              </span>
+              <span>Read the context; the dock shrinks to a bar</span>
+            </>
+          )}
         </a>
       ))}
     </div>
