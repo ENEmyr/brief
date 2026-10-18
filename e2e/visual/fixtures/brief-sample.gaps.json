@@ -1,7 +1,7 @@
 {
   "about": "Board elements of B-Reader that brief-sample.payload.json cannot express with today's payload schema, and board state the reader-state seed cannot express. Each one is later work.",
   "payload": [
-    { "where": "decisions D1 to D4", "board": "context chip titles 'cost', 'bucket', 'burst' (B-Reader secs map); the fixture sets refs, and the app prints each section's full title", "needs": "a short chip label per section; no field" },
+    { "where": "decisions D1 to D4", "board": "context chips 's03 cost', 's02 bucket' (refs D1 s3 s2, D2 s1, D3 s2, D4 s2 s1)", "needs": "app work, not set here: with these refs the app prints each section's full title, so D1's two chips wrap to two rows, and its chip row is 2 px shorter than the board's 34 (dock.visual.spec.ts decision rows: height 275 against 277, measured 2026-10-18 with D1 refs s3 only)" },
     { "where": "section 02 seq block", "board": "C10 (vt-b triage): accent forward arrow '4 forward' and emphasised Limiter node; the generated B-Reader drops both (render-references.ts writeReaderBoard)", "needs": "seq emphasis field [P5] (owner D3: missing fields are [P] work)" },
     { "where": "section 03 table", "board": "cell tone: '<1 ms' green, '10-40 ms' amber; right aligned latency column", "needs": "table cell tone and align [P5]" },
     { "where": "section 03 bigo block", "board": "line colors red, amber and accent, end labels, full-screen button", "needs": "none in the schema; renderer work (series colors are not in the payload)" },

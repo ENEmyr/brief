@@ -143,7 +143,6 @@
   "decisions": [
     {
       "id": "D1",
-      "refs": ["s3", "s2"],
       "q": "ใช้ตัวจำกัดอัตราแบบไหน",
       "multi": false,
       "opts": [
@@ -154,7 +153,6 @@
     },
     {
       "id": "D2",
-      "refs": ["s1"],
       "q": "ค่า default limit ต่อผู้ใช้",
       "multi": false,
       "opts": [
@@ -165,7 +163,6 @@
     },
     {
       "id": "D3",
-      "refs": ["s2"],
       "q": "ใช้อะไรเป็น key",
       "multi": true,
       "opts": [
@@ -176,7 +173,6 @@
     },
     {
       "id": "D4",
-      "refs": ["s2", "s1"],
       "q": "ตอบอะไรเมื่อเกิน limit",
       "multi": false,
       "opts": [
