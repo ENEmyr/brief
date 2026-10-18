@@ -1,11 +1,12 @@
 'use client'
-import { useMemo } from 'react'
+import { useContext, useMemo } from 'react'
 import type { Block } from '@brief/schema'
 import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 import { useDiagramFullScreen } from '../fullScreen'
 import { estimateTextWidth, wrapText } from '../../lib/svgText'
 import { Edge, EDGE_TONE, EdgeLayer, type Point } from './diagramParts'
+import { DiffNodeStatusContext } from './diffNodeStatus'
 
 type LayersBlock = Extract<Block, { type: 'layers' }>
 
@@ -34,11 +35,7 @@ interface NodeBox {
   col: number
   x: number
   y: number
-  /**
-   * The id of this node in a diff block's map. Its badge (M or new) needs that
-   * diff node's status (B-Blocks2:77), and no diff block exists before round 2,
-   * so the link is only marked on the node.
-   */
+  /** The id of this node in a diff block's map; its status draws the M or new badge (B-Blocks2:67-68, 77). */
   diffNode?: string
 }
 
@@ -177,6 +174,12 @@ function computeLayersLayout(block: LayersBlock): LayersLayout {
   }
 }
 
+/** B-Blocks2:67-68: a changed node gets a tone border and a mono 10 badge after its label; a deleted node has none. */
+const DIFF_BADGE = {
+  modified: { label: 'M', box: 'border-warn bg-elev', text: 'text-warn' },
+  added: { label: 'new', box: 'border-accent-line bg-accent-soft', text: 'text-accent-text' },
+} as const
+
 /**
  * Layers diagram block (B-Blocks2:51-78): one band per layer, label top left in
  * mono caps, every layer shown at once. Nodes repeated in a later layer keep
@@ -184,6 +187,7 @@ function computeLayersLayout(block: LayersBlock): LayersLayout {
  */
 export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAnchor) {
   const layout = useMemo(() => computeLayersLayout(block), [block])
+  const diffStatus = useContext(DiffNodeStatusContext)
 
   const diagram = (
     <div className="relative mx-auto text-[13px] leading-4" style={{ width: layout.width, height: layout.height }}>
@@ -204,23 +208,35 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
           <Edge key={i} points={e.points} className={EDGE_TONE.sub} />
         ))}
       </EdgeLayer>
-      {layout.nodes.map((n) => (
-        <div
-          key={n.id}
-          data-layer-node={n.id}
-          data-diff-node={n.diffNode}
-          className="absolute box-border flex items-center justify-center rounded-[6px] border border-line2 bg-elev p-1.5 text-center text-text"
-          style={{ left: n.x, top: n.y, width: NODE_WIDTH, height: layout.nodeHeight }}
-        >
-          <span>
-            {n.lines.map((line, i) => (
-              <span key={i} className="block">
-                {line}
-              </span>
-            ))}
-          </span>
-        </div>
-      ))}
+      {layout.nodes.map((n) => {
+        const status = n.diffNode === undefined ? undefined : diffStatus.get(n.diffNode)
+        const badge = status === 'modified' || status === 'added' ? DIFF_BADGE[status] : undefined
+        return (
+          <div
+            key={n.id}
+            data-layer-node={n.id}
+            data-diff-node={n.diffNode}
+            className={`absolute box-border flex items-center justify-center rounded-[6px] border p-1.5 text-center text-text ${badge?.box ?? 'border-line2 bg-elev'}`}
+            style={{ left: n.x, top: n.y, width: NODE_WIDTH, height: layout.nodeHeight }}
+          >
+            <span>
+              {n.lines.map((line, i) => (
+                <span key={i} className="block">
+                  {line}
+                  {badge && i === n.lines.length - 1 && (
+                    <>
+                      {' '}
+                      <span data-diff-badge className={`font-mono text-[10px] ${badge.text}`}>
+                        {badge.label}
+                      </span>
+                    </>
+                  )}
+                </span>
+              ))}
+            </span>
+          </div>
+        )
+      })}
       {layout.edges.map((e, i) =>
         e.label ? (
           <div

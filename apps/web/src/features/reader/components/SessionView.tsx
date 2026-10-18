@@ -19,7 +19,9 @@ import {
   PromptReviewSheet,
   ResetAnswers,
   buildReplyPrompt,
+  isAnswered,
   nextOpenDecision,
+  resolveRefs,
 } from '@/features/decisions'
 import type { DockTarget } from '@/features/decisions'
 import { flagPromptLines } from '@/features/trajectory'
@@ -44,6 +46,7 @@ import { RawView } from './RawView'
 import { Skeleton } from './Skeleton'
 import { HomeLink, STATUS_ACTION, StatusPage } from './StatusPage'
 import { NoDecisionsNote } from './NoDecisionsNote'
+import { collectDiffNodeStatus, DiffNodeStatusContext } from './blocks/diffNodeStatus'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
 import { Topbar, themeToggleLabel } from './Topbar'
@@ -105,7 +108,7 @@ function SessionReady({
   const { theme, toggle: toggleTheme } = useTheme()
   const narrow = useIsNarrow()
   const saveStatus = useSaveStatus()
-  const { highlights } = useReaderState()
+  const { highlights, dsel, dother } = useReaderState()
   const [view, setView] = useState<ReaderView>('document')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -161,6 +164,17 @@ function SessionReady({
     return sections
   }, [sections, view])
   const activeId = useActiveSection(shownSections.map((s) => s.id))
+  // The outline's warn dot: sections an unanswered decision points to (D7 refs).
+  const openSectionIds = useMemo(
+    () =>
+      new Set(
+        payload.decisions.flatMap((d) =>
+          isAnswered(d, { dsel, dother }) ? [] : resolveRefs(d, sections).map((ref) => ref.id),
+        ),
+      ),
+    [payload.decisions, sections, dsel, dother],
+  )
+  const diffNodeStatus = useMemo(() => collectDiffNodeStatus(sections), [sections])
   const disabledViews = useMemo(() => (sections.some(hasDiagrams) ? undefined : NO_DIAGRAMS), [sections])
   const rawMarkdown = useMemo(
     () => (view === 'raw' ? payloadToMarkdown(payload, { url: `${window.location.origin}/s/${data.id}` }) : ''),
@@ -362,6 +376,7 @@ function SessionReady({
       />
       <>
         <DiagramViewerProvider>
+          <DiffNodeStatusContext value={diffNodeStatus}>
           <div
             // data-reader-grid: the print stylesheet turns this flex row back
             // into one column, since the outline does not print.
@@ -375,6 +390,7 @@ function SessionReady({
               sections={sections}
               activeId={activeId}
               marks={marksOf(highlights, sections)}
+              openSectionIds={openSectionIds}
               onJump={jumpTo}
               onMarkJump={jumpToMark}
               collapsed={tocCollapsed}
@@ -432,6 +448,7 @@ function SessionReady({
               />
             )}
           </div>
+          </DiffNodeStatusContext>
         </DiagramViewerProvider>
       </>
       {backTo && (
