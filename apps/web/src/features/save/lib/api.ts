@@ -8,7 +8,7 @@ export type SaveApiResult = { ok: true } | { ok: false; error: string; status: n
 /** B-States error toast copy for a failure with no more specific reason. */
 export const ARCHIVE_FAILED = 'Could not archive. Nothing was changed.'
 
-function mapErrorStatus(status: number): string {
+export function mapErrorStatus(status: number): string {
   switch (status) {
     case 409:
       return 'Already protected'

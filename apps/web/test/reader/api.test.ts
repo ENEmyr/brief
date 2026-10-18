@@ -34,6 +34,19 @@ describe('fetchSession', () => {
     expect(s.encrypted).toBe(false)
   })
 
+  it('reads a stored block it cannot parse as unreadable instead of failing the document (B6)', async () => {
+    const hologram = { type: 'hologram', frames: 3 }
+    const stored = JSON.parse(valid.payload)
+    stored.sections[0].blocks.push(hologram)
+    const body = { ...valid, payload: JSON.stringify(stored) }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body))))
+    const s = await fetchSession('abc12345678901')
+    expect(s.payload?.sections[0]?.blocks).toEqual([
+      { type: 'p', text: 'x' },
+      { type: 'unreadable', raw: hologram },
+    ])
+  })
+
   it('keeps payload null for encrypted sessions', async () => {
     const enc = { ...valid, encrypted: true, payload: 'AAAA', encParams: { salt: 'a', iv: 'b', iterations: 600000 } }
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(enc))))

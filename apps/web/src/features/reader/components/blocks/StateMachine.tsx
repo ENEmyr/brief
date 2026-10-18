@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import type { Block } from '@brief/schema'
+import type { Block, Tone } from '@brief/schema'
 import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 import { useDiagramFullScreen } from '../fullScreen'
@@ -98,6 +98,7 @@ interface NodeBox {
   y: number
   initial: boolean
   final: boolean
+  tone?: Tone
 }
 
 interface EdgeShape {
@@ -150,6 +151,7 @@ function computeStateLayout(block: StateBlock, transitions: Transition[]): State
       y: cell.row * rowPitch,
       initial: s.id === block.initial,
       final: finals.has(s.id),
+      tone: s.tone,
     }
   })
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -166,7 +168,7 @@ function computeStateLayout(block: StateBlock, transitions: Transition[]): State
     const cb = cells.get(t.to)
     if (!a || !b || !ca || !cb) return []
     const back = a === b || cb.col < ca.col || (cb.col === ca.col && cb.row < ca.row)
-    const tone: EdgeTone = back ? 'warn' : b.final ? 'good' : 'sub'
+    const tone: EdgeTone = t.tone ?? (back ? 'warn' : b.final ? 'good' : 'sub')
     const paired = (pairCount.get([t.from, t.to].sort().join('\u0000')) ?? 0) > 1
     const vertical = ca.col === cb.col && ca.row !== cb.row
     const room = vertical ? NODE_WIDTH - 2 * LABEL_GAP : colGap - 2 * LABEL_GAP
@@ -292,9 +294,35 @@ const LABEL_TONE: Record<EdgeTone, string> = {
   faint: 'text-faint',
   line2: 'text-line2',
   accent: 'text-accent-text',
+  info: 'text-info',
   good: 'text-good',
   warn: 'text-warn',
   bad: 'text-bad',
+}
+
+/**
+ * A toned state fills with the tone's soft color and borders with its line
+ * color (B-Blocks2:37, the 429 state); a final state keeps its double border
+ * in the tone's strong color (B-Blocks2:40, final in good).
+ */
+const NODE_TONE: Record<Tone, { fill: string; line: string; strong: string; tag: string }> = {
+  info: { fill: 'bg-info-soft', line: 'border-info-line', strong: 'border-info', tag: 'text-info' },
+  good: { fill: 'bg-good-soft', line: 'border-good-line', strong: 'border-good', tag: 'text-good' },
+  warn: { fill: 'bg-warn-soft', line: 'border-warn-line', strong: 'border-warn', tag: 'text-warn' },
+  bad: { fill: 'bg-bad-soft', line: 'border-bad-line', strong: 'border-bad', tag: 'text-bad' },
+}
+
+/** Initial is lime, final double and good, the rest plain; a tone recolors the frame, not its shape. */
+function nodeFrame(n: NodeBox): string {
+  const tone = n.tone && NODE_TONE[n.tone]
+  if (n.final) return `border-[3px] border-double ${tone ? `${tone.strong} ${tone.fill}` : 'border-good bg-good-soft'}`
+  if (n.initial) return `border-2 border-accent-line ${tone ? tone.fill : 'bg-elev'}`
+  return tone ? `border ${tone.line} ${tone.fill}` : 'border border-line2 bg-elev'
+}
+
+function tagClass(n: NodeBox): string {
+  if (!n.final) return 'text-accent-text'
+  return n.tone ? NODE_TONE[n.tone].tag : 'text-good'
 }
 
 /** Dimmed by hover (B-Blocks2:48); the disabled-control opacity (components.md:29). */
@@ -351,13 +379,8 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
           data-state-node={n.id}
           onPointerEnter={() => setHovered(n.id)}
           onPointerLeave={() => setHovered(null)}
-          className={`absolute box-border flex items-center justify-center rounded-[6px] p-1.5 text-center text-text ${fade} ${dimNode(n.id)} ${
-            n.final
-              ? 'border-[3px] border-double border-good bg-good-soft'
-              : n.initial
-                ? 'border-2 border-accent-line bg-elev'
-                : 'border border-line2 bg-elev'
-          }`}
+          data-tone={n.tone}
+          className={`absolute box-border flex items-center justify-center rounded-[6px] p-1.5 text-center text-text ${fade} ${dimNode(n.id)} ${nodeFrame(n)}`}
           style={{ left: n.x, top: n.y, width: NODE_WIDTH, height: layout.nodeHeight }}
         >
           <span>
@@ -367,7 +390,7 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
               </span>
             ))}
             {n.initial || n.final ? (
-              <span className={`block font-mono text-[10px] ${n.final ? 'text-good' : 'text-accent-text'}`}>
+              <span className={`block font-mono text-[10px] ${tagClass(n)}`}>
                 {n.final ? 'final' : 'initial'}
               </span>
             ) : null}

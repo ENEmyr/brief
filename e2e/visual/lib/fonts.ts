@@ -12,7 +12,7 @@ export interface FontSet {
  */
 export const BOARD_FONTS: FontSet = { always: ['Geist', 'Geist Mono'], thai: 'Noto Sans Thai' }
 
-/** The app's next/font families (apps/web/src/app/layout.tsx), the boards' fonts since Phase 1. */
+/** The app's self-hosted families (apps/web/src/app/fonts.css), the boards' fonts since Phase 1. */
 export const APP_FONTS: FontSet = BOARD_FONTS
 
 /**

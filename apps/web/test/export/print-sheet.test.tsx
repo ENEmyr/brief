@@ -124,6 +124,16 @@ describe('insertPrintNotes', () => {
     insertPrintNotes(root, [highlight('a', 'first')])
     expect([...root.querySelectorAll('[data-print-note]')].map((n) => n.textContent)).toEqual(['Note: first'])
   })
+
+  it('prints a note once when its highlight is drawn as one mark per inline run', () => {
+    const root = page(
+      '<p data-sid="0" data-bid="0"><mark data-mark-id="a">we </mark><strong><mark data-mark-id="a">ship</mark></strong></p>',
+    )
+    insertPrintNotes(root, [highlight('a', 'across bold')])
+    expect([...root.querySelectorAll('[data-print-note]')].map((n) => n.textContent)).toEqual([
+      'Note: across bold',
+    ])
+  })
 })
 
 describe('insertPrintNotes on a rendered section', () => {

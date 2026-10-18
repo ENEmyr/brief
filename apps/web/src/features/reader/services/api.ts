@@ -1,4 +1,4 @@
-import { payloadSchema, sessionEnvelopeSchema, type Payload, type EncParams } from '@brief/schema'
+import { parseStoredPayload, sessionEnvelopeSchema, type StoredPayload, type EncParams } from '@brief/schema'
 import { API_URL } from '@/shared/api'
 
 export { API_URL }
@@ -12,7 +12,7 @@ export interface SessionData {
   saved: boolean
   encrypted: boolean
   encParams: EncParams | null
-  payload: Payload | null
+  payload: StoredPayload | null
   raw: string
   createdAt: number
   expiresAt: number
@@ -33,9 +33,9 @@ export async function fetchSession(id: string): Promise<SessionData> {
 
   try {
     const body = sessionEnvelopeSchema.parse(await res.json())
-    let payload: Payload | null = null
+    let payload: StoredPayload | null = null
     if (!body.encrypted) {
-      payload = payloadSchema.parse(JSON.parse(body.payload))
+      payload = parseStoredPayload(JSON.parse(body.payload))
     }
     return {
       id: body.id,

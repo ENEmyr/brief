@@ -1,8 +1,9 @@
 import { Elysia } from 'elysia'
 import type { AppEnv } from '../../env'
-import { MAX_PAYLOAD_BYTES, payloadSchema, payloadToMarkdown } from '@brief/schema'
+import { MAX_PAYLOAD_BYTES, parseStoredPayload, payloadToMarkdown } from '@brief/schema'
 import { createSessionBody } from './model'
 import { createSession, getSession } from './service'
+import { imageIdsIn, linkImages } from '../image'
 
 export function sessionFeature(env: AppEnv) {
   return new Elysia({ name: 'session' })
@@ -39,7 +40,9 @@ export function sessionFeature(env: AppEnv) {
         set.status = 413
         return { error: `Payload exceeds ${MAX_PAYLOAD_BYTES} bytes.` }
       }
-      const { id } = await createSession(env.DB, payloadStr, parsed.data.payload.meta.title, Date.now())
+      const now = Date.now()
+      const { id } = await createSession(env.DB, payloadStr, parsed.data.payload.meta.title, now)
+      await linkImages(env.DB, id, imageIdsIn(parsed.data.payload), now)
       set.status = 201
       return { id, url: `${env.PUBLIC_WEB_ORIGIN}/s/${id}` }
     })
@@ -71,7 +74,7 @@ export function sessionFeature(env: AppEnv) {
         set.status = 403
         return { error: 'This session is protected. Content is end-to-end encrypted and only readable in the browser with the password.' }
       }
-      const payload = payloadSchema.parse(JSON.parse(row.payload))
+      const payload = parseStoredPayload(JSON.parse(row.payload))
       set.headers['content-type'] = 'text/markdown; charset=utf-8'
       return payloadToMarkdown(payload, { url: `${env.PUBLIC_WEB_ORIGIN}/s/${row.id}` })
     })

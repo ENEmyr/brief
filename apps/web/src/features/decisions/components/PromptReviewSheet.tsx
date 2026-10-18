@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { Decision } from '@brief/schema'
 import { useDialogFocus } from '@/features/export'
-import { useReaderState, useReaderStateStore } from '@/features/reader-state'
+import { useReaderState, useReaderStateStore, type ReaderState } from '@/features/reader-state'
 import { modKeyLabel } from '@/features/shortcuts'
 import { decisionCounts, isAnswered } from '../lib/answers'
 import { buildReplyPrompt } from '../lib/replyPrompt'
@@ -27,6 +27,7 @@ export function PromptReviewSheet({
   copyText,
   onClose,
   onGoTo,
+  flagLines,
 }: {
   decisions: Decision[]
   docTitle: string
@@ -34,12 +35,14 @@ export function PromptReviewSheet({
   copyText: (text: string) => void
   onClose: () => void
   onGoTo: (decisionId: string) => void
+  /** The trajectory "Flags" group for the given state; see flagPromptLines. */
+  flagLines?: (state: ReaderState) => string[]
 }) {
   const state = useReaderState()
   const store = useReaderStateStore()
   const build = useCallback(
-    () => buildReplyPrompt(decisions, store.getState(), docTitle, sessionId),
-    [decisions, store, docTitle, sessionId],
+    () => buildReplyPrompt(decisions, store.getState(), docTitle, sessionId, flagLines?.(store.getState())),
+    [decisions, store, docTitle, sessionId, flagLines],
   )
   const [text, setText] = useState(build)
   const panelRef = useRef<HTMLElement>(null)

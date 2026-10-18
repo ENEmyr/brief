@@ -8,10 +8,12 @@ import type { BlockAnchor } from '../blockAnchor'
 import {
   CodePanel,
   CodeRow,
+  PrintedNotes,
   useHighlightedCode,
   type HighlightedCode,
   type LineTone,
 } from './CodePre'
+import { notesByLine, placeNotes } from './codeNotes'
 import { diffLines } from './lineDiff'
 
 type BeforeAfterBlock = Extract<Block, { type: 'ba' }>
@@ -55,6 +57,12 @@ export function BeforeAfter({
     }
   }, [lines])
 
+  const placed = useMemo(
+    () => placeNotes(block.notes, { before: lines.before.length, after: lines.after.length }),
+    [block.notes, lines],
+  )
+  const byLine = useMemo(() => notesByLine(placed), [placed])
+
   const sides = {
     before: { highlighted: before, title: block.titleBefore, changed: removed, tone: 'del' },
     after: { highlighted: after, title: block.titleAfter, changed: added, tone: 'add' },
@@ -67,6 +75,7 @@ export function BeforeAfter({
       number={index + 1}
       gutter="w-7"
       tone={tone}
+      notes={byLine.get(`${side}.${index}`)}
       path={`${pathPrefix}${side}.${index}`}
       annotatable={annotatable}
       highlights={highlights}
@@ -107,8 +116,13 @@ export function BeforeAfter({
   )
 
   return (
-    <BlockCard {...cardHeader(block, { ...anchor, pathPrefix, annotatable })} controls={toggle}>
+    <BlockCard
+      {...cardHeader(block, { ...anchor, pathPrefix, annotatable })}
+      captionSuffix={block.filename === undefined ? undefined : 'before and after'}
+      controls={toggle}
+    >
       <div
+        data-ba-body=""
         className={`font-mono text-[13px] leading-[22px] ${view === 'split' ? 'grid grid-cols-2 max-[880px]:grid-cols-1' : ''}`}
       >
         {view === 'split' ? (
@@ -142,6 +156,7 @@ export function BeforeAfter({
           </Pane>
         )}
       </div>
+      <PrintedNotes notes={placed} />
     </BlockCard>
   )
 }

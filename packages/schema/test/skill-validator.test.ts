@@ -102,6 +102,34 @@ const corpus: { name: string; mutate: (p: Payload) => void; valid: boolean }[] =
     valid: true,
   },
   {
+    name: 'a trajectory step time without Z',
+    mutate: (p) => {
+      p.sections[0]!.blocks[0] = { type: 'trajectory', steps: [{ at: '2026-07-12T09:00:00+07:00', kind: 'run', title: 'x' }] }
+    },
+    valid: false,
+  },
+  {
+    name: 'a trajectory step time in UTC',
+    mutate: (p) => {
+      p.sections[0]!.blocks[0] = { type: 'trajectory', steps: [{ at: '2026-07-12T09:00:00.250Z', kind: 'run', title: 'x' }] }
+    },
+    valid: true,
+  },
+  {
+    name: 'an image whose imageId is a URL',
+    mutate: (p) => {
+      p.sections[0]!.blocks[0] = { type: 'image', imageId: 'https://example.com/a.png', alt: 'x' }
+    },
+    valid: false,
+  },
+  {
+    name: 'an image with an id the API issued',
+    mutate: (p) => {
+      p.sections[0]!.blocks[0] = { type: 'image', imageId: 'aB3xYz01qWe9rT_-', alt: 'x' }
+    },
+    valid: true,
+  },
+  {
     name: 'an invented field on a block (Zod strips it)',
     mutate: (p) => {
       // @ts-expect-error invented field
@@ -254,6 +282,14 @@ describe("the offline validator's readability hints", () => {
       withBlock({ type: 'table', head: ['Field', 'Use'], rows: [['`tone`', 'Colour of the tile']] }),
     )
     expect(hints.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.0.0'])
+  })
+
+  it('accepts inline code, bold and italic in paragraphs and callouts, which the reader renders', () => {
+    expect(readabilityHints(paragraph('Set `tone` to **bad** for a *failing* row.'))).toEqual([])
+    expect(readabilityHints(withBlock({ type: 'warn', title: 'Use `tone`', text: 'Not **color**.' }))).toEqual([])
+    expect(readabilityHints(paragraph('See [the docs](https://brief.algoryth.me).')).map((h) => h.path)).toEqual([
+      'sections.0.blocks.0.text',
+    ])
   })
 
   it('scans a payload-sized unbroken run in linear time', () => {

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react'
 import { BLOCK_TYPES, type Block } from '@brief/schema'
 import { BlockRenderer } from '@/features/reader'
 import { ReaderStateProvider } from '@/features/reader-state'
-import { BlockCard } from '@/features/reader/components/BlockCard'
+import { BlockCard, cardHeader } from '@/features/reader/components/BlockCard'
 import { BlockError } from '@/features/reader/components/BlockError'
 import { useDiagramFullScreen } from '@/features/reader/components/fullScreen'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
@@ -77,6 +77,26 @@ const SAMPLES: Record<Block['type'], Block> = {
   histogram: { type: 'histogram', bins: [{ label: '0-10', count: 1 }] },
   scatter: { type: 'scatter', series: [{ label: 'A', points: [[1, 2]] }] },
   plot3d: { type: 'plot3d', kind: 'scatter3d', points: [[0, 0, 1]] },
+  list: { type: 'list', items: ['lint', 'test'] },
+  walkthrough: {
+    type: 'walkthrough',
+    language: 'ts',
+    code: 'const a = 1',
+    flow: {
+      nodes: [
+        { id: 'a', label: 'A' },
+        { id: 'b', label: 'B' },
+      ],
+      edges: [{ from: 'a', to: 'b' }],
+    },
+    steps: [{ from: 1, title: 'start', nodes: ['a'] }],
+  },
+  diff: { type: 'diff', files: [{ path: 'src/a.ts', status: 'modified' }] },
+  trajectory: {
+    type: 'trajectory',
+    steps: [{ at: '2026-10-15T00:00:00Z', kind: 'read', title: 'read the limiter' }],
+  },
+  image: { type: 'image', imageId: 'img-0001', alt: 'a chart' },
 }
 
 /** features.md B1 and owner ruling D5: diagrams, plot3d and the four 2D charts. */
@@ -207,6 +227,23 @@ describe('BlockCard', () => {
     expect(caption).toHaveTextContent(/^6 messages$/)
     expect(caption.className).toContain('flex-1')
     expect(caption.nextElementSibling).toHaveTextContent('log scale')
+  })
+
+  it('draws a kind word before the title with " / ", and alone without one (B-Blocks2:97, B-Blocks2:166, B-States:93)', () => {
+    const { rerender } = render(
+      <BlockCard kind="plot3d" captionPrefix="surface" caption={{ text: 'latency by RPS', path: 'title' }} />,
+    )
+    const caption = () => screen.getByText('plot3d').nextElementSibling as HTMLElement
+    expect(caption()).toHaveTextContent(/^surface \/ latency by RPS$/)
+    rerender(<BlockCard kind="plot3d" captionPrefix="surface" />)
+    expect(caption()).toHaveTextContent(/^surface$/)
+    rerender(<BlockCard kind="erd" captionPrefix="a" caption={{ text: 'b', path: 'title' }} captionSuffix="c" />)
+    expect(screen.getByText('erd').nextElementSibling).toHaveTextContent(/^a \/ b \/ c$/)
+  })
+
+  it('mermaid leads its loading caption with the declaration, as the drawn card does (B-Blocks2:97)', () => {
+    renderBlock({ type: 'mermaid', code: 'flowchart LR\n  A --> B', title: 'Login flow' })
+    expect(screen.getByText('mermaid').nextElementSibling).toHaveTextContent(/^flowchart LR \/ Login flow$/)
   })
 
   it('renders no full-screen button and no zoom controls without fullScreen', () => {
@@ -357,20 +394,38 @@ describe('useDiagramFullScreen', () => {
 
 describe('unknown block (B-States)', () => {
   it('shows its type as a dashed warn tag, "not supported here", and the block as data', () => {
-    renderBlock({ type: 'walkthrough', steps: ['MARKER'] } as never)
-    const tag = screen.getByText('walkthrough')
+    renderBlock({ type: 'future-block', steps: ['MARKER'] } as never)
+    const tag = screen.getByText('future-block')
     expect(tag).toHaveAttribute('data-kind-tag')
     expect(tag.className).toContain('border-dashed')
     expect(tag.className).toContain('text-warn')
     expect(screen.getByText('not supported here')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'This reader does not know this block type yet. The content is below as data.',
+        'This reader cannot show this block. The content is below as data.',
       ),
     ).toBeInTheDocument()
     const summary = screen.getByText('Show raw block')
     expect(summary.tagName).toBe('SUMMARY')
     expect(summary.closest('details')?.textContent).toContain('"MARKER"')
+  })
+})
+
+describe('unreadable stored block (B6)', () => {
+  it('draws the stored type and its raw JSON in a details element, inside details too', () => {
+    const hologram = { type: 'hologram', frames: 3 }
+    renderBlock({ type: 'unreadable', raw: hologram } as never)
+    expect(screen.getByText('hologram')).toHaveAttribute('data-kind-tag')
+    expect(screen.getByText('Show raw block').closest('details')?.textContent).toContain('"frames": 3')
+    cleanup()
+    renderBlock({
+      type: 'details',
+      summary: 'More',
+      blocks: [{ type: 'p', text: 'inner' }, { type: 'unreadable', raw: hologram }],
+    } as never)
+    fireEvent.click(screen.getByText('More'))
+    expect(screen.getByText('inner')).toBeInTheDocument()
+    expect(screen.getByText('hologram')).toHaveAttribute('data-kind-tag')
   })
 })
 
@@ -393,4 +448,25 @@ describe('BlockError', () => {
       '3    B -- yes --> C[serve',
     )
   })
+})
+
+describe('cardHeader for the round 2 blocks', () => {
+  it.each([
+    [{ ...SAMPLES.walkthrough, filename: 'src/limiter.ts', title: 'handle()' }, 'src/limiter.ts', 'filename'],
+    [{ ...SAMPLES.walkthrough, title: 'handle()' }, 'handle()', 'title'],
+    [SAMPLES.walkthrough, 'ts', 'language'],
+    [{ ...SAMPLES.image, caption: 'p95 by region' }, 'p95 by region', 'caption'],
+  ] as [Block, string, string][])('%#: %o leads with %s', (block, text, path) => {
+    expect(cardHeader(block, { pathPrefix: 'blocks.2.' })).toMatchObject({
+      kind: block.type,
+      caption: { text, path: `blocks.2.${path}` },
+    })
+  })
+
+  it.each([SAMPLES.diff, SAMPLES.trajectory, SAMPLES.image])(
+    '$type: no caption leaf when the payload has none',
+    (block) => {
+      expect(cardHeader(block, {})).toMatchObject({ kind: block.type, caption: undefined })
+    },
+  )
 })

@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { BlockRenderer } from '@/features/reader'
+import { DiffNodeStatusContext, collectDiffNodeStatus } from '@/features/reader/components/blocks/diffNodeStatus'
 import type { Block } from '@brief/schema'
 
 const GLOBALS_CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
@@ -117,6 +118,58 @@ describe('Layers block', () => {
       expect(node(container, id).className).toContain('bg-elev')
       expect(node(container, id).className).toContain('border-line2')
     })
+  })
+
+  it('badges a node whose diff node changed: M on a warn border, new on an accent one, none otherwise (B-Blocks2:67-68)', () => {
+    const block = {
+      ...layersBlock,
+      layers: layersBlock.layers.map((layer, i) =>
+        i === 0
+          ? {
+              ...layer,
+              nodes: [
+                { id: 'client', label: 'Client', diffNode: 'unchanged' },
+                { id: 'limiter', label: 'Limiter', diffNode: 'limiter-new' },
+                { id: 'api', label: 'API', diffNode: 'worker' },
+              ],
+            }
+          : layer,
+      ),
+    }
+    const statuses = collectDiffNodeStatus([
+      {
+        id: 's',
+        no: 1,
+        title: 'S',
+        blocks: [
+          {
+            type: 'diff',
+            files: [{ path: 'a.ts', status: 'modified' }],
+            map: {
+              nodes: [
+                { id: 'unchanged', label: 'Unchanged' },
+                { id: 'limiter-new', label: 'Limiter', status: 'added' },
+                { id: 'worker', label: 'Worker', status: 'modified' },
+              ],
+              edges: [],
+            },
+          },
+        ],
+      },
+    ])
+    const { container } = render(
+      <DiffNodeStatusContext value={statuses}>
+        <BlockRenderer block={block} />
+      </DiffNodeStatusContext>,
+    )
+    const badge = (id: string) => node(container, id).querySelector<HTMLElement>('[data-diff-badge]')
+    expect(badge('client')).toBeNull()
+    expect(node(container, 'client').className).toContain('border-line2')
+    expect(badge('limiter')!.textContent).toBe('new')
+    expect(node(container, 'limiter').className).toContain('border-accent-line')
+    expect(node(container, 'limiter').className).toContain('bg-accent-soft')
+    expect(badge('api')!.textContent).toBe('M')
+    expect(node(container, 'api').className).toContain('border-warn')
   })
 
   it('places a node of a later layer in that layer\'s band', () => {
@@ -287,5 +340,35 @@ describe('Erd block', () => {
 
   it('does not crash when a fk references an unknown table', () => {
     expect(() => r(erdBlock)).not.toThrow()
+  })
+})
+
+// Round 1 board field layers.nodes[].diffNode (pr-body-schema-r1.md). The badge
+// needs a diff block, which ships in round 2, so the node only carries the link.
+describe('Layers diffNode before the diff block exists', () => {
+  const linked: Extract<Block, { type: 'layers' }> = {
+    ...layersBlock,
+    layers: [
+      {
+        id: 'flow',
+        label: 'Request flow',
+        nodes: [
+          { id: 'client', label: 'Client' },
+          { id: 'limiter', label: 'Limiter', diffNode: '"><img src=x onerror=alert(1)>' },
+        ],
+        edges: [{ from: 'client', to: 'limiter' }],
+      },
+    ],
+  }
+
+  it('marks the linked node and draws it exactly like an unlinked one', () => {
+    const { container } = r(linked)
+    const limiter = node(container, 'limiter')
+    const client = node(container, 'client')
+    expect(limiter).toHaveAttribute('data-diff-node', '"><img src=x onerror=alert(1)>')
+    expect(client).not.toHaveAttribute('data-diff-node')
+    expect(limiter.className).toBe(client.className)
+    expect(limiter.textContent).toBe('Limiter')
+    expect(container.querySelector('img')).toBeNull()
   })
 })

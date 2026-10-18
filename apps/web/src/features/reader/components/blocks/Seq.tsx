@@ -86,11 +86,12 @@ const ROW_CLASS: Record<Phase, string> = {
   future: 'px-2.5 py-2 text-faint max-[880px]:p-0',
 }
 
+/** The agent's sentence for the step (B-Blocks:102-107), else "from → to: label". */
 function stepText(step: SeqBlock['steps'][number]): string {
-  return `${step.from} → ${step.to}: ${step.label}`
+  return step.text ?? `${step.from} → ${step.to}: ${step.label}`
 }
 
-function Chevron({ dir, strokeWidth = 2 }: { dir: 'left' | 'right'; strokeWidth?: number }) {
+export function Chevron({ dir, strokeWidth = 2 }: { dir: 'left' | 'right'; strokeWidth?: number }) {
   return (
     <svg
       width="14"
@@ -108,9 +109,9 @@ function Chevron({ dir, strokeWidth = 2 }: { dir: 'left' | 'right'; strokeWidth?
   )
 }
 
-const CONTROL = `flex size-8 shrink-0 items-center justify-center rounded-[4px] transition-[background-color,transform] duration-[var(--dur-fast)] enabled:active:scale-[.97] disabled:opacity-45 motion-reduce:transition-none max-[880px]:size-11 ${FOCUS_RING}`
-const BORDERED = 'border border-line2 bg-elev text-text enabled:hover:bg-chip'
-const FILLED = 'bg-accent text-on-accent'
+export const CONTROL = `flex size-8 shrink-0 items-center justify-center rounded-[4px] transition-[background-color,transform] duration-[var(--dur-fast)] enabled:active:scale-[.97] disabled:opacity-45 motion-reduce:transition-none max-[880px]:size-11 ${FOCUS_RING}`
+export const BORDERED = 'border border-line2 bg-elev text-text enabled:hover:bg-chip'
+export const FILLED = 'bg-accent text-on-accent'
 
 interface SeqDiagramProps {
   block: SeqBlock

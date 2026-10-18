@@ -5,6 +5,7 @@ import type { AppEnv } from './env'
 import { sessionFeature } from './features/session'
 import { saveFeature } from './features/save'
 import { stateFeature } from './features/state'
+import { imageFeature } from './features/image'
 
 export function createApp(env: AppEnv) {
   return new Elysia({ adapter: CloudflareAdapter })
@@ -27,11 +28,14 @@ export function createApp(env: AppEnv) {
           return false
         },
         methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+        // Not CORS-safelisted: without this the reader cannot see how long a 429 asks it to wait.
+        exposeHeaders: ['Retry-After'],
       }),
     )
     .get('/health', () => ({ ok: true }))
     .use(sessionFeature(env))
     .use(saveFeature(env))
     .use(stateFeature(env))
+    .use(imageFeature(env))
     .compile()
 }

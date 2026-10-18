@@ -1,4 +1,5 @@
 export { textOffset, selectionRangeIn } from './lib/offsets'
+export { parseInline } from './lib/inlineMarkdown'
 export { buildAskPrompt } from './lib/askPrompt'
 export { buildEditPrompt } from './lib/editPrompt'
 export { HighlightedText } from './components/HighlightedText'

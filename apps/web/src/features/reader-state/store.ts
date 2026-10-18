@@ -38,7 +38,13 @@ export type ReaderState = {
   // before any text is typed, so Other never needs an option id that could
   // collide with one of the agent's.
   dother: Record<string, string>
+  // trajectory block key -> step index -> the reader's mark on a flagged step.
+  // Absent until the first mark, so state saved before marks existed reads the same.
+  tflag?: Record<string, Record<string, TrajectoryMark>>
 }
+
+/** "Ask me" or "OK" on a step the agent decided alone or assumed. */
+export type TrajectoryMark = 'ask' | 'ok'
 
 export interface ReaderStateActions {
   addHighlight(h: Highlight): void
@@ -48,6 +54,8 @@ export interface ReaderStateActions {
   pickOther(decisionId: string, multi: boolean): void
   setOtherText(decisionId: string, text: string): void
   setDecisionNote(decisionId: string, text: string): void
+  /** Sets a step's mark, or clears it with null. */
+  setStepMark(blockKey: string, step: number, mark: TrajectoryMark | null): void
   resetDecisions(): void
   hydrate(state: ReaderState): void
 }
@@ -156,6 +164,13 @@ export function createReaderStateStore(
     },
     setDecisionNote(decisionId, text) {
       commit({ ...state, dnote: { ...state.dnote, [decisionId]: text } })
+    },
+    setStepMark(blockKey, step, mark) {
+      const current = state.tflag?.[blockKey] ?? {}
+      const marks = mark === null ? without(current, String(step)) : { ...current, [step]: mark }
+      const others = without(state.tflag ?? {}, blockKey)
+      const tflag = Object.keys(marks).length > 0 ? { ...others, [blockKey]: marks } : others
+      commit({ ...state, tflag })
     },
     resetDecisions() {
       commit({ ...state, dsel: {}, dnote: {}, dother: {} })

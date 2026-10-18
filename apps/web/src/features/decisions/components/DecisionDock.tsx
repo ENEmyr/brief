@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useId, useRef, useState } from 'react'
-import type { Decision } from '@brief/schema'
+import type { Decision, StoredSection } from '@brief/schema'
 import { useReaderActions, useReaderState } from '@/features/reader-state'
 import { modKeyLabel } from '@/features/shortcuts'
 import { decisionCounts, isAnswered } from '../lib/answers'
 import { DecisionSegments } from './DecisionSegments'
 import { OptionList } from './OptionList'
+import { RefChips } from './RefChips'
+import type { JumpToContext } from './RefChips'
 import { ResetAnswers } from './ResetAnswers'
 import { SupportTabs } from './SupportTabs'
 import type { TabKey } from './SupportTabs'
@@ -24,7 +26,17 @@ function includesLine(notes: number): string {
   return `Includes answers, reasons and ${notes} ${notes === 1 ? 'note' : 'notes'}`
 }
 
-function DockDecision({ decision, current }: { decision: Decision; current: boolean }) {
+function DockDecision({
+  decision,
+  current,
+  sections,
+  onJumpToContext,
+}: {
+  decision: Decision
+  current: boolean
+  sections?: readonly StoredSection[]
+  onJumpToContext?: JumpToContext
+}) {
   const state = useReaderState()
   const actions = useReaderActions()
   const questionId = useId()
@@ -48,6 +60,9 @@ function DockDecision({ decision, current }: { decision: Decision; current: bool
         </span>
         <span className={`font-mono text-[10px] ${done ? 'text-good' : 'text-warn'}`}>{word}</span>
       </div>
+      {onJumpToContext && sections && (
+        <RefChips decision={decision} sections={sections} onJump={onJumpToContext} variant="dock" />
+      )}
       <OptionList decision={decision} variant="dock" labelledBy={questionId} />
       {/* B-Reader draws an input 32 high plus its border; a one-row textarea looks
           the same and, unlike an input, keeps the line breaks of a reason typed before. */}
@@ -73,12 +88,16 @@ function DockDecision({ decision, current }: { decision: Decision; current: bool
  */
 export function DecisionDock({
   decisions,
+  sections,
   target,
   onCopyPrompt,
+  onJumpToContext,
 }: {
   decisions: Decision[]
+  sections?: readonly StoredSection[]
   target: DockTarget | null
   onCopyPrompt: () => void
+  onJumpToContext?: JumpToContext
 }) {
   const state = useReaderState()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -124,7 +143,13 @@ export function DecisionDock({
       </div>
       <div className="flex min-h-0 flex-col overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--c-line)_transparent]">
         {decisions.map((d) => (
-          <DockDecision key={d.id} decision={d} current={d === firstOpen} />
+          <DockDecision
+            key={d.id}
+            decision={d}
+            current={d === firstOpen}
+            sections={sections}
+            onJumpToContext={onJumpToContext}
+          />
         ))}
       </div>
       <div className="flex shrink-0 flex-col gap-2 px-[14px] py-3">

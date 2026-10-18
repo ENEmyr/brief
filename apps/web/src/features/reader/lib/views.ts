@@ -1,4 +1,4 @@
-import type { Block, Section } from '@brief/schema'
+import type { StoredBlock, StoredSection } from '@brief/schema'
 
 export type ReaderView = 'document' | 'diagrams' | 'raw'
 
@@ -9,8 +9,12 @@ export const VIEW_TABS: ReadonlyArray<{ id: ReaderView; label: string }> = [
   { id: 'raw', label: 'Raw' },
 ]
 
-/** What the Diagrams view keeps: the diagram blocks and the chart blocks. */
-export const DIAGRAM_BLOCK_TYPES: ReadonlySet<Block['type']> = new Set([
+/**
+ * What the Diagrams view keeps: the diagram blocks and the chart blocks, which
+ * are the ones with the full-screen viewer. A walkthrough and a diff read as
+ * code and stay in the Document view.
+ */
+export const DIAGRAM_BLOCK_TYPES: ReadonlySet<StoredBlock['type']> = new Set([
   'seq',
   'state',
   'layers',
@@ -23,6 +27,6 @@ export const DIAGRAM_BLOCK_TYPES: ReadonlySet<Block['type']> = new Set([
   'plot3d',
 ])
 
-export function hasDiagrams(section: Section): boolean {
+export function hasDiagrams(section: StoredSection): boolean {
   return section.blocks.some((b) => DIAGRAM_BLOCK_TYPES.has(b.type))
 }

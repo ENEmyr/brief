@@ -131,6 +131,9 @@
   /* Archive dialog's warn callout: B-Overlays draws #1A1710 in dark, not
    * --c-warn-soft. Light keeps the warn-soft token value (D8 style). */
   --c-warn-callout: #fbf0da;
+  /* Trajectory row the agent decided alone: B-NewBlocks:276 draws #0F171C in
+   * dark, not --c-info-soft. Light keeps the info-soft token value (D8 style). */
+  --c-info-callout: #e6f2fa;
 
   /* The dock's first open decision (B-Reader:261, B-Reader-Light:261) and the
    * prompt review sheet's leftward shadow (B-Overlays:119, light from
@@ -215,6 +218,7 @@
 
     --c-warn-fill: #f4b740;
     --c-warn-callout: #1a1710;
+    --c-info-callout: #0f171c;
 
     --c-dock-current: #141a12;
     --shadow-sheet: -16px 0 48px rgba(0, 0, 0, 0.45);
@@ -255,6 +259,32 @@
   [role='button']:not([aria-disabled='true']) {
     cursor: pointer;
   }
+}
+
+mark[data-marker]::after {
+  position: relative;
+  top: -0.5em;
+  margin-left: 1px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 0;
+  color: var(--c-accent-text);
+}
+
+/*
+ * The marker is generated content, not a text node, so a mark's text stays
+ * the highlighted characters and selection offsets stay in the model string.
+ * The text after the slash is what assistive tech announces; the plain
+ * declaration before it is the fallback for engines without that syntax.
+ */
+mark[data-marker='note']::after {
+  content: '●';
+  content: '●' / 'note';
+}
+
+mark[data-marker='ask']::after {
+  content: '?';
+  content: '?' / 'question';
 }
 
 html,
@@ -314,6 +344,27 @@ body {
 @keyframes save-pulse {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
+}
+/* B-NewBlocks:14-20 walkthrough flow: a node pops in, an edge draws in. */
+@keyframes wt-pop {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes wt-dash {
+  from { stroke-dasharray: 200; stroke-dashoffset: 200; }
+  to { stroke-dasharray: 200; stroke-dashoffset: 0; }
+}
+.wt-node {
+  animation: wt-pop 0.26s cubic-bezier(0.3, 0.8, 0.3, 1) both;
+}
+.wt-draw {
+  animation: console-in 0.16s ease both;
+}
+.wt-draw > path:first-child {
+  animation: wt-dash 0.4s cubic-bezier(0.3, 0.8, 0.3, 1) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wt-node, .wt-draw, .wt-draw > path:first-child { animation: none; }
 }
 /* B-Overlays MOTION. */
 @keyframes console-enter {
@@ -535,8 +586,16 @@ body {
     text-decoration: underline 2px;
     text-underline-offset: 3px;
   }
-  mark sup {
-    display: none;
+  mark[data-marker]::after {
+    content: none;
+  }
+  /* B-Print: a term prints as a numbered reference (<sup> mono 11) to Terms. */
+  [data-term]::after {
+    content: attr(data-term);
+    vertical-align: super;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 0;
   }
   [data-print-note] {
     display: block;
@@ -576,6 +635,66 @@ body {
     line-height: 18px;
     color: var(--c-text);
   }
+  /* B-Print:55: the header draws the filename alone, no kind chip. */
+  figure:has(> pre.shiki) > div:first-child > [data-kind-tag],
+  figure:has(> pre[data-code-panel]) > div:first-child > [data-kind-tag] {
+    display: none;
+  }
+  /* B-Print:53, 82: a figure and a list print bare, the caption below in 12/18
+     sub. A block with no caption prints no header row at all. */
+  figure:has(> [data-image-body]),
+  figure:has(> :is(ul, ol):not([data-print-notes])) {
+    display: flex;
+    flex-direction: column-reverse;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+  figure:has(> [data-image-body]) > div:first-child:has(> span:nth-child(2):empty),
+  figure:has(> :is(ul, ol):not([data-print-notes])) > div:first-child:has(> span:nth-child(2):empty) {
+    display: none;
+  }
+  figure:has(> [data-image-body]) > div:first-child,
+  figure:has(> :is(ul, ol):not([data-print-notes])) > div:first-child {
+    margin: 6px 0 18px;
+    padding: 0;
+    border: 0;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--c-sub);
+  }
+  figure:has(> [data-image-body]) [data-kind-tag],
+  figure:has(> :is(ul, ol):not([data-print-notes])) [data-kind-tag] {
+    display: none;
+  }
+  figure:has(> [data-image-body]) > [data-image-body] {
+    padding: 0;
+  }
+  figure:has(> ul) > ul {
+    padding: 0 0 0 22px;
+    font-size: 14px;
+    line-height: 22px;
+  }
+  figure:has(> ol:not([data-print-notes])) > ol:not([data-print-notes]) {
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 14px;
+    line-height: 22px;
+  }
+  /* A before/after block keeps one rule round both panes, as a code block does. */
+  figure:has(> [data-ba-body]) {
+    border: 1px solid var(--c-text);
+    border-radius: 3px;
+    background: none;
+  }
+  figure:has(> [data-ba-body]) > div:first-child {
+    border-bottom: 1px solid var(--c-text);
+    background: none;
+  }
+  figure:has(> [data-ba-body]) > div:first-child button {
+    display: none;
+  }
   pre.shiki,
   pre[data-code-panel] {
     overflow: visible;
@@ -585,9 +704,50 @@ body {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+  /* B-Print:55-57: the listing prints 12.5/20. */
+  figure:has(> pre.shiki) > pre,
+  figure:has(> pre[data-code-panel]) > pre {
+    font-size: 12.5px;
+  }
+  /* B-Print:58-61: the note letters sit in one column after the longest line.
+     Table cells give that column; flex rows would put each letter at its own
+     line end. */
+  :is(figure:has(> pre.shiki), figure:has(> pre[data-code-panel])) > pre > code {
+    display: table;
+    min-width: 0;
+  }
+  :is(figure:has(> pre.shiki), figure:has(> pre[data-code-panel])) > pre > code > span {
+    display: table-row;
+  }
+  :is(figure:has(> pre.shiki), figure:has(> pre[data-code-panel])) > pre > code > span > span {
+    display: table-cell;
+  }
+  :is(figure:has(> pre.shiki), figure:has(> pre[data-code-panel])) > pre > code > span > span:first-child,
+  [data-print-letter] {
+    white-space: nowrap;
+  }
+  [data-print-letter] {
+    padding-left: 12px;
+    vertical-align: top;
+  }
   [data-tone='mark'] {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+  /* B-Print:58-66: agent notes on code print as letters after the line and a
+     lettered list under the listing, not as hover text. */
+  [data-print-letter]::after {
+    content: '[' attr(data-print-letter) ']';
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  [data-print-notes] {
+    margin: 8px 0 4px;
+    padding: 0 10px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 22px;
   }
 
   /* Reset any pan/zoom the reader left on a diagram: the transform is inline,

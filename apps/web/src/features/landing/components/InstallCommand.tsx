@@ -9,7 +9,7 @@ export function InstallCommand() {
       <CopyButton
         text={INSTALL_COMMAND}
         label="Copy install command"
-        className="min-h-9 rounded-[4px] border-0 bg-elev px-[10px]"
+        className="min-h-9 rounded-[4px] border-0 bg-elev px-[10px] max-[880px]:min-h-11"
       />
     </div>
   )

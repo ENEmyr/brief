@@ -24,16 +24,12 @@ first use for Google Fonts and refuses to write references if a font is missing.
   loaded, and writes PNGs to `reference/` (gitignored, never committed). Board
   files are never copied into the repo. The lightified landing is generated into
   `reference/.generated/`.
-- Fonts on the boards come from Google Fonts, which serves different files per
-  user agent (different advance widths: a Thai line wraps at a different word).
-  The renderer sends every `fonts.googleapis.com` and `fonts.gstatic.com`
-  request with the user agent next/font/google downloads with, read at run time
-  from the installed Next (`next/dist/compiled/@next/font/dist/google/fetch-resource.js`),
-  so the boards get the files the app ships and a Next upgrade cannot drift
-  silently. If that file stops carrying the header, the renderer throws.
-  Once the app ships Geist (Phase 1), the stronger option is to serve the app
-  build's own woff2 files (`apps/web/.next/static/media/`) to the boards, which
-  also removes drift between a build and a later reference render.
+- The app self-hosts its fonts (`apps/web/src/app/fonts.css` and the woff2
+  files beside it, the files next/font/google downloaded at 9f256b6). The boards
+  link Google Fonts; the renderer answers their `fonts.googleapis.com` request
+  with that same CSS and their font requests with the same files, and aborts any
+  other `fonts.gstatic.com` request. Neither a build nor a reference render
+  downloads a font, and the boards get the files the app ships.
 - Both sides refuse fallback fonts (`lib/fonts.ts`): the renderer needs Geist,
   Geist Mono, and Noto Sans Thai wherever Thai text is set in a stack that names
   it (`BOARD_FONTS`); the app side needs its next/font families (`APP_FONTS`,
@@ -57,15 +53,11 @@ first use for Google Fonts and refuses to write references if a font is missing.
   `lib/regions.ts`), on the board and in the app alike. An element screenshot
   would scroll the element into the 900 px viewport, drop the rows below it and
   catch sticky elements (top bar, dock) at their scrolled position.
-- Renders of the references are not always byte-identical. Most differences are
-  anti-aliased pixels below the comparator's threshold (under 90 per image,
-  channel delta at most 2), for example at the lime 1 px rounded corners in the
-  dock or inside section 02. One is larger: on about 1 render in 8,
-  `board-B-Blocks2.png` rasterizes its h1 differently, and 38 pixels differ
-  from the other renders by Playwright's comparator (channel delta up to 223).
-  That is about 195 times under the 0.002 budget for that image, and no spec
-  compares `board-*.png` today, so no `toHaveScreenshot` result changes. A spec
-  that starts comparing a board image should allow for it.
+- `references.config.ts` starts Chromium with one raster thread, no partial
+  raster and no checker imaging. With those flags, 8 consecutive renders on
+  2026-10-18 matched byte for byte in all 128 images. Without them, about 4 to 7 of the 128
+  images differed between two renders by up to 53 anti-aliased pixels (channel
+  delta at most 2), even with the fonts served locally.
 
 ## Update guard
 

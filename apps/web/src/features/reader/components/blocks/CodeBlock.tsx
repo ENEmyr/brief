@@ -16,6 +16,7 @@ export function CodeBlock({
         code={block.code}
         language={block.language}
         highlightLines={block.highlight}
+        notes={block.notes}
         pathPrefix={pathPrefix}
         {...anchor}
       />

@@ -59,6 +59,18 @@ describe('HighlightedText', () => {
     expect(marks[1]?.textContent).toContain('world')
   })
 
+  it('keeps the leaf text equal to the model string when a noted mark precedes a plain one', () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+    seedHighlights([
+      { id: 'h1', sid: 0, bid: 0, start: 0, end: 5, text: 'hello', note: 'a note' },
+      { id: 'h2', sid: 0, bid: 0, start: 6, end: 11, text: 'world', note: null },
+    ])
+    const { container } = renderText('hello world')
+    const marks = [...document.querySelectorAll('mark')].map((m) => m.textContent)
+    expect(marks).toEqual(['hello', 'world'])
+    expect(container.textContent).toBe('hello world')
+  })
+
   it('only includes highlights for the matching sid/bid', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
     seedHighlights([
@@ -80,33 +92,34 @@ describe('HighlightedText', () => {
     expect(marks).toHaveLength(2)
   })
 
-  it('shows an accent bold "?" sup indicator for an ask highlight (question defined)', () => {
+  it('marks an ask highlight for the "?" marker (question defined), with no marker text', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
     seedHighlights([
       { id: 'h1', sid: 0, bid: 0, start: 0, end: 5, text: 'hello', note: null, question: 'why?' },
     ])
     renderText('hello world')
     const mark = document.querySelector('mark')!
-    const sup = mark.querySelector('sup')
-    expect(sup?.textContent).toBe('?')
+    expect(mark).toHaveAttribute('data-marker', 'ask')
+    expect(mark.textContent).toBe('hello')
     expect(mark).toHaveClass('bg-accent-soft', 'text-accent-text')
   })
 
-  it('shows a "●" sup indicator for a note highlight (note non-null, no question)', () => {
+  it('marks a note highlight for the "●" marker (note non-null, no question), with no marker text', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
     seedHighlights([{ id: 'h1', sid: 0, bid: 0, start: 0, end: 5, text: 'hello', note: 'a note' }])
     renderText('hello world')
     const mark = document.querySelector('mark')!
-    const sup = mark.querySelector('sup')
-    expect(sup?.textContent).toBe('●')
+    expect(mark).toHaveAttribute('data-marker', 'note')
+    expect(mark.textContent).toBe('hello')
   })
 
-  it('shows no sup indicator for a plain highlight (note null, no question)', () => {
+  it('gives a plain highlight no marker (note null, no question)', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
     seedHighlights([{ id: 'h1', sid: 0, bid: 0, start: 0, end: 5, text: 'hello', note: null }])
     renderText('hello world')
     const mark = document.querySelector('mark')!
-    expect(mark.querySelector('sup')).toBeNull()
+    expect(mark.textContent).toBe('hello')
+    expect(mark).not.toHaveAttribute('data-marker')
   })
 
   it('calls onMarkClick with the highlight when a mark is clicked', () => {

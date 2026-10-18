@@ -1,5 +1,5 @@
 import { DOCS_URL, REPO_URL } from '../lib/content'
-import { FOCUS_RING, LINK, PAD } from '../lib/styles'
+import { FOCUS_RING, LINK, NARROW_TARGET, PAD } from '../lib/styles'
 
 export function SiteFooter() {
   return (
@@ -9,10 +9,10 @@ export function SiteFooter() {
       <span className="font-semibold text-text">brief</span>
       <span>MIT licensed</span>
       <span className="grow" />
-      <a href={REPO_URL} className={`no-underline ${LINK} ${FOCUS_RING}`}>
+      <a href={REPO_URL} className={`no-underline ${LINK} ${NARROW_TARGET} ${FOCUS_RING}`}>
         GitHub
       </a>
-      <a href={DOCS_URL} className={`no-underline ${LINK} ${FOCUS_RING}`}>
+      <a href={DOCS_URL} className={`no-underline ${LINK} ${NARROW_TARGET} ${FOCUS_RING}`}>
         Docs
       </a>
     </footer>

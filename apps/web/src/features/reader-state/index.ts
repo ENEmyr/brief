@@ -1,5 +1,5 @@
 export { createReaderStateStore, DEFAULT_HIGHLIGHT_PATH } from './store'
-export type { Highlight, ReaderState, ReaderStateActions, ReaderStateStore } from './store'
+export type { Highlight, ReaderState, ReaderStateActions, ReaderStateStore, TrajectoryMark } from './store'
 export { startKvSync } from './sync'
 export type { SyncStatus } from './sync'
 export {

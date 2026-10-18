@@ -1,5 +1,5 @@
 import { payloadToMarkdown } from '@brief/schema'
-import type { Decision, Payload } from '@brief/schema'
+import type { Decision, StoredPayload } from '@brief/schema'
 import { answerLabels, otherLabel } from '@/features/decisions'
 import type { Highlight, ReaderState } from '@/features/reader-state'
 
@@ -59,7 +59,7 @@ function decisionsSection(decisions: Decision[], state: ReaderState): string {
  * without touching the browser download APIs.
  */
 export function buildExportMarkdown(
-  payload: Payload,
+  payload: StoredPayload,
   state: ReaderState,
   sessionId: string,
   origin: string,
@@ -85,7 +85,7 @@ export function buildExportMarkdown(
  * deliberate choice, not an oversight worth "simplifying" away.
  */
 export function downloadMarkdown(
-  payload: Payload,
+  payload: StoredPayload,
   state: ReaderState,
   sessionId: string,
   origin: string,

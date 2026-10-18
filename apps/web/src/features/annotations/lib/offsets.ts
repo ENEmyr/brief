@@ -43,9 +43,9 @@ export function textOffset(root: Node, node: Node, offset: number): number | nul
 
 /**
  * Resolves the current window Selection into ordered start/end character
- * offsets within blockEl (a [data-hl] leaf), plus the selected text. Returns
- * null when the selection is collapsed, whitespace-only, or reaches outside
- * blockEl.
+ * offsets within blockEl (a [data-hl] leaf), plus the text between them.
+ * Returns null when the selection is collapsed, whitespace-only, or reaches
+ * outside blockEl.
  *
  * That last case used to corrupt silently: the walk fell through and returned
  * the block's full text length, so a selection dragged from one paragraph into
@@ -59,11 +59,13 @@ export function selectionRangeIn(
   sel: Selection,
 ): { start: number; end: number; text: string } | null {
   if (sel.isCollapsed) return null
-  const text = sel.toString()
-  if (!text.trim()) return null
   const range = sel.getRangeAt(0)
-  const start = textOffset(blockEl, range.startContainer, range.startOffset)
-  const end = textOffset(blockEl, range.endContainer, range.endOffset)
-  if (start === null || end === null) return null
-  return { start: Math.min(start, end), end: Math.max(start, end), text }
+  const a = textOffset(blockEl, range.startContainer, range.startOffset)
+  const b = textOffset(blockEl, range.endContainer, range.endOffset)
+  if (a === null || b === null) return null
+  const start = Math.min(a, b)
+  const end = Math.max(a, b)
+  const text = (blockEl.textContent ?? '').slice(start, end)
+  if (!text.trim()) return null
+  return { start, end, text }
 }

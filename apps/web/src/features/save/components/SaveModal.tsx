@@ -1,9 +1,9 @@
 'use client'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import type { Payload } from '@brief/schema'
 import { Dialog, DialogActions, DialogIcon, PRIMARY_BUTTON, SECONDARY_BUTTON, useExport } from '@/features/export'
-import { encryptPayload } from '../lib/crypto'
-import { ARCHIVE_FAILED, saveSession } from '../lib/api'
+import { encryptPayloadWithKey, newSessionKey } from '../lib/crypto'
+import { ARCHIVE_FAILED, saveSession, type SaveRequestBody } from '../lib/api'
+import { imageIdsIn, resealImages, withImageIds } from '../lib/images'
 
 const MIN_PASSWORD_LENGTH = 8
 // Server's ciphertext char cap (model.ts saveBody / service.ts MAX_CIPHERTEXT_BYTES) --
@@ -36,13 +36,18 @@ function projectedCiphertextChars(plaintextBytes: number): number {
 /** "Archive this doc" (B-Overlays:54-71). */
 export function SaveModal({
   sessionId,
-  payload,
+  storedJson,
   onClose,
   onSaved,
   onBackgroundSaveSettled,
 }: {
   sessionId: string
-  payload: Payload
+  /**
+   * The payload exactly as the server stores it. Encrypting this string rather
+   * than a re-serialized parse keeps every field this reader's schema does not
+   * know (a newer agent's field after a rollback), which a parse strips.
+   */
+  storedJson: string
   onClose: () => void
   onSaved: (mode: SaveMode) => void
   /**
@@ -163,32 +168,37 @@ export function SaveModal({
   }
 
   async function submitEncrypt() {
-    const plaintext = JSON.stringify(payload)
-    const plaintextBytes = new TextEncoder().encode(plaintext).byteLength
+    const plaintextBytes = new TextEncoder().encode(storedJson).byteLength
     if (projectedCiphertextChars(plaintextBytes) > MAX_CIPHERTEXT_CHARS) {
       fail(TOO_LARGE, false)
       return
     }
 
     setBusy(true)
-    let encrypted: Awaited<ReturnType<typeof encryptPayload>>
+    let body: SaveRequestBody
     try {
-      encrypted = await encryptPayload(plaintext, password)
+      const sessionKey = await newSessionKey(password)
+      if (cancelledRef.current) return
+      // Images first, with the payload's own key: the save that follows deletes
+      // the plaintext copies, so the payload must already name the encrypted ones.
+      const resealed = await resealImages(sessionId, imageIdsIn(storedJson), sessionKey.key)
+      if (!resealed.ok) {
+        if (!cancelledRef.current) fail(resealed.error, !NOT_RETRYABLE.has(resealed.status))
+        return
+      }
+      const encrypted = await encryptPayloadWithKey(withImageIds(storedJson, resealed.ids), sessionKey)
+      body = { mode: 'encrypt', ...encrypted }
     } catch {
       // WebCrypto can throw (unsupported browser/context, key derivation
-      // failure) before anything is ever sent -- surface it the same way a
+      // failure) before the save is sent -- surface it the same way a
       // failed PUT does instead of leaving the dialog silently stuck busy.
       if (!cancelledRef.current) fail(ARCHIVE_FAILED, true)
       return
     }
-    // Cancelled while PBKDF2 was still running: nothing has been sent yet,
-    // so the whole operation can be abandoned with no server side effect.
+    // Cancelled before the PUT: at most some encrypted image copies were
+    // uploaded, and the brief itself is left unarchived.
     if (cancelledRef.current) return
-    const result = await saveSession(sessionId, {
-      mode: 'encrypt',
-      ciphertext: encrypted.ciphertext,
-      encParams: encrypted.encParams,
-    })
+    const result = await saveSession(sessionId, body)
     settleSave(result, 'encrypt')
   }
 

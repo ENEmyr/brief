@@ -1,8 +1,9 @@
 import { StrictMode, useState } from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { Payload } from '@brief/schema'
+import { parseStoredPayload, type Payload } from '@brief/schema'
 import { saveSession } from '@/features/save/lib/api'
+import { decryptPayload } from '@/features/save/lib/crypto'
 import { SaveModal } from '@/features/save/components/SaveModal'
 import { ExportProvider } from '@/features/export'
 import { ReaderStateProvider } from '@/features/reader-state'
@@ -98,7 +99,7 @@ function renderModal(onSaved = vi.fn(), onClose = vi.fn(), onBackgroundSaveSettl
       <ExportProvider sessionId="sess1" payload={payload}>
         <SaveModal
           sessionId="sess1"
-          payload={payload}
+          storedJson={JSON.stringify(payload)}
           onClose={onClose}
           onSaved={onSaved}
           onBackgroundSaveSettled={onBackgroundSaveSettled}
@@ -321,7 +322,7 @@ describe('SaveModal', () => {
       return (
         <ReaderStateProvider sessionId="sess1">
           <ExportProvider sessionId="sess1" payload={payload}>
-            {open && <SaveModal sessionId="sess1" payload={payload} onClose={() => setOpen(false)} onSaved={vi.fn()} />}
+            {open && <SaveModal sessionId="sess1" storedJson={JSON.stringify(payload)} onClose={() => setOpen(false)} onSaved={vi.fn()} />}
           </ExportProvider>
         </ReaderStateProvider>
       )
@@ -361,7 +362,7 @@ describe('SaveModal', () => {
     render(
       <ReaderStateProvider sessionId="sess1">
         <ExportProvider sessionId="sess1" payload={hugePayload}>
-          <SaveModal sessionId="sess1" payload={hugePayload} onClose={onClose} onSaved={onSaved} />
+          <SaveModal sessionId="sess1" storedJson={JSON.stringify(hugePayload)} onClose={onClose} onSaved={onSaved} />
         </ExportProvider>
       </ReaderStateProvider>,
     )
@@ -482,7 +483,7 @@ describe('SaveModal cancel during an in-flight save', () => {
       <StrictMode>
         <ReaderStateProvider sessionId="sess1">
           <ExportProvider sessionId="sess1" payload={payload}>
-            <SaveModal sessionId="sess1" payload={payload} onClose={onClose} onSaved={onSaved} />
+            <SaveModal sessionId="sess1" storedJson={JSON.stringify(payload)} onClose={onClose} onSaved={onSaved} />
           </ExportProvider>
         </ReaderStateProvider>
       </StrictMode>,
@@ -494,4 +495,36 @@ describe('SaveModal cancel during an in-flight save', () => {
     expect(onClose).toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('Archived')
   })
+})
+
+describe('SaveModal archive with a password', () => {
+  it('encrypts the stored JSON byte for byte, fields this reader does not know included', async () => {
+    const stored = JSON.stringify({
+      meta: { title: 'Rollout', futureMeta: 1 },
+      sections: [{ id: 's1', no: 1, title: 'Intro', futureSection: true, blocks: [{ type: 'p', text: 'Hello', futureField: 'newer agent' }] }],
+      decisions: [],
+    })
+    const storedPayload = parseStoredPayload(JSON.parse(stored))
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ saved: true, encrypted: true, expiresAt: 1, state: null }), { status: 200 })),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const onSaved = vi.fn()
+    render(
+      <ReaderStateProvider sessionId="sess1">
+        <ExportProvider sessionId="sess1" payload={storedPayload}>
+          <SaveModal sessionId="sess1" storedJson={stored} onClose={vi.fn()} onSaved={onSaved} />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('encrypt'))
+    const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PUT')
+    const body = JSON.parse((putCall![1] as RequestInit).body as string) as { ciphertext: string; encParams: { salt: string; iv: string; iterations: number } }
+    expect(await decryptPayload(body.ciphertext, 'password123', body.encParams)).toBe(stored)
+  }, 30_000)
 })

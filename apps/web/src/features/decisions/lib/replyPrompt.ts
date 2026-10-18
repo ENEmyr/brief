@@ -42,11 +42,13 @@ export function buildReplyPrompt(
   state: ReaderState,
   docTitle: string,
   sessionId: string,
+  flagLines: string[] = [],
 ): string {
   const lines: string[] = [
     `Reply to the "${docTitle}" doc (session ${sessionId}) - my decisions:`,
     '',
     ...decisionAnswerLines(decisions, state),
+    ...flagLines,
   ]
 
   lines.push('Please act on the answers above; consider the extra context for any item that has a note')

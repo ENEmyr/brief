@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { Element, ElementContent } from 'hast'
 import type { Highlight } from '@/features/reader-state'
 import {
@@ -9,6 +9,21 @@ import {
   sameHighlightList,
 } from '@/features/reader/components/blocks/codeLines'
 import { highlightToHast } from '@/features/reader/services/shiki'
+
+// shiki stops coloring a line once tokenizing it takes over 500 ms of wall clock, so on a
+// busy machine the tail of a line comes back uncolored. 0 turns that budget off here.
+vi.mock('shiki', async (importOriginal) => {
+  const shiki = await importOriginal<typeof import('shiki')>()
+  return {
+    ...shiki,
+    createHighlighter: async (...args: Parameters<typeof shiki.createHighlighter>) => {
+      const highlighter = await shiki.createHighlighter(...args)
+      const codeToHast = highlighter.codeToHast.bind(highlighter)
+      highlighter.codeToHast = (code, options) => codeToHast(code, { ...options, tokenizeTimeLimit: 0 })
+      return highlighter
+    },
+  }
+})
 
 function tokenSpan(text: string, style: string): Element {
   return { type: 'element', tagName: 'span', properties: { style }, children: [{ type: 'text', value: text }] }
@@ -113,21 +128,22 @@ describe('renderLineChildren', () => {
     expect((after.children[0] as { value: string }).value).toBe('r')
   })
 
-  it('appends an ask marker inside the mark for a question highlight', () => {
+  it('marks a question highlight for the ask marker without adding text to the line', () => {
     const h = highlight({ start: 0, end: 3, text: 'foo', question: 'why?' })
     const out = renderLineChildren(line, [h])
     const mark = out[0] as Element
-    const sup = mark.children[mark.children.length - 1] as Element
-    expect(sup.tagName).toBe('sup')
-    expect((sup.children[0] as { value: string }).value).toBe('?')
+    expect(mark.properties?.['data-marker']).toBe('ask')
+    expect(flattenText(mark.children)).toBe('foo')
+    expect(flattenText(out)).toBe('foobar')
   })
 
-  it('appends a note marker inside the mark for a note highlight', () => {
+  it('marks a note highlight for the note marker without adding text to the line', () => {
     const h = highlight({ start: 0, end: 3, text: 'foo', note: 'a note' })
     const out = renderLineChildren(line, [h])
     const mark = out[0] as Element
-    const sup = mark.children[mark.children.length - 1] as Element
-    expect((sup.children[0] as { value: string }).value).toBe('●')
+    expect(mark.properties?.['data-marker']).toBe('note')
+    expect(flattenText(mark.children)).toBe('foo')
+    expect(flattenText(out)).toBe('foobar')
   })
 
   it('paints a highlight after an astral character at the model\'s own UTF-16 offsets', () => {

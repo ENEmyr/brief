@@ -31,6 +31,7 @@ export function useChartCard(
   pixelRatio = 2,
   failed = false,
   extras?: ViewerExtras,
+  overlay?: ReactNode,
 ): Pick<BlockCardProps, 'fullScreen' | 'state'> {
   const ownerKey = useId()
   const { open } = useDiagramViewer()
@@ -41,12 +42,16 @@ export function useChartCard(
     const dataUrl = chart.getDataURL({ pixelRatio, backgroundColor: chartPalette(theme).card })
     // Drawn at the chart's own size (the capture has pixelRatio times the
     // pixels), and sized before it decodes so the viewer can fit it on open.
+    // `overlay` is HTML drawn over the plot in the card (a threshold line), which the canvas capture lacks.
     open(
       ownerKey,
-      <img src={dataUrl} alt="chart" width={chart.getWidth()} height={chart.getHeight()} className="block" />,
+      <div className="relative" style={{ width: chart.getWidth() }}>
+        <img src={dataUrl} alt="chart" width={chart.getWidth()} height={chart.getHeight()} className="block" />
+        {overlay}
+      </div>,
       extras,
     )
-  }, [chartRef, theme, pixelRatio, open, ownerKey, extras])
+  }, [chartRef, theme, pixelRatio, open, ownerKey, extras, overlay])
 
   if (failed) return { state: { status: 'error', message: 'Chart could not be drawn.' } }
   return ready ? { fullScreen: openChart } : { fullScreen: 'pending', state: LOADING.chart }

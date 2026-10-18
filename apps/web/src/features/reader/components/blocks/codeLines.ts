@@ -60,8 +60,7 @@ function isElementWithTag(tagName: string) {
 /**
  * shiki is inconsistent about how it stores an element's `class`: a plain,
  * never-transformed line is a space-joined STRING (`"line"`), but its own
- * `addClassToHast` (used by the `highlightLines` transformer in shiki.ts)
- * rewrites it into a string ARRAY the moment a second class is added
+ * `addClassToHast` rewrites it into a string ARRAY the moment a second class is added
  * (`["line", "hl-line"]`). Every reader here has to accept both shapes, or a
  * highlighted line silently falls out of a `typeof === 'string'` check.
  */
@@ -145,15 +144,6 @@ function styledNode(text: string, style: CharStyle): ElementContent {
   return { type: 'element', tagName: 'span', properties, children: [{ type: 'text', value: text }] }
 }
 
-function supNode(symbol: string): ElementContent {
-  return {
-    type: 'element',
-    tagName: 'sup',
-    properties: { class: 'ml-px text-[10px] font-bold text-accent-text' },
-    children: [{ type: 'text', value: symbol }],
-  }
-}
-
 /** Same highlight/mark/note/ask styling as HighlightedText, ported to hast
  * nodes instead of a JSX fragment (a line is coloured token spans, not one
  * plain string, so HighlightedText's own string-slicing can't be reused
@@ -162,13 +152,12 @@ function supNode(symbol: string): ElementContent {
  * `<mark>` does. */
 function markNode(h: Highlight, children: ElementContent[]): ElementContent {
   const isAsk = h.question !== undefined
-  if (isAsk) children.push(supNode('?'))
-  else if (h.note !== null) children.push(supNode('●'))
   return {
     type: 'element',
     tagName: 'mark',
     properties: {
       'data-highlight-id': h.id,
+      'data-marker': isAsk ? 'ask' : h.note !== null ? 'note' : undefined,
       class: isAsk
         ? 'cursor-pointer rounded-[3px] bg-accent-soft px-[2px] text-accent-text'
         : 'cursor-pointer rounded-[3px] px-[2px]',

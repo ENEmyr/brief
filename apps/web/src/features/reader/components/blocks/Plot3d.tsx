@@ -171,7 +171,7 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
     return (
       <BlockCard
         {...cardHeader(block, anchor)}
-        captionSuffix={block.kind}
+        captionPrefix={block.kind}
         state={{
           status: 'error',
           message: webGLAvailable ? 'No data for 3D plot' : 'WebGL unavailable - 3D plot cannot render',
@@ -184,9 +184,7 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
   return (
     <BlockCard
       {...cardHeader(block, anchor)}
-      // B-Blocks2:166 leads with the kind ("surface / title"); the card puts
-      // derived text after the title, as mermaid's declaration.
-      captionSuffix={block.kind}
+      captionPrefix={block.kind}
       controls={
         <button
           type="button"

@@ -1,0 +1,5 @@
+export { GlossaryProvider, useGlossary, useLeafTerms } from './components/GlossaryProvider'
+export { GlossaryTerm } from './components/GlossaryTerm'
+export { PrintTerms } from './components/PrintTerms'
+export { buildGlossaryIndex, findTermHits, compileNeedles, leafKey } from './lib/glossaryIndex'
+export type { GlossaryIndex, GlossaryTerm as GlossaryTermEntry, TermHit } from './lib/glossaryIndex'
