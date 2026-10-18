@@ -6,6 +6,10 @@ import { getServableImage, storeEncryptedImage, storePlainImage } from './servic
 
 export { deletePlainImages, imageIdsIn, linkImages, purgeImages } from './service'
 
+// The limiter binding's period (wrangler.jsonc): the encrypted archive waits this long and
+// resumes at the refused image instead of failing.
+const RETRY_AFTER_SECONDS = '60'
+
 type ReadResult = { ok: true; bytes: Uint8Array } | { ok: false; status: 400 | 413; error: string }
 
 // Counts while reading, so a chunked body with no Content-Length stops at the cap instead
@@ -50,6 +54,7 @@ export function imageFeature(env: AppEnv) {
     .post('/api/image', async ({ request, set }) => {
       if (await limited(request)) {
         set.status = 429
+        set.headers['retry-after'] = RETRY_AFTER_SECONDS
         return rateLimited
       }
       const read = await readBody(request, MAX_IMAGE_BYTES)
@@ -69,6 +74,7 @@ export function imageFeature(env: AppEnv) {
     .post('/api/session/:id/image', async ({ params, request, set }) => {
       if (await limited(request)) {
         set.status = 429
+        set.headers['retry-after'] = RETRY_AFTER_SECONDS
         return rateLimited
       }
       const read = await readBody(request, MAX_ENCRYPTED_IMAGE_BYTES)

@@ -64,6 +64,13 @@ export async function saveSession(
   // must not outlive encryption. Leaving it in KV would let anyone with the session id read
   // plaintext content via GET /api/session/:id/state after the doc is "protected".
   await env.KV.delete(`state:${id}`)
-  await deletePlainImages(env, id)
+  // The brief is encrypted by now, so a failed delete must not answer "Nothing was changed".
+  // A left-behind plaintext copy never serves (the image GET refuses it) and purge removes it
+  // with the session.
+  try {
+    await deletePlainImages(env, id)
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'plain_image_delete_error', error: String(error), at: new Date(now).toISOString() }))
+  }
   return { ok: true, encrypted: true, expiresAt }
 }

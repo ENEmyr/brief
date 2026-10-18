@@ -340,13 +340,13 @@ describe('PUT /api/session/:id/save deletes plaintext images on encrypt', () => 
     expect(await servedStatus(plain)).toBe(200)
   })
 
-  it('answers a failed R2 delete with the fixed internal error, and the left-behind copy never serves', async () => {
+  it('answers a failed R2 delete with success, since the brief is encrypted, and the left-behind copy never serves', async () => {
     const plain = await uploadId()
     const sessionId = await createSession([plain])
     const broken = { delete: async () => Promise.reject(new Error('r2 down at /srv/secret/path.ts')) }
     const res = await save(sessionId, encryptBody, { IMAGES: broken as unknown as R2Bucket })
-    expect(res.status).toBe(500)
-    expect(await res.json()).toEqual({ error: 'Internal error.' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ saved: true, encrypted: true })
     expect(await imageRow(plain)).not.toBeNull()
     expect(await servedStatus(plain)).toBe(404)
   })

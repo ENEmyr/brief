@@ -33,15 +33,27 @@ export function withImageIds(storedJson: string, ids: ReadonlyMap<string, string
   return JSON.stringify(stored)
 }
 
+// Two waits cover a limiter window that has not fully reset on the first retry; the cap stops a
+// misreported Retry-After from holding the dialog busy for long.
+const MAX_LIMIT_WAITS = 2
+const MAX_RETRY_AFTER_SECONDS = 60
+
 export type ResealResult = { ok: true; ids: Map<string, string> } | { ok: false; error: string; status: number }
 
 /**
  * Encrypts each plaintext image with the session key and uploads the copy, returning old id to
  * new id. It must finish before the encrypt-save: the upload route refuses an encrypted session,
  * and the save deletes the plaintext copies. An image the API no longer serves, or one that is
- * already ciphertext, keeps its id. Any other failure stops the flow before anything is saved.
+ * already ciphertext, keeps its id. A 429 that names its Retry-After (the upload limiter allows
+ * 10 per 60 s per IP) waits that long and resumes at the same image, so a brief with more images
+ * than the limit still finishes. Any other failure stops the flow before anything is saved.
  */
-export async function resealImages(sessionId: string, imageIds: string[], key: CryptoKey): Promise<ResealResult> {
+export async function resealImages(
+  sessionId: string,
+  imageIds: string[],
+  key: CryptoKey,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<ResealResult> {
   const failed = (status: number): ResealResult => ({
     ok: false,
     error: status === 429 ? mapErrorStatus(429) : ARCHIVE_FAILED,
@@ -55,11 +67,20 @@ export async function resealImages(sessionId: string, imageIds: string[], key: C
       if (!plain.ok) return failed(plain.status)
       const blob = await plain.blob()
       if (blob.type === 'application/octet-stream') continue
-      const uploaded = await fetch(`${API_URL}/api/session/${encodeURIComponent(sessionId)}/image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body: await encryptImage(new Uint8Array(await blob.arrayBuffer()), key),
-      })
+      const body = await encryptImage(new Uint8Array(await blob.arrayBuffer()), key)
+      const upload = () =>
+        fetch(`${API_URL}/api/session/${encodeURIComponent(sessionId)}/image`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body,
+        })
+      let uploaded = await upload()
+      for (let waits = 0; uploaded.status === 429 && waits < MAX_LIMIT_WAITS; waits++) {
+        const seconds = Number(uploaded.headers.get('retry-after'))
+        if (!(seconds > 0)) break
+        await wait(Math.min(seconds, MAX_RETRY_AFTER_SECONDS) * 1000)
+        uploaded = await upload()
+      }
       if (!uploaded.ok) return failed(uploaded.status)
       ids.set(imageId, ((await uploaded.json()) as { imageId: string }).imageId)
     } catch {

@@ -28,6 +28,8 @@ export function createApp(env: AppEnv) {
           return false
         },
         methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+        // Not CORS-safelisted: without this the reader cannot see how long a 429 asks it to wait.
+        exposeHeaders: ['Retry-After'],
       }),
     )
     .get('/health', () => ({ ok: true }))
