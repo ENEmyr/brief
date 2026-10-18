@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { BlockRenderer } from '@/features/reader'
 import { ReaderStateProvider } from '@/features/reader-state'
 import type { Block } from '@brief/schema'
@@ -52,6 +52,18 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('careful')).toBeInTheDocument()
   })
 
+  it('labels each callout with its kind in caps and the status color (B-Blocks:34-36)', () => {
+    r({ type: 'note', text: 'n' })
+    r({ type: 'warn', text: 'w' })
+    r({ type: 'good', text: 'g' })
+    expect(screen.getByText('NOTE')).toHaveClass('text-info')
+    expect(screen.getByText('WARN')).toHaveClass('text-warn')
+    expect(screen.getByText('GOOD')).toHaveClass('text-good')
+    expect(screen.getByText('w').closest('aside')?.className).toContain(
+      'bg-[var(--c-callout-warn)]',
+    )
+  })
+
   it('renders table head and cells, with the caption in the card header', () => {
     r({ type: 'table', head: ['name'], rows: [['kv']], caption: 'Files' })
     expect(screen.getByRole('table')).toBeInTheDocument()
@@ -66,6 +78,13 @@ describe('BlockRenderer text family', () => {
     r({ type: 'table', head: ['name'], rows: [['kv']] })
     expect(screen.getByText('table')).toHaveAttribute('data-kind-tag')
     expect(screen.queryByText('Table')).not.toBeInTheDocument()
+  })
+
+  it('counts the table rows in the header', () => {
+    r({ type: 'table', head: ['name'], rows: [['a'], ['b'], ['c']] })
+    expect(screen.getByText('3 rows')).toBeInTheDocument()
+    r({ type: 'table', head: ['name'], rows: [['d']] })
+    expect(screen.getByText('1 row')).toBeInTheDocument()
   })
 
   it('zebra-stripes odd body rows', () => {
@@ -87,19 +106,21 @@ describe('BlockRenderer text family', () => {
     expect(screen.queryByText('Comparison')).not.toBeInTheDocument()
   })
 
-  it('applies a toned pane border when a compare side has a tone', () => {
+  it("shows a compare side's tone in its tag, not in a pane rule or tint", () => {
+    // The panes used to carry a 3px top rule in the tone. B-Blocks:52-61 draws one
+    // split panel with no rule and no tint: the tone is the tag's fill and text
+    // (B-Blocks:54 bad, :58 good). An untoned tag takes the neutral chip.
     r({
       type: 'compare',
-      left: { title: 'A', tone: 'good', items: [{ text: 'fast', ok: true }] },
-      right: { title: 'B', tone: 'bad', items: [{ text: 'slow', ok: false }] },
+      left: { title: 'A', tone: 'good', tag: 'safe', items: [{ text: 'fast', ok: true }] },
+      right: { title: 'B', tag: 'plain', items: [{ text: 'slow', ok: false }] },
     })
+    expect(screen.getByText('safe').className).toContain('bg-good-soft text-good')
+    expect(screen.getByText('plain').className).toContain('bg-chip text-sub')
     const goodPane = screen.getByText('A').parentElement?.parentElement
-    const badPane = screen.getByText('B').parentElement?.parentElement
-    expect(goodPane?.className).toContain('border-t-good')
-    expect(badPane?.className).toContain('border-t-bad')
-    // B-Blocks draws both panes on the panel color; the tone lives in the rule and the tag.
-    expect(goodPane?.className).toContain('bg-card')
-    expect(badPane?.className).toContain('bg-card')
+    expect(goodPane?.className).not.toMatch(/border-t-|bg-good/)
+    expect(screen.getByText('✓')).toHaveClass('text-good')
+    expect(screen.getByText('✗')).toHaveClass('text-bad')
   })
 
   it('renders a tag pill on a compare side when tag is present', () => {
@@ -132,20 +153,72 @@ describe('BlockRenderer text family', () => {
     expect(screen.getByText('12').className).toContain('text-data-green')
   })
 
-  it('defaults an untoned stat value to the mauve data hue', () => {
+  it('shows an untoned stat value in the text color', () => {
+    // The default used to be the mauve data hue. B-Blocks:43 draws the untoned
+    // value (Peak RPS) in plain text; mauve is now only what tone 'mauve' asks for.
     r({ type: 'stat', items: [{ label: 'files', value: '12' }] })
-    expect(screen.getByText('12').className).toContain('text-data-mauve')
+    expect(screen.getByText('12').className).toContain('text-text')
+    expect(screen.getByText('12').className).not.toContain('text-data-mauve')
   })
 
-  it('renders coverage rows under the coverage kind tag, with accessible status and full/partial/missing legend', () => {
+  it('renders coverage rows under the coverage kind tag, each with its accessible status and its status word', () => {
     // 'Coverage' was a fallback caption; the kind tag replaces it (B-Blocks:65).
+    // The full/partial/missing legend is gone: B-Blocks:67-70 writes the status on
+    // each row instead, as "full", "part" and "none".
     r({ type: 'coverage', items: [{ label: 'auth', status: 'partial' }] })
     expect(screen.getByText('coverage')).toHaveAttribute('data-kind-tag')
     expect(screen.queryByText('Coverage')).not.toBeInTheDocument()
     expect(screen.getByLabelText('auth: partial')).toBeInTheDocument()
-    expect(screen.getByText('full')).toBeInTheDocument()
-    expect(screen.getByText('partial')).toBeInTheDocument()
-    expect(screen.getByText('missing')).toBeInTheDocument()
+    expect(screen.getByText('part')).toBeInTheDocument()
+    expect(screen.queryByText('partial')).not.toBeInTheDocument()
+    expect(screen.queryByText('missing')).not.toBeInTheDocument()
+  })
+
+  it('draws a different four-segment bar and word for each coverage status (bug-093, bug-094)', () => {
+    r({
+      type: 'coverage',
+      items: [
+        { label: 'a', status: 'full' },
+        { label: 'b', status: 'partial' },
+        { label: 'c', status: 'missing' },
+      ],
+    })
+    const segments = (label: string) =>
+      [...screen.getByLabelText(label).children].map((segment) =>
+        segment.className.replace('h-2.5 flex-1 ', ''),
+      )
+    expect(segments('a: full')).toEqual(['bg-good', 'bg-good', 'bg-good', 'bg-good'])
+    expect(segments('b: partial')).toEqual([
+      'bg-[var(--c-warn-fill)]',
+      'bg-[var(--c-warn-fill)]',
+      'bg-line',
+      'bg-line',
+    ])
+    expect(segments('c: missing')).toEqual(
+      Array(4).fill('box-border border border-dashed border-bad'),
+    )
+    expect(screen.getByText('full')).toHaveClass('text-good')
+    expect(screen.getByText('part')).toHaveClass('text-warn')
+    expect(screen.getByText('none')).toHaveClass('text-bad')
+  })
+
+  it('puts the derived coverage percent in the header: full counts 1, part one half', () => {
+    // B-Blocks:65 draws the percent in the header; owner decision D3 derives it.
+    r({
+      type: 'coverage',
+      items: [
+        { label: 'a', status: 'full' },
+        { label: 'b', status: 'partial' },
+        { label: 'c', status: 'partial' },
+        { label: 'd', status: 'missing' },
+      ],
+    })
+    expect(screen.getByText('50%')).toHaveClass('text-sub')
+  })
+
+  it('keeps a coverage note under its label', () => {
+    r({ type: 'coverage', items: [{ label: 'auth', status: 'full', note: 'covered by e2e' }] })
+    expect(screen.getByText('covered by e2e')).toBeInTheDocument()
   })
 
   it('shows the coverage caption in the card header when present', () => {
@@ -161,6 +234,27 @@ describe('BlockRenderer text family', () => {
     r({ type: 'details', summary: 'more', blocks: [{ type: 'p', text: 'inner' }] })
     expect(screen.getByText('more')).toBeInTheDocument()
     expect(screen.getByText('inner')).toBeInTheDocument()
+  })
+
+  it('marks a closed details with ▸ in faint and an open one with ▾ in accent (bug-108)', () => {
+    r({ type: 'details', summary: 'more', blocks: [{ type: 'p', text: 'inner' }] })
+    const details = screen.getByText('more').closest('details')!
+    const marker = details.querySelector('[data-details-marker]')!
+    expect(details.open).toBe(false)
+    expect(marker).toHaveTextContent('▸')
+    expect(marker).toHaveClass('text-faint')
+    expect(marker).toHaveAttribute('aria-hidden', 'true')
+
+    details.open = true
+    fireEvent(details, new Event('toggle'))
+    expect(marker).toHaveTextContent('▾')
+    expect(marker).toHaveClass('text-accent-text')
+    expect(details).toHaveClass('bg-elev')
+
+    details.open = false
+    fireEvent(details, new Event('toggle'))
+    expect(marker).toHaveTextContent('▸')
+    expect(details).not.toHaveClass('bg-elev')
   })
 
   it('details-nested paragraphs carry no annotation attributes', () => {

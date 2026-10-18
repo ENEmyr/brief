@@ -1,12 +1,13 @@
 'use client'
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime'
 import { jsx, jsxs } from 'react/jsx-runtime'
-import type { Element as HastElement, Root as HastRoot } from 'hast'
+import type { Element as HastElement } from 'hast'
 import { useReaderState } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 import { highlightToHast } from '../../services/shiki'
+import type { BlockAnchor } from '../blockAnchor'
 import {
   extractLineNodes,
   highlightsForLine,
@@ -14,27 +15,16 @@ import {
   preAttrsFrom,
   renderLineChildren,
   sameHighlightList,
+  type PreAttrs,
 } from './codeLines'
 
-export interface CodePreProps {
-  code: string
-  language: string
-  highlightLines?: number[]
-  sid?: number
-  bid?: number
-  /** Dotted prefix for the block this code lives in (e.g. `blocks.0.` for a
-   *  nested block), same convention as every other block's `pathPrefix`. */
-  pathPrefix?: string
-  /** Which payload field `code` came from -- CodeBlock's is always `code`,
-   *  BeforeAfter's is `before` or `after` depending on which side is showing,
-   *  so this can't be hardcoded here. Each line is addressed at
-   *  `${pathPrefix}${field}.<line index>`. */
-  field: string
-  annotatable?: boolean
-  onMarkClick?: (highlight: Highlight) => void
-}
+export type LineTone = 'mark' | 'del' | 'add'
 
-const PRE_CLASS = 'm-0 overflow-x-auto p-4 font-mono text-[12.5px] leading-[1.7]'
+const ROW_TONE: Record<LineTone, { row: string; number: string }> = {
+  mark: { row: 'bg-[var(--c-code-line)]', number: 'text-faint' },
+  del: { row: 'bg-bad-soft', number: 'text-bad' },
+  add: { row: 'bg-good-soft', number: 'text-good' },
+}
 
 /**
  * One annotatable code line. Each `<span class="line">` shiki emits becomes
@@ -108,50 +98,37 @@ const CodeLine = memo(function CodeLine({
         : {})}
     >
       {rendered}
+      {/* A row is a block, and a copy gives an empty block no newline; the
+          <br> is the blank line. Empty lines are never [data-hl] leaves. */}
+      {text ? null : <br />}
     </span>
   )
 })
 
+export interface HighlightedCode {
+  lines: HastElement[]
+  pre: PreAttrs
+}
+
 /**
- * Shared code-panel body used by CodeBlock and BeforeAfter: renders a plain,
- * uncolored `<pre><code>` immediately (so the code is never blocked on the
- * lazy shiki import), then swaps in a shiki-highlighted, React-owned tree
- * once `highlightToHast` resolves. Both states share the same panel look:
- * `--c-code-bg` with `--c-text`, the same pair shiki's css-variables theme
- * resolves to (see globals.css). The `data-code-panel` attribute on the
- * fallback `<pre>` tells the print stylesheet to keep that tint
- * (`print-color-adjust: exact`). The shiki path doesn't need the attribute --
- * the `.shiki` selector already covers it.
- *
- * The highlighted tree is built from shiki's hast output via
- * hast-util-to-jsx-runtime rather than `dangerouslySetInnerHTML`: nothing
- * else makes the code annotatable, since the annotation model measures and
- * repaints highlights by walking/re-rendering the React tree, and neither
- * side of that can reach into a `dangerouslySetInnerHTML` subtree. Per-line
- * annotation loses cross-line selection (the toolbar only appears when a
- * selection resolves to one `[data-hl]` leaf, same as every other block),
- * which is an accepted limitation, not a bug.
+ * Shiki's highlighted lines for `code`, or null until the lazy highlighter
+ * resolves (the rows show plain text meanwhile, so code is never blocked on
+ * it). The tree is rendered as React elements via hast-util-to-jsx-runtime
+ * rather than `dangerouslySetInnerHTML`: nothing else makes the code
+ * annotatable, since the annotation model measures and repaints highlights by
+ * walking and re-rendering the React tree. Per-line annotation loses
+ * cross-line selection (the toolbar only appears when a selection resolves to
+ * one `[data-hl]` leaf, same as every other block), which is accepted.
  */
-export function CodePre({
-  code,
-  language,
-  highlightLines,
-  sid,
-  bid,
-  pathPrefix = '',
-  field,
-  annotatable = true,
-  onMarkClick = () => {},
-}: CodePreProps) {
-  const [hast, setHast] = useState<HastRoot | null>(null)
-  const { highlights } = useReaderState()
+export function useHighlightedCode(code: string, language: string): HighlightedCode | null {
+  const [highlighted, setHighlighted] = useState<HighlightedCode | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    setHast(null)
-    highlightToHast(code, language, { highlightLines })
-      .then((result) => {
-        if (!cancelled) setHast(result)
+    setHighlighted(null)
+    highlightToHast(code, language)
+      .then((hast) => {
+        if (!cancelled) setHighlighted({ lines: extractLineNodes(hast), pre: preAttrsFrom(hast) })
       })
       .catch(() => {
         // highlightToHast() itself already falls back to plaintext internally
@@ -162,39 +139,141 @@ export function CodePre({
     return () => {
       cancelled = true
     }
-  }, [code, language, highlightLines])
+  }, [code, language])
 
-  if (hast) {
-    const lineNodes = extractLineNodes(hast)
-    const codeLines = code.split('\n')
-    const pre = preAttrsFrom(hast)
+  return highlighted
+}
 
-    return (
-      <pre className={`${PRE_CLASS} ${pre.className}`} style={pre.style} tabIndex={pre.tabIndex}>
-        <code>
-          {lineNodes.map((node, i) => (
-            <Fragment key={i}>
-              {i > 0 ? '\n' : null}
-              <CodeLine
-                node={node}
-                text={codeLines[i] ?? ''}
-                sid={sid}
-                bid={bid ?? null}
-                path={`${pathPrefix}${field}.${i}`}
-                annotatable={annotatable}
-                highlights={highlights}
-                onMarkClick={onMarkClick}
-              />
-            </Fragment>
-          ))}
-        </code>
-      </pre>
-    )
+function plainLine(text: string): HastElement {
+  return {
+    type: 'element',
+    tagName: 'span',
+    properties: { class: 'line' },
+    children: text ? [{ type: 'text', value: text }] : [],
   }
+}
+
+/**
+ * The code panel: shiki's `<pre>` class and colors once highlighted, the
+ * plain panel before. Rows fill the scroll width, so a tinted row runs to the
+ * edge however long its line. `data-code-panel` keeps the row tints on paper
+ * (globals.css print rules) before shiki's `.shiki` class arrives.
+ */
+export function CodePanel({
+  highlighted,
+  className = '',
+  children,
+}: {
+  highlighted: HighlightedCode | null
+  className?: string
+  children: ReactNode
+}) {
+  const pre = highlighted?.pre
+  return (
+    <pre
+      data-code-panel={pre ? undefined : ''}
+      className={`m-0 overflow-x-auto font-mono ${className} ${pre?.className ?? ''}`}
+      style={pre?.style ?? { color: 'var(--c-text)' }}
+      tabIndex={pre?.tabIndex}
+    >
+      <code className="inline-block min-w-full">{children}</code>
+    </pre>
+  )
+}
+
+/**
+ * One row: the line number in a gutter, then the line itself. The gutter sits
+ * outside the line's `[data-hl]` leaf, so a highlight's offsets still count
+ * into the line text alone, and it is neither read out nor copied.
+ */
+export function CodeRow({
+  node,
+  text,
+  number,
+  gutter,
+  tone,
+  sid,
+  bid,
+  path,
+  annotatable,
+  highlights,
+  onMarkClick,
+}: {
+  node: HastElement | undefined
+  text: string
+  number: number
+  /** Width class of the gutter: the boards draw 26 for code, 28 for before and after. */
+  gutter: string
+  tone?: LineTone
+  sid?: number
+  bid?: number
+  path: string
+  annotatable: boolean
+  highlights: Highlight[]
+  onMarkClick?: (highlight: Highlight) => void
+}) {
+  const style = tone === undefined ? undefined : ROW_TONE[tone]
+  // A stable plain line until shiki's arrives, so CodeLine's memo holds.
+  const line = useMemo(() => node ?? plainLine(text), [node, text])
+  return (
+    <span className={`flex px-3 ${style?.row ?? ''}`}>
+      <span
+        aria-hidden="true"
+        className={`${gutter} shrink-0 select-none ${style?.number ?? 'text-faint'}`}
+      >
+        {number}
+      </span>
+      <CodeLine
+        node={line}
+        text={text}
+        sid={sid}
+        bid={bid ?? null}
+        path={path}
+        annotatable={annotatable}
+        highlights={highlights}
+        onMarkClick={onMarkClick ?? ignoreMarkClick}
+      />
+    </span>
+  )
+}
+
+// One function for every row, so CodeLine's memo sees the same prop.
+function ignoreMarkClick() {}
+
+/** The code block's body (B-NewBlocks:125-135): 13/24 mono rows, a 26px gutter. */
+export function CodePre({
+  code,
+  language,
+  highlightLines,
+  pathPrefix = '',
+  annotatable = true,
+  ...anchor
+}: {
+  code: string
+  language: string
+  /** 1-based lines the agent marked (code.highlight); tinted as on B-Reader:157. */
+  highlightLines?: number[]
+} & BlockAnchor) {
+  const highlighted = useHighlightedCode(code, language)
+  const { highlights } = useReaderState()
+  const marked = new Set(highlightLines)
 
   return (
-    <pre data-code-panel className={PRE_CLASS} style={{ background: 'var(--c-code-bg)', color: 'var(--c-text)' }}>
-      <code>{code}</code>
-    </pre>
+    <CodePanel highlighted={highlighted} className="py-2 text-[13px] leading-6">
+      {code.split('\n').map((text, i) => (
+        <CodeRow
+          key={i}
+          node={highlighted?.lines[i]}
+          text={text}
+          number={i + 1}
+          gutter="w-[26px]"
+          tone={marked.has(i + 1) ? 'mark' : undefined}
+          path={`${pathPrefix}code.${i}`}
+          annotatable={annotatable}
+          highlights={highlights}
+          {...anchor}
+        />
+      ))}
+    </CodePanel>
   )
 }

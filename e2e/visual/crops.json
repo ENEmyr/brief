@@ -117,6 +117,58 @@
       "hasText": "Copy prompt for agent",
       "nth": 0,
       "contains": "Copy prompt for agent"
+    },
+    {
+      "name": "blocks-note",
+      "board": "B-Blocks",
+      "selector": "section > div > div",
+      "hasText": "NOTE",
+      "nth": 0,
+      "contains": "NOTE"
+    },
+    {
+      "name": "blocks-warn",
+      "board": "B-Blocks",
+      "selector": "section > div > div",
+      "hasText": "WARN",
+      "nth": 0,
+      "contains": "WARN"
+    },
+    {
+      "name": "blocks-good",
+      "board": "B-Blocks",
+      "selector": "section > div > div",
+      "hasText": "GOOD",
+      "nth": 0,
+      "contains": "GOOD"
+    },
+    {
+      "name": "blocks-coverage",
+      "board": "B-Blocks",
+      "selector": "section",
+      "nth": 3,
+      "contains": "Retry storm"
+    },
+    {
+      "name": "blocks-table",
+      "board": "B-Blocks",
+      "selector": "section",
+      "nth": 5,
+      "contains": "Durable Object"
+    },
+    {
+      "name": "blocks-ba",
+      "board": "B-Blocks",
+      "selector": "section",
+      "nth": 7,
+      "contains": "resolveKey"
+    },
+    {
+      "name": "blocks-details",
+      "board": "B-Blocks",
+      "selector": "section",
+      "nth": 8,
+      "contains": "fixed window"
     }
   ]
 }

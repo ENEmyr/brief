@@ -3,7 +3,9 @@
  * reaches the reader. A block that can fail adds its own line here.
  */
 export type BlockErrorMessage =
-  'This block could not be drawn.' | `Diagram could not be drawn. Parse error on line ${number}.`
+  | 'This block could not be drawn.'
+  | `Diagram could not be drawn. Parse error on line ${number}.`
+  | `Math could not be drawn. Parse error on line ${number}.`
 
 export interface BlockErrorProps {
   message: BlockErrorMessage

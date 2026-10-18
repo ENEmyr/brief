@@ -129,6 +129,16 @@
    * tools/lightify.py). Board values with no token in tokens.css. */
   --c-dock-current: #f5faec;
   --shadow-sheet: -16px 0 48px rgba(15, 18, 20, 0.3);
+
+  /* Block colors with no token in tokens.css. Warn and good callout fills
+   * (B-Blocks:35-36, B-Reader:200, B-Reader-Light:200; the good light value
+   * is tools/lightify.py's, no light board draws it), the tint of a marked
+   * code line (B-Reader:157, B-Reader-Light:157) and phone body text
+   * (B-Mobile:33, B-Mobile-Light:33). */
+  --c-callout-warn: #fbf3e2;
+  --c-callout-good: #e8f5ee;
+  --c-code-line: #f1f3f4;
+  --c-body: #2a3036;
 }
 
 @media not print {
@@ -194,6 +204,11 @@
 
     --c-dock-current: #141a12;
     --shadow-sheet: -16px 0 48px rgba(0, 0, 0, 0.45);
+
+    --c-callout-warn: #1d1810;
+    --c-callout-good: #0f1d17;
+    --c-code-line: #151a1e;
+    --c-body: #d5dadd;
   }
 }
 
@@ -238,10 +253,11 @@ body {
 
 /* Shiki's css-variables theme (services/shiki.ts) colors tokens with these.
  * The boards color keywords info, numbers warn and comments faint, and show
- * everything else in the text color. */
+ * everything else in the text color, on the panel color (B-Reader:152,
+ * B-NewBlocks:125). */
 :root {
   --shiki-foreground: var(--c-text);
-  --shiki-background: var(--c-code-bg);
+  --shiki-background: var(--c-card);
   --shiki-token-keyword: var(--c-info);
   --shiki-token-constant: var(--c-warn);
   --shiki-token-comment: var(--c-faint);
@@ -346,6 +362,15 @@ body {
   }
 }
 
+/* Math blocks (B-Blocks:169): the formula at 20px with no display margin,
+ * so the card's own 12px padding is the only space around it. */
+[data-math] .katex {
+  font-size: 20px;
+}
+[data-math] .katex-display {
+  margin: 0;
+}
+
 @keyframes sk-shimmer {
   0% { background-position: -480px 0; }
   100% { background-position: 480px 0; }
@@ -355,12 +380,6 @@ body {
   background-size: 480px 100%;
   animation: sk-shimmer 1.4s infinite linear;
   border-radius: 8px;
-}
-
-.shiki .hl-line {
-  background: var(--c-accent-soft);
-  display: inline-block;
-  width: 100%;
 }
 
 /*
@@ -504,7 +523,8 @@ body {
      near-white card surfaces but not for these: a highlight without its
      background is not a highlight, and code panels (`.shiki`, plus the
      `[data-code-panel]` spots outside shiki: CodePre's fallback `<pre>` and
-     the CopyFallbackModal textarea) keep their `--c-code-bg` tint. The
+     the CopyFallbackModal textarea) keep their tints: marked and diff lines,
+     and the textarea's `--c-code-bg`. The
      prompt review sheet never prints (B-Print). */
   .shiki,
   mark,

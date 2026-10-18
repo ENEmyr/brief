@@ -75,11 +75,27 @@ describe('MathBlock', () => {
 
     await waitFor(() => expect(screen.getByText('RENDERED_MATH')).toBeInTheDocument())
     expect(screen.queryByText('e=mc^2')).not.toBeInTheDocument()
+    // throwOnError used to be false, which drew bad LaTeX as red spans in the
+    // formula. A failure now shows inside the card with its source (B6).
     expect(renderToStringMock).toHaveBeenCalledWith('e=mc^2', {
-      throwOnError: false,
+      throwOnError: true,
       displayMode: true,
       output: 'html',
     })
+  })
+
+  it('shows any other KaTeX failure in the card as fixed copy, with the source and no message', async () => {
+    renderToStringMock.mockImplementation(() => {
+      throw new TypeError('boom at fn (/home/agent/app/katex.tsx:12:3)')
+    })
+
+    render(<MathBlock block={mathBlock} />)
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('This block could not be drawn.'),
+    )
+    expect(screen.getByText(/e=mc\^2/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/boom|\/home\/|\.tsx/)
   })
 
   it('has no full-screen button, before or after katex renders', async () => {

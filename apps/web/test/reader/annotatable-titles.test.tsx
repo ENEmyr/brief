@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { BlockRenderer } from '@/features/reader'
 import { BlockCard } from '@/features/reader/components/BlockCard'
 import { ReaderStateProvider } from '@/features/reader-state'
@@ -125,17 +125,18 @@ describe('annotatable code headers', () => {
       titleAfter: 'Single pass',
     })
 
+    // Split view (B-Blocks:141-160) shows both sides at once, so both titles are
+    // on screen together; there is no After button to press any more.
     expect(screen.getByText('Nested loop')).toHaveAttribute('data-path', 'titleBefore')
-
-    fireEvent.click(screen.getByRole('button', { name: 'After' }))
     expect(screen.getByText('Single pass')).toHaveAttribute('data-path', 'titleAfter')
   })
 
   it('leaves an untitled before/after header as plain chrome', () => {
     renderBlock({ type: 'ba', language: 'ts', before: 'a', after: 'b' })
 
-    // The segmented control has a 'Before' button too; the header is the span.
-    expect(screen.getByText('Before', { selector: 'span' })).not.toHaveAttribute('data-hl')
+    // An untitled side is labelled with the board's lowercase 'before' (B-Blocks:145).
+    expect(screen.getByText('before')).not.toHaveAttribute('data-hl')
+    expect(screen.getByText('before').querySelector('[data-hl]')).toBeNull()
   })
 })
 
