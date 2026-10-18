@@ -19,12 +19,12 @@ Author in this order. The payload is immutable once published, so the verificati
 1. Research and verify the content first. Read the actual code, run the actual commands, collect the real numbers. A decision document full of guesses wastes the reader's judgment.
 2. Write for a reader who did not follow the work. List what that reader needs to understand, trust, and act on the result before writing any prose: for a performance change, that is the numbers before and after, how they were measured, the approach, its complexity, and its cost. Then structure the material into sections and give each fact the block built for its shape. Each section is a numbered top-level division with an id, a title, and an ordered list of blocks. A block earns its place when the reader gets the point from it faster than from a sentence, so a comparison usually belongs in a `compare` block and a flow in a `seq` or `state` block, while an argument stays in paragraphs. Write the text by the writing rules of ASD-STE100 (Simplified Technical English), in the language the human uses most: short sentences, one instruction per sentence with the condition first, the active voice, and one word for one meaning. Terms the reader may not know can go in the optional top-level `glossary` array, at most 60 entries of `term`, `def`, and `aliases`; the reader underlines the first use of each term per section in paragraphs and callouts and shows the definition on hover or tap. Code notes and glossary entries are visible to every reader, so they never hold secrets or personal data.
 3. Add decisions where the work leaves a choice open. A document with nothing to decide sends an empty `decisions` array, and the reader shows no decision area. Each decision is a question with at least two options; add `why` context or a comparison table (`cmp`) when the choice is not obvious from the document alone. A decision can name the sections that set it up in `refs`, a list of section ids that the reader shows as chips linking back to those sections. Note that a decision's `dia` is a plain string label, rendered as `[diagram: <label>]`, and not a diagram specification; a real diagram belongs in a `seq`, `state`, `layers`, or `mermaid` block in the section that sets the decision up.
-4. Validate before publishing. The installed skill ships an offline validator, `node <skill-dir>/validate.mjs payload.json`, which reads a copy of the payload schema generated from `packages/schema/src/payload.ts` and reports each failing path. It also prints readability hints that never fail the run: a paragraph over 400 characters, an English sentence over 25 words, a table cell over 200 characters, a stat label or hint over 50, a file path in running text, and markdown, which the reader shows as literal characters. The API also rejects an invalid payload with a 400 listing the failing paths, but it reports at most ten of them and each attempt costs a request against a rate limit of ten per minute.
-5. POST the payload and deliver the returned `url` to the human. Keep the `id`; the agent can later re-read the published document as markdown from `/api/session/<id>/raw`. The raw export contains only the payload, not the reader's annotations or answers; those come back to the agent through the reply prompt the reader copies out of the page.
+4. Validate before publishing. The installed skill ships an offline validator, `node <skill-dir>/validate.mjs payload.json`, which reads a copy of the payload schema generated from `packages/schema/src/payload.ts` and reports each failing path. It also prints readability hints that never fail the run: a paragraph over 400 characters, an English sentence over 25 words, a table cell over 200 characters, a stat label or hint over 50, a file path in running text, and markdown the field does not render. Paragraphs and the title and text of callouts render inline code, bold, and italic; every other field shows text as typed, and links render nowhere. The API also rejects an invalid payload with a 400 listing the failing paths, but it reports at most ten of them and each attempt costs a request against a rate limit of ten per minute.
+5. Upload each image first when the document has an `image` block: `POST /api/image` takes the raw bytes of a PNG, JPEG, GIF, or WEBP file of at most 5242880 bytes and returns an `imageId`. The brief links the upload only when it is created within one hour of the upload, and the API never serves an unlinked image. Then POST the payload and deliver the returned `url` to the human. Keep the `id`; the agent can later re-read the published document as markdown from `/api/session/<id>/raw`. The raw export contains only the payload, not the reader's annotations or answers; those come back to the agent through the reply prompt the reader copies out of the page.
 
 ## Block types
 
-The payload supports 23 block types. All of them are defined in `packages/schema/src/payload.ts`, which is the source of truth for their exact fields.
+The payload supports 27 block types. All of them are defined in `packages/schema/src/payload.ts`, which is the source of truth for their exact fields.
 
 | Type | Purpose |
 | --- | --- |
@@ -33,14 +33,15 @@ The payload supports 23 block types. All of them are defined in `packages/schema
 | `warn` | A warning callout with optional title. |
 | `good` | A positive or success callout with optional title. |
 | `list` | A bulleted or numbered list of short text items, with an optional caption. |
+| `image` | An uploaded PNG, JPEG, GIF, or WEBP image, named by the `imageId` that `POST /api/image` returned, with alt text and an optional caption and size. |
 | `table` | A data table with a header row, string cell rows, an optional caption, optional column alignment, and optional cell tones (info, good, warn, bad). |
 | `compare` | A two-sided comparison; each side has a title, an optional good or bad tone, and items marked ok or not ok. |
 | `stat` | A row of stat tiles with an optional caption; each tile has a label, a value, and an optional hint, color tone, hint tone, and sparkline series. |
 | `coverage` | A checklist of items, each marked full, partial, or missing, with optional notes. |
 | `details` | A collapsible disclosure wrapping other blocks (any type except another `details`). |
 | `seq` | An interactive sequence diagram from a list of actors and labeled steps; a step can carry a plain sentence for the step list. |
-| `state` | An interactive state machine from states, transitions, and an initial state; states and transitions can carry a tone. |
-| `layers` | A base flow with optional layers the reader toggles on; an edge may join nodes in different layers. |
+| `state` | A state machine diagram from states, transitions, and an initial state; states and transitions can carry a tone. |
+| `layers` | A flow drawn in named tiers, one band per layer, all shown at once; an edge may join nodes in different layers. |
 | `ba` | A before and after code comparison in one language, with an optional filename and line notes on either side. |
 | `bigo` | A complexity growth chart plotting named curves (constant through exponential). |
 | `code` | Syntax-highlighted code with optional filename, highlighted line numbers, and line notes. |
@@ -51,6 +52,9 @@ The payload supports 23 block types. All of them are defined in `packages/schema
 | `histogram` | A bar chart of labeled bins and counts, with an optional threshold line at a bin. |
 | `scatter` | A scatter plot with one or more labeled point series. |
 | `plot3d` | A 3D scatter or surface plot. |
+| `walkthrough` | A code listing beside a flowchart; each step claims code lines and lights up the flow nodes they run. |
+| `diff` | A change set by file, with a note per changed symbol, an optional raw patch, and an optional change map. |
+| `trajectory` | The agent's run as a timed log of steps by kind (request, read, run, edit, decision, assumption, note), with flagged steps the reader can mark. |
 
 ## Size limits
 

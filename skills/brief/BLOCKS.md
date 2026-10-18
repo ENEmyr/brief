@@ -76,6 +76,32 @@ Set `ordered` to `true` only when the order matters, such as steps to follow. It
 }
 ```
 
+### `image`
+
+A picture the agent uploaded first, such as a screenshot of a bug or a chart from another tool. The block holds only the id that the image API returned, never a URL, a path, or inline data. Upload the file with `POST /api/image` before you create the brief, as "Uploading an image" in `SKILL.md` says.
+
+| Field | Required | Type |
+| --- | --- | --- |
+| `type` | yes | `"image"` |
+| `imageId` | yes | string matching `^[\w-]{8,64}$`: 8 to 64 letters, digits, `_`, or `-`. Use the `imageId` from the upload response as it is. A URL or a file path fails validation. |
+| `alt` | yes | `label`, what the image shows, for a reader who cannot see it |
+| `caption` | no | `label` |
+| `width` | no | integer from 1 to 10000, the width in pixels |
+| `height` | no | integer from 1 to 10000, the height in pixels |
+
+Give `width` and `height` together: only then does the reader reserve the box before the image loads. If the id is unknown, was never linked, or has expired, the brief still publishes and the block shows "Image is missing or has expired."
+
+```json
+{
+  "type": "image",
+  "imageId": "Vb7kQ2nR9xLm4TzA",
+  "alt": "The error page a client sees after its eleventh request in one minute",
+  "caption": "429 page in production",
+  "width": 1280,
+  "height": 720
+}
+```
+
 ## Data
 
 ### `table`
@@ -311,7 +337,7 @@ The reader also shows the steps as a list of sentences. Without `text`, that lis
 
 ### `layers`
 
-The first layer is the base flow and is always visible. Every later layer starts hidden, drawn above or below the base row, and the reader switches it on with a toggle under the diagram. An edge may join any two nodes in the block, and it shows and hides with the layer that lists it.
+The reader draws every layer at once, one band per layer from top to bottom, with the layer's label at the top left. An edge may join any two nodes in the block. A node repeated in a later layer keeps its first position, and an edge to an id that no layer defines is dropped.
 
 | Field | Required | Type |
 | --- | --- | --- |
@@ -632,9 +658,137 @@ The schema marks both `points` and `grid` optional, so a `plot3d` with neither p
 }
 ```
 
+## Agent work
+
+Three blocks show how the agent did the work: code beside its flowchart, a change set with a note per change, and the run itself as a log.
+
+### `walkthrough`
+
+A listing beside a flowchart of what it does. Each step claims a run of code lines and lights up the flowchart nodes those lines run, so the reader steps through the code and the flow together. Use it to explain how one function or handler works. For a plain listing use `code`; for a flow with no code use `mermaid`.
+
+| Field | Required | Type |
+| --- | --- | --- |
+| `type` | yes | `"walkthrough"` |
+| `language` | yes | `label`, such as `"ts"` or `"python"` |
+| `code` | yes | string of 1 to 20000 characters |
+| `flow` | yes | object `{ nodes, edges }` |
+| `flow.nodes` | yes | array of 2 to 40 `{ id: label, label: label, kind? }` |
+| `flow.nodes[].kind` | no | one of `start`, `step`, `decision`, `end` |
+| `flow.edges` | yes | array of at most 80 `{ from: label, to: label, label?: label }`; `from` and `to` are node `id` values. Send `[]` for no edges. |
+| `steps` | yes | array of 1 to 40 `{ from: position, to?: position, title: label, nodes }` |
+| `steps[].from`, `steps[].to` | `from` yes, `to` no | `position`, code lines counted from 1. Without `to`, the step claims the one line `from`. |
+| `steps[].nodes` | yes | array of 1 to 40 node `id` values that the step lights up |
+| `filename` | no | `label` |
+| `title` | no | `label` |
+
+The reader lays the flow out from the `start` node down the page. Step lines past the end of the listing are clamped to it, and when two steps claim the same line, the first step keeps it. A node id, an edge end, or a step node that the flow does not define is dropped without an error, so check each id against `flow.nodes`.
+
+```json
+{
+  "type": "walkthrough",
+  "language": "ts",
+  "filename": "rateLimit.ts",
+  "code": "const { success } = await limiter.limit({ key })\nif (!success) {\n  return reject(429)\n}\nreturn next()",
+  "flow": {
+    "nodes": [
+      { "id": "in", "label": "Request arrives", "kind": "start" },
+      { "id": "check", "label": "Under the limit?", "kind": "decision" },
+      { "id": "deny", "label": "Answer 429", "kind": "end" },
+      { "id": "pass", "label": "Run the handler", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "in", "to": "check" },
+      { "from": "check", "to": "deny", "label": "no" },
+      { "from": "check", "to": "pass", "label": "yes" }
+    ]
+  },
+  "steps": [
+    { "from": 1, "title": "Ask the limiter about this client", "nodes": ["in", "check"] },
+    { "from": 2, "to": 4, "title": "Refuse a client over the limit", "nodes": ["deny"] },
+    { "from": 5, "title": "Let the rest through", "nodes": ["pass"] }
+  ]
+}
+```
+
+### `diff`
+
+A change set, file by file. The semantic view lists each change with the agent's note, and the raw view prints the patch. Use it to review what a change did. For one snippet before and after use `ba`.
+
+| Field | Required | Type |
+| --- | --- | --- |
+| `type` | yes | `"diff"` |
+| `files` | yes | array of 1 to 50 files |
+| `files[].path` | yes | `label` |
+| `files[].status` | yes | one of `added`, `modified`, `deleted`, `renamed` |
+| `files[].from` | no | `label`, the old path of a renamed file |
+| `files[].patch` | no | string of at most 50000 characters, unified diff text for the raw view |
+| `files[].folded` | no | boolean; `true` starts the file folded, with an Unfold button |
+| `files[].changes` | no | array of at most 30 changes |
+| `changes[].symbol` | yes | `label`, the function, type, or key that changed |
+| `changes[].change` | yes | one of `added`, `modified`, `removed`, `moved`, `config` |
+| `changes[].summary` | yes | string of 1 to 280 characters, what the change does |
+| `changes[].steps` | no | array of at most 8 `label`, the steps of an added function |
+| `map` | no | object `{ nodes, edges }`, a change map above the file list |
+| `map.nodes` | yes, when `map` is given | array of 1 to 40 `{ id: label, label: label, status? }` |
+| `map.nodes[].status` | no | one of `added`, `modified`, `deleted` |
+| `map.edges` | yes, when `map` is given | array of at most 80 `{ from: label, to: label }`, node `id` values |
+
+A file's `status` takes `deleted`, while a change's `change` takes `removed`: the two vocabularies differ. A map node with a `status` is marked as changed, and a node that a changed node points to is drawn under it.
+
+```json
+{
+  "type": "diff",
+  "files": [
+    {
+      "path": "apps/api/src/features/session/index.ts",
+      "status": "modified",
+      "patch": "@@ -1,2 +1,4 @@\n export async function createSession(request) {\n+  if (await limited(request)) return tooMany()\n   return insert()\n }",
+      "changes": [
+        { "symbol": "createSession", "change": "modified", "summary": "Checks the rate limiter before it writes the session." }
+      ]
+    },
+    {
+      "path": "apps/api/wrangler.jsonc",
+      "status": "modified",
+      "folded": true,
+      "changes": [{ "symbol": "RATE_LIMITER", "change": "config", "summary": "Adds the limiter binding at 10 calls per 60 seconds." }]
+    }
+  ]
+}
+```
+
+### `trajectory`
+
+The agent's run as a log: what it was asked, what it read and ran, what it changed, decided, and assumed. The reader shows each step as time since the first step, filters by kind, and lets the reader mark flagged steps; the marks come back in the reply. Use it when how the agent reached the result changes how far to trust it. Do not use it as a dump of every command.
+
+| Field | Required | Type |
+| --- | --- | --- |
+| `type` | yes | `"trajectory"` |
+| `steps` | yes | array of 1 to 200 steps |
+| `steps[].at` | yes | ISO 8601 date and time in UTC, ending in `Z`, such as `"2026-07-12T09:05:40Z"`. Fractions of a second are allowed. An offset such as `+07:00` fails validation. |
+| `steps[].kind` | yes | one of `request`, `read`, `run`, `edit`, `decision`, `assumption`, `note` |
+| `steps[].title` | yes | `label` |
+| `steps[].detail` | no | string of 1 to 400 characters |
+| `steps[].flag` | no | boolean; `true` highlights the step and lets the reader mark it |
+| `stats` | no | object `{ seconds?, tokens? }`, each an integer of 0 or more: the run's length and the tokens it used. Without `seconds`, the reader shows the time from the first step to the last. |
+
+Flag the steps the reader should check, such as an assumption the result rests on. The filters are all, decided (`decision`), assumed (`assumption`), edits (`edit`), and reads plus bash (`read` and `run`).
+
+```json
+{
+  "type": "trajectory",
+  "steps": [
+    { "at": "2026-07-12T09:00:00Z", "kind": "request", "title": "Check whether one client can flood session creation" },
+    { "at": "2026-07-12T09:05:40Z", "kind": "run", "title": "Sent 500 create requests from one address", "detail": "All 500 returned 201." },
+    { "at": "2026-07-12T09:08:00Z", "kind": "assumption", "title": "Production traffic comes from many addresses", "flag": true }
+  ],
+  "stats": { "seconds": 480, "tokens": 38200 }
+}
+```
+
 ## Decisions
 
-A decision is not a block. Decisions live in the top-level `decisions` array, and the reader answers them in a stepper at the end of the document. The array may be empty; the reader then shows no stepper.
+A decision is not a block. Decisions live in the top-level `decisions` array, and the reader answers them in the decision dock, not at the end of the document. The array may be empty; the reader then shows no decision area.
 
 | Field | Required | Type |
 | --- | --- | --- |
@@ -711,6 +865,8 @@ How the reader finds a term:
 - The reader looks for terms only in paragraphs (`p`) and in the title and text of `note`, `warn`, and `good` blocks, including those inside a `details` block. A term inside a table, a list, a stat tile, a diagram, or a code block is not underlined.
 - A term in a decision question, an option, or a `why` is not underlined. The term's definition lists that decision as a place that uses the term.
 - Each alias matches the same as the term. Use aliases for a plural, an abbreviation, or a second language, such as `["RPS", "requests per second"]`.
+- A term inside an inline code run, such as `` `KV` `` in a paragraph, is not underlined.
+- When two entries share a spelling, such as a term that is also another entry's alias, the earlier entry in the array wins and the later one never matches that spelling. Keep every term and alias unique.
 
 Write `def` as one or two sentences that stand alone, and do not explain a word the reader already knows. Never put a secret, a credential, or personal data in a term, an alias, or a definition. Every reader of the document sees them.
 

@@ -15,7 +15,8 @@
  * It also prints `hint` lines about readability: a paragraph too long to read
  * in one pass, an English sentence over the ASD-STE100 limit, a table cell or
  * stat tile holding a sentence, a file path in running text, markdown the
- * reader shows as raw characters. Hints never
+ * reader shows as raw characters (anything but inline code, bold and italic in
+ * a paragraph or callout). Hints never
  * change the exit code; the API does not check them.
  */
 import { readFileSync, realpathSync } from 'node:fs'
@@ -41,7 +42,7 @@ function joinPath(base, key) {
 }
 
 /** A union whose members are themselves unions (blockSchema is a union of the
- * 21 non-details blocks and the details block) nests one anyOf inside another,
+ * 26 non-details blocks and the details block) nests one anyOf inside another,
  * so branches must be flattened before a discriminator can be found. */
 function collectBranches(node) {
   const branches = node.anyOf ?? node.oneOf
@@ -50,7 +51,7 @@ function collectBranches(node) {
 }
 
 /** The block union is discriminated on `type`, so when a value carries a `type`
- * we report only that branch's errors. Reporting all 22 branches would bury the
+ * we report only that branch's errors. Reporting all 27 branches would bury the
  * one that matters. */
 function pickBranch(branches, value) {
   if (typeOf(value) !== 'object' || typeof value.type !== 'string') return null
@@ -120,6 +121,15 @@ export function validatePayload(value, schema) {
       }
       if (node.maxLength !== undefined && val.length > node.maxLength) {
         at(`Too big: expected string to have <=${node.maxLength} characters`)
+      }
+      // Zod emits a `pattern` for every regex and for `format: date-time`, so this one
+      // check covers both: a trajectory `at` without Z and an imageId that is a URL.
+      if (node.pattern !== undefined && !new RegExp(node.pattern).test(val)) {
+        at(
+          node.format === 'date-time'
+            ? 'Invalid ISO datetime: expected a UTC time ending in Z, such as 2026-07-12T09:05:40Z'
+            : `Invalid string: must match pattern ${node.pattern}`,
+        )
       }
       return
     }
@@ -303,19 +313,23 @@ export function readabilityHints(payload) {
     })
   })
 
-  const visitStrings = (node, path) => {
+  const visitStrings = (node, path, inline = false) => {
     if (typeof node === 'string') {
-      if (node.includes('`') || node.includes('**') || LINK_PATTERN.test(node)) {
+      // Paragraphs and callouts render inline code, bold and italic; links and every other field show as typed.
+      if (inline ? LINK_PATTERN.test(node) : node.includes('`') || node.includes('**') || LINK_PATTERN.test(node)) {
         hints.push({
           path,
-          message: 'Brief renders text as typed, so this markdown shows as literal characters. Write names plainly and put code in a code block.',
+          message: inline
+            ? 'Brief renders only inline code, bold and italic here, so this link shows as literal characters. Write the address plainly.'
+            : 'Brief renders this field as typed, so this markdown shows as literal characters. Inline code, bold and italic work only in paragraphs and callouts.',
         })
       }
     } else if (Array.isArray(node)) {
       node.forEach((item, i) => visitStrings(item, joinPath(path, i)))
     } else if (node && typeof node === 'object') {
+      const prose = PROSE_BLOCKS.has(node.type)
       for (const [key, value] of Object.entries(node)) {
-        if (!CODE_FIELDS.has(key)) visitStrings(value, joinPath(path, key))
+        if (!CODE_FIELDS.has(key)) visitStrings(value, joinPath(path, key), prose && (key === 'text' || key === 'title'))
       }
     }
   }

@@ -70,6 +70,16 @@
               "code": "if (env.RATE_LIMITER) {\n  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'\n  const { success } = await env.RATE_LIMITER.limit({ key: `create:${ip}` })\n  if (!success) {\n    set.status = 429\n    return { error: 'Rate limit exceeded. Try again in a minute.' }\n  }\n}"
             }
           ]
+        },
+        {
+          "type": "trajectory",
+          "steps": [
+            { "at": "2026-07-12T09:00:00Z", "kind": "request", "title": "Check whether one client can flood session creation" },
+            { "at": "2026-07-12T09:02:10Z", "kind": "read", "title": "Read the handler that creates a session" },
+            { "at": "2026-07-12T09:05:40Z", "kind": "run", "title": "Sent 500 create requests from one address", "detail": "All 500 returned 201. Nothing slowed them down." },
+            { "at": "2026-07-12T09:08:00Z", "kind": "assumption", "title": "Traffic arrives from many addresses in production too", "flag": true }
+          ],
+          "stats": { "seconds": 480 }
         }
       ]
     },
