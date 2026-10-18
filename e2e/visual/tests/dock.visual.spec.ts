@@ -562,7 +562,8 @@ test.describe('phone sheet', () => {
     await expectRel(options.nth(0).locator(':scope > span'), sheet, { x: 63 })
 
     const label = sheet.getByText('Reason / extra context', { exact: true })
-    await expectComputed(label, { 'font-size': '13px', color: C[theme].sub })
+    // B-Mobile:85-91: the label and the copy button keep line-height normal.
+    await expectComputed(label, { 'font-size': '13px', 'line-height': 'normal', color: C[theme].sub })
     const reason = sheet.getByRole('textbox', { name: 'Reason / extra context' })
     await expectRel(reason, sheet, { x: 14, width: 360, height: 66 })
     await expectComputed(reason, {
@@ -579,6 +580,7 @@ test.describe('phone sheet', () => {
       color: C[theme].onAccent,
       'font-size': '15px',
       'font-weight': '600',
+      'line-height': 'normal',
       'border-top-left-radius': '6px',
     })
     await expectBoxHeight(sheet.getByRole('button', { name: 'Close dock' }), 44)

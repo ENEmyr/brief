@@ -98,7 +98,7 @@ export function DecisionSheet({
             <RefChips decision={current} sections={sections} onJump={onJumpToContext} variant="sheet" />
           )}
           <OptionList decision={current} variant="sheet" labelledBy={questionId} />
-          <label htmlFor={reasonId} className="text-[13px] text-sub">
+          <label htmlFor={reasonId} className="text-[13px] leading-[normal] text-sub">
             Reason / extra context
           </label>
           <textarea
@@ -120,7 +120,7 @@ export function DecisionSheet({
         <button
           type="button"
           onClick={onCopyPrompt}
-          className={`min-h-12 w-full rounded-[6px] border-0 bg-accent text-[15px] font-semibold text-on-accent transition-transform duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none ${FOCUS_RING}`}
+          className={`min-h-12 w-full rounded-[6px] border-0 bg-accent text-[15px] font-semibold leading-[normal] text-on-accent transition-transform duration-[var(--dur-fast)] active:scale-[.97] motion-reduce:transition-none ${FOCUS_RING}`}
         >
           Copy prompt for agent
         </button>

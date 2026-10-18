@@ -28,7 +28,7 @@ const VARIANTS: Record<
   },
   sheet: {
     group: 'gap-[6px]',
-    option: 'min-h-12 gap-3 rounded-[6px] px-3 text-[15px]',
+    option: 'min-h-12 gap-3 rounded-[6px] px-3 text-[15px] leading-[normal]',
     idle: 'border-line bg-[var(--c-code-bg)] text-sub',
     kbd: 'h-6 w-6 shrink-0 rounded-[4px] text-[12px]',
     other: 'min-h-[46px] rounded-[6px] px-3',
