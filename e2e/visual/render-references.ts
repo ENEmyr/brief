@@ -114,6 +114,13 @@ async function newPage(browser: Browser): Promise<Page> {
   return page
 }
 
+/** Replaces text in a generated board; throws when the board no longer has the text, so a patch never goes stale silently. */
+function patch(html: string, from: string | RegExp, to: string, why: string): string {
+  const out = html.replace(from, to)
+  if (out === html) throw new Error(`board patch "${why}" no longer applies; the board changed under it`)
+  return out
+}
+
 /**
  * Writes B-Landing.dc.html and B-Landing-Light.dc.html into GENERATED_DIR
  * before any board renders, so every render of B-Landing (the full board, the
@@ -133,6 +140,12 @@ function writeLandingBoards(): void {
   fs.writeFileSync(dark, html)
   const light = path.join(GENERATED_DIR, 'B-Landing-Light.dc.html')
   execFileSync('python3', ['-I', LIGHTIFY, dark, light, 'Landing light'], { stdio: 'inherit' })
+  // C3 (vt-a triage): lightify.py reads the tab data prop `sub` as a background
+  // and keeps the selected hint lime; the light foreground pair is #4D7A00.
+  fs.writeFileSync(
+    light,
+    patch(fs.readFileSync(light, 'utf8'), "sub: on ? '#C5F05A'", "sub: on ? '#4D7A00'", 'C3 light tab hint'),
+  )
 }
 
 test('every row B board in full', async ({ browser }) => {
