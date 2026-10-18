@@ -1,19 +1,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { expect, openReader, serveSession, test } from '../lib/session'
 
 const diagrams: unknown = JSON.parse(
   fs.readFileSync(path.resolve(import.meta.dirname, '..', 'fixtures', 'diagrams.payload.json'), 'utf8'),
 )
-const cardOf = (page: import('@playwright/test').Page, kind: string): Locator =>
+const cardOf = (page: Page, kind: string): Locator =>
   page
     .locator('figure')
     .filter({ has: page.locator(':scope > div:first-child > [data-kind-tag]', { hasText: new RegExp(`^${kind}$`) }) })
     .first()
 
 /** A token's computed color, resolved the way the browser resolves it for text. */
-const tokenColor = (page: import('@playwright/test').Page, token: string) =>
+const tokenColor = (page: Page, token: string) =>
   page.evaluate((name) => {
     const probe = document.createElement('i')
     probe.style.color = `var(${name})`
