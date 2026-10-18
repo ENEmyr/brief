@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@brief/schema": "workspace:*",
-    "dompurify": "^3.4.11",
+    "dompurify": "^3.4.17",
     "echarts": "^6.1.0",
     "echarts-gl": "^2.1.0",
     "hast-util-to-jsx-runtime": "^2.3.6",
