@@ -54,8 +54,15 @@ export async function highlightToHast(code: string, lang: string): Promise<Root>
   const highlighter = await getHighlighter()
   const resolvedLang = await resolveLanguage(highlighter, lang)
 
+  // tokenizeTimeLimit 0 turns off shiki's 500 ms per-line budget: past it the rest of a line
+  // renders uncolored, which on a slow device is a visible defect. The payload size cap bounds
+  // the work, so a pathological line cannot run unbounded.
   const render = (renderLang: string) =>
-    highlighter.codeToHast(code, { lang: renderLang as BundledLanguage, theme: THEME_NAME })
+    highlighter.codeToHast(code, {
+      lang: renderLang as BundledLanguage,
+      theme: THEME_NAME,
+      tokenizeTimeLimit: 0,
+    })
 
   try {
     return await render(resolvedLang)
