@@ -236,6 +236,24 @@ function writeMobileBoards(): void {
       '>Read the context; the dock shrinks to a bar<',
       'R-V6 context hint',
     )
+    // R-V5: the sheet's chips and context link are 44 px targets, 8 taller than the board's 36.
+    html = patch(
+      html,
+      'style="min-height: 36px; padding: 0 12px; border-radius: 999px',
+      'style="min-height: 44px; padding: 0 12px; border-radius: 999px',
+      'R-V5 chip targets',
+    )
+    html = patch(html, 'align-self: flex-start; min-height: 36px', 'align-self: flex-start; min-height: 44px', 'R-V5 context link target')
+    // R-V5 (D5): Reset sits before Close dock, a ghost 44 in the board's sub color
+    // (ResetAnswers.tsx sheet look); the seed has answers, so the app shows it.
+    const sub = /<label for="bm-why" style="font-size: 13px; color: (#[0-9A-F]{6})">/.exec(html)?.[1]
+    if (!sub) throw new Error(`board patch "R-V5 Reset" no longer applies; ${board} has no reason label color`)
+    html = patch(
+      html,
+      '<button aria-label="Close dock"',
+      `<button style="min-height: 44px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; color: ${sub}; font: inherit; font-size: 13px">Reset</button><button aria-label="Close dock"`,
+      'R-V5 Reset',
+    )
     fs.writeFileSync(path.join(GENERATED_DIR, `${board}.dc.html`), html)
   }
 }
