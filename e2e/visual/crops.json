@@ -172,7 +172,8 @@
       "selector": "details",
       "nth": 0,
       "contains": "refill rate",
-      "mask": "details div[style*=\"Times New Roman\"]"
+      "mask": "details div[style*=\"Times New Roman\"]",
+      "snap": true
     },
     {
       "name": "overlays-copy-title",
