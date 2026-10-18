@@ -50,7 +50,7 @@ test.describe('decision context chips (D7)', () => {
     await expect(chips).toHaveCount(1)
     // R-V6 (D6): under 880 the sheet chip adds the English context hint after the title.
     await expect(chips).toHaveText(
-      isMobile ? '§02Token bucketRead the context; the dock shrinks to a bar' : '§02Token bucket',
+      isMobile ? '§02 Token bucketRead the context; the dock shrinks to a bar' : '§02Token bucket',
     )
 
     const section = page.locator('main [data-section="bucket"]')
