@@ -65,14 +65,15 @@ function DockDecision({
       )}
       <OptionList decision={decision} variant="dock" labelledBy={questionId} />
       {/* B-Reader draws an input 32 high plus its border; a one-row textarea looks
-          the same and, unlike an input, keeps the line breaks of a reason typed before. */}
+          the same and, unlike an input, keeps the line breaks of a reason typed before.
+          5 over 3 puts the first line where the board's input centres its text. */}
       <textarea
         rows={1}
         value={state.dnote[decision.id] ?? ''}
         onChange={(event) => actions.setDecisionNote(decision.id, event.target.value)}
         aria-label={`${decision.id} Reason`}
         placeholder="Reason / extra context (optional)"
-        className={`block min-h-[34px] resize-none rounded-[4px] border border-line bg-[var(--c-code-bg)] px-[10px] py-1 text-[16px] leading-6 text-text outline-none [field-sizing:content] ${FOCUS_RING}`}
+        className={`block min-h-[34px] resize-none rounded-[4px] border border-line bg-[var(--c-code-bg)] px-[10px] pb-[3px] pt-[5px] text-[16px] leading-6 text-text outline-none [field-sizing:content] ${FOCUS_RING}`}
       />
       <SupportTabs decision={decision} picked={tab} onPick={setTab} />
     </div>
