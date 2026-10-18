@@ -61,6 +61,7 @@ test.beforeAll(async () => {
     throw new Error(`No boards at ${BOARDS_DIR}. Set BRIEF_HANDOFF_DIR to the console handoff folder.`)
   }
   fs.mkdirSync(GENERATED_DIR, { recursive: true })
+  writeLandingBoards()
   boards = await serveBoards()
 })
 
@@ -111,6 +112,27 @@ async function newPage(browser: Browser): Promise<Page> {
     })
   })
   return page
+}
+
+/**
+ * Writes B-Landing.dc.html and B-Landing-Light.dc.html into GENERATED_DIR
+ * before any board renders, so every render of B-Landing (the full board, the
+ * landing pages and regions) reads the same patched copy. The light board is
+ * lightified from the patched dark one.
+ */
+function writeLandingBoards(): void {
+  let html = fs.readFileSync(path.join(BOARDS_DIR, 'B-Landing.dc.html'), 'utf8')
+  // C2 (vt-a triage): the board runtime drops whitespace-only text between two
+  // elements, so the blank line between two spans in a <pre> vanishes. Move it
+  // into the span before. Of every B-*.dc.html <pre>, only B-Landing's usage
+  // <pre> has such a gap.
+  const before = html
+  html = html.replace(/<pre\b[\s\S]*?<\/pre>/g, (pre) => pre.replace(/<\/span>(\s*\n\s*)<span/g, '$1</span><span'))
+  if (html === before) throw new Error('board patch "C2 pre blank line" no longer applies; the board changed under it')
+  const dark = path.join(GENERATED_DIR, 'B-Landing.dc.html')
+  fs.writeFileSync(dark, html)
+  const light = path.join(GENERATED_DIR, 'B-Landing-Light.dc.html')
+  execFileSync('python3', ['-I', LIGHTIFY, dark, light, 'Landing light'], { stdio: 'inherit' })
 }
 
 test('every row B board in full', async ({ browser }) => {
@@ -179,10 +201,6 @@ test('phone screens of B-Mobile and B-Mobile-Light', async ({ browser }) => {
 
 test('landing dark and light, regions at 1440 and 390, print', async ({ browser }) => {
   const page = await newPage(browser)
-  const light = path.join(GENERATED_DIR, 'B-Landing-Light.dc.html')
-  execFileSync('python3', ['-I', LIGHTIFY, path.join(BOARDS_DIR, 'B-Landing.dc.html'), light, 'Landing light'], {
-    stdio: 'inherit',
-  })
   for (const [theme, board] of [
     ['dark', 'B-Landing'],
     ['light', 'B-Landing-Light'],
@@ -235,4 +253,3 @@ test('element crops from crops.json', async ({ browser }) => {
     await save(page, `crop-${crop.name}`, clip)
   }
 })
-
