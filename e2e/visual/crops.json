@@ -162,7 +162,9 @@
       "board": "B-Blocks",
       "selector": "section",
       "nth": 7,
-      "contains": "resolveKey"
+      "contains": "resolveKey",
+      "css": "div[style^=\"display: flex; padding: 0 12px\"] { white-space: pre }",
+      "mask": "div[style^=\"display: flex; padding: 0 12px\"]:has-text(\"export async function handle\")"
     },
     {
       "name": "blocks-details",
@@ -170,7 +172,8 @@
       "selector": "details",
       "nth": 0,
       "contains": "refill rate",
-      "mask": "details div[style*=\"Times New Roman\"]"
+      "mask": "details div[style*=\"Times New Roman\"]",
+      "maskHeight": 51
     },
     {
       "name": "overlays-copy-title",

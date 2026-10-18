@@ -623,6 +623,8 @@ test('math keeps its height while KaTeX loads and after it draws (B-States:105-1
   expect(Math.abs(after - before)).toBeLessThanOrEqual(1)
 })
 
+const FORMULA_MASK_HEIGHT = 51
+
 test.describe('text blocks against the B-Blocks panels', () => {
   // Pixel crops at the board's panel width (576, or 1168 for ba). Dark only:
   // B-Blocks has no light board.
@@ -649,13 +651,32 @@ test.describe('text blocks against the B-Blocks panels', () => {
         await expect(figure.getByText('4,800', { exact: true })).toHaveCSS('visibility', 'visible')
       const target = part === null ? figure : figure.locator(part)
       await expect(target).toBeVisible()
+      // R-V3 (d201): the app keeps one card per details and KaTeX; the crop is
+      // the open details alone, and the formula box (Times italic on the
+      // board) is masked on both sides at the larger box's height, the app's
+      // KaTeX box (crops.json blocks-details maskHeight).
+      const formula = target.locator('[data-math]')
+      if (kind === 'details') {
+        expect((await formula.boundingBox())!.height).toBeLessThanOrEqual(FORMULA_MASK_HEIGHT)
+        await formula.evaluate(
+          (el, h) => el.style.setProperty('height', `${h}px`),
+          FORMULA_MASK_HEIGHT,
+        )
+      }
+      // Board tint inconsistency (B-Blocks:146,152): line 1 changes
+      // (handle(req) to handle(req, env)) but the board tints it on neither
+      // side, and the app tints it on both, so line 1 is masked on both sides
+      // (crops.json blocks-ba). The same entry's css keeps the board's
+      // indentation, which its flex rows collapse.
+      const line1 = target.locator(
+        '[data-tone]:has([data-path$="before.0"]), [data-tone]:has([data-path$="after.0"])',
+      )
+      if (kind === 'ba') await expect(line1).toHaveCount(2)
+      const masks: Partial<Record<string, Locator[]>> = { details: [formula], ba: [line1] }
       await expect(page).toHaveScreenshot(`crop-${name}.png`, {
         fullPage: true,
         clip: await clipOf(target),
-        // R-V3 (d201): the app keeps one card per details and KaTeX; the crop is
-        // the open details alone, and the formula box (Times italic on the
-        // board) is masked on both sides (crops.json blocks-details).
-        mask: kind === 'details' ? [target.locator('[data-math]')] : undefined,
+        mask: masks[kind],
       })
     })
   }
