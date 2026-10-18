@@ -574,6 +574,25 @@ describe('Histogram threshold (B-Blocks2:132, 140-146)', () => {
     ).toBeInTheDocument()
   })
 
+  it('draws the threshold line and label in the full-screen view too', () => {
+    useEChartMock.mockReturnValue({
+      containerRef: { current: null },
+      chartRef: { current: { getDataURL: () => 'data:image/png;base64,x', getWidth: () => 540, getHeight: () => 218 } },
+      ready: true,
+    })
+    render(
+      <DiagramViewerProvider>
+        <Histogram block={block} />
+      </DiagramViewerProvider>,
+    )
+    expect(document.querySelectorAll('[data-threshold-line]')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Open diagram full screen' }))
+    const viewer = screen.getByRole('dialog', { name: 'Diagram viewer' })
+    const line = viewer.querySelector<HTMLElement>('[data-threshold-line]')!
+    expect(line.style.left).toBe('62.5%')
+    expect(viewer.textContent).toContain('p95 2.4 s')
+  })
+
   it('labels a threshold without a value with its label alone', () => {
     render(<Histogram block={{ ...block, threshold: { bin: 1, label: 'SLO' } }} />)
     expect(screen.getByText('SLO')).toBeInTheDocument()

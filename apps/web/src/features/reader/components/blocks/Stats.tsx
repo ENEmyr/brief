@@ -121,7 +121,7 @@ function Spark({ values }: { values: number[] }) {
         <div
           key={i}
           className={`w-2 ${i === peak ? 'bg-text' : 'bg-line2'}`}
-          style={{ height: max === 0 ? 0 : (v / max) * SPARK_HEIGHT }}
+          style={{ height: max === 0 ? 1 : (v / max) * SPARK_HEIGHT }}
         />
       ))}
     </div>

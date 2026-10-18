@@ -81,6 +81,25 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
   }
 }
 
+/** B-Blocks2:143-144: a dashed warn line on the left edge of the threshold bin, its label 1% to the right of it. */
+function ThresholdMark({ threshold, left }: { threshold: NonNullable<HistogramBlockType['threshold']>; left: number }) {
+  return (
+    <>
+      <div
+        data-threshold-line
+        className="absolute inset-y-0 w-0 border-l-[1.5px] border-dashed border-warn"
+        style={{ left: `${left}%` }}
+      />
+      <span
+        className="absolute top-0.5 whitespace-nowrap font-mono text-[11px] leading-[normal] text-warn"
+        style={{ left: `${left + 1}%` }}
+      >
+        {threshold.value === undefined ? threshold.label : `${threshold.label} ${threshold.value}`}
+      </span>
+    </>
+  )
+}
+
 export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & BlockAnchor) {
   const { theme } = useTheme()
 
@@ -88,13 +107,23 @@ export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & 
     () => buildHistogramOption(block, chartPalette(theme)),
     [block, theme],
   )
-  const chartCard = useChartCard(chartRef, ready, theme, 2, failed, {
-    heading: { kind: block.type, title: block.title },
-  })
   const bins = block.bins.length
   const past = thresholdStart(block)
   const threshold = past === null ? undefined : block.threshold
   const left = past === null ? 0 : (past / bins) * 100
+  const chartCard = useChartCard(
+    chartRef,
+    ready,
+    theme,
+    2,
+    failed,
+    { heading: { kind: block.type, title: block.title } },
+    threshold && (
+      <div className="pointer-events-none absolute inset-x-0 top-0" style={{ height: PLOT }}>
+        <ThresholdMark threshold={threshold} left={left} />
+      </div>
+    ),
+  )
 
   return (
     <BlockCard
@@ -110,20 +139,8 @@ export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & 
           style={{ height: PLOT + TICKS }}
         />
         {threshold && ready ? (
-          // B-Blocks2:143-144: a dashed warn line on the left edge of the
-          // threshold bin over the plot, its label 1% to the right of it.
           <div className="pointer-events-none absolute inset-x-4 top-4" style={{ height: PLOT }}>
-            <div
-              data-threshold-line
-              className="absolute inset-y-0 w-0 border-l-[1.5px] border-dashed border-warn"
-              style={{ left: `${left}%` }}
-            />
-            <span
-              className="absolute top-0.5 whitespace-nowrap font-mono text-[11px] leading-[normal] text-warn"
-              style={{ left: `${left + 1}%` }}
-            >
-              {threshold.value === undefined ? threshold.label : `${threshold.label} ${threshold.value}`}
-            </span>
+            <ThresholdMark threshold={threshold} left={left} />
           </div>
         ) : null}
         {threshold ? (

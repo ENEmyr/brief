@@ -39,10 +39,10 @@ describe('stat board fields (B-Blocks:41-47)', () => {
     expect(bars.every((b) => b.className.includes('w-2'))).toBe(true)
   })
 
-  it('draws an all-zero spark flat instead of at NaN height', () => {
+  it('draws an all-zero spark as 1px baseline bars, not zero-height or NaN', () => {
     r({ type: 'stat', items: [{ label: 'errors', value: '0', spark: [0, 0] }] })
     const bars = [...screen.getByRole('img', { name: 'trend: 0, 0' }).children] as HTMLElement[]
-    expect(bars.map((b) => b.style.height)).toEqual(['0px', '0px'])
+    expect(bars.map((b) => b.style.height)).toEqual(['1px', '1px'])
   })
 
   it('colors a hint by hintTone, and leaves a hint without one faint', () => {

@@ -65,6 +65,29 @@ describe('glossary matching', () => {
     ].filter(([, hits]) => (hits as unknown[]).length > 0))
   })
 
+  it('also finds terms in table cells and stat labels', () => {
+    const index = buildGlossaryIndex({
+      glossary,
+      decisions: [],
+      sections: [
+        {
+          id: 's',
+          no: 1,
+          title: 'S',
+          blocks: [
+            { type: 'table', head: ['Metric', 'p95'], rows: [['a', 'the token bucket']] },
+            { type: 'stat', items: [{ label: 'Retry-After sent', value: '3' }] },
+          ],
+        },
+      ],
+    })
+    expect([...index.leaves.entries()]).toEqual([
+      ['0|0|head.1', [{ start: 0, end: 3, n: 2 }]],
+      ['0|0|rows.0.1', [{ start: 4, end: 16, n: 1 }]],
+      ['0|1|items.0.label', [{ start: 0, end: 11, n: 3 }]],
+    ])
+  })
+
   it('lists the sections and decisions that use each term', () => {
     const { terms } = buildGlossaryIndex(payload)
     expect(terms.map((t) => [t.n, t.term, t.sections.map((s) => s.no), t.decisions])).toEqual([
@@ -109,6 +132,14 @@ describe('glossary terms in a leaf', () => {
       ['p95', '2'],
       ['token bucket', '1'],
     ])
+  })
+
+  it('fades the popover in over 120 ms, and not at all under reduced motion (B-NewBlocks:28,30)', () => {
+    const { leaf } = renderLeaf()
+    act(() => leaf.querySelector<HTMLElement>('[data-term="1"]')!.focus())
+    const tip = document.querySelector<HTMLElement>('[data-glossary-tip="1"]')!
+    expect(tip.className).toContain('animate-[console-in_120ms_ease_both]')
+    expect(tip.className).toContain('motion-reduce:animate-none')
   })
 
   it('splits a highlight that crosses a term edge and keeps one note marker', () => {

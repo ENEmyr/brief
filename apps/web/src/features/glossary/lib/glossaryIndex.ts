@@ -114,6 +114,13 @@ function proseLeaves(block: StoredBlock, prefix = ''): [string, string][] {
         ...(block.title ? ([[`${prefix}title`, block.title]] as [string, string][]) : []),
         [`${prefix}text`, block.text],
       ]
+    case 'table':
+      return [
+        ...block.head.map((cell, i): [string, string] => [`${prefix}head.${i}`, cell]),
+        ...block.rows.flatMap((row, i) => row.map((cell, j): [string, string] => [`${prefix}rows.${i}.${j}`, cell])),
+      ]
+    case 'stat':
+      return block.items.map((item, i): [string, string] => [`${prefix}items.${i}.label`, item.label])
     case 'details':
       return block.blocks.flatMap((b, i) => proseLeaves(b, `${prefix}blocks.${i}.`))
     default:

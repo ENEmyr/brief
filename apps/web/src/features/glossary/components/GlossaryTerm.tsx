@@ -5,7 +5,7 @@ import { useGlossary } from './GlossaryProvider'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-// B-NewBlocks .b-tip: 300 wide, 8px below the term, opacity .12s ease.
+// B-NewBlocks .b-tip: 300 wide, 8px below the term, opacity .12s ease. Fade in only: the popover unmounts on close.
 const TIP_WIDTH = 300
 const TIP_GAP = 8
 const GUTTER = 16
@@ -172,7 +172,7 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
               if (!tipRef.current?.contains(next) && next !== termRef.current) setOpen(false)
             }}
             style={{ left: pos.left, top: pos.top, width: Math.min(TIP_WIDTH, window.innerWidth - 2 * GUTTER) }}
-            className="fixed z-50 flex flex-col gap-[6px] rounded-[6px] border border-line2 bg-elev p-3 text-left text-[13px] leading-5 text-text shadow-[var(--shadow-overlay)] print:hidden"
+            className="fixed z-50 flex animate-[console-in_120ms_ease_both] flex-col gap-[6px] rounded-[6px] border border-line2 bg-elev p-3 text-left text-[13px] leading-5 text-text shadow-[var(--shadow-overlay)] motion-reduce:animate-none print:hidden"
           >
             <span className="flex justify-between gap-2 font-mono text-[11px] text-info">
               <span>{term.term}</span>

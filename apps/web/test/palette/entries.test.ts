@@ -152,3 +152,28 @@ describe('palette entries', () => {
     ])
   })
 })
+
+describe('palette search of stat captions and before-after filenames', () => {
+  const doc: Payload = {
+    meta: { title: 'T' },
+    sections: [
+      {
+        id: 's',
+        no: 1,
+        title: 'S',
+        blocks: [
+          { type: 'stat', caption: 'Flash sale numbers', items: [{ label: 'Peak RPS', value: '4,800' }] },
+          { type: 'ba', language: 'ts', before: 'a', after: 'b', filename: 'src/limiter.ts' },
+        ],
+      },
+    ],
+    decisions: [],
+  }
+  const found = (query: string) =>
+    filterEntries(buildDocumentEntries(doc), query).flatMap((group) => group.entries.map((entry) => entry.label))
+
+  it('finds a stat block by its caption and a ba block by its filename', () => {
+    expect(found('flash sale')).toEqual(['Flash sale numbers'])
+    expect(found('limiter.ts')).toEqual(['src/limiter.ts'])
+  })
+})
