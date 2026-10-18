@@ -136,6 +136,27 @@ function writeLandingBoards(): void {
   const before = html
   html = html.replace(/<pre\b[\s\S]*?<\/pre>/g, (pre) => pre.replace(/<\/span>(\s*\n\s*)<span/g, '$1</span><span'))
   if (html === before) throw new Error('board patch "C2 pre blank line" no longer applies; the board changed under it')
+  // R-V2 (decisions.tsv 2026-10-19; F3): the example session id is 14 characters.
+  html = patch(html, /k2p9x4(?!Qm)/g, 'k2p9x4Qm7Zr1Ta', 'R-V2 session id')
+  // R-V2 (d056, d057; D7, D9): row 1 lists list and image, and its note says "and images".
+  html = patch(html, '>p note warn good<', '>p list note warn good image<', 'R-V2 row 1 types')
+  html = patch(
+    html,
+    'Prose with inline code, links, and the three callout tones.',
+    'Prose with inline code, links, the three callout tones, and images.',
+    'R-V2 row 1 note',
+  )
+  // The "proposed" tag marks the Agent work row as unshipped (features.md:310);
+  // walkthrough, diff and trajectory shipped, so the app draws no tag
+  // (recorded difference, pr-body-phase6.md:117).
+  html = patch(html, /<span style="[^"]*">proposed<\/span>/, '', 'Agent work proposed tag')
+  // R-V2 (d176): under 880 every landing link and button is a 44 px target.
+  html = patch(
+    html,
+    '@media (prefers-reduced-motion',
+    '@media (max-width: 880px){header > a,footer a,#blocks h2 + a{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px}button.bl-btn:not([role=tab]){min-height:44px !important}}\n@media (prefers-reduced-motion',
+    'R-V2 44 px targets',
+  )
   const dark = path.join(GENERATED_DIR, 'B-Landing.dc.html')
   fs.writeFileSync(dark, html)
   const light = path.join(GENERATED_DIR, 'B-Landing-Light.dc.html')
