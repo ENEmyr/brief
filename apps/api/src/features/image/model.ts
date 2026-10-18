@@ -15,7 +15,10 @@ const ascii = (text: string): number[] => [...text].map((c) => c.charCodeAt(0))
 // The declared Content-Type is ignored: only these signatures are accepted, so SVG (text)
 // and anything renamed to look like an image are rejected.
 export function sniffImageType(bytes: Uint8Array): ImageContentType | null {
-  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png'
+  // A PNG must open with its complete 13-byte IHDR chunk, so a bare signature is not one.
+  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, ...ascii('IHDR')])) {
+    return bytes.length >= 33 ? 'image/png' : null
+  }
   if (startsWith(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg'
   if (startsWith(bytes, ascii('GIF87a')) || startsWith(bytes, ascii('GIF89a'))) return 'image/gif'
   if (startsWith(bytes, ascii('RIFF')) && startsWith(bytes, ascii('WEBP'), 8)) return 'image/webp'

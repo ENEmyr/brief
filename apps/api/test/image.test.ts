@@ -92,6 +92,8 @@ describe('POST /api/image', () => {
     ['an SVG', bytesOf('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), 'image/svg+xml'],
     ['a text file renamed to .png', bytesOf('not really a png at all'), 'image/png'],
     ['a RIFF file that is not WebP', bytesOf('RIFF\x24\x00\x00\x00WAVEfmt '), 'image/webp'],
+    ['a bare PNG signature', PNG.slice(0, 8), 'image/png'],
+    ['a PNG signature cut off inside its IHDR chunk', PNG.slice(0, 20), 'image/png'],
   ])('rejects %s with a fixed 415 message', async (_name, body, contentType) => {
     const res = await upload(body, contentType)
     expect(res.status).toBe(415)
@@ -389,5 +391,21 @@ describe('purgeExpired with images', () => {
     expect(await appEnv.DB.prepare('SELECT COUNT(*) AS n FROM images').first<{ n: number }>()).toEqual({ n: 0 })
     const listed = await appEnv.IMAGES.list({ prefix: 'images/' })
     expect(listed.objects).toEqual([])
+  })
+
+  it('deletes a plaintext copy still linked to an encrypted session and keeps the encrypted copy', async () => {
+    const plain = await uploadId()
+    const sessionId = await createSession([plain])
+    const sealed = await uploadEncrypted(sessionId, Uint8Array.from([7, 7, 7]))
+    const { imageId: sealedId } = (await sealed.json()) as { imageId: string }
+    // What a failed R2 delete in deletePlainImages leaves behind once the encrypt-save committed.
+    await appEnv.DB.prepare('UPDATE sessions SET encrypted = 1 WHERE id = ?').bind(sessionId).run()
+
+    await purgeExpired(appEnv, Date.now())
+
+    expect(await appEnv.IMAGES.head(`images/${plain}`)).toBeNull()
+    expect(await imageRow(plain)).toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${sealedId}`)).not.toBeNull()
+    expect(await imageRow(sealedId)).not.toBeNull()
   })
 })

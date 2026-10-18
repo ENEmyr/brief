@@ -137,15 +137,16 @@ export async function getServableImage(env: ImageEnv, id: string, now: number): 
 }
 
 // Images whose session expired or is already gone (getSession and saveSession delete expired
-// rows lazily), plus orphans never linked inside the window. Objects go before rows so a
-// failed R2 call leaves the rows for the next run to retry.
+// rows lazily), orphans never linked inside the window, and plaintext copies a failed
+// deletePlainImages left on an encrypted session. Objects go before rows so a failed R2 call
+// leaves the rows for the next run to retry.
 export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
   let purged = 0
   for (;;) {
     const { results } = await env.DB.prepare(
       `SELECT i.id FROM images i LEFT JOIN sessions s ON s.id = i.session_id
        WHERE (i.session_id IS NULL AND i.created_at <= ?1)
-          OR (i.session_id IS NOT NULL AND (s.id IS NULL OR s.expires_at <= ?2))
+          OR (i.session_id IS NOT NULL AND (s.id IS NULL OR s.expires_at <= ?2 OR (s.encrypted = 1 AND i.encrypted = 0)))
        LIMIT ${CHUNK}`,
     )
       .bind(now - ORPHAN_WINDOW_MS, now)
