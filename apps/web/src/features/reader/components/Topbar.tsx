@@ -106,7 +106,7 @@ export function Topbar({
           b
         </span>
         {sessionId && (
-          <span className={`min-w-0 shrink truncate font-mono text-[13px] text-faint ${WIDE}`}>{sessionId} /</span>
+          <span className={`min-w-0 shrink truncate font-mono text-[13px] text-faint ${WIDE}`}>{sessionId.slice(0, 6)} /</span>
         )}
         {title && (
           <span className={`min-w-0 flex-[0_1_auto] truncate text-[14px] font-medium ${WIDE}`}>{title}</span>

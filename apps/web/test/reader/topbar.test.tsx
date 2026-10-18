@@ -12,10 +12,22 @@ describe('Topbar', () => {
     render(<Topbar sessionId="abc12345678901" title="Rate limiting" />)
 
     expect(screen.getByText('b')).toBeInTheDocument()
-    expect(screen.getByText('abc12345678901 /')).toBeInTheDocument()
+    expect(screen.getByText('abc123 /')).toBeInTheDocument()
     expect(screen.getByText('Rate limiting')).toBeInTheDocument()
     expect(screen.queryByText('Brief')).not.toBeInTheDocument()
     expect(screen.queryByText(/session/i)).not.toBeInTheDocument()
+  })
+
+  it('prints only the first 6 characters of the session id, as B-Reader:44 draws it', () => {
+    render(<Topbar sessionId="k2p9x4Qm7Zr1Ta" />)
+
+    expect(screen.getByText('k2p9x4 /')).toBeInTheDocument()
+    expect(screen.queryByText(/k2p9x4Qm7Zr1Ta/)).not.toBeInTheDocument()
+  })
+
+  it('prints a session id shorter than 6 characters whole', () => {
+    render(<Topbar sessionId="sess1" />)
+    expect(screen.getByText('sess1 /')).toBeInTheDocument()
   })
 
   it('omits the session id when no sessionId is provided', () => {
