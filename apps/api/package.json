@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@brief/config": "workspace:*",
-    "@cloudflare/vitest-pool-workers": "^0.8.0",
+    "@cloudflare/vitest-pool-workers": "0.12.21",
     "@cloudflare/workers-types": "^4.20260605.0",
     "drizzle-kit": "^0.31.0",
     "eslint": "^9.20.0",
