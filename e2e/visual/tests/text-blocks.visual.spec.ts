@@ -517,15 +517,18 @@ for (const [label, viewport] of [
 }
 
 test.describe('stat count-up in a browser', () => {
-  /** Samples the counter's text on every frame for `ms`. */
-  async function sampleCounter(page: Page, ms: number): Promise<string[]> {
-    return page.evaluate(
-      (duration) =>
+  /**
+   * Samples the counter's text inside `card` on every frame for `ms`. Scoped to the card: the
+   * first stat on the page counts too, and a slow run can still be counting it here.
+   */
+  async function sampleCounter(card: Locator, ms: number): Promise<string[]> {
+    return card.evaluate(
+      (el, duration) =>
         new Promise<string[]>((resolve) => {
           const seen: string[] = []
           const start = performance.now()
           const tick = () => {
-            const counter = document.querySelector('section#blocks [data-count-up]')
+            const counter = el.querySelector('[data-count-up]')
             if (counter?.textContent) seen.push(counter.textContent)
             if (performance.now() - start < duration) requestAnimationFrame(tick)
             else resolve(seen)
@@ -549,7 +552,7 @@ test.describe('stat count-up in a browser', () => {
     await page.emulateMedia({ media: 'screen' })
     await expect(value).toHaveCSS('visibility', 'hidden')
 
-    const [samples] = await Promise.all([sampleCounter(page, 900), last.scrollIntoViewIfNeeded()])
+    const [samples] = await Promise.all([sampleCounter(last, 900), last.scrollIntoViewIfNeeded()])
     const numbers = samples.map((s) => Number(s.replace(/,/g, '')))
     console.log(`count-up frames: ${samples.length}, first ${samples[0]}, last ${samples.at(-1)}`)
     expect(samples.length).toBeGreaterThan(10)
@@ -561,7 +564,7 @@ test.describe('stat count-up in a browser', () => {
 
     await page.evaluate(() => window.scrollTo(0, 0))
     await last.scrollIntoViewIfNeeded()
-    expect(await sampleCounter(page, 400)).toEqual([])
+    expect(await sampleCounter(last, 400)).toEqual([])
   })
 
   test('shows every value at once under reduced motion', async ({ page, theme }) => {
@@ -571,7 +574,10 @@ test.describe('stat count-up in a browser', () => {
     await openBlocks(page)
     const last = cardOf(page, 'blocks', 'stat', 1)
     await expect(last.getByText('1,250', { exact: true })).toHaveCSS('visibility', 'visible')
-    const [samples] = await Promise.all([sampleCounter(page, 700), last.scrollIntoViewIfNeeded()])
+    const [samples] = await Promise.all([
+      sampleCounter(page.locator('section#blocks'), 700),
+      last.scrollIntoViewIfNeeded(),
+    ])
     expect(samples).toEqual([])
     await expect(cardOf(page, 'blocks', 'stat', 0).getByText('4,800', { exact: true })).toHaveCSS(
       'visibility',
