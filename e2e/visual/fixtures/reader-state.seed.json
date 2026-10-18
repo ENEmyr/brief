@@ -1,11 +1,13 @@
 {
   "dsel": {
     "D1": ["binding"],
-    "D2": ["other"],
     "D3": ["api", "user"],
     "D4": []
   },
   "dnote": {},
+  "dother": {
+    "D2": ""
+  },
   "highlights": [
     {
       "id": "h-seed-1",

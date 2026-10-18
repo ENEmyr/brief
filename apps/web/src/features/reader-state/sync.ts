@@ -4,6 +4,9 @@ import { coerceState } from './coerce'
 import type { ReaderState, ReaderStateStore } from './store'
 
 const DEBOUNCE_MS = 5000
+// Browsers reject a keepalive request whose body passes 64 KiB, and a reader's state can be
+// larger (the API takes 262,144 characters), so a bigger flush goes out as a plain request.
+const KEEPALIVE_MAX_BYTES = 65_536
 
 /** Where the latest edit lives: `saving` while a PUT is pending (debounce
  * included), `saved` once the server answered 2xx, `failed` when the PUT was
@@ -40,9 +43,12 @@ async function fetchRemoteState(sessionId: string): Promise<ReaderState | null> 
  * the store and PUTs the full state back 5000ms after the last mutation,
  * collapsing bursts into a single request. The local store stays
  * authoritative either way; `onStatus` reports each PUT's outcome so the
- * reader can see whether the server has the answers. Returns a cleanup that
- * cancels any pending PUT, unsubscribes, and ignores a GET or PUT that
- * resolves after cleanup. */
+ * reader can see whether the server has the answers. When the page is hidden
+ * or unloaded (reload, closed tab, app switch) a pending PUT is sent at once,
+ * with `keepalive` when its body fits the 64 KiB limit, since the debounce
+ * timer dies with the page. Returns a cleanup that cancels any pending PUT,
+ * unsubscribes, stops listening for the page hiding, and ignores a GET or PUT
+ * that resolves after cleanup. */
 export function startKvSync(
   sessionId: string,
   store: ReaderStateStore,
@@ -60,14 +66,15 @@ export function startKvSync(
     onStatus(status)
   }
 
-  function pushState(): void {
-    const { highlights, dsel, dnote } = store.getState()
-    const body = JSON.stringify({ state: JSON.stringify({ dsel, dnote, highlights }) })
+  function pushState(keepalive = false): void {
+    const { highlights, dsel, dnote, dother } = store.getState()
+    const body = JSON.stringify({ state: JSON.stringify({ dsel, dnote, dother, highlights }) })
     const put = ++lastPut
     fetch(stateUrl(sessionId), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body,
+      keepalive: keepalive && new Blob([body]).size <= KEEPALIVE_MAX_BYTES,
     }).then(
       (res) => settle(put, res.ok ? 'saved' : 'failed'),
       () => settle(put, 'failed'),
@@ -82,6 +89,20 @@ export function startKvSync(
       pushState()
     }, DEBOUNCE_MS)
   }
+
+  function flushPending(): void {
+    if (timer === undefined) return
+    clearTimeout(timer)
+    timer = undefined
+    pushState(true)
+  }
+
+  function onVisibilityChange(): void {
+    if (document.visibilityState === 'hidden') flushPending()
+  }
+
+  window.addEventListener('pagehide', flushPending)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 
   // Track mutations from before the GET fires, so a user action made while
   // the request is in flight blocks hydration below instead of being lost.
@@ -111,5 +132,7 @@ export function startKvSync(
     cancelled = true
     if (timer !== undefined) clearTimeout(timer)
     unsubscribe?.()
+    window.removeEventListener('pagehide', flushPending)
+    document.removeEventListener('visibilitychange', onVisibilityChange)
   }
 }

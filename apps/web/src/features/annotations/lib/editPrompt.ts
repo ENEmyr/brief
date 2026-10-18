@@ -1,5 +1,5 @@
 import type { Payload } from '@brief/schema'
-import { decisionAnswerLines } from '@/features/decisions'
+import { decisionAnswerLines, isAnswered } from '@/features/decisions'
 import type { ReaderState } from '@/features/reader-state'
 import { API_URL } from '@/shared/api'
 import { describeLocation, pad } from './askPrompt'
@@ -33,7 +33,7 @@ export function buildEditPrompt(
 ): string | null {
   const hasHighlights = state.highlights.length > 0
   const hasDecisionInput = payload.decisions.some(
-    (d) => (state.dsel[d.id] ?? []).length > 0 || (state.dnote[d.id] ?? '').trim() !== '',
+    (d) => isAnswered(d, state) || (state.dnote[d.id] ?? '').trim() !== '',
   )
   if (!hasHighlights && !hasDecisionInput) return null
 

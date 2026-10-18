@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { DecisionSection } from '@/features/decisions'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { useState } from 'react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
+import { DecisionDock, DecisionSheet } from '@/features/decisions'
+import type { DockTarget } from '@/features/decisions'
 import { ReaderStateProvider } from '@/features/reader-state'
 import type { Decision } from '@brief/schema'
 
@@ -25,228 +27,439 @@ const decisions: Decision[] = [
   },
 ]
 
-function renderSection(list: Decision[] = decisions, sessionId = 'decisions-test') {
+function renderDock(
+  list: Decision[] = decisions,
+  {
+    target = null,
+    onCopyPrompt = () => {},
+  }: { target?: DockTarget | null; onCopyPrompt?: () => void } = {},
+) {
   return render(
-    <ReaderStateProvider sessionId={sessionId}>
-      <DecisionSection decisions={list} no={2} docTitle="Rate Limiter" sessionId={sessionId} />
+    <ReaderStateProvider sessionId="decisions-test" persist={false}>
+      <DecisionDock decisions={list} target={target} onCopyPrompt={onCopyPrompt} />
     </ReaderStateProvider>,
   )
 }
 
+const question = (id: string) => screen.getByRole('group', { name: `Question ${id}` })
+const count = () => screen.getByText(/^\d+\/\d+$/)
+
+// jsdom has no layout, so it does not implement scrollIntoView.
+const scrollIntoView = vi.fn()
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+  Element.prototype.scrollIntoView = scrollIntoView
 })
 
 afterEach(() => {
-  localStorage.clear()
-  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+  scrollIntoView.mockClear()
+  delete (Element.prototype as Partial<Element>).scrollIntoView
 })
 
-describe('DecisionSection', () => {
+describe('DecisionDock', () => {
   it('renders nothing when there are no decisions', () => {
-    const { container } = renderSection([])
+    const { container } = renderDock([])
     expect(container.firstChild).toBeNull()
   })
 
-  it('renders the zero-padded section number, id, and data-section for TOC scroll-sync', () => {
-    renderSection()
-    const heading = screen.getByRole('heading', { name: '02 Decisions' })
-    expect(heading).toBeInTheDocument()
-    const el = document.getElementById('decide')
-    expect(el).not.toBeNull()
-    expect(el).toHaveAttribute('data-section', 'decide')
+  it('heads the dock with DECISIONS and the answered count', () => {
+    renderDock()
+    expect(screen.getByText('DECISIONS')).toBeInTheDocument()
+    expect(count()).toHaveTextContent('0/2')
   })
 
-  it('shows the initial answered count and a jump button per question', () => {
-    renderSection()
-    expect(screen.getByText('Answered 0/2')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Question d1' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Question d2' })).toBeInTheDocument()
-
-    const progress = screen.getByRole('progressbar', { name: /decisions answered/i })
-    expect(progress).toHaveAttribute('aria-valuenow', '0')
-    expect(progress).toHaveAttribute('aria-valuemax', '2')
+  it('lists every decision at once, each named "Question <id>", with no stepper', () => {
+    renderDock()
+    expect(within(question('d1')).getByText('Which cache?')).toBeInTheDocument()
+    expect(within(question('d2')).getByText('Which regions?')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Previous|Next/ })).not.toBeInTheDocument()
   })
 
-  it('labels jump buttons with the stepper position, not a slice of the id', () => {
-    // Real ids are free-form labels, not "D1"-shaped. Rendering id.slice(1)
-    // spilled the whole slug out of the 26px button; the position always fits.
-    const slugged: Decision[] = [
+  it('names each decision by its full free-form id', () => {
+    renderDock([
       { ...decisions[0]!, id: 'd1-reviewer-chain' },
       { ...decisions[1]!, id: 'd2-360-readiness' },
-    ]
-    renderSection(slugged)
-
-    const first = screen.getByRole('button', { name: 'Question d1-reviewer-chain' })
-    expect(first).toHaveTextContent('1')
-    expect(first).toHaveAttribute('title', 'd1-reviewer-chain')
-    expect(first).not.toHaveTextContent('reviewer-chain')
-
-    expect(screen.getByRole('button', { name: 'Question d2-360-readiness' })).toHaveTextContent('2')
+    ])
+    expect(within(question('d1-reviewer-chain')).getByText('d1-reviewer-chain')).toBeInTheDocument()
+    expect(question('d2-360-readiness')).toBeInTheDocument()
   })
 
-  it('renders the detail sub-line only for options that have one', () => {
-    renderSection()
-    expect(screen.getByText('Fast, eventually consistent')).toBeInTheDocument()
+  it('renders the detail sub-line only for options that have one, as the option description', () => {
+    renderDock()
+    expect(screen.getByRole('radio', { name: 'KV' })).toHaveAccessibleDescription(
+      'Fast, eventually consistent',
+    )
+    expect(screen.getByRole('radio', { name: 'None' })).not.toHaveAccessibleDescription()
   })
 
-  it('shows the multi-select pill only for multi questions', () => {
-    renderSection()
-    expect(screen.queryByText('select all that apply')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Question d2' }))
-    expect(screen.getByText('select all that apply')).toBeInTheDocument()
+  it('names each option by its label and announces its number as the key shortcut', () => {
+    renderDock()
+    expect(screen.getByRole('radio', { name: 'None' })).toHaveAttribute('aria-keyshortcuts', '2')
+    expect(screen.getByRole('radio', { name: 'Other, type your own' })).toHaveAttribute(
+      'aria-keyshortcuts',
+      '3',
+    )
   })
 
-  it('single-select: picking an option marks it pressed and bumps the answered count', () => {
-    renderSection()
-    const kv = screen.getByRole('button', { name: /KV/ })
-    expect(kv).toHaveAttribute('aria-pressed', 'false')
+  it('numbers the options and adds "Other, type your own" last', () => {
+    renderDock()
+    const options = within(question('d1')).getAllByRole('radio')
+    expect(options.map((o) => o.textContent)).toEqual([
+      '1KVFast, eventually consistent',
+      '2None',
+      '3Other, type your own',
+    ])
+    expect(
+      within(question('d2'))
+        .getAllByRole('checkbox')
+        .map((o) => o.textContent),
+    ).toEqual(['1US', '2EU', '3Other, type your own'])
+  })
+
+  it('says open, multi or done beside each question', () => {
+    renderDock()
+    expect(within(question('d1')).getByText('open')).toBeInTheDocument()
+    expect(within(question('d2')).getByText('multi')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'None' }))
+    expect(within(question('d1')).getByText('done')).toBeInTheDocument()
+  })
+
+  it('single-select: a radiogroup; picking an option checks it and bumps the answered count', () => {
+    renderDock()
+    const group = within(question('d1')).getByRole('radiogroup', { name: 'Which cache?' })
+    const kv = within(group).getByRole('radio', { name: 'KV' })
+    expect(kv).toHaveAttribute('aria-checked', 'false')
 
     fireEvent.click(kv)
 
-    expect(kv).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText('Answered 1/2')).toBeInTheDocument()
-    expect(screen.getByRole('progressbar', { name: /decisions answered/i })).toHaveAttribute(
-      'aria-valuenow',
-      '1',
-    )
+    expect(kv).toHaveAttribute('aria-checked', 'true')
+    expect(count()).toHaveTextContent('1/2')
   })
 
   it('single-select: picking a second option replaces the first', () => {
-    renderSection()
-    fireEvent.click(screen.getByRole('button', { name: /KV/ }))
-    fireEvent.click(screen.getByRole('button', { name: /None/ }))
+    renderDock()
+    fireEvent.click(screen.getByRole('radio', { name: 'KV' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'None' }))
 
-    expect(screen.getByRole('button', { name: /KV/ })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: /None/ })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText('Answered 1/2')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'KV' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('radio', { name: 'None' })).toHaveAttribute('aria-checked', 'true')
+    expect(count()).toHaveTextContent('1/2')
   })
 
-  it('multi-select: toggles options independently without clearing sibling picks', () => {
-    renderSection()
-    fireEvent.click(screen.getByRole('button', { name: 'Question d2' }))
+  it('single-select: arrow keys move to the next option and pick it, one tab stop', () => {
+    renderDock()
+    const [kv, none, other] = within(question('d1')).getAllByRole('radio')
+    expect([kv, none, other].map((o) => o!.tabIndex)).toEqual([0, -1, -1])
+    kv!.focus()
+    fireEvent.keyDown(kv!, { key: 'ArrowDown' })
+    expect(none).toHaveFocus()
+    expect(none).toHaveAttribute('aria-checked', 'true')
+    expect([kv, none, other].map((o) => o!.tabIndex)).toEqual([-1, 0, -1])
+    fireEvent.keyDown(none!, { key: 'ArrowUp' })
+    fireEvent.keyDown(kv!, { key: 'ArrowUp' })
+    expect(other).toHaveFocus()
+    expect(other).toHaveAttribute('aria-checked', 'true')
+  })
 
-    const us = screen.getByRole('button', { name: /^US$/ })
-    const eu = screen.getByRole('button', { name: /^EU$/ })
+  it('multi-select: checkboxes toggle independently without clearing sibling picks', () => {
+    renderDock()
+    const us = screen.getByRole('checkbox', { name: 'US' })
+    const eu = screen.getByRole('checkbox', { name: 'EU' })
 
     fireEvent.click(us)
     fireEvent.click(eu)
-    expect(us).toHaveAttribute('aria-pressed', 'true')
-    expect(eu).toHaveAttribute('aria-pressed', 'true')
+    expect(us).toHaveAttribute('aria-checked', 'true')
+    expect(eu).toHaveAttribute('aria-checked', 'true')
 
     fireEvent.click(us)
-    expect(us).toHaveAttribute('aria-pressed', 'false')
-    expect(eu).toHaveAttribute('aria-pressed', 'true')
+    expect(us).toHaveAttribute('aria-checked', 'false')
+    expect(eu).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('prev/next clamp at the first and last question', () => {
-    renderSection()
-    const prev = screen.getByRole('button', { name: '‹ Previous' })
-    const next = screen.getByRole('button', { name: 'Next ›' })
+  it('Other opens a focused "Your answer" field that keeps the text and counts as answered', () => {
+    renderDock()
+    expect(screen.queryByRole('textbox', { name: 'd1 Your answer' })).not.toBeInTheDocument()
 
-    expect(prev).toBeDisabled()
-    expect(next).not.toBeDisabled()
-    expect(screen.getByText('Which cache?')).toBeInTheDocument()
+    fireEvent.click(within(question('d1')).getByRole('radio', { name: 'Other, type your own' }))
 
-    fireEvent.click(next)
-    expect(screen.getByText('Which regions?')).toBeInTheDocument()
-    expect(next).toBeDisabled()
-    expect(prev).not.toBeDisabled()
-
-    fireEvent.click(prev)
-    expect(screen.getByText('Which cache?')).toBeInTheDocument()
+    const field = screen.getByRole('textbox', { name: 'd1 Your answer' })
+    expect(field).toHaveFocus()
+    expect(field).toHaveAttribute('placeholder', 'Your answer')
+    expect(count()).toHaveTextContent('1/2')
+    fireEvent.change(field, { target: { value: 'Redis' } })
+    expect(field).toHaveValue('Redis')
   })
 
-  it('a jump button navigates directly to that question', () => {
-    renderSection()
-    fireEvent.click(screen.getByRole('button', { name: 'Question d2' }))
-    expect(screen.getByText('Which regions?')).toBeInTheDocument()
+  it('single-select: an agent option after Other closes the field; multi-select keeps both', () => {
+    renderDock()
+    fireEvent.click(within(question('d1')).getByRole('radio', { name: 'Other, type your own' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'None' }))
+    expect(screen.queryByRole('textbox', { name: 'd1 Your answer' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'US' }))
+    fireEvent.click(within(question('d2')).getByRole('checkbox', { name: 'Other, type your own' }))
+    expect(screen.getByRole('checkbox', { name: 'US' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('textbox', { name: 'd2 Your answer' })).toBeInTheDocument()
   })
 
-  it('shows the "answer N more" gate text until every question is answered, then a generate button', () => {
-    const onGeneratePrompt = vi.fn()
+  it('1 to 9 pick the numbered option in the focused question; the last number is Other', () => {
+    renderDock()
+    const none = screen.getByRole('radio', { name: 'None' })
+    screen.getByRole('radio', { name: 'KV' }).focus()
+
+    fireEvent.keyDown(document.activeElement!, { key: '2', code: 'Digit2' })
+    expect(none).toHaveAttribute('aria-checked', 'true')
+    expect(none).toHaveFocus()
+    expect(screen.getByRole('checkbox', { name: 'US' })).toHaveAttribute('aria-checked', 'false')
+
+    fireEvent.keyDown(document.activeElement!, { key: '3', code: 'Digit3' })
+    expect(screen.getByRole('textbox', { name: 'd1 Your answer' })).toHaveFocus()
+  })
+
+  it('a number key picks in a later question too, not only the first one', () => {
+    renderDock()
+    screen.getByRole('checkbox', { name: 'US' }).focus()
+    fireEvent.keyDown(document.activeElement!, { key: '2', code: 'Digit2' })
+    expect(screen.getByRole('checkbox', { name: 'EU' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.keyDown(document.activeElement!, { key: '3', code: 'Digit3' })
+    expect(screen.getByRole('textbox', { name: 'd2 Your answer' })).toHaveFocus()
+  })
+
+  it('a number key does nothing outside a question, or inside its text fields', () => {
+    renderDock()
+    fireEvent.keyDown(document.body, { key: '1', code: 'Digit1' })
+    expect(count()).toHaveTextContent('0/2')
+
+    const reason = screen.getByRole('textbox', { name: 'd1 Reason' })
+    reason.focus()
+    fireEvent.keyDown(reason, { key: '1', code: 'Digit1' })
+    expect(screen.getByRole('radio', { name: 'KV' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('a number key on a Thai layout picks by the physical digit', () => {
+    renderDock()
+    screen.getByRole('radio', { name: 'KV' }).focus()
+    // Thai Kedmanee: the 2 key types "/", the 1 key types "ๅ".
+    fireEvent.keyDown(document.activeElement!, { key: '/', code: 'Digit2' })
+    expect(screen.getByRole('radio', { name: 'None' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.keyDown(document.activeElement!, { key: 'ๅ', code: 'Digit1' })
+    expect(screen.getByRole('radio', { name: 'KV' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('every question has its own reason field', () => {
+    renderDock()
+    const reason1 = screen.getByRole('textbox', { name: 'd1 Reason' })
+    expect(reason1).toHaveAttribute('placeholder', 'Reason / extra context (optional)')
+    fireEvent.change(reason1, { target: { value: 'needs low latency' } })
+    expect(reason1).toHaveValue('needs low latency')
+    expect(screen.getByRole('textbox', { name: 'd2 Reason' })).toHaveValue('')
+  })
+
+  it('keeps a reason saved over several lines when the reader types more', () => {
+    localStorage.setItem(
+      'idocs:decisions-multiline',
+      JSON.stringify({ highlights: [], dsel: {}, dnote: { d1: 'a\nb' } }),
+    )
     render(
-      <ReaderStateProvider sessionId="decisions-gate-test">
-        <DecisionSection
-          decisions={decisions}
-          no={2}
-          docTitle="Rate Limiter"
-          sessionId="decisions-gate-test"
-          onGeneratePrompt={onGeneratePrompt}
-        />
+      <ReaderStateProvider sessionId="decisions-multiline">
+        <DecisionDock decisions={decisions} target={null} onCopyPrompt={() => {}} />
       </ReaderStateProvider>,
     )
+    const reason = screen.getByRole('textbox', { name: 'd1 Reason' })
+    expect(reason).toHaveValue('a\nb')
+    fireEvent.change(reason, { target: { value: `${(reason as HTMLTextAreaElement).value}c` } })
+    expect(reason).toHaveValue('a\nbc')
+    localStorage.clear()
+  })
 
-    expect(screen.getByText('Answer 2 more to generate a prompt')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Generate prompt/ })).not.toBeInTheDocument()
+  it('counts reasons in the footer line, the Note lines the prompt prints', () => {
+    renderDock()
+    expect(screen.getByText('Includes answers, reasons and 0 notes')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'd1 Reason' }), {
+      target: { value: 'why' },
+    })
+    expect(screen.getByText('Includes answers, reasons and 1 note')).toBeInTheDocument()
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: /KV/ }))
-    expect(screen.getByText('Answer 1 more to generate a prompt')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Question d2' }))
-    fireEvent.click(screen.getByRole('button', { name: /^US$/ }))
-
+  it('Copy prompt for agent works with open questions', () => {
+    const onCopyPrompt = vi.fn()
+    renderDock(decisions, { onCopyPrompt })
     expect(screen.queryByText(/more to generate a prompt/)).not.toBeInTheDocument()
-    const generateButton = screen.getByRole('button', { name: /Generate prompt/ })
-    expect(generateButton).toBeInTheDocument()
-
-    fireEvent.click(generateButton)
-    expect(onGeneratePrompt).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: /^Copy prompt for agent/ }))
+    expect(onCopyPrompt).toHaveBeenCalledTimes(1)
   })
 
-  it('notes textarea writes to the store for the current question and is scoped per-question', () => {
-    renderSection()
-    const textarea = screen.getByPlaceholderText(/business reason/)
-    fireEvent.change(textarea, { target: { value: 'needs low latency' } })
-    expect(textarea).toHaveValue('needs low latency')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Question d2' }))
-    expect(screen.getByPlaceholderText(/business reason/)).toHaveValue('')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Question d1' }))
-    expect(screen.getByPlaceholderText(/business reason/)).toHaveValue('needs low latency')
+  it('shows the mod key chip on Copy prompt for agent', () => {
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel')
+    renderDock()
+    expect(screen.getByRole('button', { name: /^Copy prompt for agent/ })).toHaveTextContent(
+      'Copy prompt for agent⌘↵',
+    )
   })
 
-  it('reset clears every answer and note, and only shows once something is answered', () => {
-    renderSection()
-    expect(screen.queryByRole('button', { name: '↺ Reset' })).not.toBeInTheDocument()
+  it('reset clears every answer, Other answer and reason, and only shows once something is touched', () => {
+    renderDock()
+    expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /KV/ }))
-    fireEvent.change(screen.getByPlaceholderText(/business reason/), {
+    fireEvent.click(screen.getByRole('radio', { name: 'KV' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'd1 Reason' }), {
       target: { value: 'some note' },
     })
+    fireEvent.click(within(question('d2')).getByRole('checkbox', { name: 'Other, type your own' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'd2 Your answer' }), {
+      target: { value: 'APAC' },
+    })
 
-    const resetButton = screen.getByRole('button', { name: '↺ Reset' })
-    fireEvent.click(resetButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
 
-    expect(screen.getByText('Answered 0/2')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /KV/ })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByPlaceholderText(/business reason/)).toHaveValue('')
-    expect(screen.queryByRole('button', { name: '↺ Reset' })).not.toBeInTheDocument()
+    expect(count()).toHaveTextContent('0/2')
+    expect(screen.getByRole('radio', { name: 'KV' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('textbox', { name: 'd1 Reason' })).toHaveValue('')
+    expect(screen.queryByRole('textbox', { name: 'd2 Your answer' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument()
   })
 
-  it('calls the onReset callback after clearing (toast hook, no-op by default)', () => {
-    const onReset = vi.fn()
-    render(
-      <ReaderStateProvider sessionId="decisions-reset-test">
-        <DecisionSection
-          decisions={decisions}
-          no={2}
-          docTitle="Rate Limiter"
-          sessionId="decisions-reset-test"
-          onReset={onReset}
-        />
+  it('reset shows for a reason alone, since it clears reasons too', () => {
+    renderDock()
+    fireEvent.change(screen.getByRole('textbox', { name: 'd2 Reason' }), {
+      target: { value: 'later' },
+    })
+    expect(screen.getByRole('button', { name: 'Reset' })).toHaveAttribute(
+      'title',
+      'Clear all answers',
+    )
+  })
+
+  it('a reason of only spaces is not something to reset', () => {
+    renderDock()
+    fireEvent.change(screen.getByRole('textbox', { name: 'd2 Reason' }), {
+      target: { value: '   ' },
+    })
+    expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument()
+    expect(screen.getByText('Includes answers, reasons and 0 notes')).toBeInTheDocument()
+  })
+
+  it('a new target scrolls its question, then its tab stop, into view and focuses the tab stop', () => {
+    const { rerender } = renderDock()
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    rerender(
+      <ReaderStateProvider sessionId="decisions-test" persist={false}>
+        <DecisionDock decisions={decisions} target={{ id: 'd2', seq: 1 }} onCopyPrompt={() => {}} />
       </ReaderStateProvider>,
     )
-
-    fireEvent.click(screen.getByRole('button', { name: /KV/ }))
-    fireEvent.click(screen.getByRole('button', { name: '↺ Reset' }))
-    expect(onReset).toHaveBeenCalledTimes(1)
+    const tabStop = screen.getByRole('checkbox', { name: 'US' })
+    expect(scrollIntoView.mock.calls).toEqual([[{ block: 'nearest' }], [{ block: 'nearest' }]])
+    expect(scrollIntoView.mock.contexts).toEqual([question('d2'), tabStop])
+    expect(tabStop).toHaveFocus()
   })
 
-  it('renders no support tab strip when the current question has no why/cmp/dia', () => {
-    renderSection()
+  it('renders no support tab strip when no question has why/cmp/dia', () => {
+    renderDock()
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+  })
+})
+
+describe('DecisionSheet', () => {
+  // Wraps the sheet the way the reader does: inside the dock's own dialog, a
+  // chip keeps the request number and "show d2" (N, Go to) raises it.
+  function renderSheet(onCopyPrompt = () => {}, list: Decision[] = decisions) {
+    function Harness() {
+      const [target, setTarget] = useState<DockTarget | null>(null)
+      return (
+        <ReaderStateProvider sessionId="decisions-test" persist={false}>
+          <aside id="dock" role="dialog" aria-modal="true" aria-label="Decision dock" data-dock="">
+            <DecisionSheet
+              decisions={list}
+              target={target}
+              onSelect={(id) => setTarget((prev) => ({ id, seq: prev?.seq ?? 0 }))}
+              onCopyPrompt={onCopyPrompt}
+            />
+          </aside>
+          <button
+            type="button"
+            onClick={() => setTarget((prev) => ({ id: 'd2', seq: (prev?.seq ?? 0) + 1 }))}
+          >
+            show d2
+          </button>
+        </ReaderStateProvider>
+      )
+    }
+    return render(<Harness />)
+  }
+
+  const chip = (id: string) => screen.getByRole('button', { name: `Question ${id}` })
+
+  it('shows one chip per question and the first question alone when nothing is targeted', () => {
+    renderSheet()
+    expect(chip('d1')).toHaveAttribute('aria-pressed', 'true')
+    expect(chip('d2')).toHaveAttribute('aria-pressed', 'false')
+    expect(within(question('d1')).getByText('Which cache?')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Question d2' })).not.toBeInTheDocument()
+  })
+
+  it('an answered chip shows a check and says answered, keeping its name', () => {
+    renderSheet()
+    fireEvent.click(screen.getByRole('radio', { name: 'KV' }))
+    expect(chip('d1')).toHaveTextContent('d1 ✓')
+    expect(chip('d1')).toHaveAccessibleDescription('answered')
+    expect(chip('d2')).toHaveTextContent(/^d2$/)
+    expect(chip('d2')).toHaveAccessibleDescription('')
+  })
+
+  it('a chip switches the question and keeps focus on the chip', () => {
+    renderSheet()
+    chip('d2').focus()
+    fireEvent.click(chip('d2'))
+    expect(within(question('d2')).getByText('Which regions?')).toBeInTheDocument()
+    expect(chip('d2')).toHaveAttribute('aria-pressed', 'true')
+    expect(chip('d2')).toHaveFocus()
+  })
+
+  it('a new target shows that question and focuses its first option', () => {
+    renderSheet()
+    fireEvent.click(screen.getByRole('button', { name: 'show d2' }))
+    expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
+  })
+
+  it('options are 1 to 9 here too, Other last, inside the dock sheet', () => {
+    renderSheet()
+    screen.getByRole('radio', { name: 'KV' }).focus()
+    fireEvent.keyDown(document.activeElement!, { key: '2', code: 'Digit2' })
+    expect(screen.getByRole('radio', { name: 'None' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.keyDown(document.activeElement!, { key: '3', code: 'Digit3' })
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveFocus()
+  })
+
+  it('keeps a reason per question under its label', () => {
+    renderSheet()
+    const reason = screen.getByRole('textbox', { name: 'Reason / extra context' })
+    expect(reason).toHaveAttribute('placeholder', 'optional')
+    fireEvent.change(reason, { target: { value: 'cheaper' } })
+    fireEvent.click(chip('d2'))
+    expect(screen.getByRole('textbox', { name: 'Reason / extra context' })).toHaveValue('')
+    fireEvent.click(chip('d1'))
+    expect(screen.getByRole('textbox', { name: 'Reason / extra context' })).toHaveValue('cheaper')
+  })
+
+  it('remembers the details tab picked on each question across chip switches', () => {
+    const [d1, d2] = decisions as [Decision, Decision]
+    renderSheet(undefined, [
+      { ...d1, why: 'Reads stay at the edge.', cmp: { head: ['Option', 'Cost'], rows: [['KV', 'low']] } },
+      { ...d2, why: 'Latency per region.', cmp: { head: ['Region', 'RTT'], rows: [['US', '20 ms']] } },
+    ])
+    fireEvent.click(screen.getByRole('tab', { name: 'Compare' }))
+    fireEvent.click(chip('d2'))
+    expect(screen.getByRole('tab', { name: 'Explanation' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Latency per region.')
+    fireEvent.click(chip('d1'))
+    expect(screen.getByRole('tab', { name: 'Compare' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('KVlow')
+  })
+
+  it('Copy prompt for agent hands off to the reader', () => {
+    const onCopyPrompt = vi.fn()
+    renderSheet(onCopyPrompt)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy prompt for agent' }))
+    expect(onCopyPrompt).toHaveBeenCalledTimes(1)
   })
 })

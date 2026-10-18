@@ -15,7 +15,7 @@ import { useDialogFocus } from '../hooks/useDialogFocus'
  * closes, on failure it stays open so the user still has the selected text
  * to hand-copy. Focus trap is shared with ShareModal via useDialogFocus
  * (follows Toc.tsx's drawer pattern). The textarea carries `data-code-panel`
- * for consistency with CodePre/PromptReview's identical `--c-code-bg` +
+ * for consistency with CodePre's identical `--c-code-bg` +
  * `--c-text` pairing, though it is moot here in practice: this whole dialog
  * sits behind a `print:hidden` backdrop and never reaches the printed page.
  * Hint text uses a plain hyphen per the
