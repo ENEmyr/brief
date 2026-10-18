@@ -9,7 +9,11 @@ export const VIEW_TABS: ReadonlyArray<{ id: ReaderView; label: string }> = [
   { id: 'raw', label: 'Raw' },
 ]
 
-/** What the Diagrams view keeps: the diagram blocks and the chart blocks. */
+/**
+ * What the Diagrams view keeps: the diagram blocks and the chart blocks, which
+ * are the ones with the full-screen viewer. A walkthrough and a diff read as
+ * code and stay in the Document view.
+ */
 export const DIAGRAM_BLOCK_TYPES: ReadonlySet<StoredBlock['type']> = new Set([
   'seq',
   'state',

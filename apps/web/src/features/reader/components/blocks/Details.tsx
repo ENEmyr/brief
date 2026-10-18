@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { StoredDetailsBlock } from '@brief/schema'
 import type { Highlight } from '@/features/reader-state'
 import { BlockRenderer } from '../BlockRenderer'
-import { BlockCard, cardHeader } from '../BlockCard'
+import { BlockCard, NestedInCard, cardHeader } from '../BlockCard'
 
 /**
  * Nested content IS annotatable. It could not be before, because an anchor was
@@ -34,7 +34,10 @@ export function Details({
   const [open, setOpen] = useState(false)
 
   return (
-    <BlockCard {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}>
+    <BlockCard
+      {...cardHeader(block, { sid, bid, pathPrefix, annotatable, onMarkClick })}
+      alsoKinds={block.blocks.some((b) => b.type === 'math' && b.title === undefined) ? ['math'] : []}
+    >
       <div className="p-2">
         <details
           open={open}
@@ -54,17 +57,19 @@ export function Details({
             <span>{block.summary}</span>
           </summary>
           <div className="flex flex-col gap-2.5 pb-3 pl-8 pr-3 [&>p]:text-[14px] [&>p]:leading-[22px] [&>p]:text-sub">
-            {block.blocks.map((b, i) => (
-              <BlockRenderer
-                key={i}
-                block={b}
-                sid={sid}
-                bid={bid}
-                pathPrefix={`${pathPrefix}blocks.${i}.`}
-                annotatable={annotatable}
-                onMarkClick={onMarkClick}
-              />
-            ))}
+            <NestedInCard.Provider value>
+              {block.blocks.map((b, i) => (
+                <BlockRenderer
+                  key={i}
+                  block={b}
+                  sid={sid}
+                  bid={bid}
+                  pathPrefix={`${pathPrefix}blocks.${i}.`}
+                  annotatable={annotatable}
+                  onMarkClick={onMarkClick}
+                />
+              ))}
+            </NestedInCard.Provider>
           </div>
         </details>
       </div>

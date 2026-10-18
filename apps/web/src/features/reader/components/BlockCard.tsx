@@ -1,5 +1,5 @@
 'use client'
-import { Fragment, type ReactNode } from 'react'
+import { createContext, Fragment, useContext, type ReactNode } from 'react'
 import type { StoredBlock, UnreadableBlock } from '@brief/schema'
 import { CardCaption } from './CardCaption'
 import { BlockError, RawBlock, type BlockErrorMessage } from './BlockError'
@@ -34,6 +34,12 @@ export interface BlockCardProps extends CaptionAnchor {
   captionSuffix?: ReactNode
   /** A kind word drawn before the title: "surface / title" (B-Blocks2:166), "flowchart LR / title" (B-Blocks2:97). */
   captionPrefix?: string
+  /**
+   * Further kind chips after `kind`: a details card names the blocks it holds
+   * ("details" "math", B-Blocks:164). Only `kind` is the card's data-kind-tag,
+   * the tag that finds a card by its kind.
+   */
+  alsoKinds?: readonly string[]
   /** Right-hand header text the boards draw: "3 rows", "log scale", "p95 marked". */
   meta?: ReactNode
   controls?: ReactNode
@@ -44,6 +50,13 @@ export interface BlockCardProps extends CaptionAnchor {
 }
 
 const READY: BlockCardState = { status: 'ready' }
+
+/**
+ * Set by a card that holds other blocks. A formula nested in one is the bare
+ * 12-padded box of B-Blocks:169, not a card of its own with a header. A titled
+ * formula keeps its card: the title would have nowhere to go.
+ */
+export const NestedInCard = createContext(false)
 
 /** B-States lazy block: the header label while a block's library or chunk loads. */
 export const LOADING = {
@@ -64,6 +77,7 @@ export function BlockCard({
   caption,
   captionPrefix,
   captionSuffix,
+  alsoKinds = [],
   meta,
   controls,
   fullScreen,
@@ -71,6 +85,10 @@ export function BlockCard({
   children,
   ...anchor
 }: BlockCardProps) {
+  const nested = useContext(NestedInCard)
+  if (nested && kind === 'math' && caption === undefined && state.status !== 'error') {
+    return <div className="rounded-[4px] border border-line bg-page text-center">{children}</div>
+  }
   const failed = state.status === 'error' || state.status === 'unsupported'
   const shownControls = failed ? null : controls
   const shownFullScreen = failed ? undefined : fullScreen
@@ -83,16 +101,19 @@ export function BlockCard({
           hasButtons ? 'py-1.5 pl-3 pr-1.5 max-[880px]:py-1 max-[880px]:pr-1' : 'px-3 py-2'
         }`}
       >
-        <span
-          data-kind-tag
-          className={`shrink-0 rounded-[3px] border px-[5px] py-px ${
-            state.status === 'unsupported'
-              ? 'border-dashed border-warn-line text-warn'
-              : 'border-line2'
-          }`}
-        >
-          {kind}
-        </span>
+        {[kind, ...alsoKinds].map((tag, i) => (
+          <span
+            key={tag}
+            {...(i === 0 ? { 'data-kind-tag': true } : { 'data-kind-also': true })}
+            className={`shrink-0 rounded-[3px] border px-[5px] py-px ${
+              state.status === 'unsupported'
+                ? 'border-dashed border-warn-line text-warn'
+                : 'border-line2'
+            }`}
+          >
+            {tag}
+          </span>
+        ))}
         <span className="min-w-0 flex-1 break-words">
           {state.status === 'unsupported'
             ? 'not supported here'
