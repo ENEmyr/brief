@@ -15,7 +15,7 @@ import {
 } from './lib/handoff'
 import {
   BOARD_FOR_THEME,
-  DOCK_VISIBLE_HEIGHT,
+  DOCK_ROWS_HEIGHT,
   LANDING_REGIONS,
   LANDING_WIDTHS,
   PHONE_SCREEN,
@@ -308,7 +308,7 @@ test('reader at 1440, 1100 and 880, dark and light, plus regions', async ({ brow
         for (const [region, selector] of Object.entries(READER_REGIONS)) {
           const landmark = page.locator(selector).first()
           const clip = region === 's2' ? await sectionChromeClip(landmark) : await clipOf(landmark)
-          if (region === 'dock') clip.height = Math.min(clip.height, DOCK_VISIBLE_HEIGHT)
+          if (region === 'dock') clip.height = Math.min(clip.height, DOCK_ROWS_HEIGHT)
           await save(page, `region-${theme}-${region}`, clip)
         }
       }

@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import {
   BOARD_PROGRESS,
+  DOCK_ROWS_HEIGHT,
   DOCK_VISIBLE_HEIGHT,
   READER_REGIONS,
   READER_WIDTHS,
@@ -70,8 +71,12 @@ test.describe('regions at 1440', () => {
         return
       }
       const clip = region === 's2' ? await sectionChromeClip(landmark) : await clipOf(landmark)
-      if (region === 'dock')
-        expect(clip.height, 'C8: app dock height the reference is cut at').toBe(DOCK_VISIBLE_HEIGHT)
+      if (region === 'dock') {
+        expect(clip.height, 'C8: app dock height at scroll 0').toBe(DOCK_VISIBLE_HEIGHT)
+        const footer = landmark.getByRole('button', { name: 'Copy prompt for agent' }).locator('..')
+        clip.height = Math.round((await footer.boundingBox())!.y) - clip.y
+        expect(clip.height, 'R-V5: dock rows above the pinned footer').toBe(DOCK_ROWS_HEIGHT)
+      }
       await expect(page).toHaveScreenshot(`region-dark-${region}.png`, { fullPage: true, clip })
     })
   }

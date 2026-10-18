@@ -48,6 +48,13 @@ export async function sectionChromeClip(section: Locator): Promise<Clip> {
 export const DOCK_VISIBLE_HEIGHT = 820
 
 /**
+ * R-V5: the app pins "Copy prompt for agent" and Reset under the capped list,
+ * where the board's rows carry on. Both sides compare the dock from its top to
+ * the top of that footer.
+ */
+export const DOCK_ROWS_HEIGHT = 685
+
+/**
  * C7 (vt-b triage): B-Reader is drawn mid-read, with the progress line 34%
  * filled (B-Reader:61 `width: 34%`) and outline row 02 current. The specs
  * scroll the app to that state before they cut the topbar and the outline.
