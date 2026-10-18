@@ -32,8 +32,8 @@ A document fails this reader in two ways. It buries the point under the story of
 5. **Write for the reader.** Follow "Writing for the reader" below.
 6. **Add decisions only for calls the human must make.** Settle every question you can answer by thinking it through or checking, and say in the document what you chose. A decision is for a choice that turns on the human's priorities, money, risk, or taste, with at least two options you would accept. Write those last, so the options reflect what the research found, each with honest `detail` text and usually a `why` that states your recommendation and its cost. Add `refs` with the ids of the sections that set the decision up, so the reader can jump back to the evidence. When nothing is left to decide, send `"decisions": []`; the reader then shows no decision area.
 7. **Reread it as the reader.** Before validating, read the payload as someone who saw none of this session. Every name, path, id, abbreviation, and number is explained where it first appears, or it goes. Every fact from step 2 is there. No sentence describes how you worked.
-8. **Validate before publishing.** Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. It also prints readability hints. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
-9. **Publish and hand over the URL.** If the document has an `image` block, upload each image first, as "Uploading an image" says. Give the human the link and nothing else; the document carries the content now.
+8. **Validate before publishing.** If the document has an `image` block, upload each image first and put the returned `imageId` in the block, as "Uploading an image" says. Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. It also prints readability hints. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
+9. **Publish and hand over the URL.** Give the human the link and nothing else; the document carries the content now.
 10. **Act on the reply.** The human pastes a generated prompt back into the conversation. See "What comes back" below.
 
 This skill directory holds three things you will use: `BLOCKS.md` (every field of every block), `example.payload.json` (a complete, valid document to model yours on), and `validate.mjs` (the pre-flight check).
@@ -268,10 +268,11 @@ An `image` block names an image the API already holds. Upload each file first, t
 
 ```bash
 curl -sS -X POST https://brief-api.algoryth.me/api/image \
+  -H 'content-type: image/png' \
   --data-binary @screenshot.png
 ```
 
-Send the raw bytes of the file as the body, with `--data-binary`, not a form or JSON. The API ignores the declared content type and reads the first bytes of the file: it accepts PNG, JPEG, GIF, and WEBP, and nothing else. SVG is refused. A file may hold at most 5242880 bytes (5 MiB).
+Send the raw bytes of the file as the body, with `--data-binary`, not a form or JSON, and set the `content-type` header to the image type of the file. The API does not trust that header. It reads the first bytes of the file instead: it accepts PNG, JPEG, GIF, and WEBP, and nothing else. SVG is refused. A file may hold at most 5242880 bytes (5 MiB).
 
 | Status | Body | What to do |
 | --- | --- | --- |
