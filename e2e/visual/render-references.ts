@@ -237,14 +237,15 @@ function writeMobileBoards(): void {
       '>Read the context; the dock shrinks to a bar<',
       'R-V6 context hint',
     )
-    // R-V5: the sheet's chips and context link are 44 px targets, 8 taller than the board's 36.
+    // R-V5: the sheet's chips and context link are 44 px targets. The chips
+    // are buttons (border-box); the link is content-box, so 42 plus its border.
     html = patch(
       html,
       'style="min-height: 36px; padding: 0 12px; border-radius: 999px',
       'style="min-height: 44px; padding: 0 12px; border-radius: 999px',
       'R-V5 chip targets',
     )
-    html = patch(html, 'align-self: flex-start; min-height: 36px', 'align-self: flex-start; min-height: 44px', 'R-V5 context link target')
+    html = patch(html, 'align-self: flex-start; min-height: 36px', 'align-self: flex-start; min-height: 42px', 'R-V5 context link target')
     // R-V5 (D5): Reset sits before Close dock, a ghost 44 in the board's sub color
     // (ResetAnswers.tsx sheet look); the seed has answers, so the app shows it.
     const sub = /<label for="bm-why" style="font-size: 13px; color: (#[0-9A-F]{6})">/.exec(html)?.[1]
