@@ -53,12 +53,13 @@ async function fetchRemoteState(sessionId: string): Promise<ReaderState | null> 
 }
 
 /** Starts KV sync for a session: on mount, GETs the remote state and
- * hydrates the store from it only when localStorage had no entry for this
- * session (local always wins when present) AND nothing mutated the store
- * while the GET was in flight -- a mutation-tracking subscription is
- * registered before the fetch fires so a user action during the request
- * can never be clobbered by stale remote state. After that, subscribes to
- * the store and PUTs the full state back 5000ms after the last mutation,
+ * hydrates the store from it when localStorage had no entry for this session,
+ * or when the server copy moved since this browser's last sync (see below),
+ * AND nothing mutated the store while the GET was in flight -- a
+ * mutation-tracking subscription is registered before the fetch fires so a
+ * user action during the request can never be clobbered by stale remote
+ * state. After that, subscribes to the store and PUTs the full state back
+ * 5000ms after the last mutation,
  * collapsing bursts into a single request. The local store stays
  * authoritative either way; `onStatus` reports each PUT's outcome so the
  * reader can see whether the server has the answers. When the page is hidden
@@ -72,9 +73,10 @@ async function fetchRemoteState(sessionId: string): Promise<ReaderState | null> 
  * So when this browser holds a stored state, the chip reads `saving` from the
  * start, and once the GET answers the local state is PUT at once unless the
  * server copy already equals it. The state API is last write wins, so a browser
- * that synced before (it holds a sync mark) takes the server copy instead when
- * that copy changed since its mark: another device wrote newer state, and it
- * wins over any edit here that never reached the server. */
+ * takes the server copy instead when that copy changed since its sync mark, or
+ * when it holds no mark at all (private mode, or a first sync that never
+ * completed): another device wrote newer state, and it wins over any edit here
+ * that never reached the server. */
 export function startKvSync(
   sessionId: string,
   store: ReaderStateStore,
@@ -151,7 +153,8 @@ export function startKvSync(
     unsubscribe?.()
     const remoteText = remote === null ? null : serialize(remote)
     const mark = loadSyncMark(sessionId)
-    const serverMoved = remoteText !== null && mark !== null && fingerprint(remoteText) !== mark
+    // With no mark (null) any server copy counts as moved.
+    const serverMoved = remoteText !== null && fingerprint(remoteText) !== mark
     if (remote && !mutatedSinceStart && (!hadLocal || serverMoved)) {
       store.actions.hydrate(remote)
     }
