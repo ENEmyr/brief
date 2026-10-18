@@ -48,9 +48,9 @@ const corpus: { name: string; mutate: (p: Payload) => void; valid: boolean }[] =
   {
     name: 'a stat tone outside the palette',
     mutate: (p) => {
-      // @ts-expect-error deliberately invalid tone
       p.sections[0]!.blocks[1] = {
         type: 'stat',
+        // @ts-expect-error deliberately invalid tone
         items: [{ label: 'a', value: '1', tone: 'purple' }],
       }
     },
@@ -87,9 +87,9 @@ const corpus: { name: string; mutate: (p: Payload) => void; valid: boolean }[] =
   {
     name: 'a scatter point as an object instead of a tuple',
     mutate: (p) => {
-      // @ts-expect-error points are [x, y] tuples
       p.sections[0]!.blocks[0] = {
         type: 'scatter',
+        // @ts-expect-error points are [x, y] tuples
         series: [{ label: 's', points: [{ x: 1, y: 2 }] }],
       }
     },
