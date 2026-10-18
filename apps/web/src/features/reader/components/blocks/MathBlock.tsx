@@ -41,6 +41,15 @@ function parseErrorLine(source: string, error: unknown): number | undefined {
 }
 
 /**
+ * With trust off and throwOnError on, KaTeX paints its errorColor only where it
+ * swaps a command that needs trust (\href, \url, \includegraphics, \html*)
+ * for its own name, malformed URLs included. \color takes letters only, so no
+ * payload can set this hyphenated value, and KaTeX escapes " in text, so the
+ * match can only hit a real style attribute.
+ */
+const UNTRUSTED_STYLE = /style="[^"]*color:untrusted-command/
+
+/**
  * KaTeX-rendered equation block. `katex` is imported lazily inside the
  * effect so its ~250KB never enters the first-load chunk (see BlockRenderer
  * for the next/dynamic wrapper that keeps this component itself lazy too).
@@ -62,7 +71,12 @@ export function MathBlock({ block, ...anchor }: { block: MathBlockType } & Block
             throwOnError: true,
             displayMode: true,
             output: 'html',
+            errorColor: 'untrusted-command',
           })
+          if (UNTRUSTED_STYLE.test(html)) {
+            setRendered(failed(block.latex))
+            return
+          }
           setRendered({
             status: 'ready',
             html: DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
