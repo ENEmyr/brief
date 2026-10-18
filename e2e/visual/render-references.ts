@@ -71,6 +71,7 @@ test.beforeAll(async () => {
   writeLandingBoards()
   writeBlocksBoard()
   writeReaderBoard()
+  writeMobileBoards()
   boards = await serveBoards()
 })
 
@@ -208,6 +209,25 @@ function writeReaderBoard(): void {
   html = patch(html, arrow, arrow.replaceAll('#C5F05A', '#A1AAB2'), 'C10 forward arrow')
   html = patch(html, 'color: #C5F05A">4 forward<', 'color: #A1AAB2">4 forward<', 'C10 forward label')
   fs.writeFileSync(path.join(GENERATED_DIR, 'B-Reader.dc.html'), html)
+}
+
+/**
+ * Writes B-Mobile.dc.html and B-Mobile-Light.dc.html into GENERATED_DIR. D6
+ * (STATUS.md: fixed UI labels are English, payload content keeps its
+ * language): the boards' Thai UI labels become the app's English ones
+ * (components.md:83 for the peek bar). Payload text, Thai on the boards,
+ * stays as it is.
+ */
+function writeMobileBoards(): void {
+  for (const board of ['B-Mobile', 'B-Mobile-Light']) {
+    let html = fs.readFileSync(path.join(BOARDS_DIR, `${board}.dc.html`), 'utf8')
+    html = patch(html, '>2 จาก 4 / ถัดไป D2<', '>2 of 4, next D2<', 'D6 peek count')
+    html = patch(html, '>เปิด dock<', '>Open dock<', 'D6 open dock')
+    html = patch(html, "['other', 'อื่นๆ พิมพ์เอง']", "['other', 'Other, type your own']", 'D6 other option')
+    html = patch(html, '>เหตุผล / บริบทเพิ่มเติม<', '>Reason / extra context<', 'D6 reason label')
+    html = patch(html, 'placeholder="ไม่บังคับ"', 'placeholder="optional"', 'D6 reason placeholder')
+    fs.writeFileSync(path.join(GENERATED_DIR, `${board}.dc.html`), html)
+  }
 }
 
 test('every row B board in full', async ({ browser }) => {
