@@ -3,6 +3,7 @@ import { act, fireEvent, render } from '@testing-library/react'
 import type { Payload } from '@brief/schema'
 import { Annotatable } from '@/features/annotations'
 import { buildGlossaryIndex, compileNeedles, findTermHits, GlossaryProvider, PrintTerms } from '@/features/glossary'
+import { SectionView } from '@/features/reader/components/SectionView'
 import { ReaderStateProvider } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
 
@@ -65,8 +66,8 @@ describe('glossary matching', () => {
     ].filter(([, hits]) => (hits as unknown[]).length > 0))
   })
 
-  it('also finds terms in table cells and stat labels', () => {
-    const index = buildGlossaryIndex({
+  it('keeps the first-use term button in a paragraph after a table cell with the same term', () => {
+    const sectionPayload: Pick<Payload, 'glossary' | 'sections' | 'decisions'> = {
       glossary,
       decisions: [],
       sections: [
@@ -75,17 +76,22 @@ describe('glossary matching', () => {
           no: 1,
           title: 'S',
           blocks: [
-            { type: 'table', head: ['Metric', 'p95'], rows: [['a', 'the token bucket']] },
-            { type: 'stat', items: [{ label: 'Retry-After sent', value: '3' }] },
+            { type: 'table', head: ['Name', 'Note'], rows: [['a', 'the token bucket']] },
+            { type: 'p', text: 'Every token bucket refills.' },
           ],
         },
       ],
-    })
-    expect([...index.leaves.entries()]).toEqual([
-      ['0|0|head.1', [{ start: 0, end: 3, n: 2 }]],
-      ['0|0|rows.0.1', [{ start: 4, end: 16, n: 1 }]],
-      ['0|1|items.0.label', [{ start: 0, end: 11, n: 3 }]],
-    ])
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: null }))))
+    const { container } = render(
+      <ReaderStateProvider sessionId={sessionId}>
+        <GlossaryProvider payload={sectionPayload} onSection={vi.fn()} onDecision={vi.fn()}>
+          <SectionView section={sectionPayload.sections[0]!} sid={0} />
+        </GlossaryProvider>
+      </ReaderStateProvider>,
+    )
+    expect(container.querySelector('table [data-term]')).toBeNull()
+    expect(container.querySelector('p [data-term="1"]')?.textContent).toBe('token bucket')
   })
 
   it('lists the sections and decisions that use each term', () => {
