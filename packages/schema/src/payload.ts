@@ -377,18 +377,3 @@ export function parseStoredPayload(data: unknown): StoredPayload {
   const loose = storedPayloadSchema.parse(data)
   return { ...loose, sections: loose.sections.map((s) => ({ ...s, blocks: s.blocks.map(readBlock) })) }
 }
-
-function writeBlock(block: StoredBlock): unknown {
-  if (block.type === 'unreadable') return block.raw
-  if (block.type === 'details') return { ...block, blocks: block.blocks.map(writeBlock) }
-  return block
-}
-
-/**
- * The inverse of `parseStoredPayload` for writing a payload back: every
- * `UnreadableBlock` becomes the JSON it was read from again, so a re-save keeps
- * a block this reader cannot draw exactly as stored.
- */
-export function serializeStoredPayload(payload: StoredPayload): string {
-  return JSON.stringify({ ...payload, sections: payload.sections.map((s) => ({ ...s, blocks: s.blocks.map(writeBlock) })) })
-}
