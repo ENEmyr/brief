@@ -122,6 +122,7 @@ export function BeforeAfter({
       controls={toggle}
     >
       <div
+        data-ba-body=""
         className={`font-mono text-[13px] leading-[22px] ${view === 'split' ? 'grid grid-cols-2 max-[880px]:grid-cols-1' : ''}`}
       >
         {view === 'split' ? (

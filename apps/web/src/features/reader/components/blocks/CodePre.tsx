@@ -176,7 +176,7 @@ export function CodePanel({
   return (
     <pre
       data-code-panel={pre ? undefined : ''}
-      className={`m-0 overflow-x-auto font-mono ${className} ${pre?.className ?? ''}`}
+      className={`m-0 overflow-x-auto font-mono [container-type:inline-size] ${className} ${pre?.className ?? ''}`}
       style={pre?.style ?? { color: 'var(--c-text)' }}
       tabIndex={pre?.tabIndex}
     >
@@ -310,7 +310,7 @@ function NoteMarker({
         aria-label={`Agent note ${note.range}`}
         onClick={() => onPin(!pinned)}
         onKeyDown={handleKeyDown}
-        className={`group/note relative ml-3 inline-flex min-h-6 shrink-0 select-none items-center self-center whitespace-nowrap rounded-[3px] border px-1.5 font-mono text-[11px] leading-6 text-info max-[880px]:-my-2.5 max-[880px]:min-h-11 max-[880px]:min-w-11 max-[880px]:justify-center print:hidden ${pinned ? 'border-info-line bg-info-soft' : 'border-transparent bg-transparent'} ${FOCUS_RING}`}
+        className={`group/note relative ml-3 inline-flex min-h-6 shrink-0 select-none items-center self-center whitespace-nowrap rounded-[3px] border px-1.5 font-mono text-[11px] leading-[22px] text-info max-[880px]:-my-2.5 max-[880px]:min-h-11 max-[880px]:min-w-11 max-[880px]:justify-center print:hidden ${pinned ? 'border-info-line bg-info-soft' : 'border-transparent bg-transparent'} ${FOCUS_RING}`}
       >
         <span aria-hidden="true">{pinned ? '\u25C6 note' : '\u25C6'}</span>
         {pinned ? null : (
@@ -336,7 +336,7 @@ function PinnedNote({ note }: { note: PlacedNote }) {
   return (
     <span
       data-code-note-pinned={note.range}
-      className="console-pop mt-1 mr-3 mb-1.5 ml-[38px] flex select-none flex-col gap-1 whitespace-normal rounded-[4px] border border-info-line bg-info-soft px-3 py-2.5 font-sans text-[13px] leading-5 text-text [contain:inline-size] print:hidden"
+      className="console-pop sticky left-[38px] mt-1 mb-1.5 ml-[38px] flex w-[calc(100cqw-50px)] select-none flex-col gap-1 whitespace-normal rounded-[4px] border border-info-line bg-info-soft px-3 py-2.5 font-sans text-[13px] leading-5 text-text [contain:inline-size] print:hidden"
     >
       <span className="font-mono text-[10px] leading-normal text-info">AGENT / {note.range}</span>
       {note.text}

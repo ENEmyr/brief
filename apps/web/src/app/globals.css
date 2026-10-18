@@ -635,15 +635,27 @@ body {
     line-height: 18px;
     color: var(--c-text);
   }
-  /* B-Print:53: a figure prints bare, its caption below it in 12/18 sub. */
-  figure:has(> [data-image-body]) {
+  /* B-Print:55: the header draws the filename alone, no kind chip. */
+  figure:has(> pre.shiki) > div:first-child > [data-kind-tag],
+  figure:has(> pre[data-code-panel]) > div:first-child > [data-kind-tag] {
+    display: none;
+  }
+  /* B-Print:53, 82: a figure and a list print bare, the caption below in 12/18
+     sub. A block with no caption prints no header row at all. */
+  figure:has(> [data-image-body]),
+  figure:has(> :is(ul, ol):not([data-print-notes])) {
     display: flex;
     flex-direction: column-reverse;
     border: 0;
     border-radius: 0;
     background: none;
   }
-  figure:has(> [data-image-body]) > div:first-child {
+  figure:has(> [data-image-body]) > div:first-child:has(> span:nth-child(2):empty),
+  figure:has(> :is(ul, ol):not([data-print-notes])) > div:first-child:has(> span:nth-child(2):empty) {
+    display: none;
+  }
+  figure:has(> [data-image-body]) > div:first-child,
+  figure:has(> :is(ul, ol):not([data-print-notes])) > div:first-child {
     margin: 6px 0 18px;
     padding: 0;
     border: 0;
@@ -652,11 +664,36 @@ body {
     line-height: 18px;
     color: var(--c-sub);
   }
-  figure:has(> [data-image-body]) [data-kind-tag] {
+  figure:has(> [data-image-body]) [data-kind-tag],
+  figure:has(> :is(ul, ol):not([data-print-notes])) [data-kind-tag] {
     display: none;
   }
   figure:has(> [data-image-body]) > [data-image-body] {
     padding: 0;
+  }
+  figure:has(> ul) > ul {
+    padding: 0 0 0 22px;
+    font-size: 14px;
+    line-height: 22px;
+  }
+  figure:has(> ol:not([data-print-notes])) > ol:not([data-print-notes]) {
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 14px;
+    line-height: 22px;
+  }
+  /* A before/after block keeps one rule round both panes, as a code block does. */
+  figure:has(> [data-ba-body]) {
+    border: 1px solid var(--c-text);
+    border-radius: 3px;
+    background: none;
+  }
+  figure:has(> [data-ba-body]) > div:first-child {
+    border-bottom: 1px solid var(--c-text);
+    background: none;
+  }
+  figure:has(> [data-ba-body]) > div:first-child button {
+    display: none;
   }
   pre.shiki,
   pre[data-code-panel] {
@@ -666,6 +703,32 @@ body {
     line-height: 20px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+  }
+  /* B-Print:55-57: the listing prints 12.5/20. */
+  figure:has(> pre.shiki) > pre,
+  figure:has(> pre[data-code-panel]) > pre {
+    font-size: 12.5px;
+  }
+  /* B-Print:58-61: the note letters sit in one column after the longest line.
+     Table cells give that column; flex rows would put each letter at its own
+     line end. */
+  :is(figure:has(> pre.shiki), figure:has(> pre[data-code-panel])) > pre > code {
+    display: table;
+    min-width: 0;
+  }
+  :is(figure:has(> pre.shiki), figure:has(> pre[data-code-panel])) > pre > code > span {
+    display: table-row;
+  }
+  :is(figure:has(> pre.shiki), figure:has(> pre[data-code-panel])) > pre > code > span > span {
+    display: table-cell;
+  }
+  :is(figure:has(> pre.shiki), figure:has(> pre[data-code-panel])) > pre > code > span > span:first-child,
+  [data-print-letter] {
+    white-space: nowrap;
+  }
+  [data-print-letter] {
+    padding-left: 12px;
+    vertical-align: top;
   }
   [data-tone='mark'] {
     print-color-adjust: exact;
