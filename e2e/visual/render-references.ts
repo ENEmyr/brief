@@ -212,6 +212,32 @@ function writeReaderBoard(): void {
   // The board's ask mark quotes text no section has (B-Reader:89); the seed
   // anchors it to section 01 text, so a highlight points at real payload text.
   html = patch(html, '</span>burst allowance สำหรับ webhook</a>', '</span>ด่านแรกที่ปกป้อง API</a>', 'seed ask mark text')
+  // D7 (features.md:169): a chip reads the section number plus its title. The
+  // board's short chip words ('burst', 'bucket', 'cost') are no section's title.
+  html = patch(
+    html,
+    "const secs = { s1: ['01', 'burst'], s2: ['02', 'bucket'], s3: ['03', 'cost'], s4: ['04', 'tests'] };",
+    "const secs = { s1: ['01', 'ปัญหาของ burst traffic'], s2: ['02', 'Token Bucket ทำงานอย่างไร'], s3: ['03', 'ต้นทุนเมื่อ n โต'], s4: ['04', 'ความครอบคลุมของการทดสอบ'] };",
+    'D7 chip titles',
+  )
+  // R-V6: the dock keeps its chips on one row and cuts a long title with an ellipsis.
+  html = patch(
+    html,
+    'style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: -2px"',
+    'style="display: flex; gap: 4px; align-items: center; margin-top: -2px"',
+    'R-V6 chip row',
+  )
+  html = patch(
+    html,
+    /(class="br-row" style="min-height: 26px; display: flex;)([^"]*">)(<span[^>]*>§\{\{r\.no\}\}<\/span>)\{\{r\.title\}\}<\/a>/,
+    '$1 min-width: 0;$2$3<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.title}}</span></a>',
+    'R-V6 chip ellipsis',
+  )
+  // D6: the dock's fixed UI labels are English; payload text stays as written.
+  html = patch(html, "label: 'อื่นๆ พิมพ์เอง' }", "label: 'Other, type your own' }", 'D6 other option')
+  html = patch(html, 'placeholder="พิมพ์คำตอบของคุณ"', 'placeholder="Your answer"', 'D6 other answer')
+  html = patch(html, /placeholder="เหตุผล \/ บริบทเพิ่มเติม \(ไม่บังคับ\)"/g, 'placeholder="Reason / extra context (optional)"', 'D6 reason')
+  html = patch(html, '>รวมคำตอบ เหตุผล และ note 2 รายการ<', '>Includes answers, reasons and 0 notes<', 'D6 includes line (seed has no notes)')
   fs.writeFileSync(path.join(GENERATED_DIR, 'B-Reader.dc.html'), html)
 }
 
