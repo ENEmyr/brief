@@ -176,7 +176,7 @@ Response, `200` (both modes):
 
 For a plain save, `encrypted` reflects the session's existing state. Both modes invalidate the KV payload cache. An encrypt save additionally replaces the stored payload with the ciphertext, blanks the stored title, records `encParams`, and purges any plaintext reader state for the session.
 
-Known limit: an encrypted archive made before commit `ddbf6a3` (2026-10-15) holds a re-serialized copy of the payload, so it lacks any field the reader's schema did not declare at that time, such as a field from a newer agent. Nothing can rewrite such an archive without its password. Archives made after that commit encrypt the stored payload byte for byte.
+Known limit: an encrypted archive made by a reader older than v1.4.0 holds a re-serialized copy of the payload. It lacks any field that reader's schema did not declare, for example a field from a newer agent. Nothing can rewrite such an archive without its password. Archives made from v1.4.0 on encrypt the stored payload as the server returned it. The string is unchanged unless the brief has image blocks, where only the image ids are swapped and every other field is kept.
 
 Errors:
 
