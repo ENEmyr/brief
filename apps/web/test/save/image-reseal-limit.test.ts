@@ -44,7 +44,7 @@ describe('resealImages under the production upload limiter', () => {
     const ids = Array.from({ length: 12 }, (_, i) => `img_plain${String(i + 1).padStart(10, '0')}`)
     const { key } = await newSessionKey('password123')
 
-    const result = await resealImages('sess1', ids, key, api.wait)
+    const result = await resealImages('sess1', ids, key, { wait: api.wait })
 
     expect(result).toEqual({
       ok: true,

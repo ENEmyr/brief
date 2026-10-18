@@ -46,13 +46,29 @@ export type ResealResult = { ok: true; ids: Map<string, string> } | { ok: false;
  * and the save deletes the plaintext copies. An image the API no longer serves, or one that is
  * already ciphertext, keeps its id. A 429 that names its Retry-After (the upload limiter allows
  * 10 per 60 s per IP) waits that long and resumes at the same image, so a brief with more images
- * than the limit still finishes. Any other failure stops the flow before anything is saved.
+ * than the limit still finishes. Any other failure stops the flow before anything is saved, and
+ * an aborted signal stops it before the next request or upload, including during a limiter wait.
  */
 export async function resealImages(
   sessionId: string,
   imageIds: string[],
   key: CryptoKey,
-  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  {
+    signal,
+    wait = (ms) =>
+      new Promise((resolve) => {
+        const timer = setTimeout(resolve, ms)
+        signal?.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer)
+            resolve()
+          },
+          { once: true },
+        )
+      }),
+    onWait,
+  }: { signal?: AbortSignal; wait?: (ms: number) => Promise<void>; onWait?: (waiting: boolean) => void } = {},
 ): Promise<ResealResult> {
   const failed = (status: number): ResealResult => ({
     ok: false,
@@ -61,8 +77,9 @@ export async function resealImages(
   })
   const ids = new Map<string, string>()
   for (const imageId of imageIds) {
+    if (signal?.aborted) return failed(0)
     try {
-      const plain = await fetch(`${API_URL}/api/image/${encodeURIComponent(imageId)}`)
+      const plain = await fetch(`${API_URL}/api/image/${encodeURIComponent(imageId)}`, { signal })
       if (plain.status === 404) continue
       if (!plain.ok) return failed(plain.status)
       const blob = await plain.blob()
@@ -73,12 +90,17 @@ export async function resealImages(
           method: 'POST',
           headers: { 'Content-Type': 'application/octet-stream' },
           body,
+          signal,
         })
+      if (signal?.aborted) return failed(0)
       let uploaded = await upload()
       for (let waits = 0; uploaded.status === 429 && waits < MAX_LIMIT_WAITS; waits++) {
         const seconds = Number(uploaded.headers.get('retry-after'))
         if (!(seconds > 0)) break
+        onWait?.(true)
         await wait(Math.min(seconds, MAX_RETRY_AFTER_SECONDS) * 1000)
+        onWait?.(false)
+        if (signal?.aborted) return failed(0)
         uploaded = await upload()
       }
       if (!uploaded.ok) return failed(uploaded.status)

@@ -67,11 +67,13 @@ export function SaveModal({
   const confirmRef = useRef<HTMLInputElement>(null)
   const [focusPassword, setFocusPassword] = useState(false)
   const cancelledRef = useRef(false)
+  const resealAbortRef = useRef<AbortController | null>(null)
   const errorToastRef = useRef<number | null>(null)
   const [mode, setMode] = useState<SaveMode>('plain')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
+  const [waitingForLimit, setWaitingForLimit] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const fieldId = useId()
 
@@ -88,6 +90,7 @@ export function SaveModal({
     cancelledRef.current = false
     return () => {
       cancelledRef.current = true
+      resealAbortRef.current?.abort()
       dismissErrorToast()
     }
   }, [dismissErrorToast])
@@ -100,6 +103,7 @@ export function SaveModal({
 
   const dismiss = useCallback(() => {
     cancelledRef.current = true
+    resealAbortRef.current?.abort()
     onClose()
   }, [onClose])
 
@@ -181,7 +185,11 @@ export function SaveModal({
       if (cancelledRef.current) return
       // Images first, with the payload's own key: the save that follows deletes
       // the plaintext copies, so the payload must already name the encrypted ones.
-      const resealed = await resealImages(sessionId, imageIdsIn(storedJson), sessionKey.key)
+      resealAbortRef.current = new AbortController()
+      const resealed = await resealImages(sessionId, imageIdsIn(storedJson), sessionKey.key, {
+        signal: resealAbortRef.current.signal,
+        onWait: setWaitingForLimit,
+      })
       if (!resealed.ok) {
         if (!cancelledRef.current) fail(resealed.error, !NOT_RETRYABLE.has(resealed.status))
         return
@@ -195,8 +203,9 @@ export function SaveModal({
       if (!cancelledRef.current) fail(ARCHIVE_FAILED, true)
       return
     }
-    // Cancelled before the PUT: at most some encrypted image copies were
-    // uploaded, and the brief itself is left unarchived.
+    // Cancelled before the PUT: the reseal stopped at its next request, the
+    // copies it already uploaded stay until the session expires (no API route
+    // removes one), and the brief itself is left unarchived.
     if (cancelledRef.current) return
     const result = await saveSession(sessionId, body)
     settleSave(result, 'encrypt')
@@ -301,7 +310,7 @@ export function SaveModal({
             Cancel
           </button>
           <button type="button" onClick={handleSubmit} disabled={busy} className={`${PRIMARY_BUTTON} px-4`}>
-            {busy && mode === 'encrypt' ? 'Encrypting…' : 'Archive'}
+            {busy && mode === 'encrypt' ? (waitingForLimit ? 'Waiting for the upload limit' : 'Encrypting…') : 'Archive'}
           </button>
         </DialogActions>
       </div>
