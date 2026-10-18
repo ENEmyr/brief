@@ -662,9 +662,9 @@ test.describe('text blocks against the B-Blocks panels', () => {
       // the open details alone, and the formula box (Times italic on the
       // board) is masked on both sides (crops.json blocks-details).
       const formula = target.locator('[data-math]')
-      // Board tint inconsistency (B-Blocks:146,152): line 1 changes
+      // R-V5 (board tint inconsistency, B-Blocks:146,152): line 1 changes
       // (handle(req) to handle(req, env)) but the board tints it on neither
-      // side, and the app tints it on both, so line 1 is masked on both sides
+      // side; the app decides and tints it on both, so line 1 is masked on both sides
       // (crops.json blocks-ba). The same entry's css keeps the board's
       // indentation, which its flex rows collapse.
       const line1 = target.locator(

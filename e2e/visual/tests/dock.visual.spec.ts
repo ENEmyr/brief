@@ -82,13 +82,14 @@ const C: Record<Theme, Palette> = {
 /** Each B-Reader decision has a context-chip row (26 plus the 8 gap) that waits on decision.refs (P1). */
 const CHIPS = 34
 /**
- * B-Reader draws the dock 1297 high in flow. The app caps it at the viewport
- * less 64 (sticky top) and 16 (page padding) so its list scrolls, which puts
- * the footer at the dock's bottom edge: 900 - 80 high at 1440x900.
+ * B-Reader draws the dock 1297 high in flow. R-V5: the app decides, and caps
+ * it at the viewport less 64 (sticky top) and 16 (page padding) so its list
+ * scrolls, which puts the footer at the dock's bottom edge: 900 - 80 high at
+ * 1440x900.
  */
 const DOCK_H = 900 - 80
 const BOARD_DOCK_H = 1297
-/** Reset (owner ruling D5, no board) under the includes line: 36 plus the 8 gap. */
+/** Reset (owner ruling D5, no board; R-V5) under the includes line: 36 plus the 8 gap. */
 const RESET = 44
 
 interface Rel {
@@ -507,7 +508,7 @@ test.describe('phone sheet', () => {
   }) => {
     const sheet = await openSheet(page)
     await expect(sheet.getByText('DECISIONS / 2/4', { exact: true })).toBeVisible()
-    // Touch targets under 880 are 44: the board's 36 chips grow by 8.
+    // R-V5: touch targets under 880 are 44, so the board's 36 chips grow by 8.
     const chips = ['D1', 'D2', 'D3', 'D4'].map((id) =>
       sheet.getByRole('button', { name: `Question ${id}` }),
     )
@@ -533,8 +534,8 @@ test.describe('phone sheet', () => {
       'font-weight': '600',
     })
 
-    // The context link above the options (the fixture sets D2's refs) is a 44
-    // touch target under 880, 6 taller than B-Mobile's 38.
+    // R-V5: the context link above the options (the fixture sets D2's refs) is
+    // a 44 touch target under 880, 6 taller than B-Mobile's 38.
     const options = sheet.getByRole('group', { name: 'Question D2' }).getByRole('radio')
     await expect(options).toHaveCount(4)
     for (let i = 0; i < 4; i++) {

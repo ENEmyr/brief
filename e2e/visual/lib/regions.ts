@@ -40,9 +40,9 @@ export async function sectionChromeClip(section: Locator): Promise<Clip> {
 }
 
 /**
- * C8 (vt-b triage): the app dock is sticky and capped at the viewport
- * (DockSlot.tsx:73, `max-h-[calc(100dvh-82px)]`), with a scrolling list; the
- * board dock is its natural 1297 px. Both sides compare the top rows the app
+ * C8 (vt-b triage), R-V5: the app decides, so the dock is sticky and capped
+ * at the viewport (DockSlot.tsx:73, `max-h-[calc(100dvh-82px)]`), with a
+ * scrolling list; the board dock is its natural 1297 px. Both sides compare the top rows the app
  * draws at the 900 px viewport: 820 px, the app's dock box at scroll 0.
  */
 export const DOCK_VISIBLE_HEIGHT = 820
