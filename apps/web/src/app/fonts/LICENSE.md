@@ -4,7 +4,10 @@ The files in this folder are unmodified subsets served by Google Fonts and
 downloaded by next/font/google at 9f256b6:
 
 - Geist and Geist Mono, by Vercel (https://github.com/vercel/geist-font).
+  - Geist: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
+  - Geist Mono: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font.git)
 - Noto Sans Thai, by the Noto Project Authors (https://github.com/notofonts/thai).
+  - Copyright 2022 The Noto Project Authors (https://github.com/notofonts/thai)
 
 All three are licensed under the SIL Open Font License, Version 1.1, below.
 
