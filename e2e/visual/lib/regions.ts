@@ -1,4 +1,4 @@
-import type { Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 /**
  * Selectors for the B-Reader regions, shared by the reference renderer (run
@@ -17,6 +17,40 @@ export const READER_REGIONS = {
 } as const
 
 export const READER_WIDTHS = [1440, 1100, 880] as const
+
+export interface Region {
+  selector: string
+  hasText?: string
+  unionOfFirst?: number
+}
+export const LANDING_REGIONS: Record<string, Region> = {
+  header: { selector: 'header' },
+  hero: { selector: 'section:has(h1)' },
+  'hero-copy': { selector: 'section:has(h1) > div:first-child' },
+  how: { selector: 'section#how' },
+  usage: { selector: 'section#usage' },
+  'usage-tabs': { selector: 'div:has(> [role="tablist"])' },
+  preview: { selector: 'section#preview' },
+  'preview-body': { selector: '[aria-label="Preview of a brief"] > div:nth-child(3)' },
+  blocks: { selector: 'section#blocks' },
+  'blocks-rows': { selector: '#blocks tr', unionOfFirst: 5 },
+  features: { selector: 'section#features' },
+  closing: { selector: 'section', hasText: 'Give your agent a better way to ask.' },
+  footer: { selector: 'footer' },
+}
+export const LANDING_WIDTHS = [1440, 390] as const
+
+export async function clipOfRegion(page: Page, region: Region): Promise<Clip> {
+  const matches = page.locator(region.selector, { hasText: region.hasText })
+  if (region.unionOfFirst === undefined) return clipOf(matches.first())
+  const clips = []
+  for (let i = 0; i < region.unionOfFirst; i++) clips.push(await clipOf(matches.nth(i)))
+  const x = Math.min(...clips.map((c) => c.x))
+  const y = Math.min(...clips.map((c) => c.y))
+  const right = Math.max(...clips.map((c) => c.x + c.width))
+  const bottom = Math.max(...clips.map((c) => c.y + c.height))
+  return { x, y, width: right - x, height: bottom - y }
+}
 export const THEMES = ['dark', 'light'] as const
 export type Theme = (typeof THEMES)[number]
 
@@ -52,6 +86,22 @@ export async function clipOf(locator: Locator): Promise<Clip> {
   const x = Math.round(box.left)
   const y = Math.round(box.top)
   return { x, y, width: Math.round(box.right) - x, height: Math.round(box.bottom) - y }
+}
+
+/**
+ * Moves the element (or its table) down by less than a pixel so its top lands
+ * on a whole pixel. The renderer and the specs both call it, so the board and
+ * the app are cut at the same sub-pixel phase; without it the print answers
+ * crop fails.
+ */
+export async function snapToPixelRow(locator: Locator): Promise<void> {
+  await locator.evaluate((el: HTMLElement) => {
+    window.scrollTo({ left: 0, top: 0, behavior: 'instant' })
+    const top = el.getBoundingClientRect().top
+    const target = el.closest('table') ?? el
+    target.style.position = 'relative'
+    target.style.top = `${Math.ceil(top) - top}px`
+  })
 }
 
 /**

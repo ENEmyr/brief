@@ -453,12 +453,8 @@ body {
 }
 
 /*
- * Print / PDF. The reader is an interactive dark-capable app; paper is none of
- * those things, so this is where the document stops being an app and becomes a
- * document. The dark theme is already withheld above (see `@media not print`);
- * the rest of the chrome hides itself with Tailwind's `print:hidden`. What is
- * left here is everything a utility class cannot express: inline styles that
- * need overriding, and page-fragmentation rules.
+ * These rules are unlayered, so they win over Tailwind's utilities without
+ * !important.
  */
 @media print {
   @page {
@@ -475,38 +471,123 @@ body {
     box-shadow: none !important;
   }
 
-  /* The floating selection toolbar styles itself inline (`display: flex`),
-     so `print:hidden` -- a class -- would lose to it; that's why this needs
-     the !important. The diagram zoom bar (`data-zbar`) does not actually
-     need it -- it gets `display: flex` from a class (ViewerOverlay.tsx),
-     which this rule already beats on source order -- but it is harmless to
-     share the rule with the toolbar rather than split it for one selector's
-     sake. */
   [data-seltoolbar],
   [data-zbar] {
     display: none !important;
   }
 
-  /* The outline does not print; a block layout puts the document and then
-     the decisions one under the other at full page width. Paper is narrower
-     than 880px, so the dock's bottom-sheet rules would otherwise apply: undo
-     them so the decisions print in flow. */
+  .min-h-screen {
+    min-height: 0;
+    background: none;
+  }
   [data-reader-grid] {
-    display: block !important;
+    display: block;
+    padding: 0;
   }
-  [data-reader-grid] > * {
-    margin-bottom: 16px;
+  [data-reader-grid] main {
+    gap: 28px;
   }
+  [data-reader-grid] main > :has(> h1),
   [data-dock] {
-    position: static !important;
-    border: 1px solid var(--c-line) !important;
-    border-radius: 6px !important;
+    display: none;
   }
-  [data-dock-body] {
-    display: block !important;
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
-  [data-dock-chrome] {
-    display: none !important;
+  p,
+  li {
+    text-wrap: pretty;
+  }
+
+  section[data-section] {
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+  section[data-section] > div:first-child {
+    align-items: baseline;
+    gap: 10px;
+    margin: 0 0 10px;
+    padding: 14px 0 0;
+    border-top: 2px solid var(--c-text);
+    border-bottom: 0;
+  }
+  section[data-section] > div:first-child > span {
+    font-size: 14px;
+    line-height: 28px;
+  }
+  section[data-section] h2 {
+    font-size: 21px;
+    line-height: 28px;
+  }
+  section[data-section] > div:last-child {
+    padding: 0;
+  }
+
+  mark {
+    padding: 0;
+    border-radius: 0;
+    background: none !important;
+    color: inherit !important;
+    text-decoration: underline 2px;
+    text-underline-offset: 3px;
+  }
+  mark sup {
+    display: none;
+  }
+  [data-print-note] {
+    display: block;
+    margin-top: 8px;
+    padding-left: 12px;
+    border-left: 2px solid var(--c-text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 22px;
+    white-space: normal;
+  }
+
+  :root {
+    --shiki-token-keyword: var(--c-text);
+    --shiki-token-constant: var(--c-text);
+    --shiki-token-comment: var(--c-sub);
+    --shiki-token-inserted: var(--c-text);
+    --shiki-token-deleted: var(--c-text);
+    --shiki-token-changed: var(--c-text);
+  }
+  figure:has(> pre.shiki),
+  figure:has(> pre[data-code-panel]) {
+    border: 1px solid var(--c-text);
+    border-radius: 3px;
+    background: none;
+  }
+  figure:has(> pre.shiki) > div:first-child,
+  figure:has(> pre[data-code-panel]) > div:first-child {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--c-text);
+    background: none;
+  }
+  figure:has(> pre.shiki) > div:first-child > *,
+  figure:has(> pre[data-code-panel]) > div:first-child > * {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--c-text);
+  }
+  pre.shiki,
+  pre[data-code-panel] {
+    overflow: visible;
+    padding: 10px;
+    background: none !important;
+    line-height: 20px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  [data-tone='mark'] {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   /* Reset any pan/zoom the reader left on a diagram: the transform is inline,
@@ -564,41 +645,27 @@ body {
     widows: 2;
   }
 
-  /* DataTable's screen layout puts a wide `table` block in a horizontally
-     scrolling wrapper (`overflow-x-auto` in DataTable.tsx) and keeps its
-     header and first-column cells on one line (`whitespace-nowrap`), so the
-     widest cell -- often a long Thai sentence -- decides how wide the whole
-     table gets. Paper has no scrollbar: with `table-layout: auto` that same
-     wide cell would still push the table past the page edge, and the
-     rightmost columns would not just look cropped, they would be genuinely
-     missing from the PDF. `table-layout: fixed` locks the table to its
-     container's width instead of its content's, and letting cells wrap
-     (overriding `whitespace-nowrap`) keeps the overflowing text inside its
-     own cell rather than off the page. The smaller font buys back some of
-     the room the wrapping costs. CmpTable (decisions' compare tables) picks
-     up the same rule; it was never at risk of clipping, so this only tidies
-     it up to match. */
-  table {
+  [data-reader-grid] table {
     table-layout: fixed;
   }
-
   th,
   td {
-    font-size: 10.5px !important;
-    white-space: normal !important;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--c-line2);
+    background: none;
+    font-size: 14px;
+    line-height: 20px;
+    white-space: normal;
     overflow-wrap: anywhere;
   }
+  th {
+    color: var(--c-text);
+  }
+  thead th {
+    border-bottom-color: var(--c-text);
+  }
 
-  /* Backgrounds are dropped by default when printing, which is fine for the
-     near-white card surfaces but not for these: a highlight without its
-     background is not a highlight, and code panels (`.shiki`, plus the
-     `[data-code-panel]` spots outside shiki: CodePre's fallback `<pre>` and
-     the CopyFallbackModal textarea) keep their tints: marked and diff lines,
-     and the textarea's `--c-code-bg`. The
-     prompt review sheet never prints (B-Print). */
-  .shiki,
-  mark,
-  [data-code-panel] {
+  mark {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }

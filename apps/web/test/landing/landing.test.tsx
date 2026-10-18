@@ -24,11 +24,20 @@ describe('landing page', () => {
 
   it('renders every band', () => {
     render(<LandingPage />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/decide inside it/i)
-    expect(screen.getByRole('heading', { name: /the round trip/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /what it renders/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /wire it up/i })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /decision card with two options/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Your agent writes the document. You decide inside it.',
+    )
+    for (const name of [
+      'How it works',
+      'Wire it up',
+      'What you get back',
+      'Blocks',
+      'Small things that add up',
+      'Give your agent a better way to ask.',
+    ]) {
+      expect(screen.getByRole('heading', { level: 2, name })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('img', { name: 'Preview of a brief' })).toBeInTheDocument()
   })
 
   it('links to the repository', () => {
@@ -49,6 +58,13 @@ describe('landing page', () => {
     }
   })
 
+  it('names no block type the schema does not accept', () => {
+    const accepted = new Set([...schemaBlockTypes(), 'decision'])
+    for (const type of BLOCK_GROUPS.flatMap((group) => group.blocks)) {
+      expect(accepted).toContain(type)
+    }
+  })
+
   it('copies the install command', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
@@ -56,12 +72,11 @@ describe('landing page', () => {
     document.execCommand = vi.fn().mockReturnValue(false)
 
     render(<LandingPage />)
-    fireEvent.click(screen.getByRole('button', { name: /npx skills add ENEmyr\/brief/i }))
+    const [hero] = screen.getAllByRole('button', { name: 'Copy install command' })
+    fireEvent.click(hero!)
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('npx skills add ENEmyr/brief'))
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /copied/i })).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toHaveTextContent('copied'))
     vi.unstubAllGlobals()
   })
 
@@ -77,5 +92,30 @@ describe('landing page', () => {
 
     expect(httpTab).toHaveAttribute('aria-selected', 'true')
     expect(within(screen.getByRole('tabpanel')).getByText(/curl -X POST/i)).toBeInTheDocument()
+  })
+
+  it('uses 14-character session ids in every example link', () => {
+    render(<LandingPage />)
+    const ids = () => {
+      const found: string[] = []
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        for (const m of node.textContent!.matchAll(/\/s\/([0-9A-Za-z]+)/g)) found.push(m[1]!)
+      }
+      return found
+    }
+    const skillIds = ids()
+    fireEvent.click(screen.getByRole('tab', { name: /straight http/i }))
+    const all = [...skillIds, ...ids()]
+    expect(all.length).toBeGreaterThanOrEqual(6)
+    for (const id of all) expect(id).toBe('k2p9x4Qm7Zr1Ta')
+    expect(document.body.textContent).toContain('/api/session/k2p9x4Qm7Zr1Ta/raw')
+  })
+
+  it('previews the three view tabs the reader has', () => {
+    render(<LandingPage />)
+    const preview = screen.getByRole('img', { name: 'Preview of a brief' })
+    const tabs = ['Document', 'Diagrams', 'Decisions', 'Raw'].filter((tab) => within(preview).queryByText(tab))
+    expect(tabs).toEqual(['Document', 'Diagrams', 'Raw'])
   })
 })

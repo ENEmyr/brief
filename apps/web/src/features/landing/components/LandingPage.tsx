@@ -1,19 +1,25 @@
-import { BlockShowcase } from './BlockShowcase'
+import { BlockTable } from './BlockTable'
+import { ClosingBand } from './ClosingBand'
 import { Hero } from './Hero'
 import { HowItWorks } from './HowItWorks'
+import { ReaderPreview } from './ReaderPreview'
 import { SiteFooter } from './SiteFooter'
 import { SiteHeader } from './SiteHeader'
+import { SmallThings } from './SmallThings'
 import { UsageExample } from './UsageExample'
 
 export function LandingPage() {
   return (
-    <div className="min-h-screen bg-page">
+    <div className="min-h-screen bg-page leading-[normal] text-text">
       <SiteHeader />
       <main>
         <Hero />
         <HowItWorks />
-        <BlockShowcase />
         <UsageExample />
+        <ReaderPreview />
+        <BlockTable />
+        <SmallThings />
+        <ClosingBand />
       </main>
       <SiteFooter />
     </div>

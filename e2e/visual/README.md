@@ -11,6 +11,7 @@ normal gate stays green while the visual specs are red.
 | `bun run e2e:visual:refs` | render `e2e/visual/reference/` from the boards |
 | `bun run e2e:visual` | build `apps/web`, then compare the app with the references |
 | `SKIP_BUILD=1 bun run e2e:visual -- <filter>` | reuse `apps/web/out`, run matching specs only |
+| `bun e2e/visual/render-favicon.ts` | write `apps/web/public/favicon.ico` from `apps/web/src/app/icon.svg` |
 
 Use Node 22 (`mise exec node@22.23.2 -- ...`). The renderer needs network on
 first use for Google Fonts and refuses to write references if a font is missing.
@@ -82,6 +83,8 @@ References change only by re-rendering the boards.
 | `region-dark-{topbar,outline,s1,s2,s3,s4,dock}.png` | B-Reader regions at 1440 (selectors in `lib/regions.ts`) |
 | `mobile-{dark,light}-{reading,sheet}.png` | the two phone screens, 388x768 (see `PHONE_SCREEN` in `lib/regions.ts`) |
 | `landing-{dark,light}.png`, `print.png` | B-Landing (light via `tools/lightify.py`), B-Print |
+| `landing-{dark,light}-{1440,390}-<region>.png` | B-Landing regions (`LANDING_REGIONS` in `lib/regions.ts`) |
+| `favicon-{16,32,48}.png` | `apps/web/src/app/icon.svg` at each favicon size |
 | `crop-<name>.png` | element crops listed in `crops.json` |
 
 The B-Mobile frame is 390x844 with a 1px border and radius 36. The app screen is
@@ -112,12 +115,40 @@ Append an entry to `crops.json` and run `bun run e2e:visual:refs`:
   the rest. B-Overlays clips the Archive dialog at 446 (a 470 frame, the dialog
   24 down), and below that the crop would hold the figcaption. The spec cuts the
   app element to the same height.
+- `snap`: moves the element down by less than a pixel first, so its top lands on
+  a whole pixel (`snapToPixelRow`). Set it for elements in a flow document, where
+  boxes start at whatever fraction the content above adds up to and text lands a
+  pixel row apart from an otherwise identical render. The spec snaps the app
+  element the same way before it cuts it.
 - Output is `reference/crop-<name>.png`, cut out of the full board render at the
   element's box. To compare the app with it, add a spec that cuts the matching
   app element the same way: `toHaveScreenshot('crop-<name>.png', { fullPage: true,
   clip: await clipOf(locator) })`. Assert `toBeVisible()` on the locator first, as
   the region specs do, so a missing element fails with its selector instead of a
   timeout inside `clipOf`.
+
+## Landing
+
+`tests/landing.visual.spec.ts` compares the landing page with B-Landing and its
+lightified copy region by region at 1440 and 390 (the board's own CSS switches at
+879). Four differences are known, and each has a narrower cut that leaves it out:
+the 14-character example ids (findings.md F3) wrap the hero's prompt panel one
+line longer (`hero-copy`); the board's runtime drops whitespace-only text nodes,
+so its skill snippet loses the blank line before "# Pull the schema again"
+(`usage-tabs`); the preview shows three view tabs (owner ruling D2,
+`preview-body`); the blocks table has no "Agent work" row until those block
+types exist (`blocks-rows`).
+
+## Print
+
+`tests/print.visual.spec.ts` opens `fixtures/print-sample.payload.json` (B-Print's
+title, sections and decisions D1 to D4) with `fixtures/print-state.seed.json` (a
+highlight with a note, an Other answer, an open question) at 650 px, B-Print's
+text width, emulates print media and fires `beforeprint`, which a real print
+and `page.pdf()` fire themselves. It compares the `crop-print-*` crops, checks the
+print rules with computed styles, and saves `print.pdf` from `page.pdf()` in the
+test's output folder. The printed line's host is the test server's, so that line
+is checked as text, not as pixels.
 
 ## Geometry
 

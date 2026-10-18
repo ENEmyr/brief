@@ -1,31 +1,39 @@
 export const REPO_URL = 'https://github.com/ENEmyr/brief'
 export const DOCS_URL = 'https://github.com/ENEmyr/brief/tree/main/docs'
 export const SKILL_DOCS_URL = 'https://github.com/ENEmyr/brief/blob/main/skills/brief/BLOCKS.md'
-export const READER_URL = 'https://brief.algoryth.me'
-export const API_BASE_URL = 'https://brief-api.algoryth.me'
 
 export const INSTALL_COMMAND = 'npx skills add ENEmyr/brief'
-export const UPDATE_COMMAND = 'npx skills update brief'
+
+export const EXAMPLE_ID = 'k2p9x4Qm7Zr1Ta'
+export const EXAMPLE_LINK = `brief.algoryth.me/s/${EXAMPLE_ID}`
+
+export const NAV_LINKS = [
+  { label: 'How it works', href: '#how' },
+  { label: 'Wire it up', href: '#usage' },
+  { label: 'Preview', href: '#preview' },
+  { label: 'Blocks', href: '#blocks' },
+  { label: 'Docs', href: DOCS_URL },
+]
 
 export type Step = {
-  no: string
+  label: string
   title: string
   body: string
 }
 
 export const STEPS: Step[] = [
   {
-    no: '1',
+    label: '01 / agent',
     title: 'The agent posts a payload',
     body: 'One JSON body: a title, sections of blocks, and the questions it needs answered. The skill teaches the agent the schema, so the agent writes the payload instead of hand-rolling an HTML report.',
   },
   {
-    no: '2',
+    label: '02 / you',
     title: 'You read the link and answer',
     body: 'The reply is a link. Open it on any device to read the sections, expand a diagram, highlight a line and leave a note, and pick an answer on each decision card.',
   },
   {
-    no: '3',
+    label: '03 / agent',
     title: 'The agent reads you back',
     body: 'Your answers and annotations come back as a ready-to-paste prompt, and the whole document stays readable as markdown at /raw, so the agent never regenerates what it already wrote.',
   },
@@ -39,9 +47,7 @@ export type BlockGroup = {
 
 /**
  * Grouped exactly as skills/brief/BLOCKS.md groups them, so the page and the
- * skill cannot drift apart in meaning. A test asserts every block type in
- * payloadSchema appears here, which is what fails when a new block ships
- * without the landing page catching up.
+ * skill cannot drift apart in meaning.
  */
 export const BLOCK_GROUPS: BlockGroup[] = [
   {
@@ -76,32 +82,6 @@ export const BLOCK_GROUPS: BlockGroup[] = [
   },
 ]
 
-export const PAYLOAD_SNIPPET = `{
-  "payload": {
-    "meta": { "title": "Rate limiting" },
-    "sections": [{
-      "id": "traffic",
-      "no": 1,
-      "title": "Traffic",
-      "blocks": [
-        { "type": "p", "text": "Sessions doubled." },
-        { "type": "note", "text": "KV counts lag." }
-      ]
-    }],
-    "decisions": [{
-      "id": "limiter",
-      "q": "Which rate limiter?",
-      "multi": false,
-      "opts": [
-        { "id": "binding", "label": "Rate limiting binding" },
-        { "id": "kv", "label": "Custom KV counter" }
-      ]
-    }]
-  }
-}`
-
-export const RESPONSE_SNIPPET = `{ "id": "k2p9x4", "url": "https://brief.algoryth.me/s/k2p9x4" }`
-
 export const SKILL_SNIPPET = `# Install once, in the project your agent works in.
 npx skills add ENEmyr/brief
 
@@ -110,7 +90,7 @@ npx skills add ENEmyr/brief
 # You ask for the work; it hands back a link:
 #
 #   "Reviewed the migration. Two calls need you:
-#    https://brief.algoryth.me/s/k2p9x4"
+#    https://brief.algoryth.me/s/${EXAMPLE_ID}"
 
 # Pull the schema again when new block types ship.
 npx skills update brief`
@@ -120,8 +100,44 @@ export const CURL_SNIPPET = `curl -X POST https://brief-api.algoryth.me/api/sess
   -d @payload.json
 
 # The response carries the link to send the human.
-# { "id": "k2p9x4", "url": "https://brief.algoryth.me/s/k2p9x4" }
+# { "id": "${EXAMPLE_ID}", "url": "https://brief.algoryth.me/s/${EXAMPLE_ID}" }
 
 # Later, read the same document back as markdown
 # instead of regenerating it.
-curl https://brief-api.algoryth.me/api/session/k2p9x4/raw`
+curl https://brief-api.algoryth.me/api/session/${EXAMPLE_ID}/raw`
+
+export const USAGE_TABS = [
+  {
+    id: 'skill',
+    label: 'With the skill',
+    hint: 'npx skills add',
+    code: SKILL_SNIPPET,
+    blurb:
+      'The skill teaches the agent the schema, ships an offline validator, and travels with the repository. This is the path most agents want.',
+  },
+  {
+    id: 'http',
+    label: 'Straight HTTP',
+    hint: 'POST /api/session',
+    code: CURL_SNIPPET,
+    blurb:
+      'No skill, no SDK, no auth. Any agent that can make an HTTP request can publish a document and read it back.',
+  },
+] as const
+
+export const PREVIEW_CALLOUTS = [
+  { term: 'Outline', text: 'marks where your notes and open questions are.' },
+  { term: 'Terms', text: 'explain themselves on hover or tap.' },
+  { term: 'Diagrams', text: 'play step by step, zoom with buttons.' },
+  { term: 'Decisions', text: 'link to their section, take an Other answer and a reason.' },
+  { term: '⌘K', text: 'jumps to any section, block or decision.' },
+]
+
+export const SMALL_THINGS = [
+  { tag: 'keyboard', text: 'Number keys pick options, J and K move between sections, ⌘K finds anything.' },
+  { tag: 'phone', text: 'Decisions open as a bottom sheet. Every target is at least 44px.' },
+  { tag: 'protected', text: 'Archive with a password. The doc is encrypted on your device before it is stored.' },
+  { tag: '/raw', text: 'Every brief reads back as markdown, so the agent never rewrites what it already wrote.' },
+  { tag: 'print', text: 'PDF export prints light, with your answers summarized at the end.' },
+  { tag: 'light and dark', text: 'Follows the system setting until you pick one.' },
+]
