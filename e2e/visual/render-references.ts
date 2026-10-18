@@ -46,6 +46,8 @@ interface Crop {
   /** Rows of the element the board shows, when its frame clips the rest. */
   visibleHeight?: number
   snap?: boolean
+  /** Elements masked on both sides; each use cites the ruling that allows it. */
+  mask?: string
 }
 
 const crops = (
@@ -288,6 +290,6 @@ test('element crops from crops.json', async ({ browser }) => {
     if (crop.snap) await snapToPixelRow(locator)
     const clip = await clipOf(locator)
     if (crop.visibleHeight !== undefined) clip.height = Math.min(clip.height, crop.visibleHeight)
-    await save(page, `crop-${crop.name}`, clip)
+    await save(page, `crop-${crop.name}`, clip, crop.mask === undefined ? undefined : [page.locator(crop.mask)])
   }
 })

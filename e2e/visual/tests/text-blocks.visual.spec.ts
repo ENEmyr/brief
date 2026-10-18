@@ -634,7 +634,7 @@ test.describe('text blocks against the B-Blocks panels', () => {
     ['blocks-compare', 'compare', 576, null],
     ['blocks-coverage', 'coverage', 576, null],
     ['blocks-table', 'table', 576, null],
-    ['blocks-details', 'details', 576, null],
+    ['blocks-details', 'details', 576, 'details'],
     ['blocks-ba', 'ba', 1168, null],
   ] as const) {
     test(`crop ${name}`, async ({ page, theme }) => {
@@ -652,6 +652,10 @@ test.describe('text blocks against the B-Blocks panels', () => {
       await expect(page).toHaveScreenshot(`crop-${name}.png`, {
         fullPage: true,
         clip: await clipOf(target),
+        // R-V3 (d201): the app keeps one card per details and KaTeX; the crop is
+        // the open details alone, and the formula box (Times italic on the
+        // board) is masked on both sides (crops.json blocks-details).
+        mask: kind === 'details' ? [target.locator('[data-math]')] : undefined,
       })
     })
   }

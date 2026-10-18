@@ -167,9 +167,10 @@
     {
       "name": "blocks-details",
       "board": "B-Blocks",
-      "selector": "section",
-      "nth": 8,
-      "contains": "fixed window"
+      "selector": "details",
+      "nth": 0,
+      "contains": "refill rate",
+      "mask": "details div[style*=\"Times New Roman\"]"
     },
     {
       "name": "overlays-copy-title",
