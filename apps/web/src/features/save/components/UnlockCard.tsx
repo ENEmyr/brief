@@ -96,7 +96,7 @@ export function UnlockCard({
           disabled={busy}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${fieldId}-error` : undefined}
-          className={`min-h-[42px] rounded-ctrl border bg-page px-[10px] text-[16px] text-text disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line ${
+          className={`min-h-[42px] rounded-ctrl border bg-page px-[10px] text-[16px] text-text disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line max-[880px]:min-h-11 ${
             error ? 'border-bad' : 'border-line2'
           }`}
         />

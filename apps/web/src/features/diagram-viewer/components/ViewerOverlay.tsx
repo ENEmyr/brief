@@ -127,7 +127,7 @@ export function ViewerOverlay({ content, heading, steps, onClose }: ViewerOverla
       <button
         type="button"
         onClick={pan.fit}
-        className={`${GROUP_BUTTON_BASE} h-9 px-2.5 text-[12px] max-[880px]:h-11`}
+        className={`${GROUP_BUTTON_BASE} h-9 px-2.5 text-[12px] max-[880px]:h-11 max-[880px]:min-w-11`}
       >
         Fit
       </button>
