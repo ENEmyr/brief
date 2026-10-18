@@ -94,7 +94,7 @@ Give `width` and `height` together: only then does the reader reserve the box be
 ```json
 {
   "type": "image",
-  "imageId": "Vb7kQ2nR9xLm4TzA",
+  "imageId": "img_Vb7kQ2nR9xLm4TzA",
   "alt": "The error page a client sees after its eleventh request in one minute",
   "caption": "429 page in production",
   "width": 1280,

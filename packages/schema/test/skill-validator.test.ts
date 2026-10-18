@@ -292,6 +292,17 @@ describe("the offline validator's readability hints", () => {
     ])
   })
 
+  it('accepts inline code, bold and italic in list items, which the reader renders, but not links', () => {
+    const list = (item: string) => withBlock({ type: 'list', items: ['Plain item', item] })
+    expect(readabilityHints(list('Set `tone` to **bad** for a *failing* row.'))).toEqual([])
+    const link = readabilityHints(list('See [the docs](https://brief.algoryth.me).'))
+    expect(link.map((h) => h.path)).toEqual(['sections.0.blocks.0.items.1'])
+    expect(link[0]!.message).toMatch(/this link shows as literal characters/)
+    const cell = readabilityHints(withBlock({ type: 'table', head: ['Field'], rows: [['Set `tone` to **bad**']] }))
+    expect(cell.map((h) => h.path)).toEqual(['sections.0.blocks.0.rows.0.0'])
+    expect(cell[0]!.message).toMatch(/this markdown shows as literal characters/)
+  })
+
   it('scans a payload-sized unbroken run in linear time', () => {
     const run = 'a'.repeat(1_900_000)
     const hints = readabilityHints(paragraph(`${run} x/y.ts`))
