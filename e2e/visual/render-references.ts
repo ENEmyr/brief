@@ -208,6 +208,9 @@ function writeReaderBoard(): void {
   const arrow = /<svg[^>]*left: 240px; top: 248px[^>]*>[\s\S]*?<\/svg>/.exec(html)?.[0] ?? ''
   html = patch(html, arrow, arrow.replaceAll('#C5F05A', '#A1AAB2'), 'C10 forward arrow')
   html = patch(html, 'color: #C5F05A">4 forward<', 'color: #A1AAB2">4 forward<', 'C10 forward label')
+  // The board's ask mark quotes text no section has (B-Reader:89); the seed
+  // anchors it to section 01 text, so a highlight points at real payload text.
+  html = patch(html, '</span>burst allowance สำหรับ webhook</a>', '</span>ด่านแรกที่ปกป้อง API</a>', 'seed ask mark text')
   fs.writeFileSync(path.join(GENERATED_DIR, 'B-Reader.dc.html'), html)
 }
 

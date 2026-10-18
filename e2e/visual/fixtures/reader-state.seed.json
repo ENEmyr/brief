@@ -22,13 +22,13 @@
     {
       "id": "h-seed-2",
       "sid": 0,
-      "bid": 99,
+      "bid": 0,
       "path": "text",
-      "start": 0,
-      "end": 30,
-      "text": "burst allowance สำหรับ webhook",
+      "start": 119,
+      "end": 139,
+      "text": "ด่านแรกที่ปกป้อง API",
       "note": null,
-      "question": "burst allowance สำหรับ webhook ควรตั้งเท่าไร"
+      "question": "ด่านแรกนี้ต้องรับได้กี่ request ต่อวินาที"
     }
   ]
 }
