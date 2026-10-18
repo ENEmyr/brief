@@ -48,6 +48,7 @@ export function List({
             sid={sid}
             bid={bid ?? null}
             path={`${pathPrefix}items.${i}`}
+            markdown
             annotatable={annotatable && bid !== undefined}
             onMarkClick={onMarkClick}
           />

@@ -74,7 +74,11 @@ function markFor(
       key={key}
       data-mark-id={h.id}
       data-marker={withMarker ? (isAsk ? 'ask' : h.note !== null ? 'note' : undefined) : undefined}
-      onClick={() => onMarkClick(h)}
+      // A drag that starts and ends in one mark also clicks it; that drag is a
+      // new selection for the toolbar, not a request to open this mark.
+      onClick={() => {
+        if (window.getSelection()?.isCollapsed !== false) onMarkClick(h)
+      }}
       className={
         isAsk
           ? 'cursor-pointer rounded-[3px] bg-accent-soft px-[2px] text-accent-text'
@@ -114,8 +118,10 @@ const RUN_CLASS = {
  * stored before markdown rendered (when visible text was the source) still
  * lands on the same characters.
  *
- * Each source character belongs to at most one mark, the earliest-starting
- * highlight that covers it, so the DOM never repeats text. A highlight that
+ * Each source character belongs to at most one mark, so the DOM never repeats
+ * text. A highlight that lies wholly inside another owns its characters, so a
+ * nested highlight, note or ask draws its own mark and marker; where two only
+ * partly overlap, the earlier-starting one keeps the shared part. A highlight that
  * crosses a run boundary draws as one <mark> per run, and only its last piece
  * carries the note or ask marker.
  */
@@ -134,10 +140,11 @@ export function InlineMarkdown({
   const termAt = new Array<number | null>(text.length).fill(null)
   for (const t of terms) for (let i = t.start; i < t.end; i++) termAt[i] = t.n
   const owner: (Highlight | null)[] = new Array<Highlight | null>(text.length).fill(null)
-  let cur = 0
   for (const h of highlights) {
-    for (let i = Math.max(h.start, cur); i < h.end; i++) owner[i] = h
-    cur = Math.max(cur, h.end)
+    for (let i = h.start; i < h.end; i++) {
+      const o = owner[i] ?? null
+      if (!o || (o.start <= h.start && h.end <= o.end)) owner[i] = h
+    }
   }
   const runs = parseInline(text)
   const hidden = new Array<boolean>(text.length).fill(false)
@@ -147,6 +154,12 @@ export function InlineMarkdown({
       hidden[run.end - 1 - k] = true
     }
   }
+  // A highlight stored before markdown rendered may cover marker characters
+  // only. Show those characters inside its mark, so it still draws.
+  const drawn = new Set(owner.filter((h, i) => h && !hidden[i]))
+  owner.forEach((h, i) => {
+    if (h && !drawn.has(h)) hidden[i] = false
+  })
   const lastPiece = new Map<string, number>()
   owner.forEach((h, i) => {
     if (h && !hidden[i]) lastPiece.set(h.id, i)
@@ -160,8 +173,8 @@ export function InlineMarkdown({
         const contentEnd = run.end - run.marker
         let i = run.start
         while (i < run.end) {
-          const isMarker = i < contentStart || i >= contentEnd
-          const zoneEnd = i < contentStart ? contentStart : isMarker ? run.end : contentEnd
+          const zoneEnd = i < contentStart ? contentStart : i >= contentEnd ? run.end : contentEnd
+          const isMarker = hidden[i]
           const h = owner[i] ?? null
           const term = termAt[i] ?? null
           let j = i + 1
