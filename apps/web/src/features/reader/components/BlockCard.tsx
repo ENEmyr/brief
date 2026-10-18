@@ -26,6 +26,12 @@ export type BlockCardState =
 export interface BlockCardProps extends CaptionAnchor {
   kind: string
   caption?: CardLeaf
+  /**
+   * A count derived from the block, drawn in the caption after " / ":
+   * "title / 6 messages" (B-Blocks:75, B-Blocks2:28), or alone without a title
+   * (B-Reader:126).
+   */
+  captionSuffix?: string
   /** Right-hand header text the boards draw: "3 rows", "log scale", "p95 marked". */
   meta?: ReactNode
   controls?: ReactNode
@@ -47,6 +53,7 @@ export const LOADING = {
 export function BlockCard({
   kind,
   caption,
+  captionSuffix,
   meta,
   controls,
   fullScreen,
@@ -80,8 +87,13 @@ export function BlockCard({
           {state.status === 'unsupported' ? (
             'not supported here'
           ) : caption ? (
-            <CardCaption {...anchor} text={caption.text} path={caption.path} />
-          ) : null}
+            <>
+              <CardCaption {...anchor} text={caption.text} path={caption.path} />
+              {captionSuffix ? ` / ${captionSuffix}` : null}
+            </>
+          ) : (
+            captionSuffix
+          )}
         </span>
         {meta}
         {state.status === 'loading' ? (

@@ -1,13 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { BlockRenderer } from '@/features/reader'
 import type { Block } from '@brief/schema'
-
-// The card header now draws the full-screen icon, a decorative aria-hidden svg,
-// ahead of the diagram, so "the first svg" is no longer the diagram.
-const DIAGRAM_SVG = 'svg:not([aria-hidden="true"])'
 
 const GLOBALS_CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8')
 const LAYOUT_TSX = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8')
@@ -75,10 +71,9 @@ const erdBlock: Extract<Block, { type: 'erd' }> = {
 
 const r = (block: Block) => render(<BlockRenderer block={block} />)
 
-function findAncestorWithText(container: HTMLElement, text: string): Element | null {
-  const textEl = Array.from(container.querySelectorAll('text')).find((t) => t.textContent === text)
-  return textEl?.closest('g') ?? null
-}
+const node = (container: HTMLElement, id: string) =>
+  container.querySelector<HTMLElement>(`[data-layer-node="${id}"]`) as HTMLElement
+const edges = (container: HTMLElement) => Array.from(container.querySelectorAll<SVGGElement>('[data-edge]'))
 
 describe('Layers block', () => {
   it('renders the diagram caption from block.title, and only the kind tag without one', () => {
@@ -93,68 +88,67 @@ describe('Layers block', () => {
     expect(screen.queryByText('Layers')).not.toBeInTheDocument()
   })
 
-  it('renders the base layer chip as always-on and non-clickable', () => {
-    r(layersBlock)
-    const baseChip = screen.getByRole('button', { name: '[x] Request flow' })
-    expect(baseChip).toBeDisabled()
-  })
-
-  it('renders additional layer chips off by default and clickable', () => {
-    r(layersBlock)
-    const cacheChip = screen.getByRole('button', { name: '[ ] Redis cache' })
-    const retryChip = screen.getByRole('button', { name: '[ ] Retry queue' })
-    expect(cacheChip).not.toBeDisabled()
-    expect(retryChip).not.toBeDisabled()
-  })
-
-  it('base layer nodes and edges are always fully visible', () => {
+  // Owner ruling D5 removed the per-layer toggles: B-Blocks2:51-78 shows every
+  // layer at once as a band. The six tests below pinned the chips and the
+  // opacity they set; each now pins what the band drawing promises instead.
+  it('renders no layer toggles: every layer is a band with its label in caps (B-Blocks2:58-60)', () => {
     const { container } = r(layersBlock)
-    const clientGroup = findAncestorWithText(container, 'Client')
-    expect(clientGroup?.getAttribute('style')).toContain('opacity: 1')
+    expect(screen.queryByRole('button', { name: /Request flow/ })).not.toBeInTheDocument()
+    const bands = Array.from(container.querySelectorAll('[data-band]'))
+    expect(bands.map((b) => b.textContent)).toEqual(['Request flow', 'Redis cache', 'Retry queue'])
+    bands.forEach((b) => expect(b.querySelector('span')?.className).toContain('uppercase'))
   })
 
-  it('hides non-base layer nodes and edges by default (low opacity)', () => {
+  it('stacks the bands 150px apart, 120 tall, in code-bg with a grid-line border', () => {
     const { container } = r(layersBlock)
-    const redisGroup = findAncestorWithText(container, 'Redis')
-    expect(redisGroup?.getAttribute('style')).toContain('opacity: 0.14')
+    const bands = Array.from(container.querySelectorAll<HTMLElement>('[data-band]'))
+    expect(bands.map((b) => b.style.top)).toEqual(['0px', '150px', '300px'])
+    bands.forEach((b) => {
+      expect(b.style.height).toBe('120px')
+      expect(b.className).toContain('bg-[var(--c-code-bg)]')
+      expect(b.className).toContain('border-[var(--c-grid-line)]')
+    })
   })
 
-  it('toggling a layer chip flips its node and edge opacity', () => {
+  it('draws every node fully, the first layer\'s included', () => {
     const { container } = r(layersBlock)
-    const cacheChip = screen.getByRole('button', { name: '[ ] Redis cache' })
-    // Edge order follows layer order: [0]=client->limiter, [1]=limiter->api
-    // (both base, always on), [2]=redis->limiter (owned by the cache layer).
-    const edgeGroupsBefore = container.querySelectorAll(`${DIAGRAM_SVG} > g`)
-    expect(edgeGroupsBefore[2]?.getAttribute('style')).toContain('opacity: 0.12')
-    fireEvent.click(cacheChip)
-    expect(screen.getByRole('button', { name: '[x] Redis cache' })).toBeInTheDocument()
-    const redisGroup = findAncestorWithText(container, 'Redis')
-    expect(redisGroup?.getAttribute('style')).toContain('opacity: 1')
-    const edgeGroupsAfter = container.querySelectorAll(`${DIAGRAM_SVG} > g`)
-    expect(edgeGroupsAfter[2]?.getAttribute('style')).toContain('opacity: 0.8')
+    ;['client', 'limiter', 'api', 'redis', 'retryq'].forEach((id) => {
+      expect(node(container, id).className).not.toMatch(/opacity/)
+      expect(node(container, id).className).toContain('bg-elev')
+      expect(node(container, id).className).toContain('border-line2')
+    })
   })
 
-  it('clicking the base chip does nothing (stays on, no crash)', () => {
-    r(layersBlock)
-    const baseChip = screen.getByRole('button', { name: '[x] Request flow' })
-    fireEvent.click(baseChip)
-    expect(screen.getByRole('button', { name: '[x] Request flow' })).toBeInTheDocument()
-  })
-
-  it('strokes edge lines, edge labels, and the arrow marker with the sub token, and reads no undeclared var', () => {
+  it('places a node of a later layer in that layer\'s band', () => {
     const { container } = r(layersBlock)
-    const svg = container.querySelector(DIAGRAM_SVG)
-    // Regression for the invisible-edges bug: an unresolved CSS var (it was
-    // a nonexistent --ctp-sub) collapses SVG stroke to none in a browser,
-    // while jsdom renders the raw string either way. So every var() the
-    // diagram reads must be declared in globals.css.
-    const edgeLines = Array.from(svg?.querySelectorAll('g > line') ?? [])
-    expect(edgeLines.length).toBeGreaterThan(0)
-    edgeLines.forEach((l) => expect(l.getAttribute('style')).toContain('var(--c-sub)'))
-    const edgeLabel = Array.from(svg?.querySelectorAll('g > text') ?? []).find((t) => t.textContent === 'request')
-    expect(edgeLabel?.getAttribute('style')).toContain('var(--c-sub)')
-    const markerPath = svg?.querySelector('marker path')
-    expect(markerPath?.getAttribute('style')).toContain('var(--c-sub)')
+    expect(node(container, 'client').style.top).toBe('34px')
+    expect(node(container, 'redis').style.top).toBe('184px')
+    expect(node(container, 'retryq').style.top).toBe('334px')
+  })
+
+  it('draws one edge per payload edge, in every layer, with no opacity', () => {
+    const { container } = r(layersBlock)
+    expect(edges(container)).toHaveLength(4)
+    edges(container).forEach((e) => expect(e.getAttribute('style')).toBeNull())
+  })
+
+  it('routes an edge between bands through the gaps and strips, never across a node', () => {
+    const { container } = r(layersBlock)
+    // redis (band 1) -> limiter (band 0): up out of redis, across the gap, into limiter.
+    const path = edges(container)[2]?.querySelector('path')?.getAttribute('d') ?? ''
+    const ys = [...path.matchAll(/[ML][\d.]+ ([\d.]+)/g)].map((m) => Number(m[1]))
+    expect(ys[0]).toBe(184)
+    expect(ys).toContain(135)
+  })
+
+  it('strokes edges and fills heads with the sub token, and reads no undeclared var', () => {
+    // Was the svg line/text/marker `var(--c-sub)` styles. Edges now take the
+    // stroke-sub and fill-sub utilities (globals.css --color-sub) and labels
+    // are HTML in text-sub; the regression (an unresolved var draws nothing)
+    // stays pinned through undeclaredVars.
+    const { container } = r(layersBlock)
+    edges(container).forEach((e) => expect(e.getAttribute('class')).toContain('stroke-sub fill-sub'))
+    expect(screen.getByText('request').className).toContain('text-sub')
     expect(undeclaredVars(container.innerHTML)).toEqual([])
   })
 
@@ -186,19 +180,11 @@ describe('Layers block', () => {
       ],
     }
     const { container } = r(block)
-    // First-seen layer wins: exactly one node for the duplicate id, with the
-    // base layer's label and position (base row y=58). Nodes no longer take a
-    // per-layer hue: every node is the Console elev fill with a line2 border.
+    // First-seen layer wins: one node for the duplicate id, with the base
+    // layer's label, in the base band (top 34, B-Blocks2:66).
     expect(screen.getAllByText('Shared').length).toBe(1)
     expect(screen.queryByText('Shared duplicate')).not.toBeInTheDocument()
-    const sharedGroup = findAncestorWithText(container, 'Shared')
-    const sharedRect = sharedGroup?.querySelector('rect')
-    expect(sharedRect?.getAttribute('y')).toBe('58')
-    expect(sharedRect?.getAttribute('style')).toContain('fill: var(--c-elev)')
-    expect(sharedRect?.getAttribute('style')).toContain('stroke: var(--c-line2)')
-    // The base-layer-owned node stays fully visible even though the extra
-    // layer (off by default) also declared it.
-    expect(sharedGroup?.getAttribute('style')).toContain('opacity: 1')
+    expect(node(container, 'shared').style.top).toBe('34px')
   })
 
   it('skips edges referencing unknown node ids instead of crashing', () => {
@@ -241,43 +227,62 @@ describe('Erd block', () => {
     expect(screen.getByText('orders')).toBeInTheDocument()
   })
 
-  it('renders a bold "PK " text prefix for primary key columns', () => {
-    const { container } = r(erdBlock)
-    const pkTspans = Array.from(container.querySelectorAll('tspan')).filter((t) => t.textContent === 'PK ')
+  // The four tests below pinned the old SVG table: underlined "PK " and a teal
+  // " FK" tspan, and dashed teal connectors. B-Blocks2:86-90 draws a key
+  // column (PK lime, FK cyan) and solid sub connectors with the FK name in
+  // cyan; each test now pins that.
+  it('marks primary key columns with "PK" in lime (B-Blocks2:86)', () => {
+    r(erdBlock)
+    const pk = screen.getAllByText('PK')
     // one per table's id column (users.id, orders.id)
-    expect(pkTspans.length).toBe(2)
-    pkTspans.forEach((t) => {
-      expect(t.getAttribute('font-weight')).toBe('700')
-      expect(t.getAttribute('text-decoration')).toBe('underline')
-    })
+    expect(pk).toHaveLength(2)
+    pk.forEach((cell) => expect(cell.className).toContain('text-accent-text'))
   })
 
-  it('renders a teal " FK" text suffix for foreign key columns', () => {
-    const { container } = r(erdBlock)
-    const fkTspans = Array.from(container.querySelectorAll('tspan')).filter((t) => t.textContent === ' FK')
-    // both user_id -> users and ghost_id -> nonexistent are still marked FK in the column row
-    expect(fkTspans.length).toBe(2)
+  it('marks foreign key columns with "FK" in cyan, the unresolvable one included (B-Blocks2:87)', () => {
+    r(erdBlock)
+    const fk = screen.getAllByText('FK')
+    // both user_id -> users and ghost_id -> nonexistent keep their marker
+    expect(fk).toHaveLength(2)
+    fk.forEach((cell) => expect(cell.className).toContain('text-info'))
   })
 
   it('renders exactly one fk edge per valid fk reference, skipping unknown table refs', () => {
     const { container } = r(erdBlock)
-    const svg = container.querySelector(DIAGRAM_SVG)
-    // Edges are orthogonal paths, not straight lines: an edge now picks which
-    // side of each box to leave from and arrive at, so it needs elbows.
-    const dashedTealEdges = Array.from(svg?.querySelectorAll('path') ?? []).filter(
-      (p) => p.getAttribute('stroke-dasharray') === '4 3',
-    )
-    // only user_id -> users is a resolvable table; ghost_id -> nonexistent is skipped
-    expect(dashedTealEdges.length).toBe(1)
+    expect(container.querySelectorAll('[data-edge]')).toHaveLength(1)
+    expect(screen.getByText('user_id', { selector: '.text-info' })).toBeInTheDocument()
   })
 
-  it('routes an fk edge orthogonally, standing off the box before it turns', () => {
+  it('runs a neighbour edge straight across at the header line, its head on the target (B-Blocks2:84)', () => {
     const { container } = r(erdBlock)
-    const edge = Array.from(container.querySelectorAll('path')).find(
-      (p) => p.getAttribute('stroke-dasharray') === '4 3',
-    )
-    // M x,y H mid V y2 H x2: horizontal out, vertical across, horizontal in.
-    expect(edge?.getAttribute('d')).toMatch(/^M[\d.-]+,[\d.-]+ H[\d.-]+ V[\d.-]+ H[\d.-]+$/)
+    const d = container.querySelector('[data-edge] path')?.getAttribute('d') ?? ''
+    const points = [...d.matchAll(/[ML]([\d.]+) ([\d.]+)/g)].map((m) => [Number(m[1]), Number(m[2])])
+    expect(points).toHaveLength(2)
+    // Header line: table top 40 plus half the 36px header.
+    expect(points[0]?.[1]).toBe(58)
+    expect(points[1]?.[1]).toBe(58)
+  })
+
+  it('runs an edge to another row down the gap beside its column, clear of the column\'s widest table', () => {
+    // Four tables: three in the first row, the fourth under the first. The
+    // first is wide; the fourth is narrow and points at the second.
+    const block: Extract<Block, { type: 'erd' }> = {
+      type: 'erd',
+      tables: [
+        { name: 'wide', columns: [{ name: 'a_very_long_column_name_for_width', type: 'timestamptz' }] },
+        { name: 'target', columns: [{ name: 'id', type: 'uuid', pk: true }] },
+        { name: 'third', columns: [{ name: 'id', type: 'uuid' }] },
+        { name: 'narrow', columns: [{ name: 'target_id', type: 'uuid', fk: { table: 'target', column: 'id' } }] },
+      ],
+    }
+    const { container } = r(block)
+    const box = (name: string) => container.querySelector<HTMLElement>(`[data-table="${name}"]`)!.style
+    const wideRight = Number.parseFloat(box('wide').left) + Number.parseFloat(box('wide').width)
+    const d = container.querySelector('[data-edge] path')?.getAttribute('d') ?? ''
+    const xs = [...d.matchAll(/[ML]([\d.]+) /g)].map((m) => Number(m[1]))
+    // Out of the narrow table, then a vertical run in the gap right of the wide one.
+    expect(xs[1]).toBeGreaterThan(wideRight)
+    expect(xs[1]).toBeLessThan(Number.parseFloat(box('target').left))
   })
 
   it('does not crash when a fk references an unknown table', () => {

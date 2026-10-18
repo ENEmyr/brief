@@ -5,41 +5,64 @@ import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
 import { useChartCard } from '../fullScreen'
 import { useTheme } from '@/features/theme'
-import { chartPalette, useEChart } from '../../services/echarts'
+import { chartPalette, chartTooltip, encodeHTML, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type HistogramBlockType = Extract<Block, { type: 'histogram' }>
 
+/** B-Blocks2:134: a 200px plot; the tick row sits 6px under it (B-Blocks2:133 gap). */
+const PLOT = 200
+const TICKS = 18
+
+/** "12 (30.0%)": a bin's count and its share of all counts, as the hover shows them. */
+export function binReadout(count: number, total: number): string {
+  const share = total === 0 ? 0 : (count / total) * 100
+  return `${count.toLocaleString('en-US')} (${share.toFixed(1)}%)`
+}
+
+/**
+ * B-Blocks2:134-146: line2 bars 6px apart with 2px top corners on a line2
+ * baseline, no value axis, and every bin's label in mono 10 faint under it.
+ * Bins past a threshold turn red on the board; the payload has no threshold
+ * yet (owner ruling D3), so every bar is line2.
+ */
 export function buildHistogramOption(block: HistogramBlockType, palette: Palette): EChartsOption {
+  const total = block.bins.reduce((sum, b) => sum + b.count, 0)
   return {
     backgroundColor: 'transparent',
     animation: false,
     tooltip: {
+      ...chartTooltip(palette),
       trigger: 'axis',
-      backgroundColor: palette.card,
-      textStyle: { color: palette.text, fontFamily: palette.font, fontSize: 11 },
-      borderColor: palette.line2,
-      axisPointer: { type: 'shadow' },
+      axisPointer: { type: 'none' },
+      formatter: (params: unknown) => {
+        const [first] = params as { dataIndex: number }[]
+        const bin = block.bins[first?.dataIndex ?? 0]
+        return bin ? encodeHTML(`${bin.label} / ${binReadout(bin.count, total)}`) : ''
+      },
     },
-    grid: { top: 16, bottom: 40, left: 44, right: 16, containLabel: true },
+    grid: { top: 0, bottom: TICKS, left: 0, right: 0 },
     xAxis: {
       type: 'category',
       data: block.bins.map((b) => b.label),
-      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
-      axisLine: { lineStyle: { color: palette.sub } },
+      axisLine: { lineStyle: { color: palette.line2 } },
+      axisTick: { show: false },
       splitLine: { show: false },
+      axisLabel: { color: palette.faint, fontFamily: palette.font, fontSize: 10, margin: 6, interval: 0 },
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
-      axisLine: { lineStyle: { color: palette.sub } },
-      splitLine: { lineStyle: { color: palette.line2 } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { show: false },
+      splitLine: { show: false },
     },
     series: [
       {
         type: 'bar',
         data: block.bins.map((b) => b.count),
-        itemStyle: { color: palette.accentText, borderRadius: [4, 4, 0, 0] },
+        barCategoryGap: 6,
+        itemStyle: { color: palette.line2, borderRadius: [2, 2, 0, 0] },
       },
     ],
   }
@@ -48,17 +71,26 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
 export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & BlockAnchor) {
   const { theme } = useTheme()
 
-  const { containerRef, chartRef, ready } = useEChart(() => buildHistogramOption(block, chartPalette(theme)), [block, theme])
-
-  const chartCard = useChartCard(chartRef, ready, theme)
+  const { containerRef, chartRef, ready, failed } = useEChart(
+    () => buildHistogramOption(block, chartPalette(theme)),
+    [block, theme],
+  )
+  const chartCard = useChartCard(chartRef, ready, theme, 2, failed, {
+    heading: { kind: block.type, title: block.title },
+  })
+  const bins = block.bins.length
 
   return (
-    <BlockCard {...cardHeader(block, anchor)} {...chartCard}>
+    <BlockCard
+      {...cardHeader(block, anchor)}
+      captionSuffix={`${bins} ${bins === 1 ? 'bin' : 'bins'}`}
+      {...chartCard}
+    >
       <div className="px-4 pb-2.5 pt-4">
         <div
           ref={containerRef}
-          className={`h-[260px] w-full ${ready ? '' : 'sk'}`}
-          style={{ borderRadius: 4 }}
+          className={`w-full rounded-[4px] ${ready ? '' : 'sk'}`}
+          style={{ height: PLOT + TICKS }}
         />
       </div>
     </BlockCard>

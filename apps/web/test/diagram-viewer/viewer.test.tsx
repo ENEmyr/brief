@@ -87,17 +87,23 @@ describe('ViewerOverlay', () => {
     expect(screen.getByTestId('diagram-svg')).toBeInTheDocument()
   })
 
-  it('exposes toolbar buttons inside the dialog subtree with accessible names and a 44px hit floor', () => {
+  it('exposes toolbar buttons inside the dialog subtree with accessible names and a 44px hit floor under 880', () => {
+    // B-Overlays:149-151 draws 36px group buttons and a 40px Close; the
+    // settled rule keeps those on wide screens and grows them to 44 under 880,
+    // so the floor is checked on the narrow variant only. "Fit" is named by its
+    // text, as on the board (was "Fit to screen").
     render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
 
     // The toolbar must live inside the role="dialog" element, otherwise
     // aria-modal hides it (Close included) from assistive tech.
     const dialog = screen.getByRole('dialog', { name: /diagram viewer/i })
-    for (const name of ['Zoom out', 'Zoom in', 'Fit to screen', 'Close viewer']) {
+    for (const name of ['Zoom out', 'Zoom in']) {
       const button = within(dialog).getByRole('button', { name })
-      expect(button.className).toContain('min-h-11')
-      expect(button.className).toContain('min-w-11')
+      expect(button.className).toContain('size-9')
+      expect(button.className).toContain('max-[880px]:size-11')
     }
+    expect(within(dialog).getByRole('button', { name: 'Fit' }).className).toContain('max-[880px]:h-11')
+    expect(within(dialog).getByRole('button', { name: 'Close viewer' }).className).toContain('max-[880px]:h-11')
   })
 
   it('zooms in and out via the toolbar buttons, changing the transform scale', () => {
@@ -117,6 +123,7 @@ describe('ViewerOverlay', () => {
   })
 
   it('Fit scales the content to fill the surface, not merely back to 1', () => {
+    // The button is named "Fit" now (B-Overlays:150); the behavior is unchanged.
     render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
 
     const content = getTransformHost()
@@ -124,11 +131,12 @@ describe('ViewerOverlay', () => {
     // A 400x200 diagram in an 800x800 surface fits at 2x (limited by width).
     stubBoxes(surface, content, { surfaceW: 800, surfaceH: 800, contentW: 400, contentH: 200 })
 
-    act(() => screen.getByRole('button', { name: 'Fit to screen' }).click())
+    act(() => screen.getByRole('button', { name: 'Fit' }).click())
     expect(content.style.transform).toBe('translate(0px, 0px) scale(2)')
   })
 
   it('Fit falls back to a plain reset when the boxes measure zero', () => {
+    // The button is named "Fit" now (B-Overlays:150); the behavior is unchanged.
     render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
 
     const host = getTransformHost()
@@ -136,7 +144,7 @@ describe('ViewerOverlay', () => {
     expect(host.style.transform).not.toContain('scale(1)')
 
     // Boxes are 0x0 in jsdom: a naive fit would divide by zero.
-    act(() => screen.getByRole('button', { name: 'Fit to screen' }).click())
+    act(() => screen.getByRole('button', { name: 'Fit' }).click())
     expect(host.style.transform).toBe('translate(0px, 0px) scale(1)')
   })
 
@@ -246,5 +254,100 @@ describe('ViewerOverlay', () => {
     render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
     const surface = getTransformHost().parentElement as HTMLElement
     expect(surface.style.touchAction).toBe('none')
+  })
+
+  it('shows the kind tag, the title and the zoom level in percent (B-Overlays:148-150)', () => {
+    render(<ViewerOverlay content={DIAGRAM} heading={{ kind: 'seq', title: 'Request path' }} onClose={vi.fn()} />)
+    const dialog = screen.getByRole('dialog', { name: 'Diagram viewer' })
+    expect(within(dialog).getByText('seq')).toBeInTheDocument()
+    expect(within(dialog).getByText('Request path')).toBeInTheDocument()
+    const zoom = within(dialog).getByRole('group', { name: 'Zoom' })
+    expect(zoom).toHaveTextContent('100%')
+    act(() => within(zoom).getByRole('button', { name: 'Zoom in' }).click())
+    expect(zoom).toHaveTextContent('125%')
+  })
+
+  it('zooms with + and - and fits with 0 from the keyboard', () => {
+    render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
+    const press = (key: string) =>
+      act(() => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+      })
+    press('+')
+    expect(getTransformHost().style.transform).toContain('scale(1.25)')
+    press('-')
+    press('-')
+    expect(getTransformHost().style.transform).toContain('scale(0.75)')
+    press('0')
+    expect(getTransformHost().style.transform).toBe('translate(0px, 0px) scale(1)')
+  })
+
+  it('shows step mode only for a stepped diagram: the Steps group, the step text and the arrow keys', () => {
+    const onPrev = vi.fn()
+    const onNext = vi.fn()
+    const { rerender } = render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
+    expect(screen.queryByRole('group', { name: 'Steps' })).not.toBeInTheDocument()
+
+    rerender(
+      <ViewerOverlay content={DIAGRAM} steps={{ label: '2 / 4', text: 'Edge asks the limiter', onPrev, onNext }} onClose={vi.fn()} />,
+    )
+    const steps = screen.getByRole('group', { name: 'Steps' })
+    expect(steps).toHaveTextContent('2 / 4')
+    expect(screen.getByText('Edge asks the limiter')).toHaveAttribute('aria-live', 'polite')
+
+    act(() => within(steps).getByRole('button', { name: 'Next step' }).click())
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    })
+    expect(onNext).toHaveBeenCalledTimes(1)
+    expect(onPrev).toHaveBeenCalledTimes(1)
+  })
+
+  it('disables the step button the owner gives no handler for', () => {
+    render(<ViewerOverlay content={DIAGRAM} steps={{ label: '1 / 4', text: '', onNext: vi.fn() }} onClose={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Previous step' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next step' })).toBeEnabled()
+  })
+
+  it('opens a diagram larger than the screen fitted, and a small one at 100%', () => {
+    const big = (
+      <svg data-testid="diagram-svg" ref={(el) => {
+        const box = el?.parentElement
+        if (!box?.parentElement) return
+        Object.defineProperty(box, 'offsetWidth', { configurable: true, value: 1600 })
+        Object.defineProperty(box, 'offsetHeight', { configurable: true, value: 400 })
+        Object.defineProperty(box.parentElement, 'clientWidth', { configurable: true, value: 800 })
+        Object.defineProperty(box.parentElement, 'clientHeight', { configurable: true, value: 600 })
+      }} />
+    )
+    render(<ViewerOverlay content={big} onClose={vi.fn()} />)
+    expect(getTransformHost().style.transform).toBe('translate(0px, 0px) scale(0.5)')
+  })
+
+  it('does not zoom on a sideways trackpad swipe (deltaY 0)', () => {
+    render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
+    const host = getTransformHost()
+    act(() => {
+      fireEvent.wheel(host.parentElement as HTMLElement, { deltaX: -100, deltaY: 0 })
+    })
+    expect(host.style.transform).toBe('translate(0px, 0px) scale(1)')
+  })
+
+  it('keeps Tab and Shift+Tab inside the dialog when focus is on the dialog itself', () => {
+    render(<ViewerOverlay content={DIAGRAM} onClose={vi.fn()} />)
+    const dialog = screen.getByRole('dialog', { name: 'Diagram viewer' })
+    const buttons = within(dialog).getAllByRole('button')
+    expect(dialog).toHaveFocus()
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }))
+    })
+    expect(buttons[buttons.length - 1]).toHaveFocus()
+
+    act(() => dialog.focus())
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    })
+    expect(buttons[0]).toHaveFocus()
   })
 })

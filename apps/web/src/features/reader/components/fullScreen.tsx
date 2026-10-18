@@ -2,29 +2,35 @@
 import { useCallback, useEffect, useId } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import type { EChartsType } from 'echarts/core'
-import { useDiagramViewer } from '@/features/diagram-viewer'
+import { useDiagramViewer, type ViewerExtras } from '@/features/diagram-viewer'
 import type { Theme } from '@/features/theme'
 import { chartPalette } from '../services/echarts'
 import { LOADING, type BlockCardProps } from './BlockCard'
 
-export function useDiagramFullScreen(node: ReactNode): () => void {
+/** `extras` carries the viewer's header (kind tag, title) and, for a stepped diagram, its steps. */
+export function useDiagramFullScreen(node: ReactNode, extras?: ViewerExtras): () => void {
   const ownerKey = useId()
   const { expandedKey, open, sync } = useDiagramViewer()
   const isExpanded = expandedKey === ownerKey
 
   useEffect(() => {
-    if (isExpanded) sync(ownerKey, node)
-  }, [isExpanded, sync, ownerKey, node])
+    if (isExpanded) sync(ownerKey, node, extras)
+  }, [isExpanded, sync, ownerKey, node, extras])
 
-  return () => open(ownerKey, node)
+  return () => open(ownerKey, node, extras)
 }
 
-/** The card props of an echarts block: "loading chart" and a pending button until it has drawn. */
+/**
+ * The card props of an echarts block: "loading chart" and a pending button
+ * until it has drawn, and the B-States error card if echarts never arrives.
+ */
 export function useChartCard(
   chartRef: RefObject<EChartsType | null>,
   ready: boolean,
   theme: Theme,
   pixelRatio = 2,
+  failed = false,
+  extras?: ViewerExtras,
 ): Pick<BlockCardProps, 'fullScreen' | 'state'> {
   const ownerKey = useId()
   const { open } = useDiagramViewer()
@@ -33,8 +39,15 @@ export function useChartCard(
     const chart = chartRef.current
     if (!chart) return
     const dataUrl = chart.getDataURL({ pixelRatio, backgroundColor: chartPalette(theme).card })
-    open(ownerKey, <img src={dataUrl} alt="chart" className="max-w-full" />)
-  }, [chartRef, theme, pixelRatio, open, ownerKey])
+    // Drawn at the chart's own size (the capture has pixelRatio times the
+    // pixels), and sized before it decodes so the viewer can fit it on open.
+    open(
+      ownerKey,
+      <img src={dataUrl} alt="chart" width={chart.getWidth()} height={chart.getHeight()} className="block" />,
+      extras,
+    )
+  }, [chartRef, theme, pixelRatio, open, ownerKey, extras])
 
+  if (failed) return { state: { status: 'error', message: 'Chart could not be drawn.' } }
   return ready ? { fullScreen: openChart } : { fullScreen: 'pending', state: LOADING.chart }
 }
