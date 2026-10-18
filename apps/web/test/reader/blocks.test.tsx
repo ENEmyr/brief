@@ -93,6 +93,17 @@ describe('BlockRenderer text family', () => {
     expect(rows[1]?.className).toContain('bg-[var(--c-table-zebra)]')
   })
 
+  it('sets value columns in mono and keeps the first column and Thai cells in sans (B-Blocks:114-122)', () => {
+    r({
+      type: 'table',
+      head: ['option', 'accuracy', 'cost'],
+      rows: [['Durable Object', 'exact', 'ต่อ request']],
+    })
+    expect(screen.getByText('Durable Object').closest('th')).not.toHaveClass('font-mono')
+    expect(screen.getByText('exact').closest('td')).toHaveClass('font-mono')
+    expect(screen.getByText('ต่อ request').closest('td')).not.toHaveClass('font-mono')
+  })
+
   it('renders compare sides under the compare kind tag', () => {
     // 'Comparison' was a fallback caption; the kind tag replaces it (B-Blocks:51).
     r({
