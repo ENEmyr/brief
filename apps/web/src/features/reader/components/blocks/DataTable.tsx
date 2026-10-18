@@ -8,6 +8,10 @@ import { BlockCard, cardHeader } from '../BlockCard'
 const alignClass = { left: 'text-left', center: 'text-center', right: 'text-right' } as const satisfies Record<Align, string>
 const toneClass = { info: 'text-info', good: 'text-good', warn: 'text-warn', bad: 'text-bad' } as const satisfies Record<Tone, string>
 
+// B-Blocks:114-122: value cells (every column after the first) are Geist Mono.
+// A Thai cell stays in the sans face because Geist Mono has no Thai glyphs.
+const hasThai = /\p{Script=Thai}/u
+
 /**
  * Every cell is its own annotatable leaf (`head.2`, `rows.1.0`), which is the
  * only way a table can be annotated at all: it has no single flat text field to
@@ -84,7 +88,10 @@ export function DataTable({
                       {content}
                     </th>
                   ) : (
-                    <td key={j} className={`px-3 py-[9px] ${align(j)} ${tone(i, j)}`}>
+                    <td
+                      key={j}
+                      className={`px-3 py-[9px] ${hasThai.test(cell) ? '' : 'font-mono'} ${align(j)} ${tone(i, j)}`}
+                    >
                       {content}
                     </td>
                   )

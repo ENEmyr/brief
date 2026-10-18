@@ -517,15 +517,18 @@ for (const [label, viewport] of [
 }
 
 test.describe('stat count-up in a browser', () => {
-  /** Samples the counter's text on every frame for `ms`. */
-  async function sampleCounter(page: Page, ms: number): Promise<string[]> {
-    return page.evaluate(
-      (duration) =>
+  /**
+   * Samples the counter's text inside `card` on every frame for `ms`. Scoped to the card: the
+   * first stat on the page counts too, and a slow run can still be counting it here.
+   */
+  async function sampleCounter(card: Locator, ms: number): Promise<string[]> {
+    return card.evaluate(
+      (el, duration) =>
         new Promise<string[]>((resolve) => {
           const seen: string[] = []
           const start = performance.now()
           const tick = () => {
-            const counter = document.querySelector('section#blocks [data-count-up]')
+            const counter = el.querySelector('[data-count-up]')
             if (counter?.textContent) seen.push(counter.textContent)
             if (performance.now() - start < duration) requestAnimationFrame(tick)
             else resolve(seen)
@@ -549,7 +552,7 @@ test.describe('stat count-up in a browser', () => {
     await page.emulateMedia({ media: 'screen' })
     await expect(value).toHaveCSS('visibility', 'hidden')
 
-    const [samples] = await Promise.all([sampleCounter(page, 900), last.scrollIntoViewIfNeeded()])
+    const [samples] = await Promise.all([sampleCounter(last, 900), last.scrollIntoViewIfNeeded()])
     const numbers = samples.map((s) => Number(s.replace(/,/g, '')))
     console.log(`count-up frames: ${samples.length}, first ${samples[0]}, last ${samples.at(-1)}`)
     expect(samples.length).toBeGreaterThan(10)
@@ -561,7 +564,7 @@ test.describe('stat count-up in a browser', () => {
 
     await page.evaluate(() => window.scrollTo(0, 0))
     await last.scrollIntoViewIfNeeded()
-    expect(await sampleCounter(page, 400)).toEqual([])
+    expect(await sampleCounter(last, 400)).toEqual([])
   })
 
   test('shows every value at once under reduced motion', async ({ page, theme }) => {
@@ -571,7 +574,10 @@ test.describe('stat count-up in a browser', () => {
     await openBlocks(page)
     const last = cardOf(page, 'blocks', 'stat', 1)
     await expect(last.getByText('1,250', { exact: true })).toHaveCSS('visibility', 'visible')
-    const [samples] = await Promise.all([sampleCounter(page, 700), last.scrollIntoViewIfNeeded()])
+    const [samples] = await Promise.all([
+      sampleCounter(page.locator('section#blocks'), 700),
+      last.scrollIntoViewIfNeeded(),
+    ])
     expect(samples).toEqual([])
     await expect(cardOf(page, 'blocks', 'stat', 0).getByText('4,800', { exact: true })).toHaveCSS(
       'visibility',
@@ -634,7 +640,7 @@ test.describe('text blocks against the B-Blocks panels', () => {
     ['blocks-compare', 'compare', 576, null],
     ['blocks-coverage', 'coverage', 576, null],
     ['blocks-table', 'table', 576, null],
-    ['blocks-details', 'details', 576, null],
+    ['blocks-details', 'details', 576, 'details'],
     ['blocks-ba', 'ba', 1168, null],
   ] as const) {
     test(`crop ${name}`, async ({ page, theme }) => {
@@ -645,13 +651,31 @@ test.describe('text blocks against the B-Blocks panels', () => {
       const used = await cardWidth(page, figure, width)
       test.info().annotations.push({ type: 'viewport', description: String(used) })
       if (kind === 'details') await figure.locator('summary').click()
-      if (kind === 'stat')
+      if (kind === 'stat') {
+        // The counter holds the final text for its last frame, beside the value it covers.
+        await expect(figure.locator('[data-count-up]')).toHaveCount(0)
         await expect(figure.getByText('4,800', { exact: true })).toHaveCSS('visibility', 'visible')
+      }
       const target = part === null ? figure : figure.locator(part)
       await expect(target).toBeVisible()
+      // R-V3 (d201): the app keeps one card per details and KaTeX; the crop is
+      // the open details alone, and the formula box (Times italic on the
+      // board) is masked on both sides (crops.json blocks-details).
+      const formula = target.locator('[data-math]')
+      // R-V5 (board tint inconsistency, B-Blocks:146,152): line 1 changes
+      // (handle(req) to handle(req, env)) but the board tints it on neither
+      // side; the app decides and tints it on both, so line 1 is masked on both sides
+      // (crops.json blocks-ba). The same entry's css keeps the board's
+      // indentation, which its flex rows collapse.
+      const line1 = target.locator(
+        '[data-tone]:has([data-path$="before.0"]), [data-tone]:has([data-path$="after.0"])',
+      )
+      if (kind === 'ba') await expect(line1).toHaveCount(2)
+      const masks: Partial<Record<string, Locator[]>> = { details: [formula], ba: [line1] }
       await expect(page).toHaveScreenshot(`crop-${name}.png`, {
         fullPage: true,
         clip: await clipOf(target),
+        mask: masks[kind],
       })
     })
   }

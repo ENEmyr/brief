@@ -5,6 +5,7 @@ import { ReaderStateProvider } from '@/features/reader-state'
 import type { Decision, Section } from '@brief/schema'
 
 const XSS = '<img src=x onerror="window.__xss=1">'
+const HINT = 'Read the context; the dock shrinks to a bar'
 
 const sections: Section[] = [
   { id: 'intro', no: 1, title: 'Intro', blocks: [{ type: 'p', text: 'a' }] },
@@ -72,7 +73,7 @@ describe('decision context chips (D7)', () => {
     expect(chip.querySelector('img')).toBeNull()
   })
 
-  it('shows the chips in the sheet for the current decision, without the label', () => {
+  it('shows the chips in the sheet for the current decision, with the hint and without the label', () => {
     const onJump = vi.fn()
     render(
       <ReaderStateProvider sessionId="refs-sheet-test" persist={false}>
@@ -86,9 +87,48 @@ describe('decision context chips (D7)', () => {
         />
       </ReaderStateProvider>,
     )
-    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['§02Token bucket', '§01Intro'])
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual([
+      `§02 Token bucket${HINT}`,
+      `§01 Intro${HINT}`,
+    ])
     expect(screen.queryByText('context')).toBeNull()
-    fireEvent.click(screen.getByRole('link', { name: '§02 Token bucket' }))
+    fireEvent.click(screen.getByRole('link', { name: /^§02 Token bucket/ }))
     expect(onJump).toHaveBeenCalledWith('bucket', 'D1')
+  })
+
+  it('sets the whole sheet chip label, number and title, in the accent mono (B-Mobile:77)', () => {
+    render(
+      <ReaderStateProvider sessionId="refs-sheet-label-test" persist={false}>
+        <DecisionSheet
+          decisions={decisions}
+          sections={sections}
+          target={{ id: 'D1', seq: 0 }}
+          onSelect={() => {}}
+          onCopyPrompt={() => {}}
+          onJumpToContext={() => {}}
+        />
+      </ReaderStateProvider>,
+    )
+    const label = screen.getAllByRole('link')[0]!.firstElementChild!
+    expect(label.textContent).toBe('§02 Token bucket')
+    expect(label.className).toContain('font-mono')
+    expect(label.className).toContain('text-accent-text')
+  })
+
+  it('draws no sheet hint in the dock', () => {
+    renderDock()
+    expect(screen.queryByText(HINT)).toBeNull()
+  })
+
+  it('keeps the dock chips on one row at the board height, titles cut by an ellipsis', () => {
+    renderDock()
+    const links = within(question('D1')).getAllByRole('link')
+    expect(links[0]!.parentElement!.className).not.toContain('flex-wrap')
+    for (const link of links) {
+      expect(link.className).toContain('min-h-[28px]')
+      expect(link.className).toContain('min-w-0')
+      expect(link.lastElementChild!.className).toContain('truncate')
+    }
+    expect(links[0]!.lastElementChild!.textContent).toBe('Token bucket')
   })
 })

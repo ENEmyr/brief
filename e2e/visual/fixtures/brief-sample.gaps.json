@@ -1,10 +1,8 @@
 {
   "about": "Board elements of B-Reader that brief-sample.payload.json cannot express with today's payload schema, and board state the reader-state seed cannot express. Each one is later work.",
   "payload": [
-    { "where": "section 02 paragraph 1", "board": "glossary term 'token bucket' with a dashed underline and a tooltip", "needs": "glossary field [P2]" },
-    { "where": "section 02 code block", "board": "code note on line 4 (note button and open note row)", "needs": "code notes field [P3]" },
-    { "where": "decisions D1 to D4", "board": "context chips (for example 's03 cost', 's02 bucket')", "needs": "decision refs field [P1]" },
-    { "where": "section 02 seq block", "board": "dashed return arrows, accent forward arrow, emphasised Limiter node, '6 messages' caption, play button, step number prefix in each label", "needs": "seq step kind and emphasis fields [P5] and Console block header" },
+    { "where": "decisions D1 to D4", "board": "context chip titles 'cost', 'bucket', 'burst' (B-Reader secs map); the fixture sets refs, and the app prints each section's full title", "needs": "a short chip label per section; no field" },
+    { "where": "section 02 seq block", "board": "C10 (vt-b triage): accent forward arrow '4 forward' and emphasised Limiter node; the generated B-Reader drops both (render-references.ts writeReaderBoard)", "needs": "seq emphasis field [P5] (owner D3: missing fields are [P] work)" },
     { "where": "section 03 table", "board": "cell tone: '<1 ms' green, '10-40 ms' amber; right aligned latency column", "needs": "table cell tone and align [P5]" },
     { "where": "section 03 bigo block", "board": "line colors red, amber and accent, end labels, full-screen button", "needs": "none in the schema; renderer work (series colors are not in the payload)" },
     { "where": "section 03 layout", "board": "table and chart side by side in one row", "needs": "layout is the renderer's choice; the payload is sequential" },
@@ -12,12 +10,11 @@
     { "where": "section 04 coverage block", "board": "4 segments per row (4 filled, 2 filled, 0 filled dashed red) and the words full, part, none", "needs": "renderer work; status enum has full, partial, missing" },
     { "where": "section 04 warn block", "board": "label 'WARN' inside the callout", "needs": "renderer work" },
     { "where": "header", "board": "top bar session prefix 'k2p9x4 /'", "needs": "derived from the session id, renderer work" },
-    { "where": "outline", "board": "'Agent trail 3 flags' row", "needs": "trajectory block [P8]; the three flags are not enumerated on the board" }
+    { "where": "outline", "board": "'Agent trail 3 flags' row", "needs": "none in the payload: section 04 ends with a trajectory block with 3 flagged steps (the board does not list them); the app row lands on feat/console-outline-agent-trail" }
   ],
   "readerState": [
     { "board": "D2 selected 'other'", "seed": "dother.D2 is '' (Other picked, nothing typed yet), so D2 counts as answered and its 'Your answer' field shows empty, as on the board" },
-    { "board": "second 'Your marks' row 'burst allowance สำหรับ webhook' (outline only, no body text anchors it)", "seed": "not seeded; there is no text in the document for it to mark" },
-    { "board": "outline 'Your marks' lime outline swatch", "seed": "only one highlight is seeded, so the outline lists one mark" },
+    { "board": "second 'Your marks' row 'burst allowance สำหรับ webhook' with a lime outline swatch (outline only, no body text anchors it)", "seed": "h-seed-2 is an ask mark (question set) on block 99 of section 01, which does not exist, so the outline lists it and no text is painted" },
     { "board": "dock footer 'note 2 รายการ'", "seed": "the app counts reasons there, the Note lines the prompt prints (B-Overlays shows 2 notes beside 2 Note lines); the seed has no reason, so it reads 'Includes answers, reasons and 0 notes'" },
     { "board": "reading progress line at 490px (section 02 current)", "seed": "scroll position is not seeded; it depends on the scroll state of the page" }
   ]

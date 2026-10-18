@@ -7,15 +7,18 @@ const pad = (n: number) => String(n).padStart(2, '0')
 /** Called with the section a context chip names and the decision it sits in. */
 export type JumpToContext = (sectionId: string, decisionId: string) => void
 
+// B-Reader draws "min-height: 26px" on a content box, so the chip renders 28 with its border.
 const CHIP = {
-  dock: 'min-h-[26px] gap-[5px] px-[7px] text-[12px]',
+  dock: 'min-h-[28px] min-w-0 gap-[5px] px-[7px] text-[12px]',
   sheet: 'min-h-9 gap-[6px] px-[10px] text-[13px]',
 }
 
 /**
  * A decision's context chips (D7), a chip per section it refers to; nothing
- * renders when no ref resolves. The dock draws them after a "context" label
- * (B-Reader:214), the sheet as links above the options (B-Mobile:77). Under
+ * renders when no ref resolves. The dock draws them on one row after a
+ * "context" label (B-Reader:214), cutting long titles with an ellipsis; the
+ * sheet draws them as links above the options, each with the hint
+ * (B-Mobile:77, in English per D6). Under
  * 880 a chip is 44 high where the boards draw 26 and 36: every target under
  * 880 is at least 44.
  */
@@ -35,9 +38,9 @@ export function RefChips({
   return (
     <div
       data-refs=""
-      className={`flex flex-wrap items-center leading-[normal] ${variant === 'dock' ? '-mt-[2px] gap-1' : '-mt-1 gap-[6px]'}`}
+      className={`flex items-center leading-[normal] ${variant === 'dock' ? '-mt-[2px] gap-1' : '-mt-1 flex-wrap gap-[6px]'}`}
     >
-      {variant === 'dock' && <span className="mr-[2px] font-mono text-[10px] text-faint">context</span>}
+      {variant === 'dock' && <span className="mr-[2px] shrink-0 font-mono text-[10px] text-faint">context</span>}
       {refs.map((ref) => (
         <a
           key={ref.id}
@@ -48,8 +51,20 @@ export function RefChips({
           }}
           className={`flex items-center rounded-[4px] border border-line2 ${CHIP[variant]} text-sub no-underline transition-colors duration-[var(--dur-fast)] hover:bg-chip focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line motion-reduce:transition-none max-[880px]:min-h-11`}
         >
-          <span className="font-mono text-[11px] text-accent-text">§{pad(ref.no)}</span>
-          {ref.title}
+          {variant === 'dock' ? (
+            <>
+              <span className="font-mono text-[11px] text-accent-text">§{pad(ref.no)}</span>
+              <span className="truncate">{ref.title}</span>
+            </>
+          ) : (
+            <>
+              {/* B-Mobile:77 sets the whole label, number and title, in the accent mono. */}
+              <span className="font-mono text-[11px] text-accent-text">
+                §{pad(ref.no)} {ref.title}
+              </span>
+              <span>Read the context; the dock shrinks to a bar</span>
+            </>
+          )}
         </a>
       ))}
     </div>

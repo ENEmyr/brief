@@ -22,16 +22,19 @@
         },
         {
           "type": "stat",
+          "caption": "ตัวเลขช่วง flash sale",
           "items": [
             {
               "label": "Peak RPS",
-              "value": "4,800"
+              "value": "4,800",
+              "spark": [6, 9, 7, 12, 20, 10]
             },
             {
               "label": "p95 latency",
               "value": "2.4 s",
               "tone": "red",
-              "hint": "▲ 8× จากเป้า 300 ms"
+              "hint": "▲ 8× จากเป้า 300 ms",
+              "hintTone": "red"
             },
             {
               "label": "5xx rate",
@@ -43,7 +46,8 @@
               "label": "หลังใส่ limiter",
               "value": "0.2%",
               "tone": "green",
-              "hint": "▼ 98% ใน load test"
+              "hint": "▼ 98% ใน load test",
+              "hintTone": "green"
             }
           ]
         },
@@ -114,7 +118,12 @@
         {
           "type": "table",
           "caption": "ต้นทุนของแต่ละแนวทาง",
-          "head": ["ตัวเลือก", "ความแม่น", "latency", "ค่าใช้จ่าย"],
+          "head": ["ตัวเลือก", "ความแม่น", "latency ▾", "ค่าใช้จ่าย"],
+          "align": ["left", "left", "right", "left"],
+          "cells": [
+            { "row": 1, "col": 3, "tone": "good" },
+            { "row": 3, "col": 3, "tone": "warn" }
+          ],
           "rows": [
             ["Rate limiting binding", "±5%", "<1 ms", "รวมใน plan"],
             ["KV counter", "±20%", "5–30 ms", "ต่อ read/write"],
@@ -124,6 +133,7 @@
         {
           "type": "ba",
           "language": "ts",
+          "filename": "src/limiter.ts",
           "before": "export async function handle(req) {\n  return fetch(req.url)\n}",
           "after": "export async function handle(req, env) {\n  const key = resolveKey(req)\n  const { success } = await env.LIMITER.limit({ key })\n  if (!success) return tooMany(30)\n  return fetch(origin(req))\n}"
         },

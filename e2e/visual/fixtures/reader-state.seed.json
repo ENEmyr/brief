@@ -18,6 +18,17 @@
       "end": 98,
       "text": "ล้มทั้งแถบ",
       "note": null
+    },
+    {
+      "id": "h-seed-2",
+      "sid": 0,
+      "bid": 0,
+      "path": "text",
+      "start": 119,
+      "end": 139,
+      "text": "ด่านแรกที่ปกป้อง API",
+      "note": null,
+      "question": "ด่านแรกนี้ต้องรับได้กี่ request ต่อวินาที"
     }
   ]
 }

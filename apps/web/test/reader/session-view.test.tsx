@@ -612,3 +612,59 @@ describe('outline warn dot for open decisions', () => {
     await waitFor(() => expect(screen.queryByRole('img', { name: 'open decisions' })).not.toBeInTheDocument())
   })
 })
+
+describe('outline Agent trail row', () => {
+  const trajectory = {
+    type: 'trajectory',
+    steps: [
+      { at: '2026-10-15T01:00:00Z', kind: 'request', title: 'Do not touch the webhooks' },
+      { at: '2026-10-15T01:00:52Z', kind: 'decision', title: 'key = API key', flag: true },
+      { at: '2026-10-15T01:02:05Z', kind: 'assumption', title: 'Webhooks use a fixed IP range', flag: true },
+    ],
+  }
+  const withBlocks = (blocks: unknown[]) => ({
+    ...validPayload,
+    sections: [{ id: 's1', no: 1, title: 'Intro', blocks }],
+    decisions: [],
+  })
+
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+  afterEach(() => {
+    delete (Element.prototype as Partial<Element>).scrollIntoView
+  })
+
+  async function open(payload: unknown) {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    const envelope = { ...validEnvelope, payload: JSON.stringify(payload) }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url.endsWith('/state') ? new Response(JSON.stringify({ state: null })) : new Response(JSON.stringify(envelope)),
+        ),
+      ),
+    )
+    render(<SessionPage />)
+    await screen.findByRole('navigation', { name: 'Outline' })
+  }
+
+  it('has no row for a document without a trajectory block', async () => {
+    await open(withBlocks([{ type: 'p', text: 'Hello' }]))
+    expect(screen.queryByRole('link', { name: /Agent trail/ })).not.toBeInTheDocument()
+  })
+
+  it('counts the flagged steps and scrolls to the trajectory block, opening the details that holds it', async () => {
+    await open(withBlocks([{ type: 'p', text: 'Hello' }, { type: 'details', summary: 'Trail', blocks: [trajectory] }]))
+    const row = screen.getByRole('link', { name: 'Agent trail 2 flags' })
+    const card = screen.getByText('trajectory').closest('figure')!
+    const scroll = vi.fn()
+    card.scrollIntoView = scroll
+
+    fireEvent.click(row)
+
+    expect(scroll).toHaveBeenCalledTimes(1)
+    expect(card.closest('details')).toHaveAttribute('open')
+  })
+})

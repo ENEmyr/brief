@@ -64,7 +64,8 @@ test.describe('shell at 1440', () => {
       'font-size': '13px',
       'font-weight': '600',
     })
-    const id = row.getByText(/^k2p9x4Qm7Zr1Ta \/$/)
+    // B-Reader:44 prints the 6-character id prefix (Topbar.tsx, 096328e).
+    const id = row.getByText(/^k2p9x4 \/$/)
     await expectBox(id, { x: 46, height: 17 })
     await expectComputed(id, { color: C[theme].faint, 'font-size': '13px' })
     const title = row.getByText('Rate limiting สำหรับ public API', { exact: true })

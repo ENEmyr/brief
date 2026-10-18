@@ -74,6 +74,13 @@ function trajectories(payload: StoredPayload): { key: string; block: TrajectoryB
   )
 }
 
+/** Flagged steps across the trajectory blocks, or null when the document has none (the outline then has no Agent trail row). */
+export function trailFlagCount(payload: StoredPayload): number | null {
+  const found = trajectories(payload)
+  if (found.length === 0) return null
+  return found.reduce((n, { block }) => n + block.steps.filter((step) => step.flag).length, 0)
+}
+
 /**
  * The copy-back prompt's "Flags" group: each flagged step the reader marked,
  * in document order, with its mark, offset, kind and title. Empty when nothing

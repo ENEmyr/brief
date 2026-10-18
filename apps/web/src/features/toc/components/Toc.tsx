@@ -25,6 +25,8 @@ export interface TocProps {
   openSectionIds?: ReadonlySet<string>
   onJump: (sectionId: string) => void
   onMarkJump: (mark: TocMark) => void
+  /** The "Agent trail" row. Pass it only when the document has a trajectory block. */
+  trail?: { flags: number; onJump: () => void }
   collapsed: boolean
   onToggleCollapsed: () => void
   drawerOpen: boolean
@@ -51,6 +53,7 @@ export function Toc({
   openSectionIds,
   onJump,
   onMarkJump,
+  trail,
   collapsed,
   onToggleCollapsed,
   drawerOpen,
@@ -101,6 +104,30 @@ export function Toc({
         </a>
       )
     })
+  }
+
+  function renderTrail(rowSize: string) {
+    if (!trail) return null
+    return (
+      <>
+        <div className={DIVIDER} />
+        <a
+          href="#agent-trail"
+          onClick={(event) => {
+            event.preventDefault()
+            onCloseDrawer()
+            trail.onJump()
+          }}
+          className={`${ROW} ${rowSize} text-sub`}
+        >
+          <span aria-hidden="true" className="h-[7px] w-[7px] shrink-0 rounded-full bg-info" />
+          Agent trail
+          <span className="ml-auto font-mono text-[11px] text-warn">
+            {trail.flags} {trail.flags === 1 ? 'flag' : 'flags'}
+          </span>
+        </a>
+      </>
+    )
   }
 
   function renderMarks(rowSize: string) {
@@ -175,6 +202,7 @@ export function Toc({
       </div>
       {renderSections('min-h-8')}
       {renderMarks('min-h-8')}
+      {renderTrail('min-h-8')}
     </>
   )
 
@@ -219,6 +247,7 @@ export function Toc({
             <span className={LABEL}>OUTLINE</span>
             {renderSections('min-h-11')}
             {renderMarks('min-h-11')}
+            {renderTrail('min-h-11')}
           </div>
         </div>
       )}

@@ -162,14 +162,18 @@
       "board": "B-Blocks",
       "selector": "section",
       "nth": 7,
-      "contains": "resolveKey"
+      "contains": "resolveKey",
+      "css": "div[style^=\"display: flex; padding: 0px 12px\"] { white-space: pre }",
+      "mask": "div[style^=\"display: flex; padding: 0px 12px\"]:has-text(\"export async function handle\")"
     },
     {
       "name": "blocks-details",
       "board": "B-Blocks",
-      "selector": "section",
-      "nth": 8,
-      "contains": "fixed window"
+      "selector": "details",
+      "nth": 0,
+      "contains": "refill rate",
+      "mask": "details div[style*=\"Times New Roman\"]",
+      "snap": true
     },
     {
       "name": "overlays-copy-title",

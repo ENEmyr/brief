@@ -9,12 +9,57 @@ import type { Locator, Page } from '@playwright/test'
 export const READER_REGIONS = {
   topbar: 'header',
   outline: 'nav[aria-label="Outline"]',
-  s1: 'section#s1',
   s2: 'section#s2',
-  s3: 'section#s3',
-  s4: 'section#s4',
   dock: 'aside[aria-label="Decision dock"]',
 } as const
+
+/**
+ * R-V1 (decisions.tsv 2026-10-19): blocks inside reader sections use the
+ * B-Blocks card, so B-Reader's bare blocks are superseded and whole sections
+ * (the old full-page and s1, s3, s4 comparisons) cannot match. The reader
+ * keeps what B-Reader owns: each section's header row (number, title, rule),
+ * at every width and theme. Block bodies are covered by the B-Blocks crops in
+ * text-blocks and diagrams specs.
+ */
+export const SECTION_HEADERS = {
+  's1-header': 'section#s1 > div:first-child',
+  's2-header': 'section#s2 > div:first-child',
+  's3-header': 'section#s3 > div:first-child',
+  's4-header': 'section#s4 > div:first-child',
+} as const
+
+/**
+ * R-V5 (with R-V1): region s2 compares the section's chrome (border, fill,
+ * padding) and its header row only, so its cut ends at the header's bottom
+ * edge; the B-Blocks cards below it are not B-Reader's.
+ */
+export async function sectionChromeClip(section: Locator): Promise<Clip> {
+  const clip = await clipOf(section)
+  const header = await clipOf(section.locator(':scope > div:first-child'))
+  return { ...clip, height: header.y + header.height - clip.y }
+}
+
+/**
+ * C8 (vt-b triage), R-V5: the app decides, so the dock is sticky and capped
+ * at the viewport (DockSlot.tsx:73, `max-h-[calc(100dvh-82px)]`), with a
+ * scrolling list; the board dock is its natural 1297 px. Both sides compare the top rows the app
+ * draws at the 900 px viewport: 820 px, the app's dock box at scroll 0.
+ */
+export const DOCK_VISIBLE_HEIGHT = 820
+
+/**
+ * R-V5: the app pins "Copy prompt for agent" and Reset under the capped list,
+ * where the board's rows carry on. Both sides compare the dock from its top to
+ * the top of that footer.
+ */
+export const DOCK_ROWS_HEIGHT = 685
+
+/**
+ * C7 (vt-b triage): B-Reader is drawn mid-read, with the progress line 34%
+ * filled (B-Reader:61 `width: 34%`) and outline row 02 current. The specs
+ * scroll the app to that state before they cut the topbar and the outline.
+ */
+export const BOARD_PROGRESS = 0.34
 
 export const READER_WIDTHS = [1440, 1100, 880] as const
 
@@ -120,3 +165,35 @@ export const PHONE_VIEWPORT = { width: 388, height: 798 } as const
  * into the reference. The renderer throws if a button crosses that edge.
  */
 export const PHONE_SCREEN = { x: 1, y: 45, width: 388, height: 768 } as const
+
+/**
+ * R-V4 (decisions.tsv, 2026-10-19): the app keeps its scrim behind the phone
+ * sheet, and the B-Mobile boards draw none. Both sides mask the backdrop: the
+ * band above the sheet, which starts 106 px down the phone screen
+ * (dock.visual.spec.ts openSheet), and the two corners its 14 px top radius
+ * leaves open. x and y are the screen's top-left corner in the coordinates the
+ * screenshot clip uses: the viewport on the app (fixed), the page on the board.
+ */
+export async function sheetBackdropMask(
+  page: Page,
+  x: number,
+  y: number,
+  position: 'fixed' | 'absolute',
+): Promise<Locator> {
+  await page.evaluate(
+    ({ x, y, position }) => {
+      for (const [left, top, width, height] of [
+        [0, 0, 388, 106],
+        [0, 106, 14, 14],
+        [374, 106, 14, 14],
+      ]) {
+        const mask = document.createElement('div')
+        mask.className = 'sheet-backdrop-mask'
+        mask.style.cssText = `position:${position};left:${x + left!}px;top:${y + top!}px;width:${width}px;height:${height}px;pointer-events:none`
+        document.body.append(mask)
+      }
+    },
+    { x, y, position },
+  )
+  return page.locator('.sheet-backdrop-mask')
+}

@@ -48,7 +48,10 @@ test.describe('decision context chips (D7)', () => {
     const d1 = dock.getByRole('group', { name: 'Question D1' })
     const chips = d1.getByRole('link')
     await expect(chips).toHaveCount(1)
-    await expect(chips).toHaveText('§02Token bucket')
+    // R-V6 (D6): under 880 the sheet chip adds the English context hint after the title.
+    await expect(chips).toHaveText(
+      isMobile ? '§02 Token bucketRead the context; the dock shrinks to a bar' : '§02Token bucket',
+    )
 
     const section = page.locator('main [data-section="bucket"]')
     await expect(section).not.toHaveAttribute('data-flash')

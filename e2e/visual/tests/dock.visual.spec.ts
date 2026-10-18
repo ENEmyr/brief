@@ -1,7 +1,7 @@
 import { expect as baseExpect, type Locator, type Page } from '@playwright/test'
 import { expectBox, expectComputed } from '../lib/geometry'
-import { PHONE_VIEWPORT, clipOf, type Theme } from '../lib/regions'
-import { expect, openReader, test } from '../lib/session'
+import { PHONE_VIEWPORT, clipOf, sheetBackdropMask, type Theme } from '../lib/regions'
+import { expect, mobilePayload, mobileSeed, openReader, serveSession, test } from '../lib/session'
 
 // Phase 3: the decision dock (B-Reader:205-231), the B-Mobile sheet and the
 // B-Overlays prompt review sheet. Numbers were measured on the boards with
@@ -79,16 +79,15 @@ const C: Record<Theme, Palette> = {
   },
 }
 
-/** Each B-Reader decision has a context-chip row (26 plus the 8 gap) that waits on decision.refs (P1). */
-const CHIPS = 34
 /**
- * B-Reader draws the dock 1297 high in flow. The app caps it at the viewport
- * less 64 (sticky top) and 16 (page padding) so its list scrolls, which puts
- * the footer at the dock's bottom edge: 900 - 80 high at 1440x900.
+ * B-Reader draws the dock 1297 high in flow. R-V5: the app decides, and caps
+ * it at the viewport less 64 (sticky top) and 16 (page padding) so its list
+ * scrolls, which puts the footer at the dock's bottom edge: 900 - 80 high at
+ * 1440x900.
  */
 const DOCK_H = 900 - 80
 const BOARD_DOCK_H = 1297
-/** Reset (owner ruling D5, no board) under the includes line: 36 plus the 8 gap. */
+/** Reset (owner ruling D5, no board; R-V5) under the includes line: 36 plus the 8 gap. */
 const RESET = 44
 
 interface Rel {
@@ -170,7 +169,7 @@ test.describe('dock at 1440', () => {
   }) => {
     const dock = dockOf(page)
     const d1 = row(page, 'D1')
-    await expectRel(d1, dock, { x: 1, y: 54, width: 340, height: 277 - CHIPS })
+    await expectRel(d1, dock, { x: 1, y: 54, width: 340, height: 277 })
     await expectComputed(d1, {
       'padding-top': '12px',
       'padding-left': '14px',
@@ -209,7 +208,7 @@ test.describe('dock at 1440', () => {
     for (let i = 0; i < 4; i++) {
       await expectRel(options.nth(i), dock, {
         x: 15,
-        y: 128 - CHIPS + 38 * i,
+        y: 128 + 38 * i,
         width: 312,
         height: 34,
       })
@@ -230,7 +229,7 @@ test.describe('dock at 1440', () => {
       color: C[theme].sub,
     })
     const pickedKbd = picked.locator('kbd')
-    await expectRel(pickedKbd, dock, { x: 24, y: 135 - CHIPS, width: 20, height: 20 })
+    await expectRel(pickedKbd, dock, { x: 24, y: 135, width: 20, height: 20 })
     await expectComputed(pickedKbd, {
       'background-color': C[theme].accent,
       color: C[theme].onAccent,
@@ -246,7 +245,7 @@ test.describe('dock at 1440', () => {
     await expectRel(picked.locator(':scope > span'), dock, { x: 54 })
 
     const reason = row(page, 'D1').getByRole('textbox', { name: 'D1 Reason' })
-    await expectRel(reason, dock, { x: 15, y: 284 - CHIPS, width: 312, height: 34 })
+    await expectRel(reason, dock, { x: 15, y: 284, width: 312, height: 34 })
     await expectComputed(reason, {
       'background-color': C[theme].codeBg,
       'border-top-color': C[theme].line,
@@ -261,13 +260,13 @@ test.describe('dock at 1440', () => {
   }) => {
     const dock = dockOf(page)
     const d2 = row(page, 'D2')
-    await expectRel(d2, dock, { y: 331 - CHIPS })
+    await expectRel(d2, dock, { y: 331 })
     const other = d2.getByRole('radio', { name: 'Other, type your own' })
     await expect(other).toHaveAttribute('aria-checked', 'true')
     await expect(other.locator('kbd')).toHaveText('4')
     const field = d2.getByRole('textbox', { name: 'D2 Your answer' })
     await expect(field).toHaveAttribute('placeholder', 'Your answer')
-    await expectRel(field, dock, { x: 15, y: 561 - 2 * CHIPS, width: 312, height: 36 })
+    await expectRel(field, dock, { x: 15, y: 561, width: 312, height: 36 })
     await expectComputed(field, {
       'background-color': C[theme].page,
       'border-top-color': C[theme].accentLine,
@@ -396,6 +395,9 @@ test.describe('dock at 1440', () => {
     test(`crop ${crop}`, async ({ page, theme }) => {
       const locator = find(page)
       await expect(locator).toBeVisible()
+      // R-V5: the dock is capped at 820 and its list scrolls under the sticky
+      // footer, so a row the footer covers is scrolled to the list's middle first.
+      await locator.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }))
       await expect(page).toHaveScreenshot(`crop-reader-${theme}-${crop}.png`, {
         fullPage: true,
         clip: await clipOf(locator),
@@ -492,14 +494,8 @@ test.describe('phone sheet', () => {
   test.use({ viewport: PHONE_VIEWPORT, isMobile: true, hasTouch: true })
 
   // B-Mobile's own answers: D1 binding, D3 api. The sheet opens on D2, the first open one.
-  const mobileSeed = {
-    dsel: { D1: ['binding'], D3: ['api'] },
-    dnote: {},
-    dother: {},
-    highlights: [],
-  }
-
   async function openSheet(page: Page) {
+    await serveSession(page, mobilePayload)
     await openReader(page, mobileSeed)
     await page.getByRole('button', { name: 'Open dock' }).click()
     const sheet = page.getByRole('dialog', { name: 'Decision dock' })
@@ -513,7 +509,7 @@ test.describe('phone sheet', () => {
   }) => {
     const sheet = await openSheet(page)
     await expect(sheet.getByText('DECISIONS / 2/4', { exact: true })).toBeVisible()
-    // Touch targets under 880 are 44: the board's 36 chips grow by 8.
+    // R-V5: touch targets under 880 are 44, so the board's 36 chips grow by 8.
     const chips = ['D1', 'D2', 'D3', 'D4'].map((id) =>
       sheet.getByRole('button', { name: `Question ${id}` }),
     )
@@ -539,13 +535,14 @@ test.describe('phone sheet', () => {
       'font-weight': '600',
     })
 
-    // B-Mobile has a context link (38 plus the 10 gap, less its -4 margin) above the options: refs are P1.
+    // R-V5: the context link above the options (the fixture sets D2's refs) is
+    // a 44 touch target under 880, 6 taller than B-Mobile's 38.
     const options = sheet.getByRole('group', { name: 'Question D2' }).getByRole('radio')
     await expect(options).toHaveCount(4)
     for (let i = 0; i < 4; i++) {
       await expectRel(options.nth(i), sheet, {
         x: 14,
-        y: 220 + 8 - 44 + 54 * i,
+        y: 220 + 8 + 6 + 54 * i,
         width: 360,
         height: 48,
       })
@@ -565,7 +562,8 @@ test.describe('phone sheet', () => {
     await expectRel(options.nth(0).locator(':scope > span'), sheet, { x: 63 })
 
     const label = sheet.getByText('Reason / extra context', { exact: true })
-    await expectComputed(label, { 'font-size': '13px', color: C[theme].sub })
+    // B-Mobile:85-91: the label and the copy button keep line-height normal.
+    await expectComputed(label, { 'font-size': '13px', 'line-height': 'normal', color: C[theme].sub })
     const reason = sheet.getByRole('textbox', { name: 'Reason / extra context' })
     await expectRel(reason, sheet, { x: 14, width: 360, height: 66 })
     await expectComputed(reason, {
@@ -582,6 +580,7 @@ test.describe('phone sheet', () => {
       color: C[theme].onAccent,
       'font-size': '15px',
       'font-weight': '600',
+      'line-height': 'normal',
       'border-top-left-radius': '6px',
     })
     await expectBoxHeight(sheet.getByRole('button', { name: 'Close dock' }), 44)
@@ -615,6 +614,7 @@ test.describe('phone sheet', () => {
     await openSheet(page)
     await expect(page).toHaveScreenshot(`mobile-${theme}-sheet.png`, {
       clip: { x: 0, y: 0, width: PHONE_VIEWPORT.width, height: 768 },
+      mask: [await sheetBackdropMask(page, 0, 0, 'fixed')],
     })
   })
 })

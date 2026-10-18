@@ -1,4 +1,4 @@
-import { test, type Browser, type Page } from '@playwright/test'
+import { test, type Browser, type Locator, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -15,14 +15,18 @@ import {
 } from './lib/handoff'
 import {
   BOARD_FOR_THEME,
+  DOCK_ROWS_HEIGHT,
   LANDING_REGIONS,
   LANDING_WIDTHS,
   PHONE_SCREEN,
   READER_REGIONS,
   READER_WIDTHS,
+  SECTION_HEADERS,
   THEMES,
   clipOf,
   clipOfRegion,
+  sectionChromeClip,
+  sheetBackdropMask,
   snapToPixelRow,
   type Clip,
 } from './lib/regions'
@@ -45,6 +49,10 @@ interface Crop {
   /** Rows of the element the board shows, when its frame clips the rest. */
   visibleHeight?: number
   snap?: boolean
+  /** Elements masked on both sides; each use cites the ruling that allows it. */
+  mask?: string
+  /** CSS added to the board before the cut; each use cites the board line it corrects. */
+  css?: string
 }
 
 const crops = (
@@ -61,6 +69,10 @@ test.beforeAll(async () => {
     throw new Error(`No boards at ${BOARDS_DIR}. Set BRIEF_HANDOFF_DIR to the console handoff folder.`)
   }
   fs.mkdirSync(GENERATED_DIR, { recursive: true })
+  writeLandingBoards()
+  writeBlocksBoard()
+  writeReaderBoard()
+  writeMobileBoards()
   boards = await serveBoards()
 })
 
@@ -78,9 +90,9 @@ async function openBoard(page: Page, board: string, width: number): Promise<void
 }
 
 /** Full-page screenshot, or the clip (page coordinates) cut out of it. */
-async function save(page: Page, name: string, clip?: Clip) {
+async function save(page: Page, name: string, clip?: Clip, mask?: Locator[]) {
   const file = path.join(REFERENCE_DIR, `${name}.png`)
-  await page.screenshot({ path: file, fullPage: true, clip, animations: 'disabled' })
+  await page.screenshot({ path: file, fullPage: true, clip, mask, animations: 'disabled' })
   written.push(file)
 }
 
@@ -113,6 +125,167 @@ async function newPage(browser: Browser): Promise<Page> {
   return page
 }
 
+/** Replaces text in a generated board; throws when the board no longer has the text, so a patch never goes stale silently. */
+function patch(html: string, from: string | RegExp, to: string, why: string): string {
+  const out = html.replace(from, to)
+  if (out === html) throw new Error(`board patch "${why}" no longer applies; the board changed under it`)
+  return out
+}
+
+/**
+ * Writes B-Landing.dc.html and B-Landing-Light.dc.html into GENERATED_DIR
+ * before any board renders, so every render of B-Landing (the full board, the
+ * landing pages and regions) reads the same patched copy. The light board is
+ * lightified from the patched dark one.
+ */
+function writeLandingBoards(): void {
+  let html = fs.readFileSync(path.join(BOARDS_DIR, 'B-Landing.dc.html'), 'utf8')
+  // C2 (vt-a triage): the board runtime drops whitespace-only text between two
+  // elements, so the blank line between two spans in a <pre> vanishes. Move it
+  // into the span before. Of every B-*.dc.html <pre>, only B-Landing's usage
+  // <pre> has such a gap.
+  const before = html
+  html = html.replace(/<pre\b[\s\S]*?<\/pre>/g, (pre) => pre.replace(/<\/span>(\s*\n\s*)<span/g, '$1</span><span'))
+  if (html === before) throw new Error('board patch "C2 pre blank line" no longer applies; the board changed under it')
+  // R-V2 (decisions.tsv 2026-10-19; F3): the example session id is 14 characters.
+  html = patch(html, /k2p9x4(?!Qm)/g, 'k2p9x4Qm7Zr1Ta', 'R-V2 session id')
+  // R-V2 (d056, d057; D7, D9): row 1 lists list and image, and its note says "and images".
+  html = patch(html, '>p note warn good<', '>p list note warn good image<', 'R-V2 row 1 types')
+  html = patch(html, 'and the three callout tones.', 'the three callout tones, and images.', 'R-V2 row 1 note')
+  // The "proposed" tag marks the Agent work row as unshipped (features.md:310);
+  // walkthrough, diff and trajectory shipped, so the app draws no tag
+  // (recorded difference, pr-body-phase6.md:117).
+  html = patch(html, /<span style="[^"]*">proposed<\/span>/, '', 'Agent work proposed tag')
+  // R-V2 (d176): under 880 every landing link and button is a 44 px target.
+  html = patch(
+    html,
+    '@media (prefers-reduced-motion',
+    '@media (max-width: 880px){header > a,footer a,#blocks h2 + a{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px}button.bl-btn:not([role=tab]){min-height:44px !important}}\n@media (prefers-reduced-motion',
+    'R-V2 44 px targets',
+  )
+  const dark = path.join(GENERATED_DIR, 'B-Landing.dc.html')
+  fs.writeFileSync(dark, html)
+  const light = path.join(GENERATED_DIR, 'B-Landing-Light.dc.html')
+  execFileSync('python3', ['-I', LIGHTIFY, dark, light, 'Landing light'], { stdio: 'inherit' })
+  // C3 (vt-a triage): lightify.py reads the tab data prop `sub` as a background
+  // and keeps the selected hint lime; the light foreground pair is #4D7A00.
+  fs.writeFileSync(
+    light,
+    patch(fs.readFileSync(light, 'utf8'), "sub: on ? '#C5F05A'", "sub: on ? '#4D7A00'", 'C3 light tab hint'),
+  )
+}
+
+/**
+ * Writes B-Blocks.dc.html into GENERATED_DIR. The board's inline mono stacks
+ * are 'Geist Mono', monospace, without the Thai fallback tokens.css gives
+ * --font-mono (Geist Mono, then Noto Sans Thai), so Thai in a card header or a
+ * stat hint fell back to a system font on the board only.
+ */
+function writeBlocksBoard(): void {
+  let html = fs.readFileSync(path.join(BOARDS_DIR, 'B-Blocks.dc.html'), 'utf8')
+  html = patch(html, /'Geist Mono', monospace/g, "'Geist Mono', 'Noto Sans Thai', monospace", 'tokens.css mono stack')
+  // R-V3 (d201): the app keeps KaTeX, whose formula line is 25 high; the
+  // board's Times italic line is 23, so its formula box is 2 px shorter
+  // (B-Blocks:169). The box is masked on both sides; only its height counts.
+  html = patch(html, 'font-size: 20px">tokens(t)', 'font-size: 20px; line-height: 25px">tokens(t)', 'R-V3 KaTeX line')
+  fs.writeFileSync(path.join(GENERATED_DIR, 'B-Blocks.dc.html'), html)
+}
+
+/**
+ * Writes B-Reader.dc.html into GENERATED_DIR. C10 (vt-b triage, owner D3:
+ * missing fields are [P] work): the payload has no seq emphasis field, so the
+ * app draws the Limiter node and the "4 forward" arrow like every other node
+ * and arrow. The board's accent on both is dropped and recorded in
+ * fixtures/brief-sample.gaps.json (section 02 seq block).
+ */
+function writeReaderBoard(): void {
+  let html = fs.readFileSync(path.join(BOARDS_DIR, 'B-Reader.dc.html'), 'utf8')
+  html = patch(
+    html,
+    'background: #1E2612; border: 1px solid #C5F05A; border-radius: 4px; font-family: \'Geist\', sans-serif; font-size: 13px; font-weight: 500">Limiter<',
+    'background: #171B1F; border: 1px solid #313940; border-radius: 4px; font-family: \'Geist\', sans-serif; font-size: 13px; font-weight: 500">Limiter<',
+    'C10 Limiter emphasis',
+  )
+  const arrow = /<svg[^>]*left: 240px; top: 248px[^>]*>[\s\S]*?<\/svg>/.exec(html)?.[0] ?? ''
+  html = patch(html, arrow, arrow.replaceAll('#C5F05A', '#A1AAB2'), 'C10 forward arrow')
+  html = patch(html, 'color: #C5F05A">4 forward<', 'color: #A1AAB2">4 forward<', 'C10 forward label')
+  // The board's ask mark quotes text no section has (B-Reader:89); the seed
+  // anchors it to section 01 text, so a highlight points at real payload text.
+  html = patch(html, '</span>burst allowance สำหรับ webhook</a>', '</span>ด่านแรกที่ปกป้อง API</a>', 'seed ask mark text')
+  // D7 (features.md:169): a chip reads the section number plus its title. The
+  // board's short chip words ('burst', 'bucket', 'cost') are no section's title.
+  html = patch(
+    html,
+    "const secs = { s1: ['01', 'burst'], s2: ['02', 'bucket'], s3: ['03', 'cost'], s4: ['04', 'tests'] };",
+    "const secs = { s1: ['01', 'ปัญหาของ burst traffic'], s2: ['02', 'Token Bucket ทำงานอย่างไร'], s3: ['03', 'ต้นทุนเมื่อ n โต'], s4: ['04', 'ความครอบคลุมของการทดสอบ'] };",
+    'D7 chip titles',
+  )
+  // R-V6: the dock keeps its chips on one row and cuts a long title with an ellipsis.
+  html = patch(
+    html,
+    'style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: -2px"',
+    'style="display: flex; gap: 4px; align-items: center; margin-top: -2px"',
+    'R-V6 chip row',
+  )
+  html = patch(
+    html,
+    /(class="br-row" style="min-height: 26px; display: flex;)([^"]*">)(<span[^>]*>§\{\{r\.no\}\}<\/span>)\{\{r\.title\}\}<\/a>/,
+    '$1 min-width: 0;$2$3<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.title}}</span></a>',
+    'R-V6 chip ellipsis',
+  )
+  // D6: the dock's fixed UI labels are English; payload text stays as written.
+  html = patch(html, "label: 'อื่นๆ พิมพ์เอง' }", "label: 'Other, type your own' }", 'D6 other option')
+  html = patch(html, 'placeholder="พิมพ์คำตอบของคุณ"', 'placeholder="Your answer"', 'D6 other answer')
+  html = patch(html, /placeholder="เหตุผล \/ บริบทเพิ่มเติม \(ไม่บังคับ\)"/g, 'placeholder="Reason / extra context (optional)"', 'D6 reason')
+  html = patch(html, '>รวมคำตอบ เหตุผล และ note 2 รายการ<', '>Includes answers, reasons and 0 notes<', 'D6 includes line (seed has no notes)')
+  fs.writeFileSync(path.join(GENERATED_DIR, 'B-Reader.dc.html'), html)
+}
+
+/**
+ * Writes B-Mobile.dc.html and B-Mobile-Light.dc.html into GENERATED_DIR. D6
+ * (STATUS.md: fixed UI labels are English, payload content keeps its
+ * language): the boards' Thai UI labels become the app's English ones
+ * (components.md:83 for the peek bar). Payload text, Thai on the boards,
+ * stays as it is.
+ */
+function writeMobileBoards(): void {
+  for (const board of ['B-Mobile', 'B-Mobile-Light']) {
+    let html = fs.readFileSync(path.join(BOARDS_DIR, `${board}.dc.html`), 'utf8')
+    html = patch(html, '>2 จาก 4 / ถัดไป D2<', '>2 of 4, next D2<', 'D6 peek count')
+    html = patch(html, '>เปิด dock<', '>Open dock<', 'D6 open dock')
+    html = patch(html, "['other', 'อื่นๆ พิมพ์เอง']", "['other', 'Other, type your own']", 'D6 other option')
+    html = patch(html, '>เหตุผล / บริบทเพิ่มเติม<', '>Reason / extra context<', 'D6 reason label')
+    html = patch(html, 'placeholder="ไม่บังคับ"', 'placeholder="optional"', 'D6 reason placeholder')
+    // R-V6 (D6): the app draws the context hint in English.
+    html = patch(
+      html,
+      '>อ่านบริบท แล้ว dock จะย่อเป็นแถบล่าง<',
+      '>Read the context; the dock shrinks to a bar<',
+      'R-V6 context hint',
+    )
+    // R-V5: the sheet's chips and context link are 44 px targets. The chips
+    // are buttons (border-box); the link is content-box, so 42 plus its border.
+    html = patch(
+      html,
+      'style="min-height: 36px; padding: 0 12px; border-radius: 999px',
+      'style="min-height: 44px; padding: 0 12px; border-radius: 999px',
+      'R-V5 chip targets',
+    )
+    html = patch(html, 'align-self: flex-start; min-height: 36px', 'align-self: flex-start; min-height: 42px', 'R-V5 context link target')
+    // R-V5 (D5): Reset sits before Close dock, a ghost 44 in the board's sub color
+    // (ResetAnswers.tsx sheet look); the seed has answers, so the app shows it.
+    const sub = /<label for="bm-why" style="font-size: 13px; color: (#[0-9A-F]{6})">/.exec(html)?.[1]
+    if (!sub) throw new Error(`board patch "R-V5 Reset" no longer applies; ${board} has no reason label color`)
+    html = patch(
+      html,
+      '<button aria-label="Close dock"',
+      `<button style="min-height: 44px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; color: ${sub}; font: inherit; font-size: 13px">Reset</button><button aria-label="Close dock"`,
+      'R-V5 Reset',
+    )
+    fs.writeFileSync(path.join(GENERATED_DIR, `${board}.dc.html`), html)
+  }
+}
+
 test('every row B board in full', async ({ browser }) => {
   const page = await newPage(browser)
   for (const board of rowBBoards()) {
@@ -127,10 +300,16 @@ test('reader at 1440, 1100 and 880, dark and light, plus regions', async ({ brow
     const board = BOARD_FOR_THEME[theme].reader
     for (const width of READER_WIDTHS) {
       await openBoard(page, board, width)
-      await save(page, `reader-${theme}-${width}`)
+      // R-V1: section headers instead of the full page (lib/regions.ts SECTION_HEADERS).
+      for (const [name, selector] of Object.entries(SECTION_HEADERS)) {
+        await save(page, `reader-${theme}-${width}-${name}`, await clipOf(page.locator(selector).first()))
+      }
       if (theme === 'dark' && width === 1440) {
         for (const [region, selector] of Object.entries(READER_REGIONS)) {
-          await save(page, `region-${theme}-${region}`, await clipOf(page.locator(selector).first()))
+          const landmark = page.locator(selector).first()
+          const clip = region === 's2' ? await sectionChromeClip(landmark) : await clipOf(landmark)
+          if (region === 'dock') clip.height = Math.min(clip.height, DOCK_ROWS_HEIGHT)
+          await save(page, `region-${theme}-${region}`, clip)
         }
       }
     }
@@ -153,7 +332,16 @@ test('phone screens of B-Mobile and B-Mobile-Light', async ({ browser }) => {
             const br = b.getBoundingClientRect()
             return { text: b.innerText, top: br.top - r.top, bottom: br.bottom - r.top }
           })
-          return { x: r.x, y: r.y, width: r.width, height: r.height, buttons }
+          const box = (part: Element | null | undefined, end: Element | null = part ?? null) => {
+            if (!part || !end) return null
+            const p = part.getBoundingClientRect()
+            return { left: p.left, top: p.top, right: end.getBoundingClientRect().right, bottom: p.bottom }
+          }
+          // R-V5: the reading screen compares the section header (its row, cut
+          // after the title) and the peek bar.
+          const h2 = el.querySelector('h2')
+          const parts = { 's2-header': box(h2?.parentElement, h2), peek: box(el.lastElementChild) }
+          return { x: r.x, y: r.y, width: r.width, height: r.height, buttons, parts }
         }),
     )
     if (frames.length !== 2) throw new Error(`expected 2 phone frames on ${theme} mobile board, found ${frames.length}`)
@@ -167,22 +355,36 @@ test('phone screens of B-Mobile and B-Mobile-Light', async ({ browser }) => {
           `mobile-${theme}-${name}: button "${cut.text}" spans frame-y ${cut.top}..${cut.bottom}, across the crop's bottom edge at ${cropBottom}; fix PHONE_SCREEN`,
         )
       }
-      await save(page, `mobile-${theme}-${name}`, {
-        x: f.x + PHONE_SCREEN.x,
-        y: f.y + PHONE_SCREEN.y,
-        width: PHONE_SCREEN.width,
-        height: PHONE_SCREEN.height,
-      })
+      if (name === 'reading') {
+        for (const [part, b] of Object.entries(f.parts)) {
+          if (!b) throw new Error(`mobile-${theme}-reading: no ${part} in the phone frame`)
+          const x = Math.round(b.left)
+          const y = Math.round(b.top)
+          await save(page, `mobile-${theme}-reading-${part}`, {
+            x,
+            y,
+            width: Math.round(b.right) - x,
+            // Rows under the frame's rounded corners stay out, as in PHONE_SCREEN.
+            height: Math.round(Math.min(b.bottom, f.y + cropBottom)) - y,
+          })
+        }
+        continue
+      }
+      const x = f.x + PHONE_SCREEN.x
+      const y = f.y + PHONE_SCREEN.y
+      const mask = name === 'sheet' ? [await sheetBackdropMask(page, x, y, 'absolute')] : undefined
+      await save(
+        page,
+        `mobile-${theme}-${name}`,
+        { x, y, width: PHONE_SCREEN.width, height: PHONE_SCREEN.height },
+        mask,
+      )
     }
   }
 })
 
 test('landing dark and light, regions at 1440 and 390, print', async ({ browser }) => {
   const page = await newPage(browser)
-  const light = path.join(GENERATED_DIR, 'B-Landing-Light.dc.html')
-  execFileSync('python3', ['-I', LIGHTIFY, path.join(BOARDS_DIR, 'B-Landing.dc.html'), light, 'Landing light'], {
-    stdio: 'inherit',
-  })
   for (const [theme, board] of [
     ['dark', 'B-Landing'],
     ['light', 'B-Landing-Light'],
@@ -229,10 +431,10 @@ test('element crops from crops.json', async ({ browser }) => {
         throw new Error(`crop ${crop.name}: element does not contain "${crop.contains}"; fix its entry in crops.json`)
       }
     }
+    if (crop.css !== undefined) await page.addStyleTag({ content: crop.css })
     if (crop.snap) await snapToPixelRow(locator)
     const clip = await clipOf(locator)
     if (crop.visibleHeight !== undefined) clip.height = Math.min(clip.height, crop.visibleHeight)
-    await save(page, `crop-${crop.name}`, clip)
+    await save(page, `crop-${crop.name}`, clip, crop.mask === undefined ? undefined : [page.locator(crop.mask)])
   }
 })
-
