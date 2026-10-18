@@ -52,6 +52,10 @@
   --ease-console: cubic-bezier(0.3, 0.8, 0.3, 1);
 }
 
+/* Under 640 every dialog becomes a bottom sheet (interactions.md, B-Overlays
+ * SHELL). */
+@custom-variant sheet (@media (width < 640px));
+
 /* The light set is the :root default and the dark set lives inside
  * @media not print, so printing is always light without extra work. The
  * no-flash script in layout.tsx picks the theme before paint (stored choice,
@@ -124,6 +128,10 @@
    * the text value #8F5A00. Dark is the warn token. */
   --c-warn-fill: #b87a0a;
 
+  /* Archive dialog's warn callout: B-Overlays draws #1A1710 in dark, not
+   * --c-warn-soft. Light keeps the warn-soft token value (D8 style). */
+  --c-warn-callout: #fbf0da;
+
   /* The dock's first open decision (B-Reader:261, B-Reader-Light:261) and the
    * prompt review sheet's leftward shadow (B-Overlays:119, light from
    * tools/lightify.py). Board values with no token in tokens.css. */
@@ -139,6 +147,11 @@
   --c-callout-good: #e8f5ee;
   --c-code-line: #f1f3f4;
   --c-body: #2a3036;
+
+  /* Key hints on the inverted selection toolbar (B-Components:148-151 draws
+   * #4C555D, light sub, on the dark theme's light toolbar), so each theme
+   * takes the other theme's sub. */
+  --c-inverse-sub: #a1aab2;
 }
 
 @media not print {
@@ -201,6 +214,7 @@
     --c-disabled-text: #4b545c;
 
     --c-warn-fill: #f4b740;
+    --c-warn-callout: #1a1710;
 
     --c-dock-current: #141a12;
     --shadow-sheet: -16px 0 48px rgba(0, 0, 0, 0.45);
@@ -209,6 +223,8 @@
     --c-callout-good: #0f1d17;
     --c-code-line: #151a1e;
     --c-body: #d5dadd;
+
+    --c-inverse-sub: #4c555d;
   }
 }
 
@@ -272,16 +288,6 @@ body {
   --shiki-token-changed: var(--c-warn);
 }
 
-@keyframes dc-floatpop {
-  0% { opacity: 0; transform: translate(-50%, 4px); }
-  100% { opacity: 1; transform: translate(-50%, 0); }
-}
-
-@keyframes dc-pop {
-  0% { opacity: 0; transform: scale(.96); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
 /* B-Reader motion: the palette drops in, overlays fade, the header card rises
  * once, the save chip pulses while saving. Reduced motion keeps only the end
  * state (interactions.md). */
@@ -308,6 +314,35 @@ body {
 @keyframes save-pulse {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
+}
+/* B-Overlays MOTION. */
+@keyframes console-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.console-dialog,
+.console-toast {
+  animation: console-enter var(--dur-base) var(--ease-console) both;
+}
+@media (width < 640px) {
+  .console-dialog {
+    animation: console-sheet var(--dur-slow) var(--ease-console) both;
+  }
+}
+/* A bottom sheet ends its actions at the viewport's bottom edge, where the
+ * toast sits. While one is open the toast moves to the top edge: a dialog
+ * sheet stops 64 below it (max-h 100dvh - 64) and the dock sheet 106 below. */
+@media (width < 640px) {
+  body:has([aria-modal='true']) .console-toast {
+    top: 16px;
+    bottom: auto;
+  }
+}
+@media (width < 880px) {
+  body:has(#dock[aria-modal='true']) .console-toast {
+    top: 16px;
+    bottom: auto;
+  }
 }
 .console-pop {
   animation: console-drop var(--dur-base) var(--ease-console) both;
@@ -360,6 +395,10 @@ body {
     animation: none;
     border-color: var(--c-accent-line);
   }
+  .console-dialog,
+  .console-toast {
+    animation: console-in var(--dur-base) ease both;
+  }
 }
 
 /* Math blocks (B-Blocks:169): the formula at 20px with no display margin,
@@ -371,15 +410,28 @@ body {
   margin: 0;
 }
 
+/* B-States loading: the skeleton appears only after 300ms, so a fast load
+ * shows no flash. */
 @keyframes sk-shimmer {
-  0% { background-position: -480px 0; }
-  100% { background-position: 480px 0; }
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
 }
-.sk {
-  background: linear-gradient(90deg, var(--c-elev) 25%, var(--c-skeleton-mid) 37%, var(--c-elev) 63%);
-  background-size: 480px 100%;
-  animation: sk-shimmer 1.4s infinite linear;
-  border-radius: 8px;
+.sk-delay {
+  animation: console-in 0s 300ms both;
+}
+/* In the components layer, so a radius utility on one bar wins. */
+@layer components {
+  .sk {
+    background: linear-gradient(90deg, var(--c-elev) 0%, var(--c-skeleton-mid) 50%, var(--c-elev) 100%);
+    background-size: 200% 100%;
+    animation: sk-shimmer 1.6s linear infinite;
+    border-radius: 3px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sk {
+      animation: none;
+    }
+  }
 }
 
 /* Diagram and chart blocks (B-Blocks, B-Blocks2, B-Overlays). Board colors

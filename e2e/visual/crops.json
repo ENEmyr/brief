@@ -44,7 +44,8 @@
       "hasText": "Archive this doc",
       "hasNotText": "Copy manually",
       "contains": "Archiving keeps this doc",
-      "nth": 2
+      "nth": 2,
+      "visibleHeight": 446
     },
     {
       "name": "reader-dark-dock-header",
@@ -169,6 +170,66 @@
       "selector": "section",
       "nth": 8,
       "contains": "fixed window"
+    },
+    {
+      "name": "overlays-copy-title",
+      "board": "B-Overlays",
+      "selector": "[aria-labelledby=\"ov-copy-t\"] > div",
+      "nth": 0,
+      "contains": "Copy manually"
+    },
+    {
+      "name": "overlays-copy-help",
+      "board": "B-Overlays",
+      "selector": "[aria-labelledby=\"ov-copy-t\"] p",
+      "contains": "The browser blocked the clipboard"
+    },
+    {
+      "name": "overlays-copy-actions",
+      "board": "B-Overlays",
+      "selector": "[aria-labelledby=\"ov-copy-t\"] > div > div",
+      "hasText": "Try copy again",
+      "contains": "Try copy again"
+    },
+    {
+      "name": "overlays-unlock",
+      "board": "B-Overlays",
+      "selector": "div:has(> div > h2)",
+      "contains": "Protected session"
+    },
+    {
+      "name": "states-skeleton-bar",
+      "board": "B-States",
+      "selector": "[aria-label=\"Loading session\"] > div",
+      "nth": 0
+    },
+    {
+      "name": "states-skeleton-columns",
+      "board": "B-States",
+      "selector": "[aria-label=\"Loading session\"] > div",
+      "nth": 1
+    },
+    {
+      "name": "states-toast-copied",
+      "board": "B-States",
+      "selector": "[role=\"status\"]",
+      "hasText": "Copied",
+      "contains": "Copied"
+    },
+    {
+      "name": "states-toast-archived",
+      "board": "B-States",
+      "selector": "[role=\"status\"]",
+      "hasText": "Archived.",
+      "contains": "Kept 90 days"
+    },
+    {
+      "name": "components-selection-toolbar",
+      "board": "B-Components",
+      "selector": "section > div > div",
+      "hasText": "Highlight",
+      "hasNotText": "Note on",
+      "contains": "Highlight"
     }
   ]
 }

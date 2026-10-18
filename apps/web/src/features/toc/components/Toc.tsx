@@ -149,7 +149,17 @@ export function Toc({
   }
 
   function renderMarks(rowSize: string) {
-    if (marks.length === 0) return null
+    // B-States "No notes": teach the selection toolbar instead of saying "nothing here".
+    if (marks.length === 0) {
+      return (
+        <div className="mt-2 flex flex-col gap-2 rounded-panel border border-line bg-card p-[14px]">
+          <span className="font-mono text-[11px] text-faint">NOTES 0</span>
+          <p className="m-0 text-[13px] leading-5 text-sub">
+            Select any text to highlight it, add a note, or ask the agent about it.
+          </p>
+        </div>
+      )
+    }
     return (
       <>
         <div className={DIVIDER} />

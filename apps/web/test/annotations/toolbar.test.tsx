@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { SelectionToolbar } from '@/features/annotations'
 import { BlockRenderer } from '@/features/reader'
 import { ReaderStateProvider, useReaderState } from '@/features/reader-state'
+import { useShortcuts } from '@/features/shortcuts'
 
 const sessionId = 'sess-toolbar-test'
 
@@ -11,7 +12,12 @@ function Probe() {
   return <div data-testid="probe">{JSON.stringify(highlights)}</div>
 }
 
-function renderToolbar(props: React.ComponentProps<typeof SelectionToolbar> = {}) {
+function NextDecision({ onNext }: { onNext: () => void }) {
+  useShortcuts({ nextDecision: onNext })
+  return null
+}
+
+function renderToolbar(props: React.ComponentProps<typeof SelectionToolbar> = {}, extra: React.ReactNode = null) {
   document.body.innerHTML = ''
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -23,6 +29,7 @@ function renderToolbar(props: React.ComponentProps<typeof SelectionToolbar> = {}
       </p>
       <p>Not selectable</p>
       <SelectionToolbar {...props} />
+      {extra}
     </ReaderStateProvider>,
     { container },
   )
@@ -274,5 +281,94 @@ describe('SelectionToolbar', () => {
     selectWithin(block)
     const button = screen.getByRole('button', { name: 'Highlight' })
     expect(button).toHaveClass('max-[880px]:min-h-11')
+  })
+})
+
+describe('SelectionToolbar keys (components.md:88-90)', () => {
+  function shortcutTook(key: string) {
+    return !fireEvent.keyDown(document.activeElement ?? document.body, { key })
+  }
+  const highlights = () => JSON.parse(screen.getByTestId('probe').textContent ?? '[]') as Array<Record<string, unknown>>
+
+  it('shows H, N and A on the toolbar as the board draws them', () => {
+    renderToolbar()
+    selectWithin(screen.getByText('Hello world'))
+
+    expect(screen.getByRole('button', { name: 'Highlight' })).toHaveTextContent('HighlightH')
+    expect(screen.getByRole('button', { name: 'Note' })).toHaveTextContent('NoteN')
+    expect(screen.getByRole('button', { name: 'Ask' })).toHaveTextContent('AskA')
+    expect(screen.getByRole('button', { name: 'Note' })).toHaveAttribute('aria-keyshortcuts', 'N')
+  })
+
+  it('N with a selection opens the note on it and does not move to a decision', () => {
+    const onRequestNote = vi.fn()
+    const onNext = vi.fn()
+    renderToolbar({ onRequestNote }, <NextDecision onNext={onNext} />)
+    selectWithin(screen.getByText('Hello world'))
+
+    expect(shortcutTook('n')).toBe(true)
+
+    expect(onNext).not.toHaveBeenCalled()
+    expect(highlights()).toMatchObject([{ sid: 2, bid: 1, start: 0, end: 5, text: 'Hello', note: '' }])
+    expect(onRequestNote).toHaveBeenCalledWith(highlights()[0]!.id)
+    expect(screen.queryByRole('button', { name: 'Note' })).not.toBeInTheDocument()
+  })
+
+  it('N without a selection moves to the next unanswered decision', () => {
+    const onRequestNote = vi.fn()
+    const onNext = vi.fn()
+    renderToolbar({ onRequestNote }, <NextDecision onNext={onNext} />)
+
+    expect(shortcutTook('n')).toBe(true)
+
+    expect(onNext).toHaveBeenCalledTimes(1)
+    expect(onRequestNote).not.toHaveBeenCalled()
+    expect(highlights()).toEqual([])
+  })
+
+  it('H highlights the selection and A asks about it', () => {
+    const onRequestAsk = vi.fn()
+    renderToolbar({ onRequestAsk })
+    const leaf = screen.getByText('Hello world')
+
+    selectWithin(leaf)
+    expect(shortcutTook('h')).toBe(true)
+    expect(highlights()).toMatchObject([{ text: 'Hello', note: null }])
+    expect(highlights()[0]).not.toHaveProperty('question')
+
+    selectWithin(leaf, 0, 6, 11, 'world')
+    expect(shortcutTook('A')).toBe(true)
+    expect(highlights()[1]).toMatchObject({ text: 'world', question: '' })
+    expect(onRequestAsk).toHaveBeenCalledWith(highlights()[1]!.id)
+  })
+
+  it.each([
+    ['a text field', <input key="field" aria-label="target" />],
+    ['a button in a popover', <div key="popover" data-popover=""><button aria-label="target" /></div>],
+  ])('H, N and A do nothing while focus is in %s', (_where, extra) => {
+    const onRequestNote = vi.fn()
+    const onRequestAsk = vi.fn()
+    const onNext = vi.fn()
+    renderToolbar({ onRequestNote, onRequestAsk }, [extra, <NextDecision key="next" onNext={onNext} />])
+    selectWithin(screen.getByText('Hello world'))
+    screen.getByLabelText('target').focus()
+
+    expect([shortcutTook('h'), shortcutTook('n'), shortcutTook('a')]).toEqual([false, false, false])
+    expect(highlights()).toEqual([])
+    expect(onRequestNote).not.toHaveBeenCalled()
+    expect(onRequestAsk).not.toHaveBeenCalled()
+    expect(onNext).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Highlight' })).toBeInTheDocument()
+  })
+
+  it('H, N and A do nothing while focus is on a toolbar button', () => {
+    const onRequestNote = vi.fn()
+    renderToolbar({ onRequestNote })
+    selectWithin(screen.getByText('Hello world'))
+    screen.getByRole('button', { name: 'Ask' }).focus()
+
+    expect([shortcutTook('h'), shortcutTook('n'), shortcutTook('a')]).toEqual([false, false, false])
+    expect(highlights()).toEqual([])
+    expect(onRequestNote).not.toHaveBeenCalled()
   })
 })

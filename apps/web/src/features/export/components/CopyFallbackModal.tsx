@@ -1,28 +1,9 @@
 'use client'
 import { useRef } from 'react'
 import { execCommandCopy } from '../lib/copy'
-import { useDialogFocus } from '../hooks/useDialogFocus'
+import { Dialog, DialogActions, KBD, PRIMARY_BUTTON, SECONDARY_BUTTON } from './Dialog'
 
-/**
- * Manual-copy dialog shown when the copy chain exhausts both execCommand and
- * the async Clipboard API (prototype Reader.dc.html lines 325-338's
- * copyModalView). The textarea is readOnly + autofocus + pre-selected so the
- * user can just press Ctrl+C. "Try copy again" re-runs ONLY the synchronous
- * execCommand path (prototype line 335's `if(this.execCopy(text))` --
- * prototype-fidelity fix from review: the async Clipboard API already
- * failed before this modal ever opened, so retrying it is pointless); on
- * success it fires onCopied (ExportProvider wires the "Copied" toast) and
- * closes, on failure it stays open so the user still has the selected text
- * to hand-copy. Focus trap is shared with ShareModal via useDialogFocus
- * (follows Toc.tsx's drawer pattern). The textarea carries `data-code-panel`
- * for consistency with CodePre's identical `--c-code-bg` +
- * `--c-text` pairing, though it is moot here in practice: this whole dialog
- * sits behind a `print:hidden` backdrop and never reaches the printed page.
- * Hint text uses a plain hyphen per the
- * task brief's literal wording (the prototype's own text uses an em dash in
- * the same spot -- brief wins per this repo's established
- * brief-vs-prototype tiebreaker, see cerebrum).
- */
+/** "Copy manually" (B-Overlays:97-109). */
 export function CopyFallbackModal({
   text,
   onClose,
@@ -32,12 +13,9 @@ export function CopyFallbackModal({
   onClose: () => void
   onCopied?: () => void
 }) {
-  const panelRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  useDialogFocus(panelRef, onClose, textareaRef)
-
-  function handleTryAgain() {
+  function retryExecCommandCopy() {
     if (execCommandCopy(text)) {
       onCopied()
       onClose()
@@ -45,62 +23,28 @@ export function CopyFallbackModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-5 print:hidden"
-      style={{ background: 'var(--c-scrim)' }}
-      onClick={onClose}
-    >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Copy manually"
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-        className="w-[min(94vw,560px)] rounded-[14px] border border-line bg-card p-[18px] shadow-[var(--shadow-overlay)]"
-        style={{ animation: 'dc-pop .18s ease' }}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[14px] font-bold">Copy manually</span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="max-[880px]:min-h-11 max-[880px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
-          >
-            ✕
-          </button>
-        </div>
-        <p className="mb-2.5 text-[12.5px] text-sub">
-          Auto-copy was blocked by the browser. The text is selected below - press Ctrl+C (⌘C on
-          Mac).
+    <Dialog title="Copy manually" layer="fallback" initialFocusRef={textareaRef} onClose={onClose}>
+      <div className="flex flex-col gap-[10px] px-[18px] pb-4 pt-[14px]">
+        <p className="m-0 text-[13px] leading-5 text-sub">
+          The browser blocked the clipboard. The text is already selected, press <kbd className={KBD}>Ctrl C</kbd> or{' '}
+          <kbd className={KBD}>⌘ C</kbd>.
         </p>
         <textarea
           ref={textareaRef}
-          data-code-panel
           readOnly
           value={text}
           aria-label="Text to copy"
-          className="min-h-[200px] w-full resize-y rounded-[10px] border border-line p-3.5 font-mono text-[12.5px] leading-[1.6]"
-          style={{ background: 'var(--c-code-bg)', color: 'var(--c-text)' }}
+          className="h-[172px] w-full resize-none rounded-ctrl border border-line2 bg-[var(--c-code-bg)] px-3 py-[10px] font-mono text-[12px] leading-[18px] text-text selection:bg-[var(--c-selection)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line"
         />
-        <div className="mt-3 flex gap-2.5">
-          <button
-            type="button"
-            onClick={handleTryAgain}
-            className="max-[880px]:min-h-11 cursor-pointer rounded-[9px] border-0 bg-accent px-[18px] py-[9px] text-[13.5px] font-bold text-on-accent"
-          >
-            ⧉ Try copy again
+        <DialogActions>
+          <button type="button" onClick={onClose} className={SECONDARY_BUTTON}>
+            Close
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="max-[880px]:min-h-11 cursor-pointer rounded-[9px] border border-line bg-elev px-4 py-[9px] text-[13.5px] text-text"
-          >
-            Done
+          <button type="button" onClick={retryExecCommandCopy} className={`${PRIMARY_BUTTON} px-4`}>
+            Try copy again
           </button>
-        </div>
+        </DialogActions>
       </div>
-    </div>
+    </Dialog>
   )
 }

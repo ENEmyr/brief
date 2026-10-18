@@ -150,14 +150,18 @@ describe('outline: your marks', () => {
     { id: 'h2', sectionId: 's2', text: 'why 429', ask: true },
   ]
 
-  it('is absent when the reader has no marks', () => {
+  // B-States "No notes".
+  it('with no marks shows NOTES 0 and how to make one', () => {
     renderToc()
     expect(screen.queryByText('YOUR MARKS')).not.toBeInTheDocument()
+    expect(screen.getByText('NOTES 0')).toBeInTheDocument()
+    expect(screen.getByText('Select any text to highlight it, add a note, or ask the agent about it.')).toBeInTheDocument()
   })
 
   it('lists each mark by its text: amber swatch for highlights, lime outline for asks', () => {
     renderToc({ marks })
     expect(screen.getByText('YOUR MARKS')).toBeInTheDocument()
+    expect(screen.queryByText('NOTES 0')).not.toBeInTheDocument()
     const highlight = screen.getByRole('link', { name: 'burst traffic' })
     const ask = screen.getByRole('link', { name: 'why 429' })
     expect(highlight).toHaveAttribute('href', '#s1')

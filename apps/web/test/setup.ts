@@ -22,3 +22,13 @@ window.matchMedia =
     removeListener() {},
     dispatchEvent: () => false,
   }))
+
+// jsdom has no layout: getClientRects is always empty and checkVisibility is
+// missing. This one reads only `display`, which jsdom does compute for the
+// hidden attribute and inline styles, so a test can hide an element that way.
+const displayed = (el: Element | null): boolean =>
+  el === null || (getComputedStyle(el).display !== 'none' && displayed(el.parentElement))
+const elementProto: Partial<Pick<Element, 'checkVisibility'>> = Element.prototype
+elementProto.checkVisibility ??= function (this: Element) {
+  return displayed(this)
+}
