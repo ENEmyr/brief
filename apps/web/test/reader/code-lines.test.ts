@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { Element, ElementContent } from 'hast'
 import type { Highlight } from '@/features/reader-state'
 import {
@@ -9,6 +9,21 @@ import {
   sameHighlightList,
 } from '@/features/reader/components/blocks/codeLines'
 import { highlightToHast } from '@/features/reader/services/shiki'
+
+// shiki stops coloring a line once tokenizing it takes over 500 ms of wall clock, so on a
+// busy machine the tail of a line comes back uncolored. 0 turns that budget off here.
+vi.mock('shiki', async (importOriginal) => {
+  const shiki = await importOriginal<typeof import('shiki')>()
+  return {
+    ...shiki,
+    createHighlighter: async (...args: Parameters<typeof shiki.createHighlighter>) => {
+      const highlighter = await shiki.createHighlighter(...args)
+      const codeToHast = highlighter.codeToHast.bind(highlighter)
+      highlighter.codeToHast = (code, options) => codeToHast(code, { ...options, tokenizeTimeLimit: 0 })
+      return highlighter
+    },
+  }
+})
 
 function tokenSpan(text: string, style: string): Element {
   return { type: 'element', tagName: 'span', properties: { style }, children: [{ type: 'text', value: text }] }
