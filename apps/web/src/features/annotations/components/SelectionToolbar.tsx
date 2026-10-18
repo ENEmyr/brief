@@ -4,6 +4,7 @@ import { DEFAULT_HIGHLIGHT_PATH, useReaderActions } from '@/features/reader-stat
 import { useShortcuts } from '@/features/shortcuts'
 import { selectionRangeIn } from '../lib/offsets'
 import { defaultCopyText } from '../lib/clipboard'
+import { visibleSlice } from '../lib/inlineMarkdown'
 
 type ToolbarState = {
   x: number
@@ -14,6 +15,9 @@ type ToolbarState = {
   start: number
   end: number
   text: string
+  /** What Copy writes: `text` with any inline-markdown markers dropped, so it
+   * matches the browser's own copy of the same selection. */
+  copy: string
 }
 
 const VIEWPORT_MARGIN = 8
@@ -21,7 +25,10 @@ const VIEWPORT_MARGIN = 8
 /** The center x that keeps a bar this wide inside the viewport margins, not just its center. */
 function centerKeepingBarOnScreen(x: number, width: number): number {
   const lowest = VIEWPORT_MARGIN + width / 2
-  return Math.min(Math.max(x, lowest), Math.max(window.innerWidth - VIEWPORT_MARGIN - width / 2, lowest))
+  return Math.min(
+    Math.max(x, lowest),
+    Math.max(window.innerWidth - VIEWPORT_MARGIN - width / 2, lowest),
+  )
 }
 const TOOLBAR_RISE = 46
 const BELOW_SELECTION_GAP = 8
@@ -88,7 +95,10 @@ export function SelectionToolbar({
         Math.max(rect.left + rect.width / 2, VIEWPORT_MARGIN),
         window.innerWidth - VIEWPORT_MARGIN,
       )
-      const top = rect.top < FLIP_BELOW_THRESHOLD ? rect.bottom + BELOW_SELECTION_GAP : rect.top - TOOLBAR_RISE
+      const top =
+        rect.top < FLIP_BELOW_THRESHOLD
+          ? rect.bottom + BELOW_SELECTION_GAP
+          : rect.top - TOOLBAR_RISE
       const bidAttr = block.dataset.bid
       setToolbar({
         x,
@@ -100,6 +110,10 @@ export function SelectionToolbar({
         start: result.start,
         end: result.end,
         text: result.text,
+        copy:
+          block.dataset.md === undefined
+            ? result.text
+            : visibleSlice(block.textContent ?? '', result.start, result.end),
       })
     }
 
@@ -157,7 +171,7 @@ export function SelectionToolbar({
 
   function handleCopy() {
     if (!toolbar) return
-    copyText(toolbar.text)
+    copyText(toolbar.copy)
     finish()
   }
 

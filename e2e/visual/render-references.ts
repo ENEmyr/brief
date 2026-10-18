@@ -2,7 +2,6 @@ import { test, type Browser, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { createRequire } from 'node:module'
 import { FAVICON_SIZES, renderIcon } from './lib/favicon'
 import { BOARD_FONTS, assertFontsLoaded } from './lib/fonts'
 import {
@@ -85,30 +84,32 @@ async function save(page: Page, name: string, clip?: Clip) {
   written.push(file)
 }
 
+/** The app's self-hosted fonts (apps/web/src/app/fonts.css), the same families and weights the boards ask Google for. */
+const APP_FONT_DIR = path.resolve(import.meta.dirname, '../../apps/web/src/app')
+const FONT_FILE_URL = 'https://fonts.gstatic.com/brief-local/'
+const BOARD_FONT_CSS = fs
+  .readFileSync(path.join(APP_FONT_DIR, 'fonts.css'), 'utf8')
+  .replaceAll('url(./fonts/', `url(${FONT_FILE_URL}`)
+
 /**
- * The user agent next/font/google downloads with, read from the installed Next.
- * Google Fonts serves different files per user agent (different advance
- * widths, so Thai lines wrap differently), and the app ships the files Next
- * downloaded, so the boards must get the same ones.
+ * Serves the boards' Google Fonts requests from the app's own font files, so a
+ * render never downloads a font and the boards get the files the app ships.
+ * Any other font request is aborted, which assertFontsLoaded reports.
  */
-function nextFontUserAgent(): string {
-  const file = createRequire(path.resolve(import.meta.dirname, '../../apps/web/package.json')).resolve(
-    'next/dist/compiled/@next/font/dist/google/fetch-resource.js',
-  )
-  const header = /'User-Agent':\s*((?:'[^']*'\s*\+?\s*)+)/.exec(fs.readFileSync(file, 'utf8'))?.[1]
-  if (header === undefined) {
-    throw new Error(`No User-Agent header in ${file}; next/font changed how it downloads fonts, update nextFontUserAgent()`)
-  }
-  return [...header.matchAll(/'([^']*)'/g)].map((m) => m[1]).join('')
-}
-
-const NEXT_FONT_UA = nextFontUserAgent()
-
 async function newPage(browser: Browser): Promise<Page> {
   const page = await (await browser.newContext({ deviceScaleFactor: 1 })).newPage()
-  await page.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, (route) =>
-    route.continue({ headers: { ...route.request().headers(), 'user-agent': NEXT_FONT_UA } }),
+  await page.route(/^https:\/\/fonts\.googleapis\.com\//, (route) =>
+    route.fulfill({ contentType: 'text/css', body: BOARD_FONT_CSS }),
   )
+  await page.route(/^https:\/\/fonts\.gstatic\.com\//, (route) => {
+    const url = route.request().url()
+    if (!url.startsWith(FONT_FILE_URL)) return route.abort()
+    return route.fulfill({
+      contentType: 'font/woff2',
+      headers: { 'access-control-allow-origin': '*' },
+      body: fs.readFileSync(path.join(APP_FONT_DIR, 'fonts', path.basename(url))),
+    })
+  })
   return page
 }
 

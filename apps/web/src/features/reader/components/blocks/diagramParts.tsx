@@ -17,6 +17,7 @@ export const EDGE_TONE = {
   faint: 'stroke-faint fill-faint',
   line2: 'stroke-line2 fill-line2',
   accent: 'stroke-accent-line fill-accent-line',
+  info: 'stroke-info fill-info',
   good: 'stroke-good fill-good',
   warn: 'stroke-warn fill-warn',
   bad: 'stroke-bad fill-bad',

@@ -1,5 +1,5 @@
 import type { Root } from 'hast'
-import type { BundledLanguage, Highlighter, ShikiTransformer } from 'shiki'
+import type { BundledLanguage, Highlighter } from 'shiki'
 
 // Lazy singleton: the `shiki` package (~1-2MB with bundled grammars) must
 // never land in the app's first-load JS. The `import('shiki')` below is a
@@ -41,11 +41,6 @@ async function resolveLanguage(highlighter: Highlighter, lang: string): Promise<
   }
 }
 
-export interface HighlightOptions {
-  /** 1-based line numbers to mark with the `.hl-line` class. */
-  highlightLines?: number[]
-}
-
 /**
  * Highlights `code` as `lang` into a hast tree with the css-variables theme
  * above. Never throws: an unrecognized language degrades to plaintext, and
@@ -55,27 +50,12 @@ export interface HighlightOptions {
  * codeToHtml) so CodePre can render it as real React elements — see CodePre
  * for why the code body can no longer go through dangerouslySetInnerHTML.
  */
-export async function highlightToHast(
-  code: string,
-  lang: string,
-  options: HighlightOptions = {},
-): Promise<Root> {
+export async function highlightToHast(code: string, lang: string): Promise<Root> {
   const highlighter = await getHighlighter()
-  const highlightSet = new Set(options.highlightLines ?? [])
   const resolvedLang = await resolveLanguage(highlighter, lang)
 
-  const highlightLinesTransformer: ShikiTransformer = {
-    line(node, line) {
-      if (highlightSet.has(line)) this.addClassToHast(node, 'hl-line')
-    },
-  }
-
   const render = (renderLang: string) =>
-    highlighter.codeToHast(code, {
-      lang: renderLang as BundledLanguage,
-      theme: THEME_NAME,
-      transformers: highlightSet.size ? [highlightLinesTransformer] : [],
-    })
+    highlighter.codeToHast(code, { lang: renderLang as BundledLanguage, theme: THEME_NAME })
 
   try {
     return await render(resolvedLang)

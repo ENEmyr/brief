@@ -1,8 +1,9 @@
 'use client'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import type { Payload } from '@brief/schema'
+import type { StoredPayload } from '@brief/schema'
 import { buildEditPrompt } from '@/features/annotations'
 import { useReaderStateStore } from '@/features/reader-state'
+import { PrintTerms } from '@/features/glossary'
 import { copyText } from '../lib/copy'
 import { downloadMarkdown as downloadMarkdownFile } from '../lib/download'
 import { printDocument } from '../lib/print'
@@ -78,7 +79,7 @@ export function ExportProvider({
   children,
 }: {
   sessionId: string
-  payload: Payload
+  payload: StoredPayload
   /** When the session expires (epoch ms, from the session GET). */
   expiresAt?: number
   /** Whether the server only holds ciphertext for this session; threaded
@@ -153,6 +154,7 @@ export function ExportProvider({
       {printSnapshot && <PrintHeader payload={payload} sessionId={sessionId} snapshot={printSnapshot} />}
       {children}
       {printSnapshot && <PrintAnswers decisions={payload.decisions} state={printSnapshot.state} />}
+      <PrintTerms glossary={payload.glossary} />
       <Toast toast={shown} onDismiss={() => shown && dismissToast(shown.id)} />
       {shareOpen && (
         <ShareModal

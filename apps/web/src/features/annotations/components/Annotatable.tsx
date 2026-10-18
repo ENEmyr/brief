@@ -1,7 +1,7 @@
 'use client'
 import { DEFAULT_HIGHLIGHT_PATH } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
-import { HighlightedText } from './HighlightedText'
+import { HighlightedText, InlineMarkdown } from './HighlightedText'
 
 export interface AnnotatableProps {
   /** The single string this leaf renders. Highlight offsets count into it. */
@@ -14,6 +14,9 @@ export interface AnnotatableProps {
   as?: 'span' | 'p' | 'div' | 'td' | 'th' | 'li' | 'figcaption'
   className?: string
   annotatable?: boolean
+  /** Render `code`, **strong** and *em* runs (lib/inlineMarkdown.ts). Offsets
+   * still count into `text`, markers included. */
+  markdown?: boolean
   onMarkClick?: (highlight: Highlight) => void
 }
 
@@ -42,10 +45,15 @@ export function Annotatable({
   as: Tag = 'span',
   className,
   annotatable = true,
+  markdown = false,
   onMarkClick,
 }: AnnotatableProps) {
   if (!annotatable || sid === undefined) {
-    return <Tag className={className}>{text}</Tag>
+    return (
+      <Tag className={className}>
+        {markdown ? <InlineMarkdown text={text} highlights={[]} onMarkClick={() => {}} /> : text}
+      </Tag>
+    )
   }
 
   return (
@@ -57,8 +65,16 @@ export function Annotatable({
       // block" from "block 0".
       {...(bid === null ? {} : { 'data-bid': bid })}
       data-path={path}
+      {...(markdown ? { 'data-md': '' } : {})}
     >
-      <HighlightedText sid={sid} bid={bid} path={path} text={text} onMarkClick={onMarkClick} />
+      <HighlightedText
+        sid={sid}
+        bid={bid}
+        path={path}
+        text={text}
+        markdown={markdown}
+        onMarkClick={onMarkClick}
+      />
     </Tag>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { payloadSchema, MAX_PAYLOAD_BYTES, blockSchema, sectionSchema, decisionSchema, metaSchema, BLOCK_TYPES, BIGO_CURVES, type Block, type Decision, type Payload } from '../src'
+import { payloadSchema, MAX_PAYLOAD_BYTES, blockSchema, sectionSchema, decisionSchema, metaSchema, BLOCK_TYPES, BIGO_CURVES, TONES, STAT_TONES, ALIGNS, BA_SIDES, FLOW_NODE_KINDS, DIFF_FILE_STATUSES, DIFF_CHANGE_KINDS, DIFF_MAP_STATUSES, TRAJECTORY_KINDS, type Block, type Decision, type Payload } from '../src'
 
 const minimal: Payload = {
   meta: { title: 'PR 42 review' },
@@ -45,6 +45,11 @@ describe('payloadSchema', () => {
       { type: 'histogram', bins: [{ label: '0-10ms', count: 4 }] },
       { type: 'scatter', series: [{ label: 'v1', points: [[1, 2]] }] },
       { type: 'plot3d', kind: 'scatter3d', points: [[1, 2, 3]] },
+      { type: 'list', items: ['one'] },
+      { type: 'walkthrough', language: 'ts', code: 'a', flow: { nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], edges: [] }, steps: [{ from: 1, title: 'go', nodes: ['a'] }] },
+      { type: 'diff', files: [{ path: 'src/a.ts', status: 'modified' }] },
+      { type: 'trajectory', steps: [{ at: '2026-10-15T01:00:00Z', kind: 'read', title: 'src/a.ts' }] },
+      { type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'Latency before and after' },
     ]
     full.sections[0]!.blocks = blocks
     const parsed = payloadSchema.safeParse(full)
@@ -147,11 +152,13 @@ describe('payloadSchema', () => {
     expect(meta.success).toBe(true)
   })
 
-  it('exports BLOCK_TYPES array with 22 types', () => {
-    expect(BLOCK_TYPES).toHaveLength(22)
+  it('exports BLOCK_TYPES array with 27 types', () => {
+    expect(BLOCK_TYPES).toHaveLength(27)
+    expect(BLOCK_TYPES).toContain('list')
     expect(BLOCK_TYPES).toContain('p')
     expect(BLOCK_TYPES).toContain('details')
     expect(BLOCK_TYPES).toContain('plot3d')
+    for (const type of ['walkthrough', 'diff', 'trajectory', 'image']) expect(BLOCK_TYPES).toContain(type)
   })
 
   it('exports BIGO_CURVES enum', () => {
@@ -196,5 +203,184 @@ describe('payloadSchema', () => {
     // @ts-expect-error testing invalid subtitle type
     bad.meta.subtitle = true
     expect(payloadSchema.safeParse(bad).success).toBe(false)
+  })
+})
+
+const chars = (n: number) => 'x'.repeat(n)
+const many = <T>(n: number, item: T): T[] => Array.from({ length: n }, () => item)
+const withBlock = (block: unknown): Payload => ({ ...minimal, sections: [{ ...minimal.sections[0]!, blocks: [block as Block] }] })
+const decision = { id: 'd1', q: 'Which?', multi: false, opts: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }] }
+const withRefs = (refs: string[]): Payload => ({ ...minimal, decisions: [{ ...decision, refs }] })
+const withGlossary = (glossary: unknown): Payload => ({ ...minimal, glossary } as Payload)
+const term = { term: 'token bucket', def: 'A counter that refills at a fixed rate.', aliases: ['bucket'] }
+const code = (notes: unknown) => withBlock({ type: 'code', language: 'ts', code: 'a\nb', notes })
+const ba = (extra: object) => withBlock({ type: 'ba', language: 'ts', before: 'a', after: 'b', ...extra })
+const stat = (item: object, extra: object = {}) => withBlock({ type: 'stat', items: [{ label: 'RPS', value: '4,800', ...item }], ...extra })
+const table = (extra: object) => withBlock({ type: 'table', head: ['a', 'b'], rows: [['1', '2']], ...extra })
+const seq = (step: object) => withBlock({ type: 'seq', actors: ['web', 'api'], steps: [{ from: 'web', to: 'api', label: 'GET', ...step }] })
+const histogram = (threshold: unknown) => withBlock({ type: 'histogram', bins: [{ label: '1', count: 2 }], threshold })
+const state = (stateTone: unknown, transitionTone: unknown) => withBlock({
+  type: 'state', initial: 'a',
+  states: [{ id: 'a', label: 'A', tone: stateTone }, { id: 'b', label: 'B' }],
+  transitions: [{ from: 'a', to: 'b', tone: transitionTone }],
+})
+const layers = (diffNode: unknown) => withBlock({ type: 'layers', layers: [{ id: 'l', label: 'L', nodes: [{ id: 'n', label: 'N', diffNode }], edges: [] }] })
+
+/** Round 1 Console fields: each accepts a valid example and rejects one past its cap or enum. */
+const fieldCases: { name: string; payload: Payload; valid: boolean }[] = [
+  { name: 'decision refs', payload: withRefs(['overview']), valid: true },
+  { name: 'decision refs over 6', payload: withRefs(many(7, 'overview')), valid: false },
+  { name: 'glossary', payload: withGlossary([term]), valid: true },
+  { name: 'glossary def over 400', payload: withGlossary([{ ...term, def: chars(401) }]), valid: false },
+  { name: 'glossary over 60 entries', payload: withGlossary(many(61, term)), valid: false },
+  { name: 'glossary aliases over 5', payload: withGlossary([{ ...term, aliases: many(6, 'b') }]), valid: false },
+  { name: 'code notes', payload: code([{ from: 1, text: 'why' }, { from: 1, to: 2, text: 'range' }]), valid: true },
+  { name: 'code note text over 280', payload: code([{ from: 1, text: chars(281) }]), valid: false },
+  { name: 'code notes over 30', payload: code(many(31, { from: 1, text: 'n' })), valid: false },
+  { name: 'code note line 0', payload: code([{ from: 0, text: 'n' }]), valid: false },
+  { name: 'ba notes with a side', payload: ba({ notes: [{ side: 'after', from: 1, text: 'n' }] }), valid: true },
+  { name: 'ba note without a side', payload: ba({ notes: [{ from: 1, text: 'n' }] }), valid: false },
+  { name: 'ba note text over 280', payload: ba({ notes: [{ side: 'before', from: 1, text: chars(281) }] }), valid: false },
+  { name: 'ba filename', payload: ba({ filename: 'src/limiter.ts' }), valid: true },
+  { name: 'ba filename over 300', payload: ba({ filename: chars(301) }), valid: false },
+  { name: 'list', payload: withBlock({ type: 'list', ordered: true, caption: 'Steps', items: ['a', 'b'] }), valid: true },
+  { name: 'list item over 500', payload: withBlock({ type: 'list', items: [chars(501)] }), valid: false },
+  { name: 'list over 100 items', payload: withBlock({ type: 'list', items: many(101, 'a') }), valid: false },
+  { name: 'list with no items', payload: withBlock({ type: 'list', items: [] }), valid: false },
+  { name: 'list inside details', payload: withBlock({ type: 'details', summary: 's', blocks: [{ type: 'list', items: ['a'] }] }), valid: true },
+  { name: 'stat caption', payload: stat({}, { caption: 'Flash sale' }), valid: true },
+  { name: 'stat caption over 300', payload: stat({}, { caption: chars(301) }), valid: false },
+  { name: 'stat spark', payload: stat({ spark: [6, 9, 7, 12, 20, 10] }), valid: true },
+  { name: 'stat spark over 32 values', payload: stat({ spark: many(33, 1) }), valid: false },
+  { name: 'stat spark with one value', payload: stat({ spark: [1] }), valid: false },
+  { name: 'stat spark negative', payload: stat({ spark: [1, -1] }), valid: false },
+  { name: 'stat hint tone', payload: stat({ hint: 'up 8x', hintTone: 'red' }), valid: true },
+  { name: 'stat hint tone outside the palette', payload: stat({ hintTone: 'chartreuse' }), valid: false },
+  { name: 'table align', payload: table({ align: ['left', 'right'] }), valid: true },
+  { name: 'table align over 50', payload: table({ align: many(51, 'left') }), valid: false },
+  { name: 'table align outside the enum', payload: table({ align: ['justify'] }), valid: false },
+  { name: 'table cells', payload: table({ cells: [{ row: 1, col: 2, tone: 'good' }] }), valid: true },
+  { name: 'table cells over 200', payload: table({ cells: many(201, { row: 1, col: 1, tone: 'bad' }) }), valid: false },
+  { name: 'table cell row 0', payload: table({ cells: [{ row: 0, col: 1, tone: 'bad' }] }), valid: false },
+  { name: 'table cell tone outside the enum', payload: table({ cells: [{ row: 1, col: 1, tone: 'red' }] }), valid: false },
+  { name: 'seq step text', payload: seq({ text: 'Client sends GET /orders' }), valid: true },
+  { name: 'seq step text over 300', payload: seq({ text: chars(301) }), valid: false },
+  { name: 'histogram threshold', payload: histogram({ bin: 6, label: 'p95', value: '2.4 s' }), valid: true },
+  { name: 'histogram threshold label over 40', payload: histogram({ bin: 6, label: chars(41) }), valid: false },
+  { name: 'histogram threshold bin 0', payload: histogram({ bin: 0, label: 'p95' }), valid: false },
+  { name: 'state and transition tones', payload: state('bad', 'warn'), valid: true },
+  { name: 'state tone outside the enum', payload: state('error', undefined), valid: false },
+  { name: 'transition tone outside the enum', payload: state(undefined, 'red'), valid: false },
+  { name: 'layers node diff link', payload: layers('limiter'), valid: true },
+  { name: 'layers node diff link over 300', payload: layers(chars(301)), valid: false },
+]
+
+describe('round 1 Console fields', () => {
+  it.each(fieldCases)('$name: valid=$valid', ({ payload, valid }) => {
+    const result = payloadSchema.safeParse(payload)
+    expect(result.success, JSON.stringify(result.error?.issues)).toBe(valid)
+  })
+
+  it('keeps every round 1 field through a parse instead of stripping it', () => {
+    const parsed = payloadSchema.parse(withGlossary([term]))
+    expect(parsed.glossary).toEqual([term])
+    expect(payloadSchema.parse(withRefs(['overview'])).decisions[0]!.refs).toEqual(['overview'])
+    const threshold = { bin: 6, label: 'p95', value: '2.4 s' }
+    expect(payloadSchema.parse(histogram(threshold)).sections[0]!.blocks[0]).toMatchObject({ threshold })
+  })
+
+  it('exports the enum values the reader lanes map to tokens', () => {
+    expect(TONES).toEqual(['info', 'good', 'warn', 'bad'])
+    expect(STAT_TONES).toEqual(['mauve', 'blue', 'green', 'red', 'peach', 'teal', 'yellow'])
+    expect(ALIGNS).toEqual(['left', 'center', 'right'])
+    expect(BA_SIDES).toEqual(['before', 'after'])
+  })
+})
+
+const node = (id: string) => ({ id, label: id.toUpperCase() })
+const walkthrough = (extra: object) => withBlock({
+  type: 'walkthrough', language: 'ts', code: 'a\nb',
+  flow: { nodes: [{ ...node('a'), kind: 'start' }, { ...node('b'), kind: 'end' }], edges: [{ from: 'a', to: 'b', label: 'ok' }] },
+  steps: [{ from: 1, to: 2, title: 'Take a token', nodes: ['a', 'b'] }],
+  ...extra,
+})
+const change = { symbol: 'handle()', change: 'added', summary: 'Rate-limits each request by key.', steps: ['take a token'] }
+const diffFile = { path: 'src/limiter.ts', status: 'modified', patch: '@@ -1 +1 @@\n-a\n+b', folded: false, changes: [change] }
+const diff = (file: object, extra: object = {}) => withBlock({ type: 'diff', files: [{ ...diffFile, ...file }], ...extra })
+const step = { at: '2026-10-15T01:00:14Z', kind: 'decision', title: 'key = API key', detail: 'B2B customers share a NAT', flag: true }
+const trajectory = (s: object, extra: object = {}) => withBlock({ type: 'trajectory', steps: [{ ...step, ...s }], ...extra })
+const image = (extra: object) => withBlock({ type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'p95 latency per day', ...extra })
+
+/** Round 2 Console block types: each accepts a valid example and rejects one past its cap, enum or format. */
+const blockCases: { name: string; payload: Payload; valid: boolean }[] = [
+  { name: 'walkthrough', payload: walkthrough({ filename: 'src/limiter.ts', title: 'handle()' }), valid: true },
+  { name: 'walkthrough code over 20000', payload: walkthrough({ code: chars(20_001) }), valid: false },
+  { name: 'walkthrough empty code', payload: walkthrough({ code: '' }), valid: false },
+  { name: 'walkthrough flow with one node', payload: walkthrough({ flow: { nodes: [node('a')], edges: [] } }), valid: false },
+  { name: 'walkthrough flow over 40 nodes', payload: walkthrough({ flow: { nodes: many(41, node('a')), edges: [] } }), valid: false },
+  { name: 'walkthrough flow over 80 edges', payload: walkthrough({ flow: { nodes: [node('a'), node('b')], edges: many(81, { from: 'a', to: 'b' }) } }), valid: false },
+  { name: 'walkthrough node kind outside the enum', payload: walkthrough({ flow: { nodes: [{ ...node('a'), kind: 'loop' }, node('b')], edges: [] } }), valid: false },
+  { name: 'walkthrough over 40 steps', payload: walkthrough({ steps: many(41, { from: 1, title: 't', nodes: ['a'] }) }), valid: false },
+  { name: 'walkthrough step with no nodes', payload: walkthrough({ steps: [{ from: 1, title: 't', nodes: [] }] }), valid: false },
+  { name: 'walkthrough step line 0', payload: walkthrough({ steps: [{ from: 0, title: 't', nodes: ['a'] }] }), valid: false },
+  { name: 'diff', payload: diff({}, { map: { nodes: [{ id: 'limiter', label: 'limiter.ts', status: 'modified' }], edges: [] } }), valid: true },
+  { name: 'diff renamed file with its old path', payload: diff({ status: 'renamed', from: 'src/old.ts' }), valid: true },
+  { name: 'diff with no files', payload: withBlock({ type: 'diff', files: [] }), valid: false },
+  { name: 'diff over 50 files', payload: withBlock({ type: 'diff', files: many(51, diffFile) }), valid: false },
+  { name: 'diff patch over 50000', payload: diff({ patch: chars(50_001) }), valid: false },
+  { name: 'diff file status outside the enum', payload: diff({ status: 'copied' }), valid: false },
+  { name: 'diff change summary over 280', payload: diff({ changes: [{ ...change, summary: chars(281) }] }), valid: false },
+  { name: 'diff changes over 30', payload: diff({ changes: many(31, change) }), valid: false },
+  { name: 'diff change steps over 8', payload: diff({ changes: [{ ...change, steps: many(9, 's') }] }), valid: false },
+  { name: 'diff change kind outside the enum', payload: diff({ changes: [{ ...change, change: 'deleted' }] }), valid: false },
+  { name: 'diff map over 40 nodes', payload: diff({}, { map: { nodes: many(41, node('a')), edges: [] } }), valid: false },
+  { name: 'diff map node status renamed', payload: diff({}, { map: { nodes: [{ ...node('a'), status: 'renamed' }], edges: [] } }), valid: false },
+  { name: 'trajectory', payload: trajectory({}, { stats: { seconds: 252, tokens: 38_200 } }), valid: true },
+  { name: 'trajectory with fractional seconds', payload: trajectory({ at: '2026-10-15T01:00:14.250Z' }), valid: true },
+  { name: 'trajectory step time with an offset', payload: trajectory({ at: '2026-10-15T08:00:14+07:00' }), valid: false },
+  { name: 'trajectory step time without a zone', payload: trajectory({ at: '2026-10-15T01:00:14' }), valid: false },
+  { name: 'trajectory step date only', payload: trajectory({ at: '2026-10-15' }), valid: false },
+  { name: 'trajectory step seconds since start', payload: trajectory({ at: 14 }), valid: false },
+  { name: 'trajectory over 200 steps', payload: withBlock({ type: 'trajectory', steps: many(201, step) }), valid: false },
+  { name: 'trajectory step detail over 400', payload: trajectory({ detail: chars(401) }), valid: false },
+  { name: 'trajectory step kind outside the enum', payload: trajectory({ kind: 'think' }), valid: false },
+  { name: 'trajectory negative tokens', payload: trajectory({}, { stats: { tokens: -1 } }), valid: false },
+  { name: 'image', payload: image({ caption: 'Figure 1', width: 1200, height: 640 }), valid: true },
+  { name: 'image alt over 300', payload: image({ alt: chars(301) }), valid: false },
+  { name: 'image without alt', payload: image({ alt: undefined }), valid: false },
+  { name: 'image caption over 300', payload: image({ caption: chars(301) }), valid: false },
+  { name: 'image width over 10000', payload: image({ width: 10_001 }), valid: false },
+  { name: 'image id that is a URL', payload: image({ imageId: 'https://evil.test/x.png' }), valid: false },
+  { name: 'image id that is a protocol-relative URL', payload: image({ imageId: '//evil.test/x' }), valid: false },
+  { name: 'image id that is inline data', payload: image({ imageId: 'data:image/png;base64,AAAA' }), valid: false },
+  { name: 'image id that is a path', payload: image({ imageId: '../etc/passwd' }), valid: false },
+  { name: 'image id under 8 characters', payload: image({ imageId: 'img_1' }), valid: false },
+  { name: 'image id over 64 characters', payload: image({ imageId: chars(65) }), valid: false },
+  { name: 'image with a src URL instead of an id', payload: withBlock({ type: 'image', src: 'https://evil.test/x.png', alt: 'a' }), valid: false },
+]
+
+describe('round 2 Console block types', () => {
+  it.each(blockCases)('$name: valid=$valid', ({ payload, valid }) => {
+    const result = payloadSchema.safeParse(payload)
+    expect(result.success, JSON.stringify(result.error?.issues)).toBe(valid)
+  })
+
+  it('drops a URL or inline data field from an image block instead of keeping it', () => {
+    const parsed = payloadSchema.parse(image({ src: 'https://evil.test/x.png', data: 'AAAA' }))
+    expect(parsed.sections[0]!.blocks[0]).toEqual({ type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'p95 latency per day' })
+  })
+
+  it('accepts the new types inside a details block', () => {
+    const inner = (walkthrough({}).sections[0]!.blocks[0]) as Block
+    expect(payloadSchema.safeParse(withBlock({ type: 'details', summary: 'more', blocks: [inner] })).success).toBe(true)
+  })
+
+  it('exports the enum values the reader lanes map to labels and tokens', () => {
+    expect(BLOCK_TYPES.slice(-4)).toEqual(['walkthrough', 'diff', 'trajectory', 'image'])
+    expect(FLOW_NODE_KINDS).toEqual(['start', 'step', 'decision', 'end'])
+    expect(DIFF_FILE_STATUSES).toEqual(['added', 'modified', 'deleted', 'renamed'])
+    expect(DIFF_CHANGE_KINDS).toEqual(['added', 'modified', 'removed', 'moved', 'config'])
+    expect(DIFF_MAP_STATUSES).toEqual(['added', 'modified', 'deleted'])
+    expect(TRAJECTORY_KINDS).toEqual(['request', 'read', 'run', 'edit', 'decision', 'assumption', 'note'])
   })
 })

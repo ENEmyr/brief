@@ -91,14 +91,25 @@ test.describe('copying code', () => {
     await page.getByPlaceholder('Write a short note…').fill('why one')
     await page.getByRole('button', { name: 'Done' }).click()
     const mark = assign.locator('mark')
-    await expect(mark.locator('sup')).toHaveCount(1)
-    expect(
-      await mark.evaluate((m) =>
-        [...m.childNodes]
-          .filter((n) => n.nodeName !== 'SUP')
-          .map((n) => n.textContent)
-          .join(''),
-      ),
-    ).toBe('x = 1')
+    await expect(mark).toHaveAttribute('data-marker', 'note')
+    expect(await mark.evaluate((m) => getComputedStyle(m, '::after').content)).toContain('●')
+    expect(await mark.textContent()).toBe('x = 1')
+  })
+
+  test('a noted row copies as its code, without the note marker', async ({ page }) => {
+    const assign = leaf(page, 0, 1)
+    await drag(page, await charPoint(assign, 4), await charPoint(assign, 9))
+    await page.getByRole('button', { name: 'Note' }).click()
+    await page.getByPlaceholder('Write a short note…').fill('why one')
+    await page.getByRole('button', { name: 'Done' }).click()
+    await expect(assign.locator('mark')).toHaveAttribute('data-marker', 'note')
+
+    await page.locator('section#code pre code').first().evaluate((el) => {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      getSelection()?.removeAllRanges()
+      getSelection()?.addRange(range)
+    })
+    expect(await copySelection(page)).toBe(FUNCTION)
   })
 })

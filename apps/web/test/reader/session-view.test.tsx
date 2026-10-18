@@ -561,3 +561,54 @@ describe('decision dock in the reader', () => {
     )
   })
 })
+
+describe('outline warn dot for open decisions', () => {
+  const refsPayload = {
+    ...validPayload,
+    sections: [
+      { id: 's1', no: 1, title: 'Intro', blocks: [{ type: 'p', text: 'Hello world' }] },
+      { id: 's2', no: 2, title: 'Cache', blocks: [{ type: 'p', text: 'About the cache' }] },
+    ],
+    decisions: [
+      {
+        id: 'd1',
+        q: 'Which cache?',
+        multi: false,
+        refs: ['s2'],
+        opts: [{ id: 'kv', label: 'KV' }, { id: 'none', label: 'None' }],
+      },
+    ],
+  }
+
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+  afterEach(() => {
+    delete (Element.prototype as Partial<Element>).scrollIntoView
+  })
+
+  it('marks the section a decision points to until the decision is answered', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    const envelope = { ...validEnvelope, payload: JSON.stringify(refsPayload) }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url.endsWith('/state')
+            ? new Response(JSON.stringify({ state: null }))
+            : new Response(JSON.stringify(envelope)),
+        ),
+      ),
+    )
+    document.execCommand = vi.fn().mockReturnValue(true)
+    render(<SessionPage />)
+    const group = await screen.findByRole('group', { name: 'Question d1' })
+
+    const dots = () => screen.getAllByRole('img', { name: 'open decisions' })
+    expect(dots()).toHaveLength(1)
+    expect(dots()[0]!.closest('a')).toHaveAttribute('href', '#s2')
+
+    fireEvent.click(within(group).getByRole('radio', { name: 'KV' }))
+    await waitFor(() => expect(screen.queryByRole('img', { name: 'open decisions' })).not.toBeInTheDocument())
+  })
+})

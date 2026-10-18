@@ -70,7 +70,7 @@ export function UsageExample() {
             <CopyButton
               text={tab.code}
               label="Copy terminal commands"
-              className="min-h-8 rounded-[4px] border border-line2 bg-transparent px-[10px]"
+              className="min-h-8 rounded-[4px] border border-line2 bg-transparent px-[10px] max-[880px]:min-h-11"
             />
           </div>
           <pre className="m-0 overflow-x-auto p-4 font-mono text-[13px] leading-[22px] text-text">

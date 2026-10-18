@@ -10,6 +10,7 @@ export type BlockErrorMessage =
   | 'Chart could not be drawn.'
   | 'WebGL unavailable - 3D plot cannot render'
   | 'No data for 3D plot'
+  | 'Image is missing or has expired.'
 
 export interface BlockErrorProps {
   message: BlockErrorMessage

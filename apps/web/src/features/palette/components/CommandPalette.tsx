@@ -126,7 +126,7 @@ export function CommandPalette({
               setActive(0)
             }}
             onKeyDown={handleKeyDown}
-            className="min-w-0 grow text-[16px] text-text outline-none"
+            className="min-w-0 grow text-[16px] text-text outline-none max-[880px]:min-h-11"
           />
           <kbd className="font-mono text-[11px] text-faint">esc</kbd>
         </div>

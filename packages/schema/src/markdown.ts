@@ -1,12 +1,14 @@
-import type { Block, Decision, Payload } from './payload'
+import type { Align, CodeNote, Decision, DiffChange, FlowNodeKind, GlossaryEntry, StoredBlock, StoredPayload, StoredSection, UnreadableBlock } from './payload'
 
-type BlockOf<T extends Block['type']> = Extract<Block, { type: T }>
+type BlockOf<T extends StoredBlock['type']> = Extract<StoredBlock, { type: T }>
 
 const mmId = (s: string) => s.replace(/\W/g, '_')
 
 /**
  * Sanitize interpolated text before it lands inside a mermaid statement.
  * Newlines always collapse to a space (mermaid statements are single-line).
+ * < and > become mermaid's own entity codes, so a renderer with htmlLabels
+ * draws them as text instead of parsing the label as HTML.
  * `extra` strips characters that would break the specific syntax the text
  * is being dropped into (pipe-delimited edge labels, quoted strings).
  */
@@ -15,8 +17,12 @@ interface MmTextOptions {
   quote?: boolean
 }
 
+function oneLine(s: string): string {
+  return s.replace(/\r\n|\r|\n/g, ' ')
+}
+
 function mmText(s: string, extra?: MmTextOptions): string {
-  let out = s.replace(/\r\n|\r|\n/g, ' ')
+  let out = oneLine(s).replaceAll('<', '#lt;').replaceAll('>', '#gt;')
   if (extra?.pipe) out = out.replaceAll('|', '')
   if (extra?.quote) out = out.replaceAll('"', '')
   return out
@@ -45,7 +51,7 @@ function stateToMermaid(b: BlockOf<'state'>): string {
 function layersToMermaid(b: BlockOf<'layers'>): string {
   // Flowchart labels are always emitted in quoted form (id["label"]): inside
   // quotes, brackets, parens and pipes are all legal, so label text passes
-  // through verbatim. Inner double quotes are stripped by mmText.
+  // through as is, apart from what mmText strips or escapes.
   const lines = ['flowchart TD']
   for (const layer of b.layers) {
     lines.push(`  subgraph ${mmId(layer.id)}["${mmText(layer.label, { quote: true })}"]`)
@@ -85,13 +91,15 @@ function erdToMermaid(b: BlockOf<'erd'>): string {
 }
 
 function tableCell(s: string): string {
-  return s.replaceAll('|', String.raw`\|`).replace(/\r\n|\r|\n/g, ' ')
+  return oneLine(s.replaceAll('|', String.raw`\|`))
 }
 
-function table(head: string[], rows: string[][]): string {
+const ALIGN_RULE: Record<Align, string> = { left: ':---', center: ':---:', right: '---:' }
+
+function table(head: string[], rows: string[][], align?: Align[]): string {
   return [
     `| ${head.map(tableCell).join(' | ')} |`,
-    `| ${head.map(() => '---').join(' | ')} |`,
+    `| ${head.map((_, i) => { const a = align?.[i]; return a ? ALIGN_RULE[a] : '---' }).join(' | ')} |`,
     ...rows.map((r) => `| ${r.map(tableCell).join(' | ')} |`),
   ].join('\n')
 }
@@ -99,13 +107,14 @@ function table(head: string[], rows: string[][]): string {
 /**
  * Fence body content so a literal ``` inside it can't terminate the block
  * early. Uses one more backtick than the longest backtick run found in the
- * body (minimum 3), matching CommonMark's fenced-code-block rule.
+ * body (minimum 3), matching CommonMark's fenced-code-block rule. The info
+ * string must stay on the opening line and, after backticks, hold none.
  */
 function fence(lang: string, body: string): string {
   const runs = body.match(/`+/g) ?? []
   const longest = runs.reduce((max, run) => Math.max(max, run.length), 0)
   const ticks = '`'.repeat(Math.max(3, longest + 1))
-  return `${ticks}${lang}\n${body}\n${ticks}`
+  return `${ticks}${oneLine(lang).replaceAll('`', '')}\n${body}\n${ticks}`
 }
 
 function assertNever(x: never): never {
@@ -132,12 +141,39 @@ function emitCompare(b: BlockOf<'compare'>): string {
 }
 
 function emitStat(b: BlockOf<'stat'>): string {
-  return b.items
+  const items = b.items
     .map((i) => {
       const hint = i.hint ? ` (${i.hint})` : ''
-      return `- **${i.label}**: ${i.value}${hint}`
+      const spark = i.spark ? `; trend: ${i.spark.join(', ')}` : ''
+      return `- **${i.label}**: ${i.value}${hint}${spark}`
     })
     .join('\n')
+  return `${captionPrefix(b.caption)}${items}`
+}
+
+function emitList(b: BlockOf<'list'>): string {
+  const items = b.items.map((item, i) => `${b.ordered ? `${i + 1}.` : '-'} ${oneLine(item)}`).join('\n')
+  return `${captionPrefix(b.caption)}${items}`
+}
+
+function lineRange(from: number, to?: number): string {
+  return to && to !== from ? `L${from}-${to}` : `L${from}`
+}
+
+function noteLines(notes: (CodeNote & { side?: string })[] | undefined): string {
+  if (!notes?.length) return ''
+  const lines = notes.map((n) => {
+    const side = n.side ? `${n.side} ` : ''
+    return `- ${side}${lineRange(n.from, n.to)}: ${oneLine(n.text)}`
+  })
+  return `\n\nAgent notes:\n${lines.join('\n')}`
+}
+
+function emitSeq(b: BlockOf<'seq'>): string {
+  const diagram = fence('mermaid', seqToMermaid(b))
+  if (!b.steps.some((s) => s.text)) return diagram
+  const steps = b.steps.map((s, i) => `${i + 1}. ${oneLine(s.text ?? s.label)}`).join('\n')
+  return `${diagram}\n\nSteps:\n${steps}`
 }
 
 function emitCoverage(b: BlockOf<'coverage'>): string {
@@ -156,9 +192,10 @@ function emitDetails(b: BlockOf<'details'>): string {
 }
 
 function emitBeforeAfter(b: BlockOf<'ba'>): string {
+  const filename = b.filename ? `\`${b.filename}\`\n\n` : ''
   const beforeTitle = b.titleBefore ? ` (${b.titleBefore})` : ''
   const afterTitle = b.titleAfter ? ` (${b.titleAfter})` : ''
-  return `**Before**${beforeTitle}\n\n${fence(b.language, b.before)}\n\n**After**${afterTitle}\n\n${fence(b.language, b.after)}`
+  return `${filename}**Before**${beforeTitle}\n\n${fence(b.language, b.before)}\n\n**After**${afterTitle}\n\n${fence(b.language, b.after)}${noteLines(b.notes)}`
 }
 
 function emitBigO(b: BlockOf<'bigo'>): string {
@@ -168,7 +205,7 @@ function emitBigO(b: BlockOf<'bigo'>): string {
 
 function emitCode(b: BlockOf<'code'>): string {
   const filename = b.filename ? `\`${b.filename}\`\n\n` : ''
-  return `${filename}${fence(b.language, b.code)}`
+  return `${filename}${fence(b.language, b.code)}${noteLines(b.notes)}`
 }
 
 function emitHeatmap(b: BlockOf<'heatmap'>): string {
@@ -180,7 +217,16 @@ function emitHeatmap(b: BlockOf<'heatmap'>): string {
 function emitHistogram(b: BlockOf<'histogram'>): string {
   const title = b.title ? `: ${b.title}` : ''
   const rows = b.bins.map((x) => [x.label, String(x.count)])
-  return `Histogram${title}\n\n${table(['bin', 'count'], rows)}`
+  return `Histogram${title}\n\n${table(['bin', 'count'], rows)}${histogramThreshold(b)}`
+}
+
+function histogramThreshold(b: BlockOf<'histogram'>): string {
+  if (!b.threshold) return ''
+  const { bin, label, value } = b.threshold
+  const named = oneLine(value ? `${label} ${value}` : label)
+  const from = b.bins[bin - 1]
+  const past = from ? ` (bins from "${oneLine(from.label)}" on are past it)` : ''
+  return `\n\nThreshold: ${named}${past}`
 }
 
 function emitScatter(b: BlockOf<'scatter'>): string {
@@ -204,18 +250,77 @@ function emitPlot3d(b: BlockOf<'plot3d'>): string {
   return `3D plot (${b.kind})${title}${points}`
 }
 
-function blockToMarkdown(b: Block): string {
+const FLOW_SHAPE: Record<FlowNodeKind, [string, string]> = { start: ['(["', '"])'], end: ['(["', '"])'], decision: ['{"', '"}'], step: ['["', '"]'] }
+
+function flowchart(nodes: { id: string; label: string; kind?: FlowNodeKind }[], edges: { from: string; to: string; label?: string }[]): string {
+  const lines = ['flowchart TD']
+  for (const n of nodes) {
+    const [open, close] = FLOW_SHAPE[n.kind ?? 'step']
+    lines.push(`  ${mmId(n.id)}${open}${mmText(n.label, { quote: true })}${close}`)
+  }
+  for (const e of edges) {
+    const label = e.label ? `|${mmText(e.label, { pipe: true })}|` : ''
+    lines.push(`  ${mmId(e.from)} --> ${label}${mmId(e.to)}`)
+  }
+  return lines.join('\n')
+}
+
+function emitWalkthrough(b: BlockOf<'walkthrough'>): string {
+  const head = [b.filename && `\`${oneLine(b.filename)}\``, b.title && oneLine(b.title)].filter(Boolean).join(' / ')
+  const steps = b.steps.map((s, i) => `${i + 1}. ${lineRange(s.from, s.to)}: ${oneLine(s.title)} (flow: ${s.nodes.map(oneLine).join(', ')})`)
+  return `${head ? `${head}\n\n` : ''}${fence(b.language, b.code)}\n\nWalkthrough:\n${steps.join('\n')}\n\n${fence('mermaid', flowchart(b.flow.nodes, b.flow.edges))}`
+}
+
+function diffChangeLine(c: DiffChange): string {
+  const steps = c.steps?.length ? ` Steps: ${c.steps.map(oneLine).join('; ')}.` : ''
+  return `- ${c.change} \`${oneLine(c.symbol)}\`: ${oneLine(c.summary)}${steps}`
+}
+
+function emitDiffFile(f: BlockOf<'diff'>['files'][number]): string {
+  const path = f.from ? `\`${oneLine(f.from)}\` -> \`${oneLine(f.path)}\`` : `\`${oneLine(f.path)}\``
+  const parts = [`**${f.status}** ${path}${f.folded ? ' (folded)' : ''}`]
+  if (f.changes?.length) parts.push(f.changes.map(diffChangeLine).join('\n'))
+  if (f.patch) parts.push(fence('diff', f.patch))
+  return parts.join('\n\n')
+}
+
+function emitDiff(b: BlockOf<'diff'>): string {
+  const files = b.files.map(emitDiffFile).join('\n\n')
+  if (!b.map) return files
+  const nodes = b.map.nodes.map((n) => ({ id: n.id, label: n.status ? `${n.label} (${n.status})` : n.label }))
+  return `${files}\n\nChange map:\n\n${fence('mermaid', flowchart(nodes, b.map.edges))}`
+}
+
+function emitTrajectory(b: BlockOf<'trajectory'>): string {
+  const totals = [b.steps.length === 1 ? '1 step' : `${b.steps.length} steps`]
+  if (b.stats?.seconds !== undefined) totals.push(`${b.stats.seconds} s`)
+  if (b.stats?.tokens !== undefined) totals.push(`${b.stats.tokens} tokens`)
+  const rows = b.steps.map((s) => [s.at, s.kind, s.title, s.detail ?? '', s.flag ? 'ask the reader' : ''])
+  return `Agent trajectory: ${totals.join(', ')}\n\n${table(['at (UTC)', 'kind', 'step', 'detail', 'flag'], rows)}`
+}
+
+function emitImage(b: BlockOf<'image'>): string {
+  return `${captionPrefix(b.caption && oneLine(b.caption))}[Image \`${b.imageId}\`: ${oneLine(b.alt)}]`
+}
+
+function emitUnreadable(b: UnreadableBlock): string {
+  const raw = b.raw as { type?: unknown } | null
+  const type = typeof raw?.type === 'string' ? raw.type.replace(/[^\w-]/g, '').slice(0, 40) : ''
+  return `[Block not shown: this version of Brief cannot read a "${type || 'unknown'}" block.]`
+}
+
+function blockToMarkdown(b: StoredBlock): string {
   switch (b.type) {
     case 'p': return b.text
     case 'note': return emitCallout('NOTE', b)
     case 'warn': return emitCallout('WARNING', b)
     case 'good': return emitCallout('TIP', b)
-    case 'table': return `${captionPrefix(b.caption)}${table(b.head, b.rows)}`
+    case 'table': return `${captionPrefix(b.caption)}${table(b.head, b.rows, b.align)}`
     case 'compare': return emitCompare(b)
     case 'stat': return emitStat(b)
     case 'coverage': return emitCoverage(b)
     case 'details': return emitDetails(b)
-    case 'seq': return fence('mermaid', seqToMermaid(b))
+    case 'seq': return emitSeq(b)
     case 'state': return fence('mermaid', stateToMermaid(b))
     case 'layers': return fence('mermaid', layersToMermaid(b))
     case 'erd': return fence('mermaid', erdToMermaid(b))
@@ -228,11 +333,30 @@ function blockToMarkdown(b: Block): string {
     case 'histogram': return emitHistogram(b)
     case 'scatter': return emitScatter(b)
     case 'plot3d': return emitPlot3d(b)
+    case 'list': return emitList(b)
+    case 'walkthrough': return emitWalkthrough(b)
+    case 'diff': return emitDiff(b)
+    case 'trajectory': return emitTrajectory(b)
+    case 'image': return emitImage(b)
+    case 'unreadable': return emitUnreadable(b)
     default: return assertNever(b)
   }
 }
 
-function decisionToMarkdown(d: Decision): string {
+function decisionContext(d: Decision, sections: StoredSection[]): string {
+  const named = (d.refs ?? []).flatMap((ref) => {
+    const s = sections.find((x) => x.id === ref)
+    return s ? [`${String(s.no).padStart(2, '0')} ${oneLine(s.title)}`] : []
+  })
+  return named.length ? `\n\nContext: ${named.join('; ')}` : ''
+}
+
+function glossaryLine(g: GlossaryEntry): string {
+  const aliases = g.aliases?.length ? ` (also: ${g.aliases.map(oneLine).join(', ')})` : ''
+  return `- **${oneLine(g.term)}**${aliases}: ${oneLine(g.def)}`
+}
+
+function decisionToMarkdown(d: Decision, sections: StoredSection[]): string {
   const opts = d.opts
     .map((o) => {
       const detail = o.detail ? ` : ${o.detail}` : ''
@@ -241,10 +365,10 @@ function decisionToMarkdown(d: Decision): string {
     .join('\n')
   const mode = d.multi ? 'multi-select' : 'single-select'
   const why = d.why ? `\n\nWhy this matters: ${d.why}` : ''
-  return `### ${d.q}\n\n(id: \`${d.id}\`, ${mode})\n\n${opts}${why}`
+  return `### ${d.q}\n\n(id: \`${d.id}\`, ${mode})${decisionContext(d, sections)}\n\n${opts}${why}`
 }
 
-export function payloadToMarkdown(payload: Payload, opts: { url: string }): string {
+export function payloadToMarkdown(payload: StoredPayload, opts: { url: string }): string {
   const parts: string[] = []
   parts.push(
     `<!--\nThis file is the complete machine-readable source of the Brief session at\n${opts.url}\nAgents: read this file directly. Do not scrape the HTML page.\nBlock semantics: mermaid fences are diagrams, $$ fences are LaTeX math,\ncode fences carry the original language tag, github alerts are callouts.\n-->`,
@@ -266,7 +390,10 @@ export function payloadToMarkdown(payload: Payload, opts: { url: string }): stri
   }
   if (payload.decisions.length) {
     parts.push('## Decisions')
-    for (const d of payload.decisions) parts.push(decisionToMarkdown(d))
+    for (const d of payload.decisions) parts.push(decisionToMarkdown(d, payload.sections))
+  }
+  if (payload.glossary?.length) {
+    parts.push('## Glossary', payload.glossary.map(glossaryLine).join('\n'))
   }
   return parts.join('\n\n') + '\n'
 }

@@ -1,10 +1,12 @@
 'use client'
 import { useEffect, useId, useRef, useState } from 'react'
-import type { Decision } from '@brief/schema'
+import type { Decision, StoredSection } from '@brief/schema'
 import { useReaderActions, useReaderState } from '@/features/reader-state'
 import { isAnswered } from '../lib/answers'
 import type { DockTarget } from './DecisionDock'
 import { OptionList } from './OptionList'
+import { RefChips } from './RefChips'
+import type { JumpToContext } from './RefChips'
 import { SupportTabs } from './SupportTabs'
 import type { TabKey } from './SupportTabs'
 
@@ -20,14 +22,18 @@ const FOCUS_RING =
  */
 export function DecisionSheet({
   decisions,
+  sections,
   target,
   onSelect,
   onCopyPrompt,
+  onJumpToContext,
 }: {
   decisions: Decision[]
+  sections?: readonly StoredSection[]
   target: DockTarget | null
   onSelect: (id: string) => void
   onCopyPrompt: () => void
+  onJumpToContext?: JumpToContext
 }) {
   const state = useReaderState()
   const actions = useReaderActions()
@@ -88,6 +94,9 @@ export function DecisionSheet({
           <span id={questionId} className="text-[18px] font-semibold leading-[26px]">
             {current.q}
           </span>
+          {onJumpToContext && sections && (
+            <RefChips decision={current} sections={sections} onJump={onJumpToContext} variant="sheet" />
+          )}
           <OptionList decision={current} variant="sheet" labelledBy={questionId} />
           <label htmlFor={reasonId} className="text-[13px] text-sub">
             Reason / extra context

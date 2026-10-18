@@ -1,6 +1,6 @@
 'use client'
-import type { ReactNode } from 'react'
-import type { Block } from '@brief/schema'
+import { createContext, Fragment, useContext, type ReactNode } from 'react'
+import type { StoredBlock, UnreadableBlock } from '@brief/schema'
 import { CardCaption } from './CardCaption'
 import { BlockError, RawBlock, type BlockErrorMessage } from './BlockError'
 import { FOCUS_RING } from './topbarChrome'
@@ -31,7 +31,15 @@ export interface BlockCardProps extends CaptionAnchor {
    * "title / 6 messages" (B-Blocks:75, B-Blocks2:28), or alone without a title
    * (B-Reader:126).
    */
-  captionSuffix?: string
+  captionSuffix?: ReactNode
+  /** A kind word drawn before the title: "surface / title" (B-Blocks2:166), "flowchart LR / title" (B-Blocks2:97). */
+  captionPrefix?: string
+  /**
+   * Further kind chips after `kind`: a details card names the blocks it holds
+   * ("details" "math", B-Blocks:164). Only `kind` is the card's data-kind-tag,
+   * the tag that finds a card by its kind.
+   */
+  alsoKinds?: readonly string[]
   /** Right-hand header text the boards draw: "3 rows", "log scale", "p95 marked". */
   meta?: ReactNode
   controls?: ReactNode
@@ -43,6 +51,13 @@ export interface BlockCardProps extends CaptionAnchor {
 
 const READY: BlockCardState = { status: 'ready' }
 
+/**
+ * Set by a card that holds other blocks. A formula nested in one is the bare
+ * 12-padded box of B-Blocks:169, not a card of its own with a header. A titled
+ * formula keeps its card: the title would have nowhere to go.
+ */
+export const NestedInCard = createContext(false)
+
 /** B-States lazy block: the header label while a block's library or chunk loads. */
 export const LOADING = {
   chart: { status: 'loading', label: 'loading chart' },
@@ -50,10 +65,19 @@ export const LOADING = {
   math: { status: 'loading', label: 'loading math' },
 } as const satisfies Record<string, BlockCardState>
 
+/**
+ * A lazy block keeps its final height from first paint (B-States:105-108). The
+ * math body reserves the board's formula box, 49 high (B-Blocks:169), from the
+ * chunk's loading card through the KaTeX source to the drawn formula.
+ */
+export const MATH_BODY = 'flex min-h-[49px] items-center justify-center-safe overflow-x-auto p-3'
+
 export function BlockCard({
   kind,
   caption,
+  captionPrefix,
   captionSuffix,
+  alsoKinds = [],
   meta,
   controls,
   fullScreen,
@@ -61,6 +85,10 @@ export function BlockCard({
   children,
   ...anchor
 }: BlockCardProps) {
+  const nested = useContext(NestedInCard)
+  if (nested && kind === 'math' && caption === undefined && state.status !== 'error') {
+    return <div className="rounded-[4px] border border-line bg-page text-center">{children}</div>
+  }
   const failed = state.status === 'error' || state.status === 'unsupported'
   const shownControls = failed ? null : controls
   const shownFullScreen = failed ? undefined : fullScreen
@@ -73,27 +101,34 @@ export function BlockCard({
           hasButtons ? 'py-1.5 pl-3 pr-1.5 max-[880px]:py-1 max-[880px]:pr-1' : 'px-3 py-2'
         }`}
       >
-        <span
-          data-kind-tag
-          className={`shrink-0 rounded-[3px] border px-[5px] py-px ${
-            state.status === 'unsupported'
-              ? 'border-dashed border-warn-line text-warn'
-              : 'border-line2'
-          }`}
-        >
-          {kind}
-        </span>
+        {[kind, ...alsoKinds].map((tag, i) => (
+          <span
+            key={tag}
+            {...(i === 0 ? { 'data-kind-tag': true } : { 'data-kind-also': true })}
+            className={`shrink-0 rounded-[3px] border px-[5px] py-px ${
+              state.status === 'unsupported'
+                ? 'border-dashed border-warn-line text-warn'
+                : 'border-line2'
+            }`}
+          >
+            {tag}
+          </span>
+        ))}
         <span className="min-w-0 flex-1 break-words">
-          {state.status === 'unsupported' ? (
-            'not supported here'
-          ) : caption ? (
-            <>
-              <CardCaption {...anchor} text={caption.text} path={caption.path} />
-              {captionSuffix ? ` / ${captionSuffix}` : null}
-            </>
-          ) : (
-            captionSuffix
-          )}
+          {state.status === 'unsupported'
+            ? 'not supported here'
+            : [
+                captionPrefix,
+                caption && <CardCaption {...anchor} text={caption.text} path={caption.path} />,
+                captionSuffix,
+              ]
+                .filter(Boolean)
+                .map((part, i) => (
+                  <Fragment key={i}>
+                    {i > 0 ? ' / ' : null}
+                    {part}
+                  </Fragment>
+                ))}
         </span>
         {meta}
         {state.status === 'loading' ? (
@@ -130,7 +165,7 @@ function CardBody({ state, children }: { state: BlockCardState; children: ReactN
     return (
       <div className="flex flex-col gap-2 p-3">
         <p className="m-0 text-[13px] leading-5 text-sub">
-          This reader does not know this block type yet. The content is below as data.
+          This reader cannot show this block. The content is below as data.
         </p>
         <RawBlock raw={state.raw} />
       </div>
@@ -157,16 +192,29 @@ function FullScreenIcon() {
   )
 }
 
-function captionLeaf(block: Block): CardLeaf | undefined {
+/** Every block a card header can name; an unreadable block draws UnknownBlock's card instead. */
+type CardBlock = Exclude<StoredBlock, UnreadableBlock>
+
+function captionLeaf(block: CardBlock): CardLeaf | undefined {
   switch (block.type) {
     case 'table':
     case 'compare':
+    case 'stat':
     case 'coverage':
+    case 'list':
+    case 'image':
       return block.caption === undefined ? undefined : { text: block.caption, path: 'caption' }
     case 'code':
       return block.filename === undefined
         ? { text: block.language, path: 'language' }
         : { text: block.filename, path: 'filename' }
+    case 'ba':
+      return block.filename === undefined ? undefined : { text: block.filename, path: 'filename' }
+    case 'walkthrough':
+      if (block.filename !== undefined) return { text: block.filename, path: 'filename' }
+      return block.title === undefined
+        ? { text: block.language, path: 'language' }
+        : { text: block.title, path: 'title' }
     case 'seq':
     case 'state':
     case 'layers':
@@ -182,10 +230,10 @@ function captionLeaf(block: Block): CardLeaf | undefined {
     case 'note':
     case 'warn':
     case 'good':
-    case 'stat':
-    case 'ba':
     case 'details':
     case 'p':
+    case 'diff':
+    case 'trajectory':
       return undefined
     default: {
       const unhandled: never = block
@@ -195,7 +243,7 @@ function captionLeaf(block: Block): CardLeaf | undefined {
 }
 
 export function cardHeader(
-  block: Block,
+  block: CardBlock,
   { sid, bid, pathPrefix = '', annotatable = true, onMarkClick }: BlockAnchor,
 ): Pick<BlockCardProps, 'kind' | 'caption' | 'sid' | 'bid' | 'annotatable' | 'onMarkClick'> {
   const leaf = captionLeaf(block)

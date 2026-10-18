@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { payloadToMarkdown } from '@brief/schema'
-import type { Payload } from '@brief/schema'
+import type { StoredPayload } from '@brief/schema'
 import { Toc, useActiveSection } from '@/features/toc'
 import type { TocMark } from '@/features/toc'
 import { DiagramViewerProvider } from '@/features/diagram-viewer'
@@ -19,11 +19,16 @@ import {
   PromptReviewSheet,
   ResetAnswers,
   buildReplyPrompt,
+  isAnswered,
   nextOpenDecision,
+  resolveRefs,
 } from '@/features/decisions'
 import type { DockTarget } from '@/features/decisions'
+import { flagPromptLines } from '@/features/trajectory'
 import { ExportProvider, useExport } from '@/features/export'
+import { GlossaryProvider } from '@/features/glossary'
 import { SaveModal, UnlockCard } from '@/features/save'
+import { ImageKeyContext } from './blocks/ImageBlock'
 import { CommandPalette, buildDocumentEntries } from '@/features/palette'
 import type { PaletteEntry } from '@/features/palette'
 import { ShortcutSheet, modKeyLabel, useShortcuts } from '@/features/shortcuts'
@@ -34,11 +39,14 @@ import { useIsNarrow } from '../hooks/useIsNarrow'
 import { DIAGRAM_BLOCK_TYPES, hasDiagrams } from '../lib/views'
 import type { ReaderView } from '../lib/views'
 import { adjacentSectionId, findSection, scrollToElement } from '../lib/sectionNav'
+import { BackPill } from './BackPill'
+import type { BackTarget } from './BackPill'
 import { DockSlot } from './DockSlot'
 import { RawView } from './RawView'
 import { Skeleton } from './Skeleton'
 import { HomeLink, STATUS_ACTION, StatusPage } from './StatusPage'
 import { NoDecisionsNote } from './NoDecisionsNote'
+import { collectDiffNodeStatus, DiffNodeStatusContext } from './blocks/diffNodeStatus'
 import { MetaHeader } from './MetaHeader'
 import { SectionView } from './SectionView'
 import { Topbar, themeToggleLabel } from './Topbar'
@@ -64,7 +72,7 @@ function storeTocCollapsed(collapsed: boolean) {
 }
 
 /** Reader highlights for the outline's "Your marks", in reading order. */
-function marksOf(highlights: Highlight[], sections: Payload['sections']): TocMark[] {
+function marksOf(highlights: Highlight[], sections: StoredPayload['sections']): TocMark[] {
   return [...highlights]
     .sort((a, b) => a.sid - b.sid || (a.bid ?? -1) - (b.bid ?? -1) || a.start - b.start)
     .flatMap((h) => {
@@ -100,7 +108,7 @@ function SessionReady({
   const { theme, toggle: toggleTheme } = useTheme()
   const narrow = useIsNarrow()
   const saveStatus = useSaveStatus()
-  const { highlights } = useReaderState()
+  const { highlights, dsel, dother } = useReaderState()
   const [view, setView] = useState<ReaderView>('document')
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -111,6 +119,7 @@ function SessionReady({
   // seq restarts the flash when the same section is jumped to twice.
   const [flash, setFlash] = useState<{ id: string; seq: number } | null>(null)
   const [pendingJump, setPendingJump] = useState<string | null>(null)
+  const [backTo, setBackTo] = useState<BackTarget | null>(null)
   const [tocCollapsed, setTocCollapsed] = useState(false)
   const [tocDrawerOpen, setTocDrawerOpen] = useState(false)
   // Note/Ask popovers are mutually exclusive -- opening one always closes
@@ -155,6 +164,17 @@ function SessionReady({
     return sections
   }, [sections, view])
   const activeId = useActiveSection(shownSections.map((s) => s.id))
+  // The outline's warn dot: sections an unanswered decision points to (D7 refs).
+  const openSectionIds = useMemo(
+    () =>
+      new Set(
+        payload.decisions.flatMap((d) =>
+          isAnswered(d, { dsel, dother }) ? [] : resolveRefs(d, sections).map((ref) => ref.id),
+        ),
+      ),
+    [payload.decisions, sections, dsel, dother],
+  )
+  const diffNodeStatus = useMemo(() => collectDiffNodeStatus(sections), [sections])
   const disabledViews = useMemo(() => (sections.some(hasDiagrams) ? undefined : NO_DIAGRAMS), [sections])
   const rawMarkdown = useMemo(
     () => (view === 'raw' ? payloadToMarkdown(payload, { url: `${window.location.origin}/s/${data.id}` }) : ''),
@@ -200,9 +220,36 @@ function SessionReady({
   // A sheet chip switches the question without taking focus off the chip.
   const selectDecision = useCallback((id: string) => setDockTarget((prev) => ({ id, seq: prev?.seq ?? 0 })), [])
 
-  function goToDecision(id: string) {
-    showDecision(id)
-    if (narrow) setDockOpen(true)
+  const goToDecision = useCallback(
+    (id: string) => {
+      showDecision(id)
+      if (narrow) setDockOpen(true)
+    },
+    [showDecision, narrow],
+  )
+
+  // A context chip (D7): the sheet closes so the section shows, and the Back pill returns.
+  const jumpToContext = useCallback(
+    (sectionId: string, decisionId: string) => {
+      setDockOpen(false)
+      jumpTo(sectionId)
+      setBackTo({ sectionId, decisionId })
+    },
+    [jumpTo],
+  )
+  const dismissBack = useCallback(() => setBackTo(null), [])
+
+  // The sheet takes the request number it mounts with as already handled, so under 880
+  // the focusing request goes out once the sheet is open.
+  function backToDecision(id: string) {
+    setBackTo(null)
+    if (!narrow) {
+      showDecision(id)
+      return
+    }
+    selectDecision(id)
+    setDockOpen(true)
+    requestAnimationFrame(() => showDecision(id))
   }
 
   // "Open dock" starts on the next open decision, as B-Mobile's peek bar says.
@@ -217,7 +264,8 @@ function SessionReady({
 
   // Copies at once and opens the review with the same text, to edit and copy again.
   function copyPrompt() {
-    void copy(buildReplyPrompt(payload.decisions, readerStateStore.getState(), payload.meta.title, data.id))
+    const state = readerStateStore.getState()
+    void copy(buildReplyPrompt(payload.decisions, state, payload.meta.title, data.id, flagPromptLines(payload, state)))
     setReviewOpen(true)
   }
 
@@ -305,6 +353,7 @@ function SessionReady({
   const mod = modKeyLabel()
 
   return (
+    <GlossaryProvider payload={payload} onSection={jumpTo} onDecision={goToDecision}>
     <div className="min-h-screen bg-page">
       <Topbar
         sessionId={data.id}
@@ -327,6 +376,7 @@ function SessionReady({
       />
       <>
         <DiagramViewerProvider>
+          <DiffNodeStatusContext value={diffNodeStatus}>
           <div
             // data-reader-grid: the print stylesheet turns this flex row back
             // into one column, since the outline does not print.
@@ -340,6 +390,7 @@ function SessionReady({
               sections={sections}
               activeId={activeId}
               marks={marksOf(highlights, sections)}
+              openSectionIds={openSectionIds}
               onJump={jumpTo}
               onMarkJump={jumpToMark}
               collapsed={tocCollapsed}
@@ -374,21 +425,40 @@ function SessionReady({
                 decisions={payload.decisions}
                 open={dockOpen}
                 onOpenChange={openDockSheet}
-                column={<DecisionDock decisions={payload.decisions} target={dockTarget} onCopyPrompt={copyPrompt} />}
+                column={
+                  <DecisionDock
+                    decisions={payload.decisions}
+                    sections={sections}
+                    target={dockTarget}
+                    onCopyPrompt={copyPrompt}
+                    onJumpToContext={jumpToContext}
+                  />
+                }
                 sheet={
                   <DecisionSheet
                     decisions={payload.decisions}
+                    sections={sections}
                     target={dockTarget}
                     onSelect={selectDecision}
                     onCopyPrompt={copyPrompt}
+                    onJumpToContext={jumpToContext}
                   />
                 }
                 sheetAction={<ResetAnswers decisions={payload.decisions} variant="sheet" />}
               />
             )}
           </div>
+          </DiffNodeStatusContext>
         </DiagramViewerProvider>
       </>
+      {backTo && (
+        <BackPill
+          key={`${backTo.decisionId}:${backTo.sectionId}`}
+          target={backTo}
+          onDismiss={dismissBack}
+          onBack={() => backToDecision(backTo.decisionId)}
+        />
+      )}
       <SelectionToolbar onRequestNote={openNote} onRequestAsk={openAsk} copyText={copy} />
       {notePopId && <NotePopover id={notePopId} onClose={closeNotePopover} />}
       {askPopId && (
@@ -408,6 +478,7 @@ function SessionReady({
           decisions={payload.decisions}
           docTitle={payload.meta.title}
           sessionId={data.id}
+          flagLines={(state) => flagPromptLines(payload, state)}
           copyText={copy}
           onClose={closeReview}
           onGoTo={(id) => {
@@ -419,7 +490,7 @@ function SessionReady({
       {!protectedSession && saveModalOpen && (
         <SaveModal
           sessionId={data.id}
-          payload={payload}
+          storedJson={data.raw}
           onClose={closeSaveModal}
           onSaved={(mode) => {
             setSavedOverride(true)
@@ -435,6 +506,7 @@ function SessionReady({
         />
       )}
     </div>
+    </GlossaryProvider>
   )
 }
 
@@ -458,7 +530,8 @@ export function SessionView({ id }: { id: string | null }) {
   // Memory-only: never written to sessionStorage/localStorage/IndexedDB.
   // Losing this state (reload, navigating away) re-locks the session, which
   // is the intended behavior for a zero-knowledge protected doc.
-  const [decrypted, setDecrypted] = useState<Payload | null>(null)
+  const [decrypted, setDecrypted] = useState<StoredPayload | null>(null)
+  const [sessionKey, setSessionKey] = useState<CryptoKey | null>(null)
 
   if (status === 'notfound') {
     return (
@@ -486,7 +559,9 @@ export function SessionView({ id }: { id: string | null }) {
         // roadmap enhancement.
         <ReaderStateProvider key={data.id} sessionId={data.id} persist={false}>
           <ExportProvider sessionId={data.id} payload={decrypted} encrypted={data.encrypted} expiresAt={data.expiresAt}>
-            <SessionReady data={{ ...data, payload: decrypted }} protectedSession />
+            <ImageKeyContext.Provider value={sessionKey}>
+              <SessionReady data={{ ...data, payload: decrypted }} protectedSession />
+            </ImageKeyContext.Provider>
           </ExportProvider>
         </ReaderStateProvider>
       )
@@ -508,7 +583,12 @@ export function SessionView({ id }: { id: string | null }) {
           brief<span className="text-faint">/s/{data.id}</span>
         </div>
         <main className="flex grow items-center justify-center p-4">
-          <UnlockCard ciphertext={data.raw} encParams={data.encParams} onUnlock={setDecrypted} />
+          <UnlockCard
+            ciphertext={data.raw}
+            encParams={data.encParams}
+            onUnlock={setDecrypted}
+            onKey={setSessionKey}
+          />
         </main>
       </div>
     )

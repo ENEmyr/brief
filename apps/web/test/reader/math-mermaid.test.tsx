@@ -81,6 +81,7 @@ describe('MathBlock', () => {
       throwOnError: true,
       displayMode: true,
       output: 'html',
+      errorColor: 'untrusted-command',
     })
   })
 

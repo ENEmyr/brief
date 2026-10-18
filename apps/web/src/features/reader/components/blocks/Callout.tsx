@@ -58,6 +58,7 @@ export function Callout({
                 className="m-0 font-semibold"
                 text={block.title}
                 path={`${pathPrefix}title`}
+                markdown
               />
             ) : null}
             <Annotatable
@@ -66,6 +67,7 @@ export function Callout({
               className="m-0"
               text={block.text}
               path={`${pathPrefix}text`}
+              markdown
             />
           </div>
         </aside>

@@ -1,6 +1,7 @@
-import type { Payload } from '@brief/schema'
+import type { StoredPayload } from '@brief/schema'
 import { decisionAnswerLines, isAnswered } from '@/features/decisions'
 import type { ReaderState } from '@/features/reader-state'
+import { flagPromptLines } from '@/features/trajectory'
 import { API_URL } from '@/shared/api'
 import { describeLocation, pad } from './askPrompt'
 
@@ -20,12 +21,13 @@ import { describeLocation, pad } from './askPrompt'
  * AI at a URL that would return nothing usable.
  *
  * Returns null when there is nothing to act on (no highlights, no decision
- * ever selected or noted) -- a prompt telling an AI to "update the document"
- * with zero requested changes would just be noise, so the caller is expected
- * to refuse to copy anything and say so instead.
+ * ever selected or noted, no trajectory step marked) -- a prompt telling an
+ * AI to "update the document" with zero requested changes would just be
+ * noise, so the caller is expected to refuse to copy anything and say so
+ * instead.
  */
 export function buildEditPrompt(
-  payload: Payload,
+  payload: StoredPayload,
   state: ReaderState,
   sessionId: string,
   origin: string,
@@ -35,7 +37,8 @@ export function buildEditPrompt(
   const hasDecisionInput = payload.decisions.some(
     (d) => isAnswered(d, state) || (state.dnote[d.id] ?? '').trim() !== '',
   )
-  if (!hasHighlights && !hasDecisionInput) return null
+  const flagLines = flagPromptLines(payload, state)
+  if (!hasHighlights && !hasDecisionInput && flagLines.length === 0) return null
 
   const url = `${origin}/s/${sessionId}`
   const lines: string[] = [
@@ -80,6 +83,7 @@ export function buildEditPrompt(
   if (payload.decisions.length > 0) {
     lines.push('Decisions:', '', ...decisionAnswerLines(payload.decisions, state))
   }
+  lines.push(...flagLines)
 
   lines.push(
     'Produce an updated payload that reflects the edit points and decisions above, and publish',

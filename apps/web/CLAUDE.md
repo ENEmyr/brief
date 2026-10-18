@@ -11,6 +11,7 @@ Statically exported Next.js reader UI. See the root CLAUDE.md for repo-wide rule
 ## Conventions
 
 - Use semantic color tokens (`page`, `card`, `elev`, `line`, `sub`, `chip`, and friends) rather than raw hex colors. Tokens are defined in `src/app/globals.css` for both the light and dark themes.
+- `--c-row-zebra` stays next to `--c-table-zebra` in `globals.css`. The handoff `tokens.css` declares both, the foundations visual spec checks every token it declares, and the dark values differ (`#0e1113` against `#0f1215`), so merging them would change pixels. Only the landing bands use `--c-row-zebra`.
 - The narrow-screen breakpoint is 880px, written as `min-[880px]:` and `max-[880px]:` variants. Never use `lg:`. Never write `max-[879px]:`. Tailwind compiles it to a width below 879px, so a 879px window gets neither side.
 - Interactive controls need a 44px minimum touch target on narrow screens: `max-[880px]:min-h-11` (plus `min-w-11` where relevant).
 - Heavy renderers (echarts, shiki, katex, mermaid) load lazily via `next/dynamic` or `import()` so they stay out of the first-load chunks. Keep new heavy dependencies behind the same boundaries.

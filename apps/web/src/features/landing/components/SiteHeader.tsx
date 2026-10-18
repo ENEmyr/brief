@@ -1,5 +1,5 @@
 import { NAV_LINKS, REPO_URL } from '../lib/content'
-import { FOCUS_RING, PAD } from '../lib/styles'
+import { FOCUS_RING, NARROW_TARGET, PAD } from '../lib/styles'
 
 export function LogoTile({ size }: { size: 'header' | 'preview' }) {
   return (
@@ -31,7 +31,7 @@ export function SiteHeader() {
       <span className="grow" />
       <a
         href={REPO_URL}
-        className={`rounded-[4px] border border-line2 px-3 py-[6px] text-[14px] text-text no-underline ${FOCUS_RING}`}
+        className={`rounded-[4px] border border-line2 px-3 py-[6px] text-[14px] text-text no-underline ${NARROW_TARGET} ${FOCUS_RING}`}
       >
         GitHub
       </a>

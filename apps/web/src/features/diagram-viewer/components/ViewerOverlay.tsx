@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import { DialogFocus } from '@/features/export'
 import { usePanZoom } from '../hooks/usePanZoom'
 import type { ViewerHeading, ViewerSteps } from '../hooks/useViewer'
 import { PanZoomSurface } from './PanZoomSurface'
@@ -38,10 +39,9 @@ export function ViewerOverlay({ content, heading, steps, onClose }: ViewerOverla
   const { reset, fit, zoomIn, zoomOut } = pan
 
   const dialogRef = useRef<HTMLDivElement>(null)
-  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
-  const latest = useRef({ onClose, steps, zoomIn, zoomOut, fit })
+  const latest = useRef({ steps, zoomIn, zoomOut, fit })
   useEffect(() => {
-    latest.current = { onClose, steps, zoomIn, zoomOut, fit }
+    latest.current = { steps, zoomIn, zoomOut, fit }
   })
 
   // A diagram wider or taller than the screen opens scaled down to fit; a
@@ -55,23 +55,15 @@ export function ViewerOverlay({ content, heading, steps, onClose }: ViewerOverla
     // Measured once per open; a later zoom is the reader's.
   }, [isOpen])
 
-  // Dialog a11y + lifecycle: on open, remember whatever had focus so it can be
-  // restored on close, move focus into the dialog, and wire the keys plus simple
-  // Tab containment. The cleanup only runs after an open, so it doubles as the
-  // close step: restore focus and drop any transform or half-finished gesture,
-  // so nothing survives into the next open (bug-121).
+  // The viewer's own keys. DialogFocus below owns focus, Tab, Escape and the
+  // scroll lock. The cleanup only runs after an open, so it doubles as the close
+  // step: drop any transform or half-finished gesture, so nothing survives into
+  // the next open (bug-121).
   useEffect(() => {
     if (!isOpen) return
 
-    previouslyFocusedRef.current = document.activeElement as HTMLElement | null
-    dialogRef.current?.focus()
-
     function handleKeyDown(event: KeyboardEvent) {
-      const { onClose: close, steps: currentSteps, zoomIn: zin, zoomOut: zout, fit: fitNow } = latest.current
-      if (event.key === 'Escape') {
-        close()
-        return
-      }
+      const { steps: currentSteps, zoomIn: zin, zoomOut: zout, fit: fitNow } = latest.current
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       const action: Record<string, (() => void) | undefined> = {
@@ -86,37 +78,15 @@ export function ViewerOverlay({ content, heading, steps, onClose }: ViewerOverla
       if (run) {
         event.preventDefault()
         run()
-        return
-      }
-
-      if (event.key === 'Tab' && dialogRef.current) {
-        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        )
-        const first = focusable[0]
-        const last = focusable[focusable.length - 1]
-        if (!first || !last) return
-
-        // Focus starts on the dialog itself, which is in neither end of the list.
-        const outside = !dialogRef.current.contains(document.activeElement) || document.activeElement === dialogRef.current
-        if (event.shiftKey && (outside || document.activeElement === first)) {
-          event.preventDefault()
-          last.focus()
-        } else if (!event.shiftKey && (outside || document.activeElement === last)) {
-          event.preventDefault()
-          first.focus()
-        }
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      previouslyFocusedRef.current?.focus()
       reset()
     }
-    // Keyed on isOpen only, so it does not re-run (and re-steal focus) on every
-    // parent re-render while open.
+    // Keyed on isOpen only, so it does not re-run on every parent re-render while open.
   }, [isOpen, reset])
 
   if (!isOpen) return null
@@ -157,7 +127,7 @@ export function ViewerOverlay({ content, heading, steps, onClose }: ViewerOverla
       <button
         type="button"
         onClick={pan.fit}
-        className={`${GROUP_BUTTON_BASE} h-9 px-2.5 text-[12px] max-[880px]:h-11`}
+        className={`${GROUP_BUTTON_BASE} h-9 px-2.5 text-[12px] max-[880px]:h-11 max-[880px]:min-w-11`}
       >
         Fit
       </button>
@@ -176,6 +146,7 @@ export function ViewerOverlay({ content, heading, steps, onClose }: ViewerOverla
       tabIndex={-1}
       className="fixed inset-0 z-[100] grid grid-cols-[auto_minmax(0,1fr)_auto_auto] grid-rows-[56px_minmax(0,1fr)_72px] gap-x-2 bg-[var(--c-viewer-canvas)] text-text outline-none print:hidden max-[880px]:grid-rows-[56px_minmax(0,1fr)_auto_auto]"
     >
+      <DialogFocus panelRef={dialogRef} onClose={onClose} />
       <div aria-hidden="true" className="col-span-full row-start-1 border-b border-[var(--c-grid-line)] bg-[var(--c-topbar)]" />
       <span className="col-start-1 row-start-1 ml-4 self-center">
         {heading ? (

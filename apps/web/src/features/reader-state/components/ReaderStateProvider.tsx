@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createReaderStateStore } from '../store'
 import type { ReaderState, ReaderStateActions, ReaderStateStore } from '../store'
-import { cancelPendingPersist, clearPersistedState } from '../persistence'
+import { cancelPendingPersist, clearPersistedState, loadPersistedState } from '../persistence'
 import { startKvSync } from '../sync'
 import type { SyncStatus } from '../sync'
 
@@ -58,7 +58,10 @@ export function ReaderStateProvider({
   // to `persist` and only ever flips true->false, via stopPersistence --
   // there is no path back to persisting once stopped.
   const [syncActive, setSyncActive] = useState(persist)
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('saved')
+  // A stored state may not have reached the server yet: startKvSync settles it.
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(() =>
+    persist && loadPersistedState(sessionId) !== null ? 'saving' : 'saved',
+  )
   const saveStatus: SaveStatus = persist && syncActive ? SYNC_TO_SAVE[syncStatus] : 'tab'
 
   const stopPersistence = useCallback(() => {

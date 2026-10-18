@@ -11,7 +11,7 @@ export default {
   scheduled: async () => {
     try {
       const purged = await purgeExpired(appEnv, Date.now())
-      console.log(JSON.stringify({ event: 'purge', purged, at: new Date().toISOString() }))
+      console.log(JSON.stringify({ event: 'purge', ...purged, at: new Date().toISOString() }))
     } catch (error) {
       console.error(
         JSON.stringify({ event: 'purge_error', error: String(error), at: new Date().toISOString() }),

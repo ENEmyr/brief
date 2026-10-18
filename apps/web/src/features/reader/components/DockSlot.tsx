@@ -1,18 +1,12 @@
 'use client'
 import { useCallback, useEffect, useRef } from 'react'
-import type { RefObject } from 'react'
 import type { Decision } from '@brief/schema'
 import { DecisionSegments, isAnswered } from '@/features/decisions'
-import { useDialogFocus } from '@/features/export'
+import { DialogFocus } from '@/features/export'
 import { useReaderState } from '@/features/reader-state'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { ChevronDownIcon } from './icons'
 import { TOUCH_BUTTON } from './topbarChrome'
-
-function SheetFocus({ panelRef, onClose }: { panelRef: RefObject<HTMLElement | null>; onClose: () => void }) {
-  useDialogFocus(panelRef, onClose)
-  return null
-}
 
 const HANDLE = 'h-1 w-9 shrink-0 self-center rounded-[2px] bg-line2'
 
@@ -42,7 +36,6 @@ export function DockSlot({
   const state = useReaderState()
   const asideRef = useRef<HTMLElement>(null)
   const openRef = useRef<HTMLButtonElement>(null)
-  const sheetWasOpen = useRef(false)
   const sheet = narrow && open
 
   // The sheet only exists under 880; widening the window closes it.
@@ -55,13 +48,6 @@ export function DockSlot({
   const next = decisions.find((d) => !isAnswered(d, state))
   // Stable, so the sheet's focus effect does not re-run (and grab focus) on every answer.
   const close = useCallback(() => onOpenChange(false), [onOpenChange])
-
-  useEffect(() => {
-    const at = document.activeElement
-    const lost = !at || at === document.body || !!asideRef.current?.contains(at)
-    if (sheetWasOpen.current && !sheet && lost) openRef.current?.focus()
-    sheetWasOpen.current = sheet
-  }, [sheet])
 
   return (
     <>
@@ -90,8 +76,9 @@ export function DockSlot({
             : 'max-[880px]:z-40 max-[880px]:rounded-t-[14px]'
         }`}
       >
-        {narrow && !sheet && (
+        {narrow && (
           <div
+            hidden={sheet}
             data-dock-chrome=""
             className="flex flex-col gap-[10px] px-3 pb-[30px] pt-2 leading-[normal] min-[880px]:hidden"
           >
@@ -117,7 +104,7 @@ export function DockSlot({
         )}
         {sheet && (
           <>
-            <SheetFocus panelRef={asideRef} onClose={close} />
+            <DialogFocus panelRef={asideRef} onClose={close} returnFocusRef={openRef} />
             <div data-dock-chrome="" className="flex flex-col leading-[normal]">
               <span aria-hidden="true" className={`${HANDLE} mt-2`} />
               <div className="flex items-center gap-2 border-b border-line py-[10px] pl-[14px] pr-[6px]">

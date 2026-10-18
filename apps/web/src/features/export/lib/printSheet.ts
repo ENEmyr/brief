@@ -1,4 +1,4 @@
-import type { Payload } from '@brief/schema'
+import type { StoredPayload } from '@brief/schema'
 import { isAnswered } from '@/features/decisions'
 import type { Highlight, ReaderState } from '@/features/reader-state'
 
@@ -12,7 +12,7 @@ function count(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? '' : 's'}`
 }
 
-export function sessionLine(sessionId: string, payload: Payload, state: ReaderState): string {
+export function sessionLine(sessionId: string, payload: StoredPayload, state: ReaderState): string {
   const parts = [`session ${sessionId}`, count(payload.sections.length, 'section')]
   if (payload.decisions.length > 0) {
     const answered = payload.decisions.filter((d) => isAnswered(d, state)).length
@@ -45,6 +45,8 @@ export function insertPrintNotes(root: ParentNode, highlights: Highlight[]): () 
   for (const mark of root.querySelectorAll<HTMLElement>('mark[data-mark-id], mark[data-highlight-id]')) {
     const highlight = byId.get(mark.dataset.markId ?? mark.dataset.highlightId ?? '')
     if (!highlight) continue
+    // A highlight across inline-markdown runs is one mark per run; print its note once.
+    byId.delete(highlight.id)
     const els = noteLines(highlight).map(([label, text]) => {
       const el = mark.ownerDocument.createElement('span')
       el.dataset.printNote = ''

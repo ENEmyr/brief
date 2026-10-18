@@ -107,6 +107,21 @@ describe('PUT /api/session/:id/save', () => {
     expect(res.status).toBe(409)
   })
 
+  it('plain save keeps a stored payload byte for byte, fields this schema does not know included', async () => {
+    const id = await createOne()
+    const stored = JSON.stringify({
+      meta: { title: 'T', futureMeta: 1 },
+      sections: [{ id: 's', no: 1, title: 'S', futureSection: true, blocks: [{ type: 'p', text: 'x', futureField: 'newer agent' }] }],
+      decisions: [],
+    })
+    await appEnv.DB.prepare('UPDATE sessions SET payload = ? WHERE id = ?').bind(stored, id).run()
+
+    expect((await put(id, { mode: 'plain' })).status).toBe(200)
+
+    const row = await appEnv.DB.prepare('SELECT payload FROM sessions WHERE id = ?').bind(id).first()
+    expect(row?.payload).toBe(stored)
+  })
+
   it('404s unknown sessions', async () => {
     const res = await put('absent-absent-x', { mode: 'plain' })
     expect(res.status).toBe(404)

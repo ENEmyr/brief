@@ -1,4 +1,4 @@
-import type { Block, Payload } from '@brief/schema'
+import type { Block, StoredBlock, StoredPayload } from '@brief/schema'
 
 export type PaletteEntry =
   | { kind: 'decision'; key: string; decisionId: string; label: string; keywords: string }
@@ -31,14 +31,14 @@ const BLOCK_STRINGS: { [T in Block['type']]: (block: BlockOf<T>) => (string | un
     b.caption,
     ...[b.left, b.right].flatMap((side) => [side.title, ...side.items.map((item) => item.text)]),
   ],
-  stat: (b) => b.items.map((item) => `${item.label} ${item.value}`),
+  stat: (b) => [b.caption, ...b.items.map((item) => `${item.label} ${item.value}`)],
   coverage: (b) => [b.caption, ...b.items.map((item) => item.label)],
   details: (b) => [b.summary, ...b.blocks.flatMap(blockStrings)],
   seq: (b) => [b.title, ...b.steps.map((step) => step.label)],
   code: (b) => [b.filename, ...b.code.split('\n')],
   state: (b) => [b.title],
   layers: (b) => [b.title],
-  ba: () => [],
+  ba: (b) => [b.filename],
   bigo: (b) => [b.title],
   mermaid: (b) => [b.title],
   math: (b) => [b.title],
@@ -47,10 +47,16 @@ const BLOCK_STRINGS: { [T in Block['type']]: (block: BlockOf<T>) => (string | un
   histogram: (b) => [b.title],
   scatter: (b) => [b.title],
   plot3d: (b) => [b.title],
+  list: (b) => [b.caption, ...b.items],
+  walkthrough: (b) => [b.filename, b.title, ...b.code.split('\n'), ...b.steps.map((step) => step.title)],
+  diff: (b) => b.files.flatMap((file) => [file.path, ...(file.changes ?? []).map((change) => `${change.symbol} ${change.summary}`)]),
+  trajectory: (b) => b.steps.flatMap((step) => [step.title, step.detail]),
+  image: (b) => [b.caption],
 }
 
-function blockStrings(block: Block): string[] {
-  const extract = BLOCK_STRINGS[block.type] as (block: Block) => (string | undefined)[]
+function blockStrings(block: StoredBlock): string[] {
+  if (block.type === 'unreadable') return []
+  const extract = BLOCK_STRINGS[block.type] as (block: StoredBlock) => (string | undefined)[]
   return extract(block).flatMap((text) => {
     const label = text?.trim()
     return label ? [label] : []
@@ -58,7 +64,7 @@ function blockStrings(block: Block): string[] {
 }
 
 /** Sections, blocks and decisions of a payload (no actions; the shell adds those). */
-export function buildDocumentEntries(payload: Payload): PaletteEntry[] {
+export function buildDocumentEntries(payload: StoredPayload): PaletteEntry[] {
   const decisions = payload.decisions.map(
     (decision): PaletteEntry => ({
       kind: 'decision',

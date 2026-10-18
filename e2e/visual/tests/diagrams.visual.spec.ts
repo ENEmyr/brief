@@ -161,7 +161,7 @@ test.describe('at 1440', () => {
     await openReader(page)
     const figure = page.locator('section#s2 figure').filter({ has: page.locator('[data-actor]') })
     const canvas = seqCanvas(figure)
-    // B-Reader:131: 640 x 400, centered in a body padded 16 top and bottom.
+    // B-Reader:128: 640 x 400, centered in a body padded 16 top and bottom.
     expectNear(await rel(canvas, canvas), { width: 640, height: 400 }, 'canvas')
     await expect(captionOf(figure)).toHaveText('6 messages')
     // B-Reader:128: Play is the accent button; at rest there is no step label.
@@ -468,8 +468,9 @@ test.describe('at 1440', () => {
 
     // B-Blocks2:168-170: a code-bg pane padded 16; 36px zoom buttons 28 from
     // the left and 24 from the bottom, 6 apart.
+    // B-Blocks2:166: the kind leads the caption.
     const plot3d = card(page, 'plot3d')
-    await expect(captionOf(plot3d)).toHaveText('latency by RPS and bucket size / surface')
+    await expect(captionOf(plot3d)).toHaveText('surface / latency by RPS and bucket size')
     const pane = plot3d.getByRole('button', { name: 'Zoom in' }).locator('../..')
     await expectComputed(pane, { 'background-color': c.codeBg, 'padding-top': '16px' })
     const zoomIn = plot3d.getByRole('button', { name: 'Zoom in' })

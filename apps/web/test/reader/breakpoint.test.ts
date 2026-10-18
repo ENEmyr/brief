@@ -7,6 +7,9 @@ const SRC = resolve(process.cwd(), 'src')
 // B-Reader's dock column starts at 1101; nothing in JS reads it.
 const DOCK_COLUMN_FROM_PX = 1101
 const WIDTH_VARIANT = /\b(?:min|max)-\[([\d.]+)px\]:/g
+// B-Overlays SHELL: under 640 every dialog becomes a bottom sheet (the `sheet` variant).
+const SHEET_BELOW_PX = 640
+const WIDTH_MEDIA = /\(\s*(?:(?:min|max)-width\s*:|width\s*[<>]=?)\s*([\d.]+)px\s*\)/g
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -29,5 +32,19 @@ describe('the 880 breakpoint', () => {
     }
     expect(strays).toEqual([])
     expect(narrowVariants).toBeGreaterThan(0)
+  })
+
+  it('every raw media width query in CSS or JS names the same numbers', () => {
+    const strays: string[] = []
+    let narrowQueries = 0
+    for (const file of sourceFiles(SRC)) {
+      for (const [query, width] of readFileSync(file, 'utf8').matchAll(WIDTH_MEDIA)) {
+        const px = Number(width)
+        if (px === NARROW_BELOW_PX) narrowQueries++
+        else if (px !== DOCK_COLUMN_FROM_PX && px !== SHEET_BELOW_PX) strays.push(`${relative(SRC, file)}: ${query}`)
+      }
+    }
+    expect(strays).toEqual([])
+    expect(narrowQueries).toBeGreaterThan(0)
   })
 })

@@ -17,3 +17,17 @@ export const sessions = sqliteTable(
   },
   (t) => [index('idx_sessions_expires').on(t.expiresAt)],
 )
+
+export const images = sqliteTable(
+  'images',
+  {
+    id: text('id').primaryKey(),
+    // null until a session links it; unlinked rows past the orphan window are purged
+    sessionId: text('session_id'),
+    contentType: text('content_type').notNull(),
+    encrypted: integer('encrypted', { mode: 'boolean' }).notNull().default(false),
+    byteSize: integer('byte_size').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => [index('idx_images_session').on(t.sessionId), index('idx_images_created').on(t.createdAt)],
+)
