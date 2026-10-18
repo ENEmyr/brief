@@ -79,8 +79,6 @@ const C: Record<Theme, Palette> = {
   },
 }
 
-/** Each B-Reader decision has a context-chip row (26 plus the 8 gap) that waits on decision.refs (P1). */
-const CHIPS = 34
 /**
  * B-Reader draws the dock 1297 high in flow. R-V5: the app decides, and caps
  * it at the viewport less 64 (sticky top) and 16 (page padding) so its list
@@ -171,7 +169,7 @@ test.describe('dock at 1440', () => {
   }) => {
     const dock = dockOf(page)
     const d1 = row(page, 'D1')
-    await expectRel(d1, dock, { x: 1, y: 54, width: 340, height: 277 - CHIPS })
+    await expectRel(d1, dock, { x: 1, y: 54, width: 340, height: 277 })
     await expectComputed(d1, {
       'padding-top': '12px',
       'padding-left': '14px',
@@ -210,7 +208,7 @@ test.describe('dock at 1440', () => {
     for (let i = 0; i < 4; i++) {
       await expectRel(options.nth(i), dock, {
         x: 15,
-        y: 128 - CHIPS + 38 * i,
+        y: 128 + 38 * i,
         width: 312,
         height: 34,
       })
@@ -231,7 +229,7 @@ test.describe('dock at 1440', () => {
       color: C[theme].sub,
     })
     const pickedKbd = picked.locator('kbd')
-    await expectRel(pickedKbd, dock, { x: 24, y: 135 - CHIPS, width: 20, height: 20 })
+    await expectRel(pickedKbd, dock, { x: 24, y: 135, width: 20, height: 20 })
     await expectComputed(pickedKbd, {
       'background-color': C[theme].accent,
       color: C[theme].onAccent,
@@ -247,7 +245,7 @@ test.describe('dock at 1440', () => {
     await expectRel(picked.locator(':scope > span'), dock, { x: 54 })
 
     const reason = row(page, 'D1').getByRole('textbox', { name: 'D1 Reason' })
-    await expectRel(reason, dock, { x: 15, y: 284 - CHIPS, width: 312, height: 34 })
+    await expectRel(reason, dock, { x: 15, y: 284, width: 312, height: 34 })
     await expectComputed(reason, {
       'background-color': C[theme].codeBg,
       'border-top-color': C[theme].line,
@@ -262,13 +260,13 @@ test.describe('dock at 1440', () => {
   }) => {
     const dock = dockOf(page)
     const d2 = row(page, 'D2')
-    await expectRel(d2, dock, { y: 331 - CHIPS })
+    await expectRel(d2, dock, { y: 331 })
     const other = d2.getByRole('radio', { name: 'Other, type your own' })
     await expect(other).toHaveAttribute('aria-checked', 'true')
     await expect(other.locator('kbd')).toHaveText('4')
     const field = d2.getByRole('textbox', { name: 'D2 Your answer' })
     await expect(field).toHaveAttribute('placeholder', 'Your answer')
-    await expectRel(field, dock, { x: 15, y: 561 - 2 * CHIPS, width: 312, height: 36 })
+    await expectRel(field, dock, { x: 15, y: 561, width: 312, height: 36 })
     await expectComputed(field, {
       'background-color': C[theme].page,
       'border-top-color': C[theme].accentLine,
@@ -397,6 +395,9 @@ test.describe('dock at 1440', () => {
     test(`crop ${crop}`, async ({ page, theme }) => {
       const locator = find(page)
       await expect(locator).toBeVisible()
+      // R-V5: the dock is capped at 820 and its list scrolls under the sticky
+      // footer, so a row the footer covers is scrolled to the list's middle first.
+      await locator.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }))
       await expect(page).toHaveScreenshot(`crop-reader-${theme}-${crop}.png`, {
         fullPage: true,
         clip: await clipOf(locator),
