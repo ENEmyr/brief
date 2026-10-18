@@ -53,9 +53,9 @@ first use for Google Fonts and refuses to write references if a font is missing.
   `lib/regions.ts`), on the board and in the app alike. An element screenshot
   would scroll the element into the 900 px viewport, drop the rows below it and
   catch sticky elements (top bar, dock) at their scrolled position.
-- Renders of the references are byte-identical from run to run.
-  `references.config.ts` starts Chromium with one raster thread, no partial
-  raster and no checker imaging. Without those flags, about 4 to 7 of the 128
+- `references.config.ts` starts Chromium with one raster thread, no partial
+  raster and no checker imaging. With those flags, 8 consecutive renders on
+  2026-10-18 matched byte for byte in all 128 images. Without them, about 4 to 7 of the 128
   images differed between two renders by up to 53 anti-aliased pixels (channel
   delta at most 2), even with the fonts served locally.
 
