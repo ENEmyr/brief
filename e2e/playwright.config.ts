@@ -1,10 +1,16 @@
 import { defineConfig, devices } from '@playwright/test'
+import { e2ePorts } from './ports'
 
-// Base URLs for the two local servers the suite drives. Overridable via env
-// so CI (or a developer with different ports already in use) can point the
-// suite elsewhere without editing this file.
-export const WEB_URL = process.env.WEB_URL ?? 'http://localhost:8788'
-export const API_URL = process.env.API_URL ?? 'http://localhost:8787'
+// Ports come from ports.ts: 8787/8788 in CI, a per-checkout base locally, or
+// E2E_PORT_BASE when set. run.sh bakes the same API URL into the web build.
+const ports = e2ePorts()
+export const WEB_URL = ports.webUrl
+export const API_URL = ports.apiUrl
+
+// A server already on the port is reused only in CI-less runs that ask for it:
+// the port is derived from this checkout, but a leftover server could still be
+// an older build of it, so the default is to fail loudly instead.
+const reuseExistingServer = !process.env.CI && process.env.E2E_REUSE_SERVER === '1'
 
 // `bun run e2e` (e2e/run.sh) has already built apps/web/out with
 // NEXT_PUBLIC_API_URL baked in and applied local D1 migrations before
@@ -42,10 +48,10 @@ export default defineConfig({
       // binding under apps/api/.wrangler/state -- the same state directory
       // run.sh's `wrangler d1 migrations apply --local` writes to, since both
       // run with cwd apps/api.
-      command: 'bunx wrangler dev --port 8787',
+      command: `bunx wrangler dev --port ${ports.api} --inspector-port ${ports.apiInspector}`,
       cwd: '../apps/api',
       url: `${API_URL}/health`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer,
       timeout: 60_000,
     },
     {
@@ -53,10 +59,10 @@ export default defineConfig({
       // apps/web/public/_redirects (the `/s/* -> /s/ 200` rewrite the
       // reader route depends on) -- a plain static file server would not
       // honor that rewrite.
-      command: 'bunx wrangler pages dev out --port 8788 --compatibility-date=2026-06-05',
+      command: `bunx wrangler pages dev out --port ${ports.web} --inspector-port ${ports.webInspector} --compatibility-date=2026-06-05`,
       cwd: '../apps/web',
       url: WEB_URL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer,
       timeout: 60_000,
     },
   ],
