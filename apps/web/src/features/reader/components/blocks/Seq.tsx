@@ -18,11 +18,6 @@ import { svgTextStyle } from '../../lib/svgText'
 
 type SeqBlock = Extract<Block, { type: 'seq' }>
 
-// Cycled per visible step (not per actor). When the cycled name lands on
-// 'red' the arrow gets a dashed stroke and the label is colored red too,
-// matching the prototype's explicit per-step color tagging.
-const STEP_COLOR_NAMES = ['blue', 'mauve', 'green', 'red', 'teal'] as const
-
 interface SeqControlsProps {
   step: number
   max: number
@@ -56,12 +51,11 @@ function SeqControls({ step, max, onPrev, onNext }: SeqControlsProps) {
 interface StepArrowProps {
   step: SeqStepLayout
   color: string
-  dashed: boolean
   markerId: string
 }
 
 /** The self-loop bracket, or the straight arrow between two lifelines. */
-function StepArrow({ step, color, dashed, markerId }: StepArrowProps) {
+function StepArrow({ step, color, markerId }: StepArrowProps) {
   if (step.self) {
     return (
       <path
@@ -82,7 +76,6 @@ function StepArrow({ step, color, dashed, markerId }: StepArrowProps) {
       x2={step.x2 - dir * 6}
       y2={step.y}
       strokeWidth={1.8}
-      strokeDasharray={dashed ? '5 3' : undefined}
       style={{ stroke: color }}
       markerEnd={`url(#${markerId})`}
     />
@@ -158,7 +151,7 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
               width={actor.pillWidth}
               height={PILL_HEIGHT}
               rx={6}
-              style={{ fill: 'var(--ctp-mauvesoft)', stroke: 'var(--ctp-line)' }}
+              style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
             />
             <text
               x={actor.x}
@@ -166,7 +159,7 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
               textAnchor="middle"
               fontSize={ACTOR_FONT_SIZE}
               fontWeight={600}
-              style={svgTextStyle({ fill: 'var(--ctp-mauve)' })}
+              style={svgTextStyle({ fill: 'var(--c-text)' })}
             >
               {actor.name}
             </text>
@@ -176,27 +169,23 @@ export function Seq({ block, ...anchor }: { block: SeqBlock } & BlockAnchor) {
               x2={actor.x}
               y2={layout.lifelineBottom}
               strokeDasharray="3 3"
-              style={{ stroke: 'var(--ctp-line)' }}
+              style={{ stroke: 'var(--c-line2)' }}
             />
           </g>
         ))}
         {layout.steps.map((s, i) => {
-          const colorName = STEP_COLOR_NAMES[i % STEP_COLOR_NAMES.length]
-          const colorVar = `var(--ctp-${colorName})`
-          const isRed = colorName === 'red'
-          // A red arrow tints its own label; a self-loop label stays neutral.
-          const labelFill = isRed && !s.self ? colorVar : 'var(--ctp-subtext0)'
-
+          // The latest revealed step is the path that matters.
+          const isCurrent = i === step - 1
           return (
             <g key={i} style={{ opacity: i < step ? 1 : 0.2, transition: 'opacity .3s' }}>
-              <StepArrow step={s} color={colorVar} dashed={isRed} markerId={markerId} />
-              <StepLabel step={s} fill={labelFill} />
+              <StepArrow step={s} color={isCurrent ? 'var(--c-accent-line)' : 'var(--c-sub)'} markerId={markerId} />
+              <StepLabel step={s} fill={isCurrent ? 'var(--c-accent-text)' : 'var(--c-sub)'} />
             </g>
           )
         })}
         <defs>
           <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--ctp-subtext0)' }} />
+            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
           </marker>
         </defs>
       </svg>

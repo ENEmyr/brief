@@ -116,9 +116,9 @@ function fkEdgePath(source: TableBox, columnIndex: number, target: TableBox): st
 
 /**
  * Entity-relationship diagram block. Styled to match the other custom SVG
- * blocks (Seq/StateMachine/Layers): mono labels, --ctp-* CSS var colors, unique
- * marker id via useId. PK columns get a bold underlined "PK " prefix, FK columns
- * a teal " FK" suffix. An fk referencing an unknown table is dropped
+ * blocks (Seq/StateMachine/Layers): mono labels, --c-* token colors, unique
+ * marker id via useId. PK columns get a bold underlined accent "PK " prefix, FK
+ * columns an info " FK" suffix. An fk referencing an unknown table is dropped
  * defensively: its column marker still renders, only the edge is skipped.
  *
  * Tables can be dragged. The auto-layout is a starting point, not a verdict, and
@@ -234,7 +234,7 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
           <button
             type="button"
             onClick={reset}
-            className="rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-mauve transition-colors hover:border-mauve hover:bg-mauvesoft"
+            className="rounded-md border border-line bg-card px-[9px] py-[3px] font-mono text-[10.5px] text-accent-text transition-colors hover:border-accent-line hover:bg-accent-soft"
           >
             Reset layout
           </button>
@@ -258,7 +258,7 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
             fill="none"
             strokeWidth={1.3}
             strokeDasharray="4 3"
-            style={{ stroke: 'var(--ctp-teal)' }}
+            style={{ stroke: 'var(--c-sub)' }}
             markerEnd={`url(#${markerId})`}
           />
         ))}
@@ -274,14 +274,14 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
               y={box.y}
               width={box.w}
               height={HEADER_H}
-              style={{ fill: 'var(--ctp-mauvesoft)', stroke: 'var(--ctp-line)' }}
+              style={{ fill: 'var(--c-chip)', stroke: 'var(--c-line2)' }}
             />
             <text
               x={box.x + 8}
               y={box.y + 15}
               fontSize={11.5}
               fontWeight={700}
-              style={svgTextStyle({ fill: 'var(--ctp-mauve)' })}
+              style={svgTextStyle({ fill: 'var(--c-text)' })}
             >
               {box.table.name}
             </text>
@@ -294,7 +294,7 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
                     y={rowY}
                     width={box.w}
                     height={ROW_H}
-                    style={{ fill: 'var(--ctp-card)', stroke: 'var(--ctp-line2)' }}
+                    style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
                   />
                   <text
                     x={box.x + 8}
@@ -306,13 +306,13 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
                       <tspan
                         fontWeight={700}
                         textDecoration="underline"
-                        style={{ fill: 'var(--ctp-text)' }}
+                        style={{ fill: 'var(--c-accent-text)' }}
                       >
                         {'PK '}
                       </tspan>
                     ) : null}
-                    <tspan style={{ fill: 'var(--ctp-subtext0)' }}>{`${col.name} ${col.type}`}</tspan>
-                    {col.fk ? <tspan style={{ fill: 'var(--ctp-teal)' }}>{' FK'}</tspan> : null}
+                    <tspan style={{ fill: 'var(--c-sub)' }}>{`${col.name} ${col.type}`}</tspan>
+                    {col.fk ? <tspan style={{ fill: 'var(--c-info)' }}>{' FK'}</tspan> : null}
                   </text>
                 </g>
               )
@@ -321,7 +321,7 @@ export function Erd({ block, ...anchor }: { block: ErdBlock } & BlockAnchor) {
         ))}
         <defs>
           <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--ctp-teal)' }} />
+            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
           </marker>
         </defs>
       </svg>

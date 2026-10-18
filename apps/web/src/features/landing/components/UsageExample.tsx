@@ -49,8 +49,8 @@ export function UsageExample() {
                     onClick={() => setActive(candidate.id)}
                     className={`flex min-h-11 items-center rounded-lg border px-4 text-left text-[14px] transition-colors ${FOCUS_RING} ${
                       selected
-                        ? 'border-mauve bg-mauvesoft font-medium text-mauve'
-                        : 'border-line bg-card text-sub hover:border-mauve'
+                        ? 'border-accent-line bg-accent-soft font-medium text-accent-text'
+                        : 'border-line bg-card text-sub hover:border-accent-line'
                     }`}
                   >
                     {candidate.label}

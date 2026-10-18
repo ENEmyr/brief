@@ -12,8 +12,8 @@ export interface FontSet {
  */
 export const BOARD_FONTS: FontSet = { always: ['Geist', 'Geist Mono'], thai: 'Noto Sans Thai' }
 
-/** The app's next/font families (apps/web/src/app/layout.tsx). Phase 1 replaces them with BOARD_FONTS. */
-export const APP_FONTS: FontSet = { always: ['IBM Plex Sans Thai', 'IBM Plex Mono'] }
+/** The app's next/font families (apps/web/src/app/layout.tsx), the boards' fonts since Phase 1. */
+export const APP_FONTS: FontSet = BOARD_FONTS
 
 /**
  * Waits for the fonts, then throws unless every needed family has a loaded face

@@ -17,7 +17,15 @@ vi.mock('mermaid', () => ({
 }))
 
 const { useThemeMock } = vi.hoisted(() => ({ useThemeMock: vi.fn() }))
-vi.mock('@/features/theme', () => ({ useTheme: useThemeMock, beginThemedRender: () => () => {} }))
+// Token values tagged with the theme they were read for, so a test can see
+// which theme MermaidBlock asked for and which token feeds which variable.
+vi.mock('@/features/theme', () => ({
+  useTheme: useThemeMock,
+  beginThemedRender: () => () => {},
+  readColorTokens: (theme: string, names: readonly string[]) =>
+    Object.fromEntries(names.map((name) => [name, `${theme}:${name}`])),
+  readFontStack: (kind: string) => `${kind}-stack`,
+}))
 
 const mathBlock: Extract<Block, { type: 'math' }> = { type: 'math', latex: 'e=mc^2' }
 const mermaidBlock: Extract<Block, { type: 'mermaid' }> = { type: 'mermaid', code: 'graph TD; A-->B' }
@@ -33,7 +41,7 @@ beforeEach(() => {
   mermaidRenderMock.mockReset()
   mermaidInitializeMock.mockReset()
   useThemeMock.mockReset()
-  useThemeMock.mockReturnValue({ theme: 'latte', toggle: vi.fn() })
+  useThemeMock.mockReturnValue({ theme: 'light', toggle: vi.fn() })
 })
 
 describe('MathBlock', () => {
@@ -150,14 +158,34 @@ describe('MermaidBlock', () => {
     })
   })
 
+  it('feeds the B-Blocks2 themeVariables from the current theme tokens and the sans stack', async () => {
+    mermaidRenderMock.mockResolvedValue({ svg: '<svg></svg>' })
+    useThemeMock.mockReturnValue({ theme: 'dark', toggle: vi.fn() })
+
+    render(<MermaidBlock block={mermaidBlock} />)
+    await waitFor(() => expect(mermaidInitializeMock).toHaveBeenCalledTimes(1))
+
+    expect(mermaidInitializeMock.mock.calls.at(0)?.[0]?.themeVariables).toEqual({
+      background: 'dark:card',
+      primaryColor: 'dark:elev',
+      primaryBorderColor: 'dark:line2',
+      primaryTextColor: 'dark:text',
+      lineColor: 'dark:sub',
+      secondaryColor: 'dark:accent-soft',
+      tertiaryColor: 'dark:code-bg',
+      fontFamily: 'sans-stack',
+      fontSize: '12px',
+    })
+  })
+
   it('re-initializes mermaid with different themeVariables when the app theme changes', async () => {
     mermaidRenderMock.mockResolvedValue({ svg: '<svg></svg>' })
-    useThemeMock.mockReturnValue({ theme: 'latte', toggle: vi.fn() })
+    useThemeMock.mockReturnValue({ theme: 'light', toggle: vi.fn() })
 
     const { rerender } = render(<MermaidBlock block={mermaidBlock} />)
     await waitFor(() => expect(mermaidInitializeMock).toHaveBeenCalledTimes(1))
 
-    useThemeMock.mockReturnValue({ theme: 'mocha', toggle: vi.fn() })
+    useThemeMock.mockReturnValue({ theme: 'dark', toggle: vi.fn() })
     rerender(<MermaidBlock block={mermaidBlock} />)
     await waitFor(() => expect(mermaidInitializeMock).toHaveBeenCalledTimes(2))
 
@@ -168,12 +196,12 @@ describe('MermaidBlock', () => {
 
   it('passes a DIFFERENT render id to each mermaid.render invocation (no same-id race across re-renders)', async () => {
     mermaidRenderMock.mockResolvedValue({ svg: '<svg></svg>' })
-    useThemeMock.mockReturnValue({ theme: 'latte', toggle: vi.fn() })
+    useThemeMock.mockReturnValue({ theme: 'light', toggle: vi.fn() })
 
     const { rerender } = render(<MermaidBlock block={mermaidBlock} />)
     await waitFor(() => expect(mermaidRenderMock).toHaveBeenCalledTimes(1))
 
-    useThemeMock.mockReturnValue({ theme: 'mocha', toggle: vi.fn() })
+    useThemeMock.mockReturnValue({ theme: 'dark', toggle: vi.fn() })
     rerender(<MermaidBlock block={mermaidBlock} />)
     await waitFor(() => expect(mermaidRenderMock).toHaveBeenCalledTimes(2))
 

@@ -20,7 +20,7 @@ export function CodePanel({
       <div className="flex items-center justify-between border-b border-line2 bg-elev px-3.5 py-[9px]">
         <span className="font-mono text-[10.5px] tracking-wide text-faint uppercase">{caption}</span>
       </div>
-      <pre className="overflow-x-auto bg-[var(--code-bg)] p-4 font-mono text-[12.5px] leading-[1.65] text-[#cdd6f4]">
+      <pre className="overflow-x-auto bg-[var(--c-code-bg)] p-4 font-mono text-[12.5px] leading-[1.65] text-text">
         <code>{highlight(code, language)}</code>
       </pre>
     </div>

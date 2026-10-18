@@ -99,9 +99,9 @@ export function Toc({
                 type="button"
                 onClick={() => goToSection(s.id)}
                 aria-current={isActive ? 'true' : undefined}
-                className={`mb-0.5 flex w-full items-center gap-2 overflow-hidden whitespace-nowrap rounded-lg border-l-2 px-[9px] py-[5px] text-left text-[12.5px] transition-colors hover:bg-mauvesoft ${
+                className={`mb-0.5 flex w-full items-center gap-2 overflow-hidden whitespace-nowrap rounded-lg border-l-2 px-[9px] py-[5px] text-left text-[12.5px] transition-colors hover:bg-accent-soft ${
                   isActive
-                    ? 'border-mauve bg-mauvesoft font-semibold text-mauve'
+                    ? 'border-accent-line bg-accent-soft font-semibold text-accent-text'
                     : 'border-transparent text-sub'
                 }`}
               >
@@ -136,8 +136,8 @@ export function Toc({
                 onClick={() => goToSection(s.id)}
                 aria-current={isActive ? 'true' : undefined}
                 aria-label={`${s.no}. ${s.title}`}
-                className={`block w-full rounded-md py-1.5 text-center font-mono text-[11px] transition-colors hover:bg-mauvesoft hover:text-mauve ${
-                  isActive ? 'font-bold text-mauve' : 'text-faint'
+                className={`block w-full rounded-md py-1.5 text-center font-mono text-[11px] transition-colors hover:bg-accent-soft hover:text-accent-text ${
+                  isActive ? 'font-bold text-accent-text' : 'text-faint'
                 }`}
               >
                 {pad(s.no)}
@@ -160,8 +160,8 @@ export function Toc({
                 type="button"
                 onClick={() => goToSection(s.id)}
                 aria-current={isActive ? 'true' : undefined}
-                className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-[9px] text-left text-[14px] transition-colors hover:bg-mauvesoft ${
-                  isActive ? 'bg-mauvesoft text-mauve' : 'text-text'
+                className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-[9px] text-left text-[14px] transition-colors hover:bg-accent-soft ${
+                  isActive ? 'bg-accent-soft text-accent-text' : 'text-text'
                 }`}
               >
                 <span className="shrink-0 font-mono text-faint">{pad(s.no)}</span>
@@ -192,7 +192,7 @@ export function Toc({
             className={`transition-[box-shadow,width] duration-[180ms] ${
               collapsed
                 ? hovered
-                  ? 'absolute left-0 top-0 z-10 w-[200px] rounded-xl border border-line bg-card px-2.5 py-3 shadow-[var(--shadow-card)]'
+                  ? 'absolute left-0 top-0 z-10 w-[200px] rounded-xl border border-line bg-card px-2.5 py-3 shadow-[var(--shadow-overlay)]'
                   : 'w-12 rounded-xl border border-transparent bg-transparent px-1 py-1.5'
                 : 'rounded-xl border border-line bg-card px-2.5 py-3'
             }`}
@@ -207,7 +207,7 @@ export function Toc({
                 type="button"
                 onClick={handleToggleCollapsed}
                 aria-label={collapsed ? 'Expand contents' : 'Collapse contents'}
-                className="text-[14px] leading-none text-faint transition-colors hover:text-mauve"
+                className="text-[14px] leading-none text-faint transition-colors hover:text-accent-text"
               >
                 {collapsed ? '»' : '«'}
               </button>
@@ -219,7 +219,7 @@ export function Toc({
 
       {drawerOpen && (
         <div className="fixed inset-0 z-[60] min-[880px]:hidden" onClick={onCloseDrawer}>
-          <div role="presentation" className="absolute inset-0 bg-black/40" />
+          <div role="presentation" className="absolute inset-0 bg-[var(--c-scrim)]" />
           <div
             ref={drawerPanelRef}
             role="dialog"
@@ -227,7 +227,7 @@ export function Toc({
             aria-label="Table of contents"
             tabIndex={-1}
             onClick={(event) => event.stopPropagation()}
-            className="absolute inset-y-0 left-0 w-[260px] overflow-y-auto bg-card p-4 shadow-[var(--shadow-card)]"
+            className="absolute inset-y-0 left-0 w-[260px] overflow-y-auto bg-card p-4 shadow-[var(--shadow-overlay)]"
           >
             <div className="mb-3 font-mono text-[11px] text-faint">Contents</div>
             {renderDrawerItems()}

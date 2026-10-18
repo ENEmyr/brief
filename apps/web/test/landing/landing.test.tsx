@@ -19,7 +19,7 @@ function schemaBlockTypes(): string[] {
 describe('landing page', () => {
   beforeEach(() => {
     localStorage.clear()
-    document.documentElement.setAttribute('data-theme', 'latte')
+    document.documentElement.setAttribute('data-theme', 'light')
   })
 
   it('renders every band', () => {

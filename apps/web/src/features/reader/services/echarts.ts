@@ -3,60 +3,67 @@ import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { EChartsType } from 'echarts/core'
 import type { EChartsOption } from 'echarts'
-import { beginThemedRender } from '@/features/theme'
+import { beginThemedRender, readColorTokens, readFontStack } from '@/features/theme'
+import type { Theme } from '@/features/theme'
 
 export interface Palette {
   text: string
   sub: string
   line2: string
-  mauve: string
-  blue: string
-  green: string
-  red: string
-  peach: string
-  teal: string
-  yellow: string
   card: string
+  accentText: string
+  info: string
+  good: string
+  warn: string
+  bad: string
+  dataOrange: string
+  dataTeal: string
+  font: string
 }
 
-// Literal Catppuccin hex values, same posture as MermaidBlock's THEME_VARIABLES
-// map: echarts renders to <canvas>, not styled DOM, so charts re-theme by
-// rebuilding their option from this map (callers must include `theme` in
-// useEChart's deps) rather than reading CSS custom properties.
-export const PALETTES: Record<'latte' | 'mocha', Palette> = {
-  latte: {
-    text: '#4c4f69',
-    sub: '#6c6f85',
-    line2: '#e6e9ef',
-    mauve: '#8839ef',
-    blue: '#1e66f5',
-    green: '#40a02b',
-    red: '#d20f39',
-    peach: '#fe640b',
-    teal: '#179299',
-    yellow: '#df8e1d',
-    card: '#ffffff',
-  },
-  mocha: {
-    text: '#cdd6f4',
-    sub: '#a6adc8',
-    line2: '#292a3a',
-    mauve: '#cba6f7',
-    blue: '#89b4fa',
-    green: '#a6e3a1',
-    red: '#f38ba8',
-    peach: '#fab387',
-    teal: '#94e2d5',
-    yellow: '#f9e2af',
-    card: '#1e1e2e',
-  },
+const PALETTE_TOKENS = [
+  'text',
+  'sub',
+  'line2',
+  'card',
+  'accent-text',
+  'info',
+  'good',
+  'warn',
+  'bad',
+  'data-orange',
+  'data-teal',
+] as const
+
+/**
+ * The chart palette for `theme`, read from the globals.css tokens: echarts
+ * renders to <canvas>, not styled DOM, so it needs resolved values, not
+ * var(). Charts re-theme by rebuilding their option (callers must include
+ * `theme` in useEChart's deps). Call it inside buildOption or an event
+ * handler, never during render.
+ */
+export function chartPalette(theme: Theme): Palette {
+  const c = readColorTokens(theme, PALETTE_TOKENS)
+  return {
+    text: c.text,
+    sub: c.sub,
+    line2: c.line2,
+    card: c.card,
+    accentText: c['accent-text'],
+    info: c.info,
+    good: c.good,
+    warn: c.warn,
+    bad: c.bad,
+    dataOrange: c['data-orange'],
+    dataTeal: c['data-teal'],
+    font: readFontStack('mono'),
+  }
 }
 
-export const AXIS_FONT = "'IBM Plex Mono', monospace"
-
-/** Series palette cycling order shared by every chart block. */
+/** Series cycling order shared by every chart block: the data hues tokens.css
+ *  gives the payload's stat tones (mauve, blue, green, peach, teal, red, yellow). */
 export function seriesColors(palette: Palette): string[] {
-  return [palette.mauve, palette.blue, palette.green, palette.peach, palette.teal, palette.red, palette.yellow]
+  return [palette.accentText, palette.info, palette.good, palette.dataOrange, palette.dataTeal, palette.bad, palette.warn]
 }
 
 // Lazy singleton: echarts/core plus only the charts/components this app's

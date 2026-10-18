@@ -9,12 +9,6 @@ import { svgTextStyle } from '../../lib/svgText'
 type LayersBlock = Extract<Block, { type: 'layers' }>
 type LayerDef = LayersBlock['layers'][number]
 
-// Layer 0 (base) is always blue; further layers cycle the rest of this list.
-// teal/peach lands on layers 1/2 to match the prototype's cache=teal,
-// retry=peach fixed mock (Reader.dc.html 625-641) when a payload happens to
-// have exactly that shape, but any number of layers cycles cleanly.
-const LAYER_COLOR_NAMES = ['blue', 'teal', 'peach', 'green', 'mauve'] as const
-
 const NODE_HEIGHT = 34
 const START_X = 20
 const NODE_GAP_X = 40
@@ -127,14 +121,12 @@ function edgeLine(a: NodeInfo, b: NodeInfo): { x1: number; y1: number; x2: numbe
 
 interface LayerChipProps {
   label: string
-  colorName: string
   on: boolean
   disabled: boolean
   onToggle: () => void
 }
 
-function LayerChip({ label, colorName, on, disabled, onToggle }: LayerChipProps) {
-  const colorVar = `var(--ctp-${colorName})`
+function LayerChip({ label, on, disabled, onToggle }: LayerChipProps) {
   return (
     <button
       type="button"
@@ -143,9 +135,9 @@ function LayerChip({ label, colorName, on, disabled, onToggle }: LayerChipProps)
       aria-pressed={on}
       className="rounded-[7px] border px-2.5 py-1 font-mono text-[12px] max-[879px]:min-h-11"
       style={{
-        color: on ? colorVar : 'var(--ctp-faint)',
-        borderColor: on ? colorVar : 'var(--ctp-line)',
-        background: on ? 'var(--ctp-elev)' : 'transparent',
+        color: on ? 'var(--c-text)' : 'var(--c-faint)',
+        borderColor: on ? 'var(--c-line2)' : 'var(--c-line)',
+        background: on ? 'var(--c-elev)' : 'transparent',
         cursor: disabled ? 'default' : 'pointer',
       }}
     >
@@ -167,7 +159,6 @@ function LayerControls({ layers, visible, onToggle }: LayerControlsProps) {
         <LayerChip
           key={layer.id}
           label={layer.label}
-          colorName={LAYER_COLOR_NAMES[i % LAYER_COLOR_NAMES.length] ?? 'mauve'}
           on={visible(i)}
           disabled={i === 0}
           onToggle={() => onToggle(i)}
@@ -227,7 +218,7 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
                 x2={x2}
                 y2={y2}
                 strokeWidth={1.5}
-                style={{ stroke: 'var(--ctp-subtext0)' }}
+                style={{ stroke: 'var(--c-sub)' }}
                 markerEnd={`url(#${markerId})`}
               />
               {edge.label ? (
@@ -236,7 +227,7 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
                   y={(y1 + y2) / 2 - 4}
                   textAnchor="middle"
                   fontSize={9}
-                  style={svgTextStyle({ fill: 'var(--ctp-subtext0)' })}
+                  style={svgTextStyle({ fill: 'var(--c-sub)' })}
                 >
                   {edge.label}
                 </text>
@@ -246,7 +237,6 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
         })}
         {Array.from(layout.nodes.entries()).map(([id, n]) => {
           const on = isVisible(n.layerIndex)
-          const colorVar = `var(--ctp-${LAYER_COLOR_NAMES[n.layerIndex % LAYER_COLOR_NAMES.length] ?? 'mauve'})`
           return (
             <g key={id} style={{ opacity: on ? 1 : 0.14, transition: 'opacity .3s' }}>
               <rect
@@ -256,7 +246,7 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
                 height={n.h}
                 rx={7}
                 strokeWidth={1.6}
-                style={{ fill: 'var(--ctp-card)', stroke: colorVar }}
+                style={{ fill: 'var(--c-elev)', stroke: 'var(--c-line2)' }}
               />
               <text
                 x={n.x + n.w / 2}
@@ -264,7 +254,7 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
                 textAnchor="middle"
                 fontSize={11}
                 fontWeight={600}
-                style={svgTextStyle({ fill: colorVar })}
+                style={svgTextStyle({ fill: 'var(--c-text)' })}
               >
                 {n.label}
               </text>
@@ -273,7 +263,7 @@ export function Layers({ block, ...anchor }: { block: LayersBlock } & BlockAncho
         })}
         <defs>
           <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--ctp-subtext0)' }} />
+            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
           </marker>
         </defs>
       </svg>

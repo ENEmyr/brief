@@ -36,7 +36,7 @@ first use for Google Fonts and refuses to write references if a font is missing.
 - Both sides refuse fallback fonts (`lib/fonts.ts`): the renderer needs Geist,
   Geist Mono, and Noto Sans Thai wherever Thai text is set in a stack that names
   it (`BOARD_FONTS`); the app side needs its next/font families (`APP_FONTS`,
-  today IBM Plex Sans Thai and IBM Plex Mono; Phase 1 sets it to `BOARD_FONTS`).
+  the same set since Phase 1).
   A missing family fails the run as a harness error, not as a pixel diff.
 - `visual.config.ts` serves `apps/web/out` with `wrangler pages dev` on 8789.
   The API is never started: `lib/session.ts` answers `GET /api/session/<id>` and
@@ -56,12 +56,15 @@ first use for Google Fonts and refuses to write references if a font is missing.
   `lib/regions.ts`), on the board and in the app alike. An element screenshot
   would scroll the element into the 900 px viewport, drop the rows below it and
   catch sticky elements (top bar, dock) at their scrolled position.
-- Two renders of the references are equal by Playwright's comparator, but not
-  always byte-identical: a few dozen anti-aliased pixels (54 at most per image
-  over three renders, channel delta at most 2) move between renders, for
-  example at the lime 1 px rounded corners in the dock or inside section 02.
-  They are below the comparator's threshold and change no `toHaveScreenshot`
-  result.
+- Renders of the references are not always byte-identical. Most differences are
+  anti-aliased pixels below the comparator's threshold (under 90 per image,
+  channel delta at most 2), for example at the lime 1 px rounded corners in the
+  dock or inside section 02. One is larger: on about 1 render in 8,
+  `board-B-Blocks2.png` rasterizes its h1 differently, and 38 pixels differ
+  from the other renders by Playwright's comparator (channel delta up to 223).
+  That is about 195 times under the 0.002 budget for that image, and no spec
+  compares `board-*.png` today, so no `toHaveScreenshot` result changes. A spec
+  that starts comparing a board image should allow for it.
 
 ## Update guard
 
@@ -108,7 +111,9 @@ Append an entry to `crops.json` and run `bun run e2e:visual:refs`:
 - Output is `reference/crop-<name>.png`, cut out of the full board render at the
   element's box. To compare the app with it, add a spec that cuts the matching
   app element the same way: `toHaveScreenshot('crop-<name>.png', { fullPage: true,
-  clip: await clipOf(locator) })`.
+  clip: await clipOf(locator) })`. Assert `toBeVisible()` on the locator first, as
+  the region specs do, so a missing element fails with its selector instead of a
+  timeout inside `clipOf`.
 
 ## Geometry
 
@@ -118,6 +123,18 @@ the boards with `getBoundingClientRect` / `getComputedStyle`. Note which box a
 number belongs to: the top bar is 52 high inside a 55 px `header` (2 px progress
 line, 1 px border), the outline rows are 236 wide inside a 250 px panel, the dock
 is 340 wide inside a 342 px box.
+
+## Foundations
+
+`tests/foundations.visual.spec.ts` checks B-Foundations without a screenshot. It
+reads `tokens.css` from `BRIEF_HANDOFF_DIR` and asserts, per theme, that every
+color, shadow and duration the running app resolves equals it, that the 13 D8
+board colors exist in both themes, that `globals.css` `@theme` is the
+`tokens.css` block, and that Geist, Geist Mono and Noto Sans Thai load. It also
+measures diagram label widths in the real fonts and fails when the constants in
+`apps/web/src/features/reader/lib/svgText.ts` would clip a Thai label of the
+fixture or carry more than rounding slack; the measured numbers print in the
+test output.
 
 ## Fixture and gaps
 

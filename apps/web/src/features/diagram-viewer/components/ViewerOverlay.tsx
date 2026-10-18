@@ -9,7 +9,7 @@ export interface ViewerOverlayProps {
 }
 
 const TOOLBAR_BUTTON_CLASS =
-  'flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white px-3 text-[15px] leading-none text-[#11111b] transition-colors hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mauve'
+  'flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-elev px-3 text-[15px] leading-none text-text transition-colors hover:bg-chip focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line'
 
 /**
  * Fullscreen zoom/pan viewer for expanded diagrams.
@@ -88,7 +88,7 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
       aria-label="Diagram viewer"
       tabIndex={-1}
       className="fixed inset-0 z-[100] outline-none print:hidden"
-      style={{ background: 'rgba(17,17,27,.93)' }}
+      style={{ background: 'var(--c-viewer-canvas)' }}
     >
       <div data-zbar="1" className="absolute right-[18px] top-4 z-[2] flex gap-1.5">
         <ZoomControls api={pan} className="flex gap-1.5" buttonClassName={TOOLBAR_BUTTON_CLASS} />
@@ -105,12 +105,12 @@ export function ViewerOverlay({ content, onClose }: ViewerOverlayProps) {
       <PanZoomSurface
         api={pan}
         className="flex h-full items-center justify-center"
-        contentClassName="w-[min(80vw,900px)] rounded-[10px] border border-transparent bg-card p-6 shadow-[var(--shadow-card)] [[data-theme=mocha]_&]:border-line"
+        contentClassName="w-[min(80vw,900px)] rounded-[10px] border border-transparent bg-card p-6 shadow-[var(--shadow-card)] [[data-theme=dark]_&]:border-line"
       >
         {content}
       </PanZoomSurface>
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/40 px-3 py-1 text-[12px] text-slate-200">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-[var(--c-topbar)] px-3 py-1 text-[12px] text-faint">
         Drag to pan · scroll to zoom · Fit to scale it to the screen
       </div>
     </div>

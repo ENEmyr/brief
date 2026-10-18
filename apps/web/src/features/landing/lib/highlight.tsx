@@ -6,16 +6,16 @@ import { Fragment, type ReactNode } from 'react'
  * The reader highlights code with Shiki, which is loaded lazily because it is
  * heavy (apps/web/CLAUDE.md). The landing page is the cheapest page on the
  * site and its snippets never change at runtime, so it pays for its colour
- * with a regex instead of a grammar. Colours are fixed Mocha hexes rather than
- * semantic tokens because the code surface (--code-bg) is dark under both
- * themes, and the light-theme accents would be unreadable on it.
+ * with a regex instead of a grammar. Colours are the same tokens the reader's
+ * shiki theme uses (globals.css --shiki-*): keywords info, numbers warn,
+ * comments faint, everything else the panel's text color, as on B-Landing.
  */
-const KEY = 'text-[#89b4fa]'
-const STRING = 'text-[#a6e3a1]'
-const NUMBER = 'text-[#fab387]'
-const KEYWORD = 'text-[#cba6f7]'
-const COMMENT = 'text-[#7f849c]'
-const PUNCT = 'text-[#9399b2]'
+const KEY = 'text-text'
+const STRING = 'text-text'
+const NUMBER = 'text-warn'
+const KEYWORD = 'text-info'
+const COMMENT = 'text-faint'
+const PUNCT = 'text-text'
 
 const JSON_STRING = /"(?:[^"\\]|\\.)*"/
 const JSON_TOKEN = new RegExp(

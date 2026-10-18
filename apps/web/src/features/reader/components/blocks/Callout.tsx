@@ -5,9 +5,9 @@ import type { Highlight } from '@/features/reader-state'
 type CalloutBlock = Extract<Block, { type: 'note' | 'warn' | 'good' }>
 
 const styles = {
-  note: 'border-blue bg-[var(--callout-note-bg)]',
-  warn: 'border-peach bg-[var(--callout-warn-bg)]',
-  good: 'border-green bg-[var(--callout-good-bg)]',
+  note: 'border-info bg-info-soft',
+  warn: 'border-warn bg-warn-soft',
+  good: 'border-good bg-good-soft',
 } as const
 
 /**

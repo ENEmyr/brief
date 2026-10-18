@@ -6,7 +6,7 @@ import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
-import { AXIS_FONT, PALETTES, useEChart } from '../../services/echarts'
+import { chartPalette, useEChart } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type HistogramBlockType = Extract<Block, { type: 'histogram' }>
@@ -18,7 +18,7 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
     tooltip: {
       trigger: 'axis',
       backgroundColor: palette.card,
-      textStyle: { color: palette.text, fontFamily: AXIS_FONT, fontSize: 11 },
+      textStyle: { color: palette.text, fontFamily: palette.font, fontSize: 11 },
       borderColor: palette.line2,
       axisPointer: { type: 'shadow' },
     },
@@ -26,13 +26,13 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
     xAxis: {
       type: 'category',
       data: block.bins.map((b) => b.label),
-      axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
       axisLine: { lineStyle: { color: palette.sub } },
       splitLine: { show: false },
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
       axisLine: { lineStyle: { color: palette.sub } },
       splitLine: { lineStyle: { color: palette.line2 } },
     },
@@ -40,7 +40,7 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
       {
         type: 'bar',
         data: block.bins.map((b) => b.count),
-        itemStyle: { color: palette.mauve, borderRadius: [4, 4, 0, 0] },
+        itemStyle: { color: palette.accentText, borderRadius: [4, 4, 0, 0] },
       },
     ],
   }
@@ -48,9 +48,8 @@ export function buildHistogramOption(block: HistogramBlockType, palette: Palette
 
 export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & BlockAnchor) {
   const { theme } = useTheme()
-  const palette = PALETTES[theme]
 
-  const { containerRef, chartRef } = useEChart(() => buildHistogramOption(block, palette), [block, theme])
+  const { containerRef, chartRef } = useEChart(() => buildHistogramOption(block, chartPalette(theme)), [block, theme])
 
   return (
     <DiagramCard
@@ -58,7 +57,7 @@ export function Histogram({ block, ...anchor }: { block: HistogramBlockType } & 
       expandable={false}
       controls={
         <div className="flex justify-end">
-          <ChartExpandButton chartRef={chartRef} palette={palette} />
+          <ChartExpandButton chartRef={chartRef} theme={theme} />
         </div>
       }
     >

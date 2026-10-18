@@ -25,14 +25,14 @@ export function DecisionCard({
   support?: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-line border-l-[3px] border-l-mauve bg-card px-5 py-[18px]">
+    <div className="rounded-xl border border-line border-l-[3px] border-l-accent-line bg-card px-5 py-[18px]">
       <div className="mb-3 flex flex-wrap items-center gap-[9px]">
-        <span className="rounded-md bg-mauvesoft px-[9px] py-[3px] font-mono text-[11px] font-semibold text-mauve">
+        <span className="rounded-md bg-accent-soft px-[9px] py-[3px] font-mono text-[11px] font-semibold text-accent-text">
           {decision.id}
         </span>
         <span className="text-[15px] font-semibold text-text">{decision.q}</span>
         {decision.multi && (
-          <span className="rounded-full border border-teal px-2 py-[1px] font-mono text-[10px] text-teal">
+          <span className="rounded-full border border-data-teal px-2 py-[1px] font-mono text-[10px] text-data-teal">
             select all that apply
           </span>
         )}
@@ -48,11 +48,11 @@ export function DecisionCard({
             aria-pressed={picked}
             className={`mb-[7px] flex w-full items-start gap-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors max-[879px]:min-h-11 ${
               decision.multi ? 'rounded-[7px]' : 'rounded-[9px]'
-            } ${picked ? 'border-mauve bg-mauvesoft text-text' : 'border-line bg-card text-sub'}`}
+            } ${picked ? 'border-accent-line bg-accent-soft text-text' : 'border-line bg-card text-sub'}`}
           >
             <span
               aria-hidden="true"
-              className={`font-mono text-[13px] font-semibold ${picked ? 'text-mauve' : 'text-faint'}`}
+              className={`font-mono text-[13px] font-semibold ${picked ? 'text-accent-text' : 'text-faint'}`}
             >
               {picked ? '[x]' : '[ ]'}
             </span>

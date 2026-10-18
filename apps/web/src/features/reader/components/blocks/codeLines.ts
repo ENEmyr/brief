@@ -114,7 +114,7 @@ function supNode(symbol: string): ElementContent {
   return {
     type: 'element',
     tagName: 'sup',
-    properties: { class: 'ml-px text-[10px] font-bold text-mauve' },
+    properties: { class: 'ml-px text-[10px] font-bold text-accent-text' },
     children: [{ type: 'text', value: symbol }],
   }
 }
@@ -135,11 +135,11 @@ function markNode(h: Highlight, children: ElementContent[]): ElementContent {
     properties: {
       'data-highlight-id': h.id,
       class: isAsk
-        ? 'cursor-pointer rounded-[3px] bg-mauvesoft px-[2px] text-mauve'
+        ? 'cursor-pointer rounded-[3px] bg-accent-soft px-[2px] text-accent-text'
         : 'cursor-pointer rounded-[3px] px-[2px]',
       style: isAsk
-        ? 'box-shadow:inset 0 -2px 0 var(--ctp-mauve)'
-        : 'background:var(--ctp-mark);color:var(--ctp-marktx)',
+        ? 'box-shadow:inset 0 -2px 0 var(--c-accent-line)'
+        : 'background:var(--c-mark);color:var(--c-mark-text)',
     },
     children,
   }
@@ -224,7 +224,7 @@ export interface PreAttrs {
 }
 
 /** The `<pre>` element's own class/style/tabindex, read off the hast tree
- * rather than hardcoded: the theme is fixed to catppuccin-mocha, but the
+ * rather than hardcoded: the theme is shiki's css-variables theme, but the
  * exact class/colors it emits are shiki's to own, not this component's to
  * duplicate. */
 export function preAttrsFrom(root: Root): PreAttrs {

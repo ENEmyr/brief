@@ -3,18 +3,13 @@ import { Annotatable } from '@/features/annotations'
 import type { Highlight } from '@/features/reader-state'
 
 const paneBorderTop = {
-  good: 'border-t-green',
-  bad: 'border-t-red',
-} as const
-
-const paneBg = {
-  good: 'bg-[var(--compare-pane-good-bg)]',
-  bad: 'bg-[var(--compare-pane-bad-bg)]',
+  good: 'border-t-good',
+  bad: 'border-t-bad',
 } as const
 
 const tagPillTone = {
-  good: 'text-green border-green',
-  bad: 'text-red border-red',
+  good: 'text-good border-good bg-good-soft',
+  bad: 'text-bad border-bad bg-bad-soft',
 } as const
 
 export function Compare({
@@ -55,7 +50,7 @@ export function Compare({
         ].map(({ side, data }) => (
           <div
             key={side}
-            className={`flex-1 min-w-0 border border-line border-t-[3px] ${data.tone ? paneBorderTop[data.tone] : 'border-t-mauve'} rounded-xl ${data.tone ? paneBg[data.tone] : 'bg-[var(--compare-pane-bg)]'} px-[17px] py-[15px]`}
+            className={`flex-1 min-w-0 border border-line border-t-[3px] ${data.tone ? paneBorderTop[data.tone] : 'border-t-accent-line'} rounded-xl bg-card px-[17px] py-[15px]`}
           >
             <div className="flex items-center gap-2 mb-[11px]">
               <Annotatable
@@ -67,7 +62,7 @@ export function Compare({
               />
               {data.tag && (
                 <span
-                  className={`font-mono text-[10.5px] font-semibold rounded-full px-2.5 py-0.5 border bg-[var(--compare-tag-bg)] ${data.tone ? tagPillTone[data.tone] : 'text-mauve border-mauve'}`}
+                  className={`font-mono text-[10.5px] font-semibold rounded-full px-2.5 py-0.5 border ${data.tone ? tagPillTone[data.tone] : 'text-accent-text border-accent-line bg-accent-soft'}`}
                 >
                   {data.tag}
                 </span>
@@ -76,7 +71,7 @@ export function Compare({
             <ul className="flex flex-col gap-2">
               {data.items.map((item, i) => (
                 <li key={i} className="flex gap-2 text-[13px] leading-[1.55] text-text">
-                  <span className={`flex-none font-bold ${item.ok ? 'text-green' : 'text-red'}`}>
+                  <span className={`flex-none font-bold ${item.ok ? 'text-good' : 'text-bad'}`}>
                     {item.ok ? '✓' : '✕'}
                   </span>
                   <Annotatable

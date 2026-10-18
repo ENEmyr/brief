@@ -6,7 +6,7 @@ import { titleCaption } from '../blockAnchor'
 import type { BlockAnchor } from '../blockAnchor'
 import { ChartExpandButton } from './ChartExpandButton'
 import { useTheme } from '@/features/theme'
-import { AXIS_FONT, PALETTES, useEChart, getEChartsGL } from '../../services/echarts'
+import { chartPalette, useEChart, getEChartsGL } from '../../services/echarts'
 import type { Palette } from '../../services/echarts'
 
 type Plot3dBlockType = Extract<Block, { type: 'plot3d' }>
@@ -25,8 +25,8 @@ function gridToTriples(grid: number[][]): [number, number, number][] {
 function axis3D(name: string | undefined, palette: Palette) {
   return {
     name,
-    nameTextStyle: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
-    axisLabel: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 9 },
+    nameTextStyle: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
+    axisLabel: { color: palette.sub, fontFamily: palette.font, fontSize: 9 },
     axisLine: { lineStyle: { color: palette.sub } },
     splitLine: { lineStyle: { color: palette.line2 } },
   }
@@ -37,8 +37,8 @@ function axis3D(name: string | undefined, palette: Palette) {
  * straight into a `scatter3D` series; `surface` flattens `block.grid` (a z
  * matrix) into [x,y,z] triples via `gridToTriples` and feeds echarts-gl's
  * data-based `surface` series (no equation). Both share one continuous
- * `visualMap` over the z dimension (index 2) with a blue -> mauve gradient
- * (low -> high, this repo's mauve-accent convention), positioned horizontal
+ * `visualMap` over the z dimension (index 2) with an info -> accent-text
+ * gradient (low -> high), positioned horizontal
  * and bottom-centered (same as Heatmap.tsx's visualMap) so the legend sits
  * under the plot instead of ECharts' default free-floating vertical bar on
  * the far left of the card, and a `grid3D` with `viewControl.autoRotate:
@@ -65,7 +65,7 @@ export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): ECh
     animation: false,
     tooltip: {
       backgroundColor: palette.card,
-      textStyle: { color: palette.text, fontFamily: AXIS_FONT, fontSize: 11 },
+      textStyle: { color: palette.text, fontFamily: palette.font, fontSize: 11 },
       borderColor: palette.line2,
     },
     visualMap: {
@@ -77,8 +77,8 @@ export function buildPlot3dOption(block: Plot3dBlockType, palette: Palette): ECh
       left: 'center',
       bottom: 0,
       show: true,
-      inRange: { color: [palette.blue, palette.mauve] },
-      textStyle: { color: palette.sub, fontFamily: AXIS_FONT, fontSize: 10 },
+      inRange: { color: [palette.info, palette.accentText] },
+      textStyle: { color: palette.sub, fontFamily: palette.font, fontSize: 10 },
     },
     xAxis3D: axis3D(block.xLabel, palette),
     yAxis3D: axis3D(block.yLabel, palette),
@@ -133,7 +133,7 @@ function hasData(block: Plot3dBlockType): boolean {
  */
 function FallbackNote({ text }: { text: string }) {
   return (
-    <aside className="my-3.5 border-l-[3px] border-blue rounded-lg bg-[var(--callout-note-bg)] px-[15px] py-[11px] text-[14px] leading-[1.7] text-text">
+    <aside className="my-3.5 border-l-[3px] border-info rounded-lg bg-info-soft px-[15px] py-[11px] text-[14px] leading-[1.7] text-text">
       <p>{text}</p>
     </aside>
   )
@@ -141,7 +141,6 @@ function FallbackNote({ text }: { text: string }) {
 
 export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockAnchor) {
   const { theme } = useTheme()
-  const palette = PALETTES[theme]
 
   const webGLAvailable = hasWebGL()
   const dataAvailable = hasData(block)
@@ -150,7 +149,7 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
   // Hook is always called (rules of hooks) — when canRender is false the
   // container div below never mounts, so useEChart's effect finds
   // `containerRef.current` null and never initializes a chart instance.
-  const { containerRef, chartRef } = useEChart(() => buildPlot3dOption(block, palette), [block, theme], getEChartsGL)
+  const { containerRef, chartRef } = useEChart(() => buildPlot3dOption(block, chartPalette(theme)), [block, theme], getEChartsGL)
 
   return (
     <DiagramCard
@@ -160,7 +159,7 @@ export function Plot3d({ block, ...anchor }: { block: Plot3dBlockType } & BlockA
         canRender ? (
           <div className="flex justify-end">
             {/* pixelRatio 1: echarts-gl's WebGL layer captures blank at pixelRatio > 1 */}
-            <ChartExpandButton chartRef={chartRef} palette={palette} pixelRatio={1} />
+            <ChartExpandButton chartRef={chartRef} theme={theme} pixelRatio={1} />
           </div>
         ) : undefined
       }

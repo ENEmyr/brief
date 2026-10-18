@@ -9,10 +9,6 @@ import { svgTextStyle } from '../../lib/svgText'
 type StateBlock = Extract<Block, { type: 'state' }>
 type Transition = StateBlock['transitions'][number]
 
-// Cycled by BFS discovery order (not array order), so a node's color stays
-// stable as long as its reachability from `initial` is stable.
-const NODE_COLOR_NAMES = ['blue', 'mauve', 'green', 'peach', 'red'] as const
-
 const NODE_WIDTH = 74
 const NODE_HEIGHT = 32
 const COL_STEP = 120
@@ -25,7 +21,6 @@ interface NodePosition {
 
 interface Layout {
   position: Map<string, NodePosition>
-  colorOf: Map<string, string>
   maxCol: number
   maxRow: number
 }
@@ -35,7 +30,7 @@ interface Layout {
  * (column, row) = (depth, discovery order within that depth). States not
  * reachable from `initial` are appended into the last column used by the
  * BFS (or column 0 if `initial` itself isn't a known state id), so nothing
- * is left off the diagram. Colors cycle by overall discovery order.
+ * is left off the diagram.
  */
 function layoutStates(states: StateBlock['states'], transitions: Transition[], initial: string): Layout {
   const stateIds = new Set(states.map((s) => s.id))
@@ -48,7 +43,6 @@ function layoutStates(states: StateBlock['states'], transitions: Transition[], i
   }
 
   const position = new Map<string, NodePosition>()
-  const discoveryOrder: string[] = []
   const colCounts: number[] = []
 
   if (stateIds.has(initial)) {
@@ -61,7 +55,6 @@ function layoutStates(states: StateBlock['states'], transitions: Transition[], i
       const row = colCounts[depth] ?? 0
       colCounts[depth] = row + 1
       position.set(id, { col: depth, row })
-      discoveryOrder.push(id)
       for (const next of adjacency.get(id) ?? []) {
         if (!visited.has(next)) {
           visited.add(next)
@@ -77,11 +70,7 @@ function layoutStates(states: StateBlock['states'], transitions: Transition[], i
     const row = colCounts[lastCol] ?? 0
     colCounts[lastCol] = row + 1
     position.set(s.id, { col: lastCol, row })
-    discoveryOrder.push(s.id)
   }
-
-  const colorOf = new Map<string, string>()
-  discoveryOrder.forEach((id, i) => colorOf.set(id, NODE_COLOR_NAMES[i % NODE_COLOR_NAMES.length] ?? 'mauve'))
 
   let maxCol = 0
   let maxRow = 0
@@ -90,7 +79,7 @@ function layoutStates(states: StateBlock['states'], transitions: Transition[], i
     maxRow = Math.max(maxRow, pos.row)
   }
 
-  return { position, colorOf, maxCol, maxRow }
+  return { position, maxCol, maxRow }
 }
 
 interface StateControlsProps {
@@ -104,7 +93,7 @@ function StateControls({ current, events, onTransition, onReset }: StateControls
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="font-mono text-[11.5px] text-sub">
-        State: <b className="text-mauve">{current}</b>
+        State: <b className="text-accent-text">{current}</b>
       </span>
       {events.length > 0 ? (
         events.map((t, i) => (
@@ -112,7 +101,7 @@ function StateControls({ current, events, onTransition, onReset }: StateControls
             key={`${t.from}-${t.to}-${i}`}
             type="button"
             onClick={() => onTransition(t.to)}
-            className="rounded-[7px] border border-mauve bg-mauvesoft px-[11px] py-1 text-[12px] text-mauve max-[879px]:min-h-11"
+            className="rounded-[7px] border border-accent-line bg-accent-soft px-[11px] py-1 text-[12px] text-accent-text max-[879px]:min-h-11"
           >
             {t.label ?? `to ${t.to}`}
           </button>
@@ -189,7 +178,7 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
               x2={b.x + 2}
               y2={b.y + 16}
               strokeWidth={1.4}
-              style={{ stroke: 'var(--ctp-line)' }}
+              style={{ stroke: 'var(--c-sub)' }}
               markerEnd={`url(#${markerId})`}
             />
           )
@@ -197,8 +186,6 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
         {block.states.map((s) => {
           const { x, y } = coordsOf(s.id)
           const isCurrent = s.id === current
-          const colorName = layout.colorOf.get(s.id) ?? 'mauve'
-          const colorVar = `var(--ctp-${colorName})`
           return (
             <g key={s.id}>
               <rect
@@ -209,8 +196,8 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
                 rx={9}
                 strokeWidth={isCurrent ? 2 : 1.4}
                 style={{
-                  fill: isCurrent ? colorVar : 'var(--ctp-card)',
-                  stroke: colorVar,
+                  fill: isCurrent ? 'var(--c-accent-soft)' : 'var(--c-elev)',
+                  stroke: isCurrent ? 'var(--c-accent-line)' : 'var(--c-line2)',
                   transition: 'all .25s',
                 }}
               />
@@ -220,7 +207,7 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
                 textAnchor="middle"
                 fontSize={11}
                 fontWeight={isCurrent ? 700 : 500}
-                style={svgTextStyle({ fill: isCurrent ? 'var(--ctp-oncolor)' : colorVar })}
+                style={svgTextStyle({ fill: 'var(--c-text)' })}
               >
                 {s.label}
               </text>
@@ -229,7 +216,7 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
         })}
         <defs>
           <marker id={markerId} markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
-            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--ctp-faint)' }} />
+            <path d="M0,0 L6,3 L0,6 Z" style={{ fill: 'var(--c-sub)' }} />
           </marker>
         </defs>
       </svg>

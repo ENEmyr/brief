@@ -53,20 +53,20 @@ export function HighlightedText({
         onClick={() => onMarkClick(h)}
         className={
           isAsk
-            ? 'cursor-pointer rounded-[3px] bg-mauvesoft px-[2px] text-mauve'
+            ? 'cursor-pointer rounded-[3px] bg-accent-soft px-[2px] text-accent-text'
             : 'cursor-pointer rounded-[3px] px-[2px]'
         }
         style={
           isAsk
-            ? { boxShadow: 'inset 0 -2px 0 var(--ctp-mauve)' }
-            : { background: 'var(--ctp-mark)', color: 'var(--ctp-marktx)' }
+            ? { boxShadow: 'inset 0 -2px 0 var(--c-accent-line)' }
+            : { background: 'var(--c-mark)', color: 'var(--c-mark-text)' }
         }
       >
         {segment}
         {isAsk ? (
-          <sup className="ml-px text-[10px] font-bold text-mauve">?</sup>
+          <sup className="ml-px text-[10px] font-bold text-accent-text">?</sup>
         ) : h.note !== null ? (
-          <sup className="ml-px text-[10px] font-bold text-mauve">●</sup>
+          <sup className="ml-px text-[10px] font-bold text-accent-text">●</sup>
         ) : null}
       </mark>,
     )

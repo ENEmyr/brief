@@ -173,8 +173,8 @@ describe('Seq typography and sizing (Thai payload)', () => {
       // on the style prop.
       expect(t.getAttribute('font-family')).toBeNull()
       const family = (t as SVGTextElement).style.fontFamily
-      expect(family).toContain('--font-plex-sans')
-      expect(family).toContain('IBM Plex Sans Thai')
+      expect(family).toContain('--font-noto-thai')
+      expect(family).toContain('Noto Sans Thai')
     })
   })
 
@@ -220,7 +220,7 @@ describe('Sibling diagram blocks use the shared Thai-capable text style', () => 
       expect(texts.length).toBeGreaterThan(0)
       texts.forEach((t) => {
         expect(t.getAttribute('font-family')).toBeNull()
-        expect((t as SVGTextElement).style.fontFamily).toContain('IBM Plex Sans Thai')
+        expect((t as SVGTextElement).style.fontFamily).toContain('Noto Sans Thai')
       })
       unmount()
     })

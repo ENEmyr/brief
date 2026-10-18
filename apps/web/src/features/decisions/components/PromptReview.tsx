@@ -1,18 +1,16 @@
 'use client'
 import { defaultCopyText } from '@/shared/clipboard'
 
-/** Prompt review panel (Reader.dc.html lines 830-843): mauve-bordered card
+/** Prompt review panel (Reader.dc.html lines 830-843): accent-bordered card
  * shown once "Generate prompt" produces reply-prompt text. Header has a
  * close button; body is a hint line plus an editable textarea (the
  * textarea keeps whatever the caller passes as `text` -- DecisionSection
  * owns that state, so user edits persist until the caller explicitly
  * rebuilds); footer has a solid "Copy prompt" and an outline "Rebuild from
- * answers". The textarea reuses the `--code-bg` token (dark panel
- * regardless of app theme, same as CodePre's shiki panel) rather than the
- * prototype's literal `this.state.dark ? '#11111b' : '#1e1e2e'` branch. Also
- * carries `data-code-panel` so print keeps this dark background instead of
- * dropping it and leaving the fixed light text unreadable on white paper --
- * this is document body content that reaches the printed page, unlike
+ * answers". The textarea sits on the `--c-code-bg` panel with `--c-text`,
+ * like CodePre's code panel and the prompt textarea on B-Overlays. It
+ * carries `data-code-panel` so print keeps that tint -- this is document
+ * body content that reaches the printed page, unlike
  * CopyFallbackModal's identical-looking textarea, which sits behind a
  * `print:hidden` modal backdrop and never does. */
 export function PromptReview({
@@ -36,9 +34,9 @@ export function PromptReview({
   }
 
   return (
-    <div className="mt-[18px] overflow-hidden rounded-xl border border-mauve bg-card">
-      <div className="flex items-center justify-between border-b border-line bg-mauvesoft px-4 py-[11px]">
-        <span className="text-[13.5px] font-semibold text-mauve">✦ Review prompt before copying</span>
+    <div className="mt-[18px] overflow-hidden rounded-xl border border-accent-line bg-card">
+      <div className="flex items-center justify-between border-b border-line bg-accent-soft px-4 py-[11px]">
+        <span className="text-[13.5px] font-semibold text-accent-text">✦ Review prompt before copying</span>
         <button
           type="button"
           onClick={onClose}
@@ -58,13 +56,13 @@ export function PromptReview({
           onChange={(event) => onChange(event.target.value)}
           aria-label="Prompt text"
           className="min-h-[230px] w-full resize-y rounded-[10px] border border-line p-3.5 font-mono text-[12.5px] leading-[1.65]"
-          style={{ background: 'var(--code-bg)', color: '#cdd6f4' }}
+          style={{ background: 'var(--c-code-bg)', color: 'var(--c-text)' }}
         />
         <div className="mt-3 flex gap-2.5">
           <button
             type="button"
             onClick={handleCopy}
-            className="max-[879px]:min-h-11 rounded-[9px] border-0 bg-mauve px-5 py-2.5 font-[inherit] text-[14px] font-bold text-white"
+            className="max-[879px]:min-h-11 rounded-[9px] border-0 bg-accent px-5 py-2.5 font-[inherit] text-[14px] font-bold text-on-accent"
           >
             ⧉ Copy prompt
           </button>

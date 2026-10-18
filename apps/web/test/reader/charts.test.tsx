@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { Block } from '@brief/schema'
-import { PALETTES } from '@/features/reader/services/echarts'
+import { LIGHT_PALETTE } from './chart-palette'
 import {
   buildBigOOption,
   sampleNs,
@@ -15,10 +15,15 @@ import { buildHeatmapOption, Heatmap } from '@/features/reader/components/blocks
 import { buildHistogramOption, Histogram } from '@/features/reader/components/blocks/Histogram'
 import { buildScatterOption, Scatter } from '@/features/reader/components/blocks/Scatter'
 
-const palette = PALETTES.latte
+const palette = LIGHT_PALETTE
 
 const { useThemeMock } = vi.hoisted(() => ({ useThemeMock: vi.fn() }))
-vi.mock('@/features/theme', () => ({ useTheme: useThemeMock }))
+vi.mock('@/features/theme', () => ({
+  useTheme: useThemeMock,
+  readColorTokens: (theme: string, names: readonly string[]) =>
+    Object.fromEntries(names.map((name) => [name, `${theme}:${name}`])),
+  readFontStack: (kind: string) => `${kind}-stack`,
+}))
 
 const { useEChartMock } = vi.hoisted(() => ({ useEChartMock: vi.fn() }))
 vi.mock('@/features/reader/services/echarts', async () => {
@@ -33,7 +38,7 @@ vi.mock('@/features/reader/services/echarts', async () => {
 
 beforeEach(() => {
   useThemeMock.mockReset()
-  useThemeMock.mockReturnValue({ theme: 'latte', toggle: vi.fn() })
+  useThemeMock.mockReturnValue({ theme: 'light', toggle: vi.fn() })
   useEChartMock.mockReset()
   useEChartMock.mockReturnValue({
     containerRef: { current: null },
@@ -93,11 +98,11 @@ describe('BigO option builder', () => {
     expect(series[1]!.name).toContain('capped')
   })
 
-  it('places a mauve dashed markLine at the current n on exactly one series', () => {
+  it('places an accent dashed markLine at the current n on exactly one series', () => {
     const option = buildBigOOption(block, 42, palette)
     const series = option.series as unknown as Array<{ markLine?: { data: Array<{ xAxis: number }>; lineStyle: { color: string; type: string } } }>
     expect(series[0]!.markLine?.data).toEqual([{ xAxis: 42 }])
-    expect(series[0]!.markLine?.lineStyle.color).toBe(palette.mauve)
+    expect(series[0]!.markLine?.lineStyle.color).toBe(palette.accentText)
     expect(series[0]!.markLine?.lineStyle.type).toBe('dashed')
     expect(series[1]!.markLine).toBeUndefined()
   })
@@ -166,10 +171,10 @@ describe('Heatmap option builder', () => {
     expect(visualMap.max).toBe(6)
   })
 
-  it('uses the line2 -> mauve gradient', () => {
+  it('uses the line2 -> accent gradient', () => {
     const option = buildHeatmapOption(block, palette)
     const visualMap = option.visualMap as unknown as { inRange: { color: string[] } }
-    expect(visualMap.inRange.color).toEqual([palette.line2, palette.mauve])
+    expect(visualMap.inRange.color).toEqual([palette.line2, palette.accentText])
   })
 
   it('shows cell value labels when there are fewer than 12 columns', () => {
@@ -195,12 +200,12 @@ describe('Histogram option builder', () => {
     ],
   }
 
-  it('builds a bar series from bins with mauve rounded-top bars', () => {
+  it('builds a bar series from bins with accent rounded-top bars', () => {
     const option = buildHistogramOption(block, palette)
     const series = option.series as unknown as Array<{ type: string; data: number[]; itemStyle: { color: string; borderRadius: number[] } }>
     expect(series[0]!.type).toBe('bar')
     expect(series[0]!.data).toEqual([3, 7])
-    expect(series[0]!.itemStyle.color).toBe(palette.mauve)
+    expect(series[0]!.itemStyle.color).toBe(palette.accentText)
     expect(series[0]!.itemStyle.borderRadius).toEqual([4, 4, 0, 0])
   })
 
@@ -239,10 +244,18 @@ describe('Scatter option builder', () => {
   it('cycles the series palette after 7 colors', () => {
     const option = buildScatterOption(block, palette)
     const series = option.series as unknown as Array<{ color: string }>
-    const colors = [palette.mauve, palette.blue, palette.green, palette.peach, palette.teal, palette.red, palette.yellow]
+    const colors = [
+      palette.accentText,
+      palette.info,
+      palette.good,
+      palette.dataOrange,
+      palette.dataTeal,
+      palette.bad,
+      palette.warn,
+    ]
     expect(series[0]!.color).toBe(colors[0])
     expect(series[6]!.color).toBe(colors[6])
-    expect(series[7]!.color).toBe(colors[0]) // 8th series wraps back to mauve
+    expect(series[7]!.color).toBe(colors[0]) // 8th series wraps back to the first hue
   })
 
   it('sets optional x/y axis names', () => {
@@ -269,7 +282,7 @@ describe('BigO component (useEChart mocked)', () => {
     render(<BigO block={block} />)
     expect(useEChartMock).toHaveBeenCalled()
     const deps = useEChartMock.mock.calls[0]![1]
-    expect(deps).toEqual([block, 10_000, 'latte'])
+    expect(deps).toEqual([block, 10_000, 'light'])
   })
 
   it('renders the slider and a readout row starting at n = maxN', () => {
@@ -333,7 +346,7 @@ describe('Heatmap/Histogram/Scatter components (useEChart mocked)', () => {
     })
     render(<Histogram block={block} />)
     fireEvent.click(screen.getByLabelText('Expand chart'))
-    expect(getDataURL).toHaveBeenCalledWith(expect.objectContaining({ pixelRatio: 2 }))
+    expect(getDataURL).toHaveBeenCalledWith({ pixelRatio: 2, backgroundColor: 'light:card' })
   })
 
   it('Scatter calls useEChart and defaults its caption', () => {
