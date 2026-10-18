@@ -93,7 +93,10 @@ test.describe('nested and overlapping annotations', () => {
     await check()
   })
 
-  test('a stored highlight on a lone marker character still draws', async ({ page, createSession }) => {
+  test('a stored highlight on a lone marker character still draws', async ({
+    page,
+    createSession,
+  }) => {
     const { id } = await createSession(payload)
     await page.addInitScript((key) => {
       if (localStorage.getItem(key)) return
@@ -101,7 +104,16 @@ test.describe('nested and overlapping annotations', () => {
         key,
         JSON.stringify({
           highlights: [
-            { id: 'h-tick', sid: 0, bid: 0, path: 'text', start: 4, end: 5, text: '`', note: 'tick' },
+            {
+              id: 'h-tick',
+              sid: 0,
+              bid: 0,
+              path: 'text',
+              start: 4,
+              end: 5,
+              text: '`',
+              note: 'tick',
+            },
           ],
           dsel: {},
           dnote: {},
@@ -132,7 +144,10 @@ test.describe('nested and overlapping annotations', () => {
       .toBe('Run npm ci before every deploy so nothing drifts')
   })
 
-  test('list items render inline markdown and keep source offsets', async ({ page, createSession }) => {
+  test('list items render inline markdown and keep source offsets', async ({
+    page,
+    createSession,
+  }) => {
     const { id } = await createSession(payload)
     await page.goto(`/s/${id}`)
     const li = page.locator('section#ov li[data-bid="1"][data-path="items.0"]')

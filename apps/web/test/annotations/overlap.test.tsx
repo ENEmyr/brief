@@ -21,7 +21,11 @@ const hl = (id: string, start: number, end: number, text: string, extra: Partial
   ({ id, sid: 0, bid: 0, path: 'text', start, end, text, note: null, ...extra }) as Highlight
 
 function marks(p: Element) {
-  return [...p.querySelectorAll('mark')].map((m) => [m.dataset.markId, m.textContent, m.dataset.marker ?? null])
+  return [...p.querySelectorAll('mark')].map((m) => [
+    m.dataset.markId,
+    m.textContent,
+    m.dataset.marker ?? null,
+  ])
 }
 
 afterEach(() => {
@@ -79,5 +83,14 @@ describe('a highlight on marker characters only', () => {
     expect(mark?.textContent).toBe('`')
     expect(mark?.closest('[hidden]')).toBeNull()
     expect(mark).toHaveAttribute('data-marker', 'note')
+  })
+
+  it('keeps markers hidden for a highlight whose content a nested one owns', () => {
+    const src = 'abc **defg** hij'
+    const p = renderLeaf(src, [hl('outer', 4, 12, '**defg**'), hl('inner', 6, 10, 'defg')])
+    const clone = p.cloneNode(true) as Element
+    clone.querySelectorAll('[hidden]').forEach((n) => n.remove())
+    expect(clone.textContent).toBe('abc defg hij')
+    expect(marks(p)).toEqual([['inner', 'defg', null]])
   })
 })

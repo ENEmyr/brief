@@ -61,6 +61,9 @@ export function HighlightedText({
   return <>{out}</>
 }
 
+// Where the last press on a mark began. One pointer presses one mark at a time.
+let pressAt: { x: number; y: number } | null = null
+
 function markFor(
   h: Highlight,
   children: React.ReactNode,
@@ -76,8 +79,13 @@ function markFor(
       data-marker={withMarker ? (isAsk ? 'ask' : h.note !== null ? 'note' : undefined) : undefined}
       // A drag that starts and ends in one mark also clicks it; that drag is a
       // new selection for the toolbar, not a request to open this mark.
-      onClick={() => {
-        if (window.getSelection()?.isCollapsed !== false) onMarkClick(h)
+      onMouseDown={(e) => {
+        pressAt = { x: e.clientX, y: e.clientY }
+      }}
+      onClick={(e) => {
+        const moved = pressAt !== null && (e.clientX !== pressAt.x || e.clientY !== pressAt.y)
+        pressAt = null
+        if (!moved) onMarkClick(h)
       }}
       className={
         isAsk
@@ -156,9 +164,9 @@ export function InlineMarkdown({
   }
   // A highlight stored before markdown rendered may cover marker characters
   // only. Show those characters inside its mark, so it still draws.
-  const drawn = new Set(owner.filter((h, i) => h && !hidden[i]))
+  const markersOnly = new Set(highlights.filter((h) => hidden.slice(h.start, h.end).every(Boolean)))
   owner.forEach((h, i) => {
-    if (h && !drawn.has(h)) hidden[i] = false
+    if (h && markersOnly.has(h)) hidden[i] = false
   })
   const lastPiece = new Map<string, number>()
   owner.forEach((h, i) => {
