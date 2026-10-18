@@ -17,6 +17,13 @@ function schemaBlockTypes(): string[] {
 }
 
 describe('landing page', () => {
+  it('words the Agent work row as B-Landing:216 does', () => {
+    const row = BLOCK_GROUPS.find((group) => group.name === 'Agent work')
+    expect(row?.note).toBe(
+      'Code that draws its own flowchart, semantic diffs with a change map, and an auditable log of what the agent did.',
+    )
+  })
+
   beforeEach(() => {
     localStorage.clear()
     document.documentElement.setAttribute('data-theme', 'light')

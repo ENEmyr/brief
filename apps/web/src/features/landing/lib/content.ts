@@ -78,7 +78,7 @@ export const BLOCK_GROUPS: BlockGroup[] = [
   {
     name: 'Agent work',
     blocks: ['walkthrough', 'diff', 'trajectory'],
-    note: 'Code beside its flowchart, a diff with a note per change, and the agent run as a log you can filter.',
+    note: 'Code that draws its own flowchart, semantic diffs with a change map, and an auditable log of what the agent did.',
   },
   {
     name: 'Decisions',
