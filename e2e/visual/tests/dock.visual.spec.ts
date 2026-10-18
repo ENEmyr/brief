@@ -1,6 +1,6 @@
 import { expect as baseExpect, type Locator, type Page } from '@playwright/test'
 import { expectBox, expectComputed } from '../lib/geometry'
-import { PHONE_VIEWPORT, clipOf, type Theme } from '../lib/regions'
+import { PHONE_VIEWPORT, clipOf, sheetBackdropMask, type Theme } from '../lib/regions'
 import { expect, openReader, test } from '../lib/session'
 
 // Phase 3: the decision dock (B-Reader:205-231), the B-Mobile sheet and the
@@ -615,6 +615,7 @@ test.describe('phone sheet', () => {
     await openSheet(page)
     await expect(page).toHaveScreenshot(`mobile-${theme}-sheet.png`, {
       clip: { x: 0, y: 0, width: PHONE_VIEWPORT.width, height: 768 },
+      mask: [await sheetBackdropMask(page, 0, 0, 'fixed')],
     })
   })
 })

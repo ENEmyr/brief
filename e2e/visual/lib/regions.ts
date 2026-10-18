@@ -120,3 +120,35 @@ export const PHONE_VIEWPORT = { width: 388, height: 798 } as const
  * into the reference. The renderer throws if a button crosses that edge.
  */
 export const PHONE_SCREEN = { x: 1, y: 45, width: 388, height: 768 } as const
+
+/**
+ * R-V4 (decisions.tsv, 2026-10-19): the app keeps its scrim behind the phone
+ * sheet, and the B-Mobile boards draw none. Both sides mask the backdrop: the
+ * band above the sheet, which starts 106 px down the phone screen
+ * (dock.visual.spec.ts openSheet), and the two corners its 14 px top radius
+ * leaves open. x and y are the screen's top-left corner in the coordinates the
+ * screenshot clip uses: the viewport on the app (fixed), the page on the board.
+ */
+export async function sheetBackdropMask(
+  page: Page,
+  x: number,
+  y: number,
+  position: 'fixed' | 'absolute',
+): Promise<Locator> {
+  await page.evaluate(
+    ({ x, y, position }) => {
+      for (const [left, top, width, height] of [
+        [0, 0, 388, 106],
+        [0, 106, 14, 14],
+        [374, 106, 14, 14],
+      ]) {
+        const mask = document.createElement('div')
+        mask.className = 'sheet-backdrop-mask'
+        mask.style.cssText = `position:${position};left:${x + left!}px;top:${y + top!}px;width:${width}px;height:${height}px;pointer-events:none`
+        document.body.append(mask)
+      }
+    },
+    { x, y, position },
+  )
+  return page.locator('.sheet-backdrop-mask')
+}

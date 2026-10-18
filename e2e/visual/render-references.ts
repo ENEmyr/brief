@@ -1,4 +1,4 @@
-import { test, type Browser, type Page } from '@playwright/test'
+import { test, type Browser, type Locator, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -23,6 +23,7 @@ import {
   THEMES,
   clipOf,
   clipOfRegion,
+  sheetBackdropMask,
   snapToPixelRow,
   type Clip,
 } from './lib/regions'
@@ -79,9 +80,9 @@ async function openBoard(page: Page, board: string, width: number): Promise<void
 }
 
 /** Full-page screenshot, or the clip (page coordinates) cut out of it. */
-async function save(page: Page, name: string, clip?: Clip) {
+async function save(page: Page, name: string, clip?: Clip, mask?: Locator[]) {
   const file = path.join(REFERENCE_DIR, `${name}.png`)
-  await page.screenshot({ path: file, fullPage: true, clip, animations: 'disabled' })
+  await page.screenshot({ path: file, fullPage: true, clip, mask, animations: 'disabled' })
   written.push(file)
 }
 
@@ -223,12 +224,15 @@ test('phone screens of B-Mobile and B-Mobile-Light', async ({ browser }) => {
           `mobile-${theme}-${name}: button "${cut.text}" spans frame-y ${cut.top}..${cut.bottom}, across the crop's bottom edge at ${cropBottom}; fix PHONE_SCREEN`,
         )
       }
-      await save(page, `mobile-${theme}-${name}`, {
-        x: f.x + PHONE_SCREEN.x,
-        y: f.y + PHONE_SCREEN.y,
-        width: PHONE_SCREEN.width,
-        height: PHONE_SCREEN.height,
-      })
+      const x = f.x + PHONE_SCREEN.x
+      const y = f.y + PHONE_SCREEN.y
+      const mask = name === 'sheet' ? [await sheetBackdropMask(page, x, y, 'absolute')] : undefined
+      await save(
+        page,
+        `mobile-${theme}-${name}`,
+        { x, y, width: PHONE_SCREEN.width, height: PHONE_SCREEN.height },
+        mask,
+      )
     }
   }
 })
