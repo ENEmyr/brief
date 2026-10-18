@@ -100,6 +100,71 @@ test.describe('archiving an image brief with a password', () => {
     await decoded(page, NESTED_ALT)
   })
 
+  test('keeps fields and blocks this reader does not know while it re-encrypts the images', async ({
+    page,
+    request,
+    createSession,
+    isMobile,
+  }) => {
+    const plainIds: string[] = []
+    for (let i = 0; i < 2; i++) {
+      const upload = await request.post(`${API_URL}/api/image`, { headers: { 'content-type': 'image/png' }, data: PNG })
+      plainIds.push(((await upload.json()) as { imageId: string }).imageId)
+    }
+    const { id } = await createSession(withImages(plainIds[0]!, plainIds[1]!))
+    // POST validates with payloadSchema, so fields and blocks from a newer schema reach the reader
+    // only as a row already in storage. This puts them into the plaintext GET's stored string.
+    await page.route(`${API_URL}/api/session/${id}`, async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      const response = await route.fetch()
+      const body = await response.json()
+      if (body.encrypted) return route.fulfill({ response })
+      const stored = JSON.parse(body.payload)
+      stored.futureTop = { n: 1 }
+      stored.sections[0].blocks[0].futureCrop = [0, 0, 8, 8]
+      stored.sections[0].blocks.splice(1, 0, { type: 'hologram', frames: 3 })
+      await route.fulfill({ response, json: { ...body, payload: JSON.stringify(stored) } })
+    })
+    await page.goto(`/s/${id}`)
+    await decoded(page, TOP_ALT)
+    await archiveWithPassword(page, isMobile)
+    await expect(page.getByRole('status').filter({ hasText: 'Archived. Kept 90 days from last open.' })).toBeVisible()
+
+    for (const plain of plainIds) expect((await request.get(`${API_URL}/api/image/${plain}`)).status()).toBe(404)
+    const envelope = (await (await request.get(`${API_URL}/api/session/${id}`)).json()) as {
+      payload: string
+      encParams: { salt: string; iv: string; iterations: number }
+    }
+    const subtle = globalThis.crypto.subtle
+    const base = await subtle.importKey('raw', new TextEncoder().encode(PASSWORD), 'PBKDF2', false, ['deriveKey'])
+    const key = await subtle.deriveKey(
+      { name: 'PBKDF2', salt: Buffer.from(envelope.encParams.salt, 'base64'), iterations: envelope.encParams.iterations, hash: 'SHA-256' },
+      base,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt'],
+    )
+    const plaintext = await subtle.decrypt(
+      { name: 'AES-GCM', iv: Buffer.from(envelope.encParams.iv, 'base64') },
+      key,
+      Buffer.from(envelope.payload, 'base64'),
+    )
+    const archived = JSON.parse(new TextDecoder().decode(plaintext))
+    expect(archived.futureTop).toEqual({ n: 1 })
+    const [top, hologram, details] = archived.sections[0].blocks
+    expect(top.futureCrop).toEqual([0, 0, 8, 8])
+    expect(hologram).toEqual({ type: 'hologram', frames: 3 })
+    for (const image of [top, details.blocks[0]]) expect(plainIds).not.toContain(image.imageId)
+
+    await page.reload()
+    await page.getByLabel('Password').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Unlock' }).click()
+    await decoded(page, TOP_ALT)
+    await expect(page.locator('figure:has(> div > [data-kind-tag]:text-is("hologram"))')).toBeVisible()
+    await page.locator('summary', { hasText: 'More charts' }).click()
+    await decoded(page, NESTED_ALT)
+  })
+
   test('a failed image upload leaves the brief unarchived, its plaintext images served, with the fixed error', async ({
     page,
     request,
