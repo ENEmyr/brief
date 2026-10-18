@@ -74,10 +74,14 @@ test.describe('overlays share one focus and Escape contract', () => {
   test('from 880 a toast does not cover the Back pill', async ({ page, createSession, isMobile }) => {
     test.skip(isMobile, 'under 880 the pill sits above the peek bar, clear of the toast')
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+    await page.clock.install()
     const { id } = await createSession(payload)
     await page.goto(`/s/${id}`)
     const { dock, pill } = await showBackPill(page)
 
+    // The toast leaves after 1.6s, and under load the steps below can take longer:
+    // stop page timers so the toast stays until it is measured.
+    await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
     await dock.getByRole('button', { name: /^Copy prompt for agent/ }).click()
     const toast = page.locator('[data-toast]')
     await expect(toast).toBeVisible()
