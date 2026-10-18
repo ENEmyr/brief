@@ -229,6 +229,13 @@ function writeMobileBoards(): void {
     html = patch(html, "['other', 'อื่นๆ พิมพ์เอง']", "['other', 'Other, type your own']", 'D6 other option')
     html = patch(html, '>เหตุผล / บริบทเพิ่มเติม<', '>Reason / extra context<', 'D6 reason label')
     html = patch(html, 'placeholder="ไม่บังคับ"', 'placeholder="optional"', 'D6 reason placeholder')
+    // R-V6 (D6): the app draws the context hint in English.
+    html = patch(
+      html,
+      '>อ่านบริบท แล้ว dock จะย่อเป็นแถบล่าง<',
+      '>Read the context; the dock shrinks to a bar<',
+      'R-V6 context hint',
+    )
     fs.writeFileSync(path.join(GENERATED_DIR, `${board}.dc.html`), html)
   }
 }
