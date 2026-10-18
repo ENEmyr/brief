@@ -179,11 +179,13 @@ function writeLandingBoards(): void {
  * stat hint fell back to a system font on the board only.
  */
 function writeBlocksBoard(): void {
-  const html = fs.readFileSync(path.join(BOARDS_DIR, 'B-Blocks.dc.html'), 'utf8')
-  fs.writeFileSync(
-    path.join(GENERATED_DIR, 'B-Blocks.dc.html'),
-    patch(html, /'Geist Mono', monospace/g, "'Geist Mono', 'Noto Sans Thai', monospace", 'tokens.css mono stack'),
-  )
+  let html = fs.readFileSync(path.join(BOARDS_DIR, 'B-Blocks.dc.html'), 'utf8')
+  html = patch(html, /'Geist Mono', monospace/g, "'Geist Mono', 'Noto Sans Thai', monospace", 'tokens.css mono stack')
+  // R-V3 (d201): the app keeps KaTeX, whose formula line is 25 high; the
+  // board's Times italic line is 23, so its formula box is 2 px shorter
+  // (B-Blocks:169). The box is masked on both sides; only its height counts.
+  html = patch(html, 'font-size: 20px">tokens(t)', 'font-size: 20px; line-height: 25px">tokens(t)', 'R-V3 KaTeX line')
+  fs.writeFileSync(path.join(GENERATED_DIR, 'B-Blocks.dc.html'), html)
 }
 
 test('every row B board in full', async ({ browser }) => {
