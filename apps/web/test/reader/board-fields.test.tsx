@@ -115,7 +115,7 @@ describe('table board fields (B-Blocks:113-122)', () => {
     r({ type: 'table', head: ['a', 'b'], rows: [['1', '2']] })
     const classes = (el: Element) => el.className.split(' ').sort()
     expect(classes(screen.getByText('b').closest('th')!)).toEqual(['font-medium', 'px-3', 'py-2', 'text-left'])
-    expect(classes(screen.getByText('2').closest('td')!)).toEqual(['px-3', 'py-[9px]', 'text-left', 'text-text'])
+    expect(classes(screen.getByText('2').closest('td')!)).toEqual(['font-mono', 'px-3', 'py-[9px]', 'text-left', 'text-text'])
   })
 })
 
