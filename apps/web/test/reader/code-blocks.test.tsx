@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { Root, Element } from 'hast'
 import { BlockRenderer } from '@/features/reader'
 import { ReaderStateProvider } from '@/features/reader-state'
@@ -269,6 +269,32 @@ describe('BeforeAfter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unified' }))
     expect(anchorOf(screen.getByText('BEFORE_CODE'))).toHaveAttribute('data-path', 'before.0')
     expect(anchorOf(screen.getByText('AFTER_CODE'))).toHaveAttribute('data-path', 'after.0')
+  })
+
+  it('shows both sides as plain text in the board colours, with no syntax token colour (B-Blocks:141-160)', async () => {
+    const coloured = (text: string): Root => {
+      const tree = hastFor([text])
+      const line = (tree.children[0] as Element).children[0] as Element
+      line.children[0] = {
+        type: 'element',
+        tagName: 'span',
+        properties: { style: 'color:#C678DD' },
+        children: [{ type: 'text', value: text }],
+      }
+      return tree
+    }
+    highlightMock.mockImplementation((code: string) => Promise.resolve(coloured(code)))
+
+    r({ type: 'ba', language: 'ts', before: 'BEFORE_CODE', after: 'AFTER_CODE' })
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('BEFORE_CODE')).toBeInTheDocument()
+    expect(screen.getByText('AFTER_CODE')).toBeInTheDocument()
+    expect(document.querySelector('[data-ba-body] [style*="C678DD" i]')).toBeNull()
+    expect(document.querySelector('[data-ba-body] pre.shiki')).toBeNull()
   })
 
   it('tints removed lines bad and added lines good, with the number in the same color', () => {

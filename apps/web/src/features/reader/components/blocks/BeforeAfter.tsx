@@ -5,14 +5,7 @@ import { Annotatable } from '@/features/annotations'
 import { useReaderState } from '@/features/reader-state'
 import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
-import {
-  CodePanel,
-  CodeRow,
-  PrintedNotes,
-  useHighlightedCode,
-  type HighlightedCode,
-  type LineTone,
-} from './CodePre'
+import { CodePanel, CodeRow, PrintedNotes, type LineTone } from './CodePre'
 import { notesByLine, placeNotes } from './codeNotes'
 import { diffLines } from './lineDiff'
 
@@ -33,6 +26,7 @@ function viewButtonClass(active: boolean): string {
  * and added lines on the good tint; Unified (no board draws it) shows one
  * listing in diff order. Every line keeps its own leaf (`before.N`,
  * `after.N`) in both views; an unchanged line in Unified is the after line.
+ * The code is plain text: the board draws no syntax colour.
  */
 export function BeforeAfter({
   block,
@@ -42,8 +36,6 @@ export function BeforeAfter({
 }: { block: BeforeAfterBlock } & BlockAnchor) {
   const [view, setView] = useState<View>('split')
   const { highlights } = useReaderState()
-  const before = useHighlightedCode(block.before, block.language)
-  const after = useHighlightedCode(block.after, block.language)
   const lines = useMemo(
     () => ({ before: block.before.split('\n'), after: block.after.split('\n') }),
     [block.before, block.after],
@@ -64,13 +56,13 @@ export function BeforeAfter({
   const byLine = useMemo(() => notesByLine(placed), [placed])
 
   const sides = {
-    before: { highlighted: before, title: block.titleBefore, changed: removed, tone: 'del' },
-    after: { highlighted: after, title: block.titleAfter, changed: added, tone: 'add' },
+    before: { title: block.titleBefore, changed: removed, tone: 'del' },
+    after: { title: block.titleAfter, changed: added, tone: 'add' },
   } as const
   const row = (side: Side, index: number, tone: LineTone | undefined) => (
     <CodeRow
       key={`${side}.${index}`}
-      node={sides[side].highlighted?.lines[index]}
+      node={undefined}
       text={lines[side][index] ?? ''}
       number={index + 1}
       gutter="w-7"
@@ -127,12 +119,7 @@ export function BeforeAfter({
       >
         {view === 'split' ? (
           (['before', 'after'] as const).map((side) => (
-            <Pane
-              key={side}
-              label={label(side)}
-              divider={side === 'before'}
-              highlighted={sides[side].highlighted}
-            >
+            <Pane key={side} label={label(side)} divider={side === 'before'}>
               {lines[side].map((_, i) =>
                 row(side, i, sides[side].changed.has(i) ? sides[side].tone : undefined),
               )}
@@ -146,7 +133,6 @@ export function BeforeAfter({
               </>
             }
             divider={false}
-            highlighted={after ?? before}
           >
             {rows.map((r) =>
               r.kind === 'del'
@@ -164,12 +150,10 @@ export function BeforeAfter({
 function Pane({
   label,
   divider,
-  highlighted,
   children,
 }: {
   label: ReactNode
   divider: boolean
-  highlighted: HighlightedCode | null
   children: ReactNode
 }) {
   return (
@@ -177,7 +161,7 @@ function Pane({
       className={`min-w-0 py-2 ${divider ? 'border-r border-line max-[880px]:border-r-0 max-[880px]:border-b' : ''}`}
     >
       <div className="px-3 pb-1.5 text-[11px] text-faint">{label}</div>
-      <CodePanel highlighted={highlighted}>{children}</CodePanel>
+      <CodePanel highlighted={null}>{children}</CodePanel>
     </div>
   )
 }
