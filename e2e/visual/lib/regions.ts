@@ -9,12 +9,39 @@ import type { Locator, Page } from '@playwright/test'
 export const READER_REGIONS = {
   topbar: 'header',
   outline: 'nav[aria-label="Outline"]',
-  s1: 'section#s1',
   s2: 'section#s2',
-  s3: 'section#s3',
-  s4: 'section#s4',
   dock: 'aside[aria-label="Decision dock"]',
 } as const
+
+/**
+ * R-V1 (decisions.tsv 2026-10-19): blocks inside reader sections use the
+ * B-Blocks card, so B-Reader's bare blocks are superseded and whole sections
+ * (the old full-page and s1, s3, s4 comparisons) cannot match. The reader
+ * keeps what B-Reader owns: each section's header row (number, title, rule),
+ * at every width and theme. Block bodies are covered by the B-Blocks crops in
+ * text-blocks and diagrams specs.
+ */
+export const SECTION_HEADERS = {
+  's1-header': 'section#s1 > div:first-child',
+  's2-header': 'section#s2 > div:first-child',
+  's3-header': 'section#s3 > div:first-child',
+  's4-header': 'section#s4 > div:first-child',
+} as const
+
+/**
+ * C8 (vt-b triage): the app dock is sticky and capped at the viewport
+ * (DockSlot.tsx:73, `max-h-[calc(100dvh-82px)]`), with a scrolling list; the
+ * board dock is its natural 1297 px. Both sides compare the top rows the app
+ * draws at the 900 px viewport: 820 px, the app's dock box at scroll 0.
+ */
+export const DOCK_VISIBLE_HEIGHT = 820
+
+/**
+ * C7 (vt-b triage): B-Reader is drawn mid-read, with the progress line 34%
+ * filled (B-Reader:61 `width: 34%`) and outline row 02 current. The specs
+ * scroll the app to that state before they cut the topbar and the outline.
+ */
+export const BOARD_PROGRESS = 0.34
 
 export const READER_WIDTHS = [1440, 1100, 880] as const
 

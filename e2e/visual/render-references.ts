@@ -15,11 +15,13 @@ import {
 } from './lib/handoff'
 import {
   BOARD_FOR_THEME,
+  DOCK_VISIBLE_HEIGHT,
   LANDING_REGIONS,
   LANDING_WIDTHS,
   PHONE_SCREEN,
   READER_REGIONS,
   READER_WIDTHS,
+  SECTION_HEADERS,
   THEMES,
   clipOf,
   clipOfRegion,
@@ -185,10 +187,15 @@ test('reader at 1440, 1100 and 880, dark and light, plus regions', async ({ brow
     const board = BOARD_FOR_THEME[theme].reader
     for (const width of READER_WIDTHS) {
       await openBoard(page, board, width)
-      await save(page, `reader-${theme}-${width}`)
+      // R-V1: section headers instead of the full page (lib/regions.ts SECTION_HEADERS).
+      for (const [name, selector] of Object.entries(SECTION_HEADERS)) {
+        await save(page, `reader-${theme}-${width}-${name}`, await clipOf(page.locator(selector).first()))
+      }
       if (theme === 'dark' && width === 1440) {
         for (const [region, selector] of Object.entries(READER_REGIONS)) {
-          await save(page, `region-${theme}-${region}`, await clipOf(page.locator(selector).first()))
+          const clip = await clipOf(page.locator(selector).first())
+          if (region === 'dock') clip.height = Math.min(clip.height, DOCK_VISIBLE_HEIGHT)
+          await save(page, `region-${theme}-${region}`, clip)
         }
       }
     }

@@ -8,6 +8,12 @@ test.use({ viewport: PHONE_VIEWPORT, isMobile: true, hasTouch: true })
 
 test('mobile reading screen', async ({ page, theme }) => {
   await openReader(page)
+  // C7 (vt-b triage): B-Mobile is drawn mid-read, at section 02 ("§02 / 04")
+  // with the sequence on step 3 of 6.
+  await page.locator('section#s2').evaluate((el) => el.scrollIntoView({ behavior: 'instant' }))
+  const next = page.getByRole('button', { name: 'Next step' }).first()
+  for (let i = 0; i < 3; i++) await next.click()
+  await expect(page.getByText('§02 / 04')).toBeVisible()
   await expect(page).toHaveScreenshot(`mobile-${theme}-reading.png`, {
     clip: { x: 0, y: 0, width: PHONE_SCREEN.width, height: PHONE_SCREEN.height },
   })

@@ -1,14 +1,45 @@
-import { READER_REGIONS, READER_WIDTHS, clipOf } from '../lib/regions'
+import type { Page } from '@playwright/test'
+import {
+  BOARD_PROGRESS,
+  DOCK_VISIBLE_HEIGHT,
+  READER_REGIONS,
+  READER_WIDTHS,
+  SECTION_HEADERS,
+  clipOf,
+} from '../lib/regions'
 import { expect, openReader, test } from '../lib/session'
 
-// Full-page reader against B-Reader / B-Reader-Light rendered at the same width.
-// Expected to fail until the Console shell lands: the app still has the old design.
+// R-V1: each section's header row against B-Reader / B-Reader-Light at the
+// same width. These replace the full-page comparisons: the blocks between the
+// headers follow the B-Blocks cards (text-blocks and diagrams specs).
 for (const width of READER_WIDTHS) {
-  test(`reader full page at ${width}`, async ({ page, theme }) => {
-    await page.setViewportSize({ width, height: 900 })
-    await openReader(page)
-    await expect(page).toHaveScreenshot(`reader-${theme}-${width}.png`, { fullPage: true })
-  })
+  for (const [name, selector] of Object.entries(SECTION_HEADERS)) {
+    test(`reader ${name} at ${width}`, async ({ page, theme }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await openReader(page)
+      const header = page.locator(selector).first()
+      await expect(header, `landmark not found: ${selector}`).toBeVisible()
+      const clip = await clipOf(header)
+      await expect(page).toHaveScreenshot(`reader-${theme}-${width}-${name}.png`, {
+        fullPage: true,
+        clip,
+      })
+    })
+  }
+}
+
+/** C7 (lib/regions.ts BOARD_PROGRESS): the board's mid-read state before the topbar and outline are cut. */
+const BOARD_STATE: Partial<Record<keyof typeof READER_REGIONS, (page: Page) => Promise<void>>> = {
+  topbar: (page) =>
+    page.evaluate((fraction) => {
+      const { scrollHeight, clientHeight } = document.documentElement
+      window.scrollTo({
+        top: Math.round(fraction * (scrollHeight - clientHeight)),
+        behavior: 'instant',
+      })
+    }, BOARD_PROGRESS),
+  outline: (page) =>
+    page.locator('section#s2').evaluate((el) => el.scrollIntoView({ behavior: 'instant' })),
 }
 
 // Region references exist for the dark board at 1440 only. Cut out of the full
@@ -23,7 +54,23 @@ test.describe('regions at 1440', () => {
       await openReader(page)
       const landmark = page.locator(selector).first()
       await expect(landmark, `landmark not found: ${selector}`).toBeVisible()
+      const setState = BOARD_STATE[region as keyof typeof READER_REGIONS]
+      if (setState) {
+        // Sticky landmarks: cut the viewport at the box they hold once scrolled.
+        await setState(page)
+        const box = (await landmark.boundingBox())!
+        const clip = {
+          x: Math.round(box.x),
+          y: Math.round(box.y),
+          width: Math.round(box.width),
+          height: Math.round(box.height),
+        }
+        await expect(page).toHaveScreenshot(`region-dark-${region}.png`, { clip })
+        return
+      }
       const clip = await clipOf(landmark)
+      if (region === 'dock')
+        expect(clip.height, 'C8: app dock height the reference is cut at').toBe(DOCK_VISIBLE_HEIGHT)
       await expect(page).toHaveScreenshot(`region-dark-${region}.png`, { fullPage: true, clip })
     })
   }
