@@ -315,21 +315,22 @@ export function readabilityHints(payload) {
 
   const visitStrings = (node, path, inline = false) => {
     if (typeof node === 'string') {
-      // Paragraphs and callouts render inline code, bold and italic; links and every other field show as typed.
+      // Paragraphs, callouts and list items render inline code, bold and italic; links and every other field show as typed.
       if (inline ? LINK_PATTERN.test(node) : node.includes('`') || node.includes('**') || LINK_PATTERN.test(node)) {
         hints.push({
           path,
           message: inline
             ? 'Brief renders only inline code, bold and italic here, so this link shows as literal characters. Write the address plainly.'
-            : 'Brief renders this field as typed, so this markdown shows as literal characters. Inline code, bold and italic work only in paragraphs and callouts.',
+            : 'Brief renders this field as typed, so this markdown shows as literal characters. Inline code, bold and italic work only in paragraphs, callouts and list items.',
         })
       }
     } else if (Array.isArray(node)) {
-      node.forEach((item, i) => visitStrings(item, joinPath(path, i)))
+      node.forEach((item, i) => visitStrings(item, joinPath(path, i), inline))
     } else if (node && typeof node === 'object') {
       const prose = PROSE_BLOCKS.has(node.type)
       for (const [key, value] of Object.entries(node)) {
-        if (!CODE_FIELDS.has(key)) visitStrings(value, joinPath(path, key), prose && (key === 'text' || key === 'title'))
+        const rendered = (prose && (key === 'text' || key === 'title')) || (node.type === 'list' && key === 'items')
+        if (!CODE_FIELDS.has(key)) visitStrings(value, joinPath(path, key), rendered)
       }
     }
   }

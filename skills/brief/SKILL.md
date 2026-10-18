@@ -65,7 +65,7 @@ Three rules hold for every kind of work. A claim about code shows the few lines 
 - **Say how facts relate.** The reader takes two facts placed side by side as cause and effect. If they are unrelated, say so, or keep them apart.
 - **Mark uncertainty once.** Say which numbers are estimates in one place, such as a stat hint or a `coverage` block of what was not checked. A parenthesis in every clause buries the result.
 - **Write in the language the human uses most with you, the way you would say it to a colleague.** If they mostly write Thai, write the document in Thai from the first draft, even when the code, your notes, and your own reasoning are in English. A translated English draft keeps English grammar and reads as a translation. See "Writing in Thai" below.
-- **Only paragraphs and callouts render inline markdown.** In a `p` and in the title and text of a `note`, `warn`, or `good`, the reader renders `` `inline code` ``, `**bold**`, and `*italic*`. Nothing nests, and links are not rendered. Every other field, such as a table cell, a list item, a decision, or a label, shows exactly as typed, so backticks and asterisks there appear as literal characters. Put longer code in a `code` block.
+- **Only paragraphs, callouts and list items render inline markdown.** In a `p`, in the title and text of a `note`, `warn`, or `good`, and in each item of a `list`, the reader renders `` `inline code` ``, `**bold**`, and `*italic*`. Nothing nests, and links are not rendered. Every other field, such as a table cell, a list caption, a decision, or a label, shows exactly as typed, so backticks and asterisks there appear as literal characters. Put longer code in a `code` block.
 - **No emoji, no em dash, no en dash.** Use a plain hyphen.
 - **Honest `detail` on every option.** An option with no downside listed reads as a sales pitch, and it costs the reader their trust in the rest of the document.
 
@@ -276,13 +276,13 @@ Send the raw bytes of the file as the body, with `--data-binary`, not a form or 
 
 | Status | Body | What to do |
 | --- | --- | --- |
-| 201 | `{ "imageId": "Vb7kQ2nR9xLm4TzA", "contentType": "image/png", "bytes": 48213 }` | Put `imageId` in the `image` block as it is. |
+| 201 | `{ "imageId": "img_Vb7kQ2nR9xLm4TzA", "contentType": "image/png", "bytes": 48213 }` | Put `imageId` in the `image` block as it is. |
 | 400 | `{ "error": "Image body is empty." }` | Send the file bytes with `--data-binary @file`. |
 | 413 | `{ "error": "Image exceeds 5242880 bytes." }` | Shrink or crop the image, or save it as JPEG or WEBP. |
 | 415 | `{ "error": "Unsupported image type. Upload PNG, JPEG, WebP or GIF." }` | Convert the file to one of those four formats. An SVG must become a PNG. |
 | 429 | `{ "error": "Rate limit exceeded. Try again in a minute." }` | Ten uploads per 60 seconds per IP. Wait a minute, then upload the rest. |
 
-An upload is held unlinked. The brief links it when `POST /api/session` creates a brief that names the `imageId` in an `image` block, at the top level of a section or inside a `details`, within one hour of the upload. An upload that no brief names within that hour is deleted. A linked image lives and expires with its brief, and one upload links to one brief only, so upload the file again for a second brief. The API links at most 50 images per brief.
+An upload is held unlinked. The brief links it when `POST /api/session` creates a brief that names the `imageId` in an `image` block, at the top level of a section or inside a `details`, within one hour of the upload. An upload that no brief names within that hour can no longer be linked and is never served, and the daily purge job deletes it. A linked image lives and expires with its brief, and one upload links to one brief only, so upload the file again for a second brief. The API links at most 50 images per brief.
 
 Until a brief links it, the API never serves the image, so `GET /api/image/<imageId>` returns 404 `{ "error": "Image not found or expired." }` straight after the upload. That is expected; do not retry. A brief that names an unknown, expired, or already linked id still publishes, and the reader shows "Image is missing or has expired." in that block.
 
@@ -342,9 +342,9 @@ When the document has decisions, design them so this loop closes in one pass. A 
 | Handing the human a question you could settle | Decide it, say what you chose, and keep decisions for calls that turn on their priorities, money, risk, or taste. |
 | Writing in English and translating into Thai | The translation keeps English grammar, full stops, and calques. Write in Thai from the first draft. |
 | A sentence that carries two ideas, or a passive copied from English | Split it, and name who does the action. ASD-STE100 keeps a description to 25 words and an instruction to 20. |
-| Backticks or `**` in a table cell, a list item, a label, or a decision | Only a `p` and the title and text of a `note`, `warn`, or `good` render inline code, bold, and italic. Everywhere else they show as literal characters. Links render nowhere. |
+| Backticks or `**` in a table cell, a label, or a decision | Only a `p`, the title and text of a `note`, `warn`, or `good`, and the items of a `list` render inline code, bold, and italic. Everywhere else they show as literal characters. Links render nowhere. |
 | A URL, a file path, or a data URI in an image's `imageId` | `imageId` takes only the id that `POST /api/image` returned. Upload the file first. |
-| Uploading an image and creating the brief more than an hour later | An upload no brief names within one hour is deleted, and the block shows a missing image. Upload, then create the brief right away. |
+| Uploading an image and creating the brief more than an hour later | After one hour an upload that no brief names can no longer be linked and is never served, and the daily purge deletes it. The block shows a missing image. Upload, then create the brief right away. |
 | A trajectory `at` with an offset, such as `+07:00`, or with no time | `at` is UTC and ends in `Z`: `"2026-07-12T09:05:40Z"`. Convert local times first. |
 | A table cell or stat tile that holds a paragraph | Keep cells and tiles to a phrase. The explanation goes in a paragraph beside the block. |
 | Putting Mermaid source in a decision's `dia` | `dia` is a plain string label, rendered literally as `[diagram: <your string>]`. For a real diagram, put a `seq`, `state`, `layers`, or `mermaid` block in the section that sets the decision up. |
