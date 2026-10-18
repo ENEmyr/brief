@@ -110,6 +110,8 @@ test.describe('agent notes on code', () => {
     await expect(button.locator('span[aria-hidden]')).toHaveText('\u25C6 note')
     const pinned = code(page).locator('[data-code-note-pinned="L3-4"]')
     await expect(pinned).toHaveText('AGENT / L3-4Out of tokens answers 429 without touching origin')
+    // The note enters with console-pop, which starts 6px high: measure it once it settles.
+    await pinned.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
     const rowBox = await button.locator('xpath=..').boundingBox()
     const pinnedBox = await pinned.boundingBox()
     expect(pinnedBox!.y).toBeGreaterThanOrEqual(rowBox!.y + rowBox!.height)
