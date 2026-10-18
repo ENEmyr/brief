@@ -80,7 +80,9 @@ test.describe('walkthrough block', () => {
 
     await block(page).getByRole('button', { name: 'Next hunk' }).click()
     await expect(block(page)).toContainText('hunk 4 / 4')
-    await expect(block(page).getByRole('button', { name: 'Next hunk' })).toBeDisabled()
+    await expect(block(page).getByRole('button', { name: 'Next hunk' })).toBeEnabled()
+    await block(page).getByRole('button', { name: 'Next hunk' }).click()
+    await expect(block(page)).toContainText('hunk 4 / 4')
     expect(await shownNodes(page)).toEqual(['req', 'key', 'ok', 'deny', 'fwd'])
 
     await block(page).getByRole('button', { name: 'Previous hunk' }).click()
@@ -120,5 +122,59 @@ test.describe('walkthrough block', () => {
       })
     await page.keyboard.press('ControlOrMeta+c')
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(CODE)
+  })
+
+  test('a node pops in and an edge draws in, and reduced motion drops both', async ({ page }) => {
+    const animation = (selector: string) =>
+      block(page)
+        .locator(selector)
+        .first()
+        .evaluate((el) => getComputedStyle(el).animationName)
+    expect(await animation('[data-node="key"]')).toBe('wt-pop')
+    expect(await animation('[data-edge]')).toBe('console-in')
+    expect(await animation('[data-edge] > path:first-child')).toBe('wt-dash')
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await hunk(page, '02 Ask for one token').click()
+    expect(await animation('[data-node="ok"]')).toBe('none')
+    expect(await animation('[data-edge] > path:first-child')).toBe('none')
+  })
+
+  test('the flow fits its pane on desktop and a step scrolls its node into view on a phone', async ({
+    page,
+    isMobile,
+  }) => {
+    if (!isMobile) await page.setViewportSize({ width: 1440, height: 900 })
+    await hunk(page, '03 Out of tokens, reply 429').click()
+    const pane = block(page).locator('[data-flow]').locator('..')
+    const fit = await pane.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }))
+    const deny = await block(page).locator('[data-node="deny"]').boundingBox()
+    const paneBox = await pane.boundingBox()
+    if (!deny || !paneBox) throw new Error('flow is not laid out')
+    if (isMobile) {
+      expect(deny.x).toBeGreaterThanOrEqual(paneBox.x)
+      expect(deny.x + deny.width).toBeLessThanOrEqual(paneBox.x + paneBox.width)
+    } else {
+      expect(fit.scroll).toBeLessThanOrEqual(fit.client)
+      // Layout units, not boundingBox: the node pop scales the box while it plays.
+      const [gap, width] = await block(page)
+        .locator('[data-node="deny"]')
+        .evaluate((el) => [
+          (el as HTMLElement).offsetLeft - (el.parentElement!.querySelector('[data-node="ok"]') as HTMLElement).offsetLeft,
+          (el as HTMLElement).offsetWidth,
+        ])
+      expect(gap).toBe(290)
+      expect(width).toBe(170)
+    }
+  })
+
+  test('print draws the whole flow, not only the steps up to the current one', async ({ page }) => {
+    const drawn = () =>
+      block(page)
+        .locator('[data-flow] > div, [data-flow] > span, [data-flow] [data-edge]')
+        .evaluateAll((els) => els.filter((el) => getComputedStyle(el).display !== 'none').length)
+    // Screen: 2 nodes and 1 edge. Print: 5 nodes, 2 edge labels and 4 edges.
+    expect(await drawn()).toBe(3)
+    await page.emulateMedia({ media: 'print' })
+    expect(await drawn()).toBe(11)
   })
 })

@@ -88,11 +88,22 @@ describe('walkthroughModel', () => {
       const b = m.boxes.get(id)!
       return [b.x, b.y, b.w, b.h]
     }
-    expect(at('req')).toEqual([24, 24, 220, 48])
-    expect(at('key')).toEqual([24, 112, 220, 56])
-    expect(at('ok')).toEqual([34, 208, 200, 96])
-    expect(at('deny')).toEqual([324, 232, 220, 48])
-    expect(at('fwd')).toEqual([24, 368, 220, 48])
+    expect(at('req')).toEqual([60, 24, 220, 48])
+    expect(at('key')).toEqual([60, 112, 220, 56])
+    expect(at('ok')).toEqual([70, 208, 200, 96])
+    expect(at('deny')).toEqual([360, 232, 170, 48])
+    expect(at('fwd')).toEqual([60, 368, 220, 48])
+  })
+
+  it('sizes the canvas to the board: the side node ends 10 short of a 540 wide canvas', () => {
+    const m = walkthroughModel(LIMITER)
+    expect(m.width).toBe(540)
+    const no = m.edges.find((e) => e.label === 'no')!
+    expect(no.points).toEqual([
+      { x: 270, y: 256 },
+      { x: 360, y: 256 },
+    ])
+    expect(no.labelAt).toEqual({ x: 315, y: 228, align: 'center' })
   })
 })
 
@@ -126,7 +137,22 @@ describe('Walkthrough', () => {
       'true',
     )
     expect(nodes(container)).toEqual(['req', 'key'])
-    expect(screen.getByRole('button', { name: 'Previous hunk' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Previous hunk' })).toBeEnabled()
+  })
+
+  it('keeps the title a highlightable leaf next to the filename leaf', () => {
+    const { container } = renderBlock(LIMITER)
+    expect(container.querySelector('figure > div [data-path="filename"]')?.textContent).toBe('src/limiter.ts')
+    expect(container.querySelector('figure > div [data-path="title"]')?.textContent).toBe('handle()')
+  })
+
+  it('keeps the steps not reached yet out of the screen flow but in the DOM for print', () => {
+    const { container } = renderBlock(LIMITER)
+    const waiting = container.querySelector('[data-flow] .hidden.print\\:flex')
+    expect(waiting?.textContent).toBe('Token left?')
+    expect(container.querySelectorAll('[data-flow] .hidden')).toHaveLength(8)
+    fireEvent.click(screen.getByRole('button', { name: '04 Passed, forward to origin' }))
+    expect(container.querySelectorAll('[data-flow] .hidden')).toHaveLength(0)
   })
 
   it('a step draws the flow up to it and marks its nodes current', () => {
@@ -149,10 +175,14 @@ describe('Walkthrough', () => {
     const next = screen.getByRole('button', { name: 'Next hunk' })
     for (let i = 0; i < 5; i += 1) fireEvent.click(next)
     expect(screen.getByText('hunk 4 / 4')).toBeInTheDocument()
-    expect(next).toBeDisabled()
+    expect(next).toBeEnabled()
     expect(nodes(container)).toEqual(['req', 'key', 'ok', 'deny', 'fwd'])
     fireEvent.click(screen.getByRole('button', { name: 'Previous hunk' }))
     expect(screen.getByText('hunk 3 / 4')).toBeInTheDocument()
+    const prev = screen.getByRole('button', { name: 'Previous hunk' })
+    for (let i = 0; i < 5; i += 1) fireEvent.click(prev)
+    expect(screen.getByText('hunk 1 / 4')).toBeInTheDocument()
+    expect(prev).toBeEnabled()
   })
 
   it('clicking a hunk row picks its step, and the rows stay annotatable leaves', () => {

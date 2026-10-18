@@ -45,6 +45,8 @@ export interface WalkthroughModel {
 
 /** B-NewBlocks:85-104: 220 wide nodes; 48 high stadiums, 56 high boxes, a 200x96 diamond. */
 const NODE_WIDTH = 220
+/** B-NewBlocks:109: a node in a side column is 170 wide and starts at its column's left edge. */
+const SIDE_WIDTH = 170
 const SIZE: Record<FlowNodeKind, { w: number; h: number }> = {
   start: { w: 220, h: 48 },
   end: { w: 220, h: 48 },
@@ -58,13 +60,17 @@ const COL_PITCH = 300
 const NODE_PAD = 8
 const NODE_LINE = 18
 const PAD = 24
+/** B-NewBlocks:101, :112: the main column starts at left 60; the canvas ends 10 past the side node (540 wide). */
+const PAD_LEFT = 60
+const PAD_RIGHT = 10
 const LABEL_GAP = 12
 const LABEL_HEIGHT = 16
 const DETOUR = 20
 
 /** A long label grows its node instead of being clipped; a diamond's text fits its middle half. */
-function nodeSize(label: string, kind: FlowNodeKind): { w: number; h: number } {
-  const { w, h } = SIZE[kind]
+function nodeSize(label: string, kind: FlowNodeKind, side: boolean): { w: number; h: number } {
+  const { h } = SIZE[kind]
+  const w = side && kind !== 'decision' ? SIDE_WIDTH : SIZE[kind].w
   const room = kind === 'decision' ? w / 2 : w - 2 * NODE_PAD
   const lines = wrapText(label, room, kind === 'start' || kind === 'end' ? 13 : 12).length
   const needed = lines * NODE_LINE + 2 * NODE_PAD
@@ -161,7 +167,7 @@ function layoutFlow(block: WalkthroughBlock) {
 
   const rowCount = Math.max(...[...cells.values()].map((c) => c.row)) + 1
   const rowHeight = Array.from({ length: rowCount }, () => 0)
-  const sizes = new Map(block.flow.nodes.map((n) => [n.id, nodeSize(n.label, n.kind ?? 'step')]))
+  const sizes = new Map(block.flow.nodes.map((n) => [n.id, nodeSize(n.label, n.kind ?? 'step', cells.get(n.id)!.col > 0)]))
   for (const [id, c] of cells) rowHeight[c.row] = Math.max(rowHeight[c.row]!, sizes.get(id)!.h)
   const labelled = new Set(
     edges.filter((e) => e.label !== undefined && cells.get(e.from)!.row !== cells.get(e.to)!.row).map((e) => cells.get(e.to)!.row),
@@ -185,7 +191,7 @@ function layoutFlow(block: WalkthroughBlock) {
       id,
       label: node.label,
       kind,
-      x: PAD + c.col * COL_PITCH + (NODE_WIDTH - w) / 2,
+      x: PAD_LEFT + c.col * COL_PITCH + (c.col === 0 || kind === 'decision' ? (NODE_WIDTH - w) / 2 : 0),
       y: rowTop[c.row]! + (rowHeight[c.row]! - h) / 2,
       w,
       h,
@@ -226,7 +232,7 @@ function layoutFlow(block: WalkthroughBlock) {
     return { from: e.from, to: e.to, label: e.label, points, labelAt }
   })
 
-  return { boxes, edges: flowEdges, width: maxX + PAD, height: y + PAD }
+  return { boxes, edges: flowEdges, width: maxX + PAD_RIGHT, height: y + PAD }
 }
 
 /**

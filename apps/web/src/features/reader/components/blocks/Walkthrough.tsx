@@ -1,8 +1,9 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WalkthroughBlock } from '@brief/schema'
 import { useReaderState } from '@/features/reader-state'
 import { BlockCard, cardHeader } from '../BlockCard'
+import { CardCaption } from '../CardCaption'
 import type { BlockAnchor } from '../blockAnchor'
 import { FOCUS_RING } from '../topbarChrome'
 import { walkthroughModel, type FlowBox } from '../../lib/walkthroughModel'
@@ -24,6 +25,9 @@ const HUNK_CLASS: Record<Phase, { row: string; bar: string; caption: string }> =
   future: { row: 'hover:bg-elev', bar: 'bg-transparent', caption: 'text-faint' },
 }
 
+/** Room left beside a node that a step scrolls into view. */
+const FLOW_MARGIN = 10
+
 const STEP_NUMBER = new Intl.NumberFormat('en', { minimumIntegerDigits: 2 })
 
 function nodeClass(box: FlowBox, current: boolean): string {
@@ -43,6 +47,11 @@ function nodeClass(box: FlowBox, current: boolean): string {
   }
 }
 
+/** Steps not reached yet are hidden on screen and drawn in print, so a printed page shows the whole flow. */
+function revealedClass(revealed: boolean, shownClass: string, printClass: string): string {
+  return revealed ? shownClass : `hidden ${printClass}`
+}
+
 export function Walkthrough({
   block,
   pathPrefix = '',
@@ -55,6 +64,23 @@ export function Walkthrough({
   const count = block.steps.length
   const shown = model.revealed[current] ?? new Set<string>()
   const active = new Set(block.steps[current]?.nodes)
+  const pane = useRef<HTMLDivElement>(null)
+  const flow = useRef<HTMLDivElement>(null)
+  const mounted = useRef(false)
+
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true
+      return
+    }
+    const box = model.boxes.get(block.steps[current]?.nodes.findLast((id) => model.boxes.has(id)) ?? '')
+    if (!box || !pane.current || !flow.current) return
+    const paneRect = pane.current.getBoundingClientRect()
+    const left = flow.current.getBoundingClientRect().left + box.x
+    const right = left + box.w
+    if (left < paneRect.left) pane.current.scrollLeft -= paneRect.left - left + FLOW_MARGIN
+    else if (right > paneRect.right) pane.current.scrollLeft += right - paneRect.right + FLOW_MARGIN
+  }, [current, model, block.steps])
 
   function pickFromRows(step: number | null) {
     if (step === null) return
@@ -82,7 +108,6 @@ export function Walkthrough({
       <button
         type="button"
         aria-label="Previous hunk"
-        disabled={current === 0}
         onClick={() => setCurrent((c) => Math.max(0, c - 1))}
         className={`${CONTROL} ${BORDERED}`}
       >
@@ -91,7 +116,6 @@ export function Walkthrough({
       <button
         type="button"
         aria-label="Next hunk"
-        disabled={current >= count - 1}
         onClick={() => setCurrent((c) => Math.min(count - 1, c + 1))}
         className={`${CONTROL} ${FILLED}`}
       >
@@ -103,7 +127,11 @@ export function Walkthrough({
   return (
     <BlockCard
       {...cardHeader(block, { ...anchor, pathPrefix })}
-      captionSuffix={block.filename === undefined ? undefined : block.title}
+      captionSuffix={
+        block.filename === undefined || block.title === undefined ? undefined : (
+          <CardCaption {...anchor} text={block.title} path={`${pathPrefix}title`} />
+        )
+      }
       meta={<span className="ml-3 shrink-0 text-text max-[880px]:ml-1">{`hunk ${current + 1} / ${count}`}</span>}
       controls={controls}
     >
@@ -159,25 +187,28 @@ export function Walkthrough({
             ))}
           </CodePanel>
         </div>
-        <div className="min-w-0 flex-1 overflow-x-auto bg-[var(--c-code-bg)] px-2.5 py-4">
+        <div ref={pane} className="min-w-0 flex-1 overflow-x-auto bg-[var(--c-code-bg)] px-2.5 py-4">
           <div
+            ref={flow}
             data-flow=""
-            className="relative mx-auto text-[13px] leading-[18px]"
+            className="relative text-[13px] leading-[18px]"
             style={{ width: model.width, height: model.height }}
           >
             <EdgeLayer width={model.width} height={model.height}>
-              {model.edges
-                .filter((e) => shown.has(e.from) && shown.has(e.to))
-                .map((e) => (
-                  <Edge key={`${e.from}-${e.to}`} points={e.points} className={EDGE_TONE.faint} />
-                ))}
+              {model.edges.map((e) => (
+                <Edge
+                  key={`${e.from}-${e.to}`}
+                  points={e.points}
+                  className={`${EDGE_TONE.faint} ${revealedClass(shown.has(e.from) && shown.has(e.to), 'wt-draw', 'print:inline')}`}
+                />
+              ))}
             </EdgeLayer>
             {model.edges
-              .filter((e) => e.labelAt && shown.has(e.from) && shown.has(e.to))
+              .filter((e) => e.labelAt)
               .map((e) => (
                 <span
                   key={`label-${e.from}-${e.to}`}
-                  className="absolute whitespace-pre font-mono text-[12px] leading-4 text-faint"
+                  className={`absolute whitespace-pre font-mono text-[12px] leading-4 text-faint ${revealedClass(shown.has(e.from) && shown.has(e.to), 'wt-node', 'print:block')}`}
                   style={{
                     left: e.labelAt!.x,
                     top: e.labelAt!.y,
@@ -187,19 +218,20 @@ export function Walkthrough({
                   {e.label}
                 </span>
               ))}
-            {[...model.boxes.values()]
-              .filter((box) => shown.has(box.id))
-              .map((box) => (
+            {[...model.boxes.values()].map((box) => {
+              const revealed = shown.has(box.id)
+              return (
                 <div
                   key={box.id}
-                  data-node={box.id}
+                  data-node={revealed ? box.id : undefined}
                   data-current={active.has(box.id) ? '' : undefined}
-                  className={`absolute box-border flex items-center justify-center overflow-hidden break-words text-center ${nodeClass(box, active.has(box.id))}`}
+                  className={`absolute box-border items-center justify-center overflow-hidden break-words text-center ${revealedClass(revealed, 'wt-node flex', 'print:flex')} ${nodeClass(box, active.has(box.id))}`}
                   style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
                 >
                   {box.label}
                 </div>
-              ))}
+              )
+            })}
           </div>
         </div>
       </div>
