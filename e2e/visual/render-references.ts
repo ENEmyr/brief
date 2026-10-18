@@ -69,6 +69,7 @@ test.beforeAll(async () => {
   }
   fs.mkdirSync(GENERATED_DIR, { recursive: true })
   writeLandingBoards()
+  writeBlocksBoard()
   boards = await serveBoards()
 })
 
@@ -168,6 +169,20 @@ function writeLandingBoards(): void {
   fs.writeFileSync(
     light,
     patch(fs.readFileSync(light, 'utf8'), "sub: on ? '#C5F05A'", "sub: on ? '#4D7A00'", 'C3 light tab hint'),
+  )
+}
+
+/**
+ * Writes B-Blocks.dc.html into GENERATED_DIR. The board's inline mono stacks
+ * are 'Geist Mono', monospace, without the Thai fallback tokens.css gives
+ * --font-mono (Geist Mono, then Noto Sans Thai), so Thai in a card header or a
+ * stat hint fell back to a system font on the board only.
+ */
+function writeBlocksBoard(): void {
+  const html = fs.readFileSync(path.join(BOARDS_DIR, 'B-Blocks.dc.html'), 'utf8')
+  fs.writeFileSync(
+    path.join(GENERATED_DIR, 'B-Blocks.dc.html'),
+    patch(html, /'Geist Mono', monospace/g, "'Geist Mono', 'Noto Sans Thai', monospace", 'tokens.css mono stack'),
   )
 }
 
