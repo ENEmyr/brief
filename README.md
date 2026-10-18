@@ -63,7 +63,7 @@ See `packages/schema/src/payload.ts` for the full schema.
 - Markdown export at `/raw` so an agent can re-read a document without re-fetching or re-rendering the interactive version.
 - Sliding expiry: unsaved sessions live 7 days, saved sessions live 90 days, and every open resets the window.
 - Optional end-to-end encryption: the payload is encrypted client-side with PBKDF2 and AES-GCM before it ever reaches the server, so the server never sees the plaintext.
-- Catppuccin-based Latte (light) and Mocha (dark) themes.
+- Light and dark themes.
 
 ## Token savings
 

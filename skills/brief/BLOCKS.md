@@ -772,7 +772,7 @@ The agent's run as a log: what it was asked, what it read and ran, what it chang
 | `steps[].flag` | no | boolean; `true` highlights the step and lets the reader mark it |
 | `stats` | no | object `{ seconds?, tokens? }`, each an integer of 0 or more: the run's length and the tokens it used. Without `seconds`, the reader shows the time from the first step to the last. |
 
-Flag the steps the reader should check, such as an assumption the result rests on. The filters are all, decided (`decision`), assumed (`assumption`), edits (`edit`), and reads plus bash (`read` and `run`).
+Flag the steps the reader should check, such as an assumption the result rests on. The filters are all, decided (`decision`), assumed (`assumption`), edits (`edit`), and reads plus bash (`read` and `run`). The reader hides a filter chip when no step has a matching kind, so a run with no `edit` step shows no edits chip. The all chip always shows.
 
 ```json
 {
