@@ -6,6 +6,7 @@ import {
   READER_WIDTHS,
   SECTION_HEADERS,
   clipOf,
+  sectionChromeClip,
 } from '../lib/regions'
 import { expect, openReader, test } from '../lib/session'
 
@@ -68,7 +69,7 @@ test.describe('regions at 1440', () => {
         await expect(page).toHaveScreenshot(`region-dark-${region}.png`, { clip })
         return
       }
-      const clip = await clipOf(landmark)
+      const clip = region === 's2' ? await sectionChromeClip(landmark) : await clipOf(landmark)
       if (region === 'dock')
         expect(clip.height, 'C8: app dock height the reference is cut at').toBe(DOCK_VISIBLE_HEIGHT)
       await expect(page).toHaveScreenshot(`region-dark-${region}.png`, { fullPage: true, clip })

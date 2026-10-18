@@ -25,6 +25,7 @@ import {
   THEMES,
   clipOf,
   clipOfRegion,
+  sectionChromeClip,
   sheetBackdropMask,
   snapToPixelRow,
   type Clip,
@@ -278,7 +279,8 @@ test('reader at 1440, 1100 and 880, dark and light, plus regions', async ({ brow
       }
       if (theme === 'dark' && width === 1440) {
         for (const [region, selector] of Object.entries(READER_REGIONS)) {
-          const clip = await clipOf(page.locator(selector).first())
+          const landmark = page.locator(selector).first()
+          const clip = region === 's2' ? await sectionChromeClip(landmark) : await clipOf(landmark)
           if (region === 'dock') clip.height = Math.min(clip.height, DOCK_VISIBLE_HEIGHT)
           await save(page, `region-${theme}-${region}`, clip)
         }
@@ -303,7 +305,16 @@ test('phone screens of B-Mobile and B-Mobile-Light', async ({ browser }) => {
             const br = b.getBoundingClientRect()
             return { text: b.innerText, top: br.top - r.top, bottom: br.bottom - r.top }
           })
-          return { x: r.x, y: r.y, width: r.width, height: r.height, buttons }
+          const box = (part: Element | null | undefined, end: Element | null = part ?? null) => {
+            if (!part || !end) return null
+            const p = part.getBoundingClientRect()
+            return { left: p.left, top: p.top, right: end.getBoundingClientRect().right, bottom: p.bottom }
+          }
+          // R-V5: the reading screen compares the section header (its row, cut
+          // after the title) and the peek bar.
+          const h2 = el.querySelector('h2')
+          const parts = { 's2-header': box(h2?.parentElement, h2), peek: box(el.lastElementChild) }
+          return { x: r.x, y: r.y, width: r.width, height: r.height, buttons, parts }
         }),
     )
     if (frames.length !== 2) throw new Error(`expected 2 phone frames on ${theme} mobile board, found ${frames.length}`)
@@ -316,6 +327,21 @@ test('phone screens of B-Mobile and B-Mobile-Light', async ({ browser }) => {
         throw new Error(
           `mobile-${theme}-${name}: button "${cut.text}" spans frame-y ${cut.top}..${cut.bottom}, across the crop's bottom edge at ${cropBottom}; fix PHONE_SCREEN`,
         )
+      }
+      if (name === 'reading') {
+        for (const [part, b] of Object.entries(f.parts)) {
+          if (!b) throw new Error(`mobile-${theme}-reading: no ${part} in the phone frame`)
+          const x = Math.round(b.left)
+          const y = Math.round(b.top)
+          await save(page, `mobile-${theme}-reading-${part}`, {
+            x,
+            y,
+            width: Math.round(b.right) - x,
+            // Rows under the frame's rounded corners stay out, as in PHONE_SCREEN.
+            height: Math.round(Math.min(b.bottom, f.y + cropBottom)) - y,
+          })
+        }
+        continue
       }
       const x = f.x + PHONE_SCREEN.x
       const y = f.y + PHONE_SCREEN.y

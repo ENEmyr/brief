@@ -29,6 +29,17 @@ export const SECTION_HEADERS = {
 } as const
 
 /**
+ * R-V5 (with R-V1): region s2 compares the section's chrome (border, fill,
+ * padding) and its header row only, so its cut ends at the header's bottom
+ * edge; the B-Blocks cards below it are not B-Reader's.
+ */
+export async function sectionChromeClip(section: Locator): Promise<Clip> {
+  const clip = await clipOf(section)
+  const header = await clipOf(section.locator(':scope > div:first-child'))
+  return { ...clip, height: header.y + header.height - clip.y }
+}
+
+/**
  * C8 (vt-b triage): the app dock is sticky and capped at the viewport
  * (DockSlot.tsx:73, `max-h-[calc(100dvh-82px)]`), with a scrolling list; the
  * board dock is its natural 1297 px. Both sides compare the top rows the app
