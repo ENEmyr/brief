@@ -10,4 +10,4 @@ export { printDocument } from './lib/print'
 // Shared stacked-dialog focus-trap/-restore/Escape behavior (bug-214) -- any
 // new dialog in the app (e.g. save/SaveModal) should route through this
 // instead of reimplementing the module-level dialogStack check.
-export { DialogFocus, useDialogFocus } from './hooks/useDialogFocus'
+export { DialogFocus, hasOpenDialog, useDialogFocus } from './hooks/useDialogFocus'

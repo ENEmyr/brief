@@ -14,6 +14,9 @@ const dialogStack: string[] = []
 let lockCount = 0
 let stylesBeforeLock = { overflow: '', gutter: '' }
 
+/** True while any dialog is open, so a page-level Escape handler can leave Escape to it. */
+export const hasOpenDialog = (): boolean => dialogStack.length > 0
+
 function lockScroll() {
   const root = document.documentElement
   stylesBeforeLock = { overflow: document.body.style.overflow, gutter: root.style.getPropertyValue('scrollbar-gutter') }
@@ -41,13 +44,16 @@ const isTabStop = (el: HTMLElement): boolean => el.tabIndex >= 0 && !el.matches(
  * a toast's buttons, so the Retry on an error toast raised over a dialog is
  * not out of reach. `initialFocusRef` names the element that takes
  * focus (the first field, or the primary action); without it the panel root
- * does. A textarea that takes focus is also selected. `onClose` is read when
- * Escape is pressed, so a caller may pass a new function on every render.
+ * does. A textarea that takes focus is also selected. On close, focus goes
+ * back to what had it before, or to `returnFocusRef` when that was the page
+ * body or has left the DOM. `onClose` is read when Escape is pressed, so a
+ * caller may pass a new function on every render.
  */
 export function useDialogFocus(
   panelRef: RefObject<HTMLElement | null>,
   onClose: () => void,
   initialFocusRef?: RefObject<HTMLElement | null>,
+  returnFocusRef?: RefObject<HTMLElement | null>,
 ) {
   const dialogId = useId()
   const onCloseRef = useRef(onClose)
@@ -97,13 +103,23 @@ export function useDialogFocus(
       if (at !== -1) dialogStack.splice(at, 1)
       if (modal && --lockCount === 0) unlockScroll()
       document.removeEventListener('keydown', handleKeyDown)
-      previouslyFocused?.focus()
+      const lost = !previouslyFocused || previouslyFocused === document.body || !previouslyFocused.isConnected
+      const back = lost ? (returnFocusRef?.current ?? previouslyFocused) : previouslyFocused
+      back?.focus()
     }
-  }, [panelRef, initialFocusRef, dialogId])
+  }, [panelRef, initialFocusRef, returnFocusRef, dialogId])
 }
 
 /** useDialogFocus for a panel whose component stays mounted while closed: render this only while it is open. */
-export function DialogFocus({ panelRef, onClose }: { panelRef: RefObject<HTMLElement | null>; onClose: () => void }) {
-  useDialogFocus(panelRef, onClose)
+export function DialogFocus({
+  panelRef,
+  onClose,
+  returnFocusRef,
+}: {
+  panelRef: RefObject<HTMLElement | null>
+  onClose: () => void
+  returnFocusRef?: RefObject<HTMLElement | null>
+}) {
+  useDialogFocus(panelRef, onClose, undefined, returnFocusRef)
   return null
 }

@@ -130,7 +130,9 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
         role="button"
         tabIndex={0}
         data-term={term.n}
+        aria-haspopup="dialog"
         aria-expanded={open}
+        aria-controls={open ? tipId : undefined}
         aria-describedby={open ? tipId : undefined}
         className="cursor-help border-b border-dashed border-info print:border-0"
         onMouseEnter={show}
@@ -158,7 +160,9 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
           <div
             ref={tipRef}
             id={tipId}
-            role="tooltip"
+            // A tooltip may hold no controls; this one holds the section and decision links.
+            role="dialog"
+            aria-label={term.term}
             data-glossary-tip={term.n}
             onMouseEnter={cancelLeave}
             onMouseLeave={hideSoon}

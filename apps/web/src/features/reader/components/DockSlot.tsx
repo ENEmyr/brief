@@ -35,6 +35,7 @@ export function DockSlot({
   const narrow = useIsNarrow()
   const state = useReaderState()
   const asideRef = useRef<HTMLElement>(null)
+  const openRef = useRef<HTMLButtonElement>(null)
   const sheet = narrow && open
 
   // The sheet only exists under 880; widening the window closes it.
@@ -91,6 +92,7 @@ export function DockSlot({
                 <DecisionSegments decisions={decisions} state={state} />
               </div>
               <button
+                ref={openRef}
                 type="button"
                 onClick={() => onOpenChange(true)}
                 className="min-h-11 shrink-0 rounded-[4px] border-0 bg-accent px-[14px] text-[14px] font-semibold text-on-accent transition-transform duration-[var(--dur-fast)] active:scale-[.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line motion-reduce:transition-none"
@@ -102,7 +104,7 @@ export function DockSlot({
         )}
         {sheet && (
           <>
-            <DialogFocus panelRef={asideRef} onClose={close} />
+            <DialogFocus panelRef={asideRef} onClose={close} returnFocusRef={openRef} />
             <div data-dock-chrome="" className="flex flex-col leading-[normal]">
               <span aria-hidden="true" className={`${HANDLE} mt-2`} />
               <div className="flex items-center gap-2 border-b border-line py-[10px] pl-[14px] pr-[6px]">
