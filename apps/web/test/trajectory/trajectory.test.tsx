@@ -5,7 +5,7 @@ import { buildEditPrompt } from '@/features/annotations'
 import { buildReplyPrompt } from '@/features/decisions'
 import { BlockRenderer } from '@/features/reader'
 import { createReaderStateStore, ReaderStateProvider, type ReaderState } from '@/features/reader-state'
-import { durationLabel, flagPromptLines, offsetLabel, tokensLabel } from '@/features/trajectory'
+import { durationLabel, flagPromptLines, offsetLabel, tokensLabel, trailFlagCount } from '@/features/trajectory'
 
 const trajectory: TrajectoryBlock = {
   type: 'trajectory',
@@ -165,5 +165,23 @@ describe('Trajectory block', () => {
     expect(within(group).getByRole('button', { name: 'OK' })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(within(group).getByRole('button', { name: 'OK' }))
     expect(within(group).getByRole('button', { name: 'OK' })).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('trailFlagCount', () => {
+  const plain: Payload = { ...payload, sections: [{ id: 's1', no: 1, title: 'Intro', blocks: [{ type: 'p', text: 'Hello' }] }] }
+
+  it('is null when the document has no trajectory block', () => {
+    expect(trailFlagCount(plain)).toBeNull()
+  })
+
+  it('counts the flagged steps of every trajectory block, including one inside a details', () => {
+    expect(trailFlagCount(payload)).toBe(4)
+  })
+
+  it('is 0 for a trajectory block with no flagged step', () => {
+    const unflagged: TrajectoryBlock = { ...trajectory, steps: trajectory.steps.map(({ at, kind, title }) => ({ at, kind, title })) }
+    const sections = [{ id: 's1', no: 1, title: 'Intro', blocks: [unflagged] }]
+    expect(trailFlagCount({ ...plain, sections })).toBe(0)
   })
 })

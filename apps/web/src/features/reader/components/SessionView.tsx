@@ -24,7 +24,7 @@ import {
   resolveRefs,
 } from '@/features/decisions'
 import type { DockTarget } from '@/features/decisions'
-import { flagPromptLines } from '@/features/trajectory'
+import { flagPromptLines, trailFlagCount } from '@/features/trajectory'
 import { ExportProvider, useExport } from '@/features/export'
 import { GlossaryProvider } from '@/features/glossary'
 import { SaveModal, UnlockCard } from '@/features/save'
@@ -38,7 +38,7 @@ import { useSession } from '../hooks/useSession'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { DIAGRAM_BLOCK_TYPES, hasDiagrams } from '../lib/views'
 import type { ReaderView } from '../lib/views'
-import { adjacentSectionId, findSection, scrollToElement } from '../lib/sectionNav'
+import { adjacentSectionId, findSection, scrollToElement, scrollToTrajectory } from '../lib/sectionNav'
 import { BackPill } from './BackPill'
 import type { BackTarget } from './BackPill'
 import { DockSlot } from './DockSlot'
@@ -119,6 +119,7 @@ function SessionReady({
   // seq restarts the flash when the same section is jumped to twice.
   const [flash, setFlash] = useState<{ id: string; seq: number } | null>(null)
   const [pendingJump, setPendingJump] = useState<string | null>(null)
+  const [pendingTrail, setPendingTrail] = useState(false)
   const [backTo, setBackTo] = useState<BackTarget | null>(null)
   const [tocCollapsed, setTocCollapsed] = useState(false)
   const [tocDrawerOpen, setTocDrawerOpen] = useState(false)
@@ -207,6 +208,21 @@ function SessionReady({
     const el = findSection(pendingJump)
     if (el) flashSection(pendingJump, el)
   }, [pendingJump, flashSection])
+
+  // Raw and Diagrams do not render the trajectory block, so switch back first.
+  const jumpToTrail = useCallback(() => {
+    if (scrollToTrajectory()) return
+    setView('document')
+    setPendingTrail(true)
+  }, [])
+
+  useEffect(() => {
+    if (!pendingTrail) return
+    setPendingTrail(false)
+    scrollToTrajectory()
+  }, [pendingTrail])
+
+  const trailFlags = useMemo(() => trailFlagCount(payload), [payload])
 
   function jumpToMark(mark: TocMark) {
     const el = [...document.querySelectorAll<HTMLElement>('main mark[data-mark-id]')].find(
@@ -393,6 +409,7 @@ function SessionReady({
               openSectionIds={openSectionIds}
               onJump={jumpTo}
               onMarkJump={jumpToMark}
+              trail={trailFlags === null ? undefined : { flags: trailFlags, onJump: jumpToTrail }}
               collapsed={tocCollapsed}
               onToggleCollapsed={toggleTocCollapsed}
               drawerOpen={tocDrawerOpen}

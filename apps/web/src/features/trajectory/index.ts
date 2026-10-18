@@ -6,5 +6,6 @@ export {
   offsetLabel,
   tokensLabel,
   totalSeconds,
+  trailFlagCount,
   trajectoryKey,
 } from './lib/trajectory'
