@@ -651,8 +651,11 @@ test.describe('text blocks against the B-Blocks panels', () => {
       const used = await cardWidth(page, figure, width)
       test.info().annotations.push({ type: 'viewport', description: String(used) })
       if (kind === 'details') await figure.locator('summary').click()
-      if (kind === 'stat')
+      if (kind === 'stat') {
+        // The counter holds the final text for its last frame, beside the value it covers.
+        await expect(figure.locator('[data-count-up]')).toHaveCount(0)
         await expect(figure.getByText('4,800', { exact: true })).toHaveCSS('visibility', 'visible')
+      }
       const target = part === null ? figure : figure.locator(part)
       await expect(target).toBeVisible()
       // R-V3 (d201): the app keeps one card per details and KaTeX; the crop is
