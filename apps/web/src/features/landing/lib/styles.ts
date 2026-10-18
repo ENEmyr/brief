@@ -14,6 +14,10 @@ export const LINK = 'text-accent-text hover:text-[#3e6300] [[data-theme=dark]_&]
 
 export const BAND = 'bg-[var(--c-row-zebra)]'
 
+// Under 880 every link and button is a 44 px touch target.
+export const NARROW_TARGET =
+  'max-[880px]:inline-flex max-[880px]:min-h-11 max-[880px]:min-w-11 max-[880px]:items-center max-[880px]:justify-center'
+
 export const PAD = 'box-border px-8 max-[880px]:px-4'
 
 export const H2 = 'm-0 text-[36px] leading-[40px] font-semibold tracking-[-0.03em]'

@@ -1,5 +1,5 @@
 import { BLOCK_GROUPS, SKILL_DOCS_URL } from '../lib/content'
-import { FOCUS_RING, H2, LINK, PAD } from '../lib/styles'
+import { FOCUS_RING, H2, LINK, NARROW_TARGET, PAD } from '../lib/styles'
 
 const CELL = 'px-4 py-[14px]'
 
@@ -8,7 +8,7 @@ export function BlockTable() {
     <section id="blocks" className={`mx-auto flex max-w-[1280px] flex-col gap-6 py-[72px] ${PAD}`}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h2 className={H2}>Blocks</h2>
-        <a href={SKILL_DOCS_URL} className={`font-mono text-[13px] underline ${LINK} ${FOCUS_RING}`}>
+        <a href={SKILL_DOCS_URL} className={`font-mono text-[13px] underline ${LINK} ${NARROW_TARGET} ${FOCUS_RING}`}>
           BLOCKS.md
         </a>
       </div>
