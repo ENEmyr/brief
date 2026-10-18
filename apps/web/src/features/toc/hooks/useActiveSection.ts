@@ -1,9 +1,16 @@
 'use client'
 import { useEffect, useState } from 'react'
 
+function atPageBottom(): boolean {
+  const { scrollHeight } = document.documentElement
+  return scrollHeight > window.innerHeight && window.scrollY + window.innerHeight >= scrollHeight - 1
+}
+
 /**
  * Tracks which of the given `data-section` element ids is currently the
  * top-most intersecting section in the viewport, via IntersectionObserver.
+ * At the bottom of a page that scrolls, the last section is current: one
+ * shorter than the band under the top bar never reaches the band.
  */
 export function useActiveSection(ids: string[]): string | null {
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -18,6 +25,7 @@ export function useActiveSection(ids: string[]): string | null {
     const idsList = key.split(',')
     let rafId: number | null = null
     let observer: IntersectionObserver | null = null
+    let onScroll: (() => void) | null = null
 
     function queryElements(): HTMLElement[] {
       return idsList
@@ -29,6 +37,13 @@ export function useActiveSection(ids: string[]): string | null {
       if (elements.length === 0) return
 
       const entryById = new Map<Element, IntersectionObserverEntry>()
+      const lastId = elements.at(-1)?.dataset.section
+      let spiedId: string | undefined
+
+      function publish() {
+        const id = atPageBottom() ? lastId : spiedId
+        if (id) setActiveId(id)
+      }
 
       observer = new IntersectionObserver(
         (entries) => {
@@ -48,15 +63,15 @@ export function useActiveSection(ids: string[]): string | null {
           // sections, or scrolling past the last one), keep the previously
           // active id rather than clearing it — a sticky "last active"
           // highlight reads better than the indicator disappearing mid-scroll.
-          if (topMost) {
-            const id = (topMost.target as HTMLElement).dataset.section
-            if (id) setActiveId(id)
-          }
+          if (topMost) spiedId = (topMost.target as HTMLElement).dataset.section
+          publish()
         },
         { rootMargin: '-20% 0px -70% 0px' },
       )
 
       elements.forEach((el) => observer?.observe(el))
+      onScroll = publish
+      window.addEventListener('scroll', publish, { passive: true })
     }
 
     const elements = queryElements()
@@ -79,6 +94,7 @@ export function useActiveSection(ids: string[]): string | null {
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId)
       observer?.disconnect()
+      if (onScroll) window.removeEventListener('scroll', onScroll)
     }
   }, [key])
 

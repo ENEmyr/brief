@@ -551,6 +551,8 @@ describe('Topbar export controls', () => {
   })
 })
 
+// Item labels follow the B-Components menu: "Markdown" and "PDF" (they were
+// "Markdown (.md)" and "Print / PDF"); the behavior is unchanged.
 describe('Topbar Download menu', () => {
   function renderMenu() {
     const onDownload = vi.fn()
@@ -568,26 +570,26 @@ describe('Topbar Download menu', () => {
 
     expect(screen.getByRole('menu', { name: 'Download' })).toBeInTheDocument()
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: /Print \/ PDF/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /^Markdown$/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /^PDF$/ })).toBeInTheDocument()
   })
 
-  it('Markdown (.md) fires onDownload and closes the menu', () => {
+  it('Markdown fires onDownload and closes the menu', () => {
     const { onDownload, onPrint, trigger } = renderMenu()
     fireEvent.click(trigger)
 
-    fireEvent.click(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Markdown$/ }))
 
     expect(onDownload).toHaveBeenCalledTimes(1)
     expect(onPrint).not.toHaveBeenCalled()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
-  it('Print / PDF fires onPrint and closes the menu', () => {
+  it('PDF fires onPrint and closes the menu', () => {
     const { onDownload, onPrint, trigger } = renderMenu()
     fireEvent.click(trigger)
 
-    fireEvent.click(screen.getByRole('menuitem', { name: /Print \/ PDF/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /^PDF$/ }))
 
     expect(onPrint).toHaveBeenCalledTimes(1)
     expect(onDownload).not.toHaveBeenCalled()
@@ -598,7 +600,7 @@ describe('Topbar Download menu', () => {
     const { trigger } = renderMenu()
     fireEvent.click(trigger)
 
-    expect(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ })).toHaveFocus()
+    expect(screen.getByRole('menuitem', { name: /^Markdown$/ })).toHaveFocus()
 
     fireEvent.keyDown(document, { key: 'Escape' })
 
@@ -627,7 +629,7 @@ describe('Topbar Download menu', () => {
     const { trigger } = renderMenu()
     fireEvent.click(trigger)
 
-    fireEvent.pointerDown(screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ }))
+    fireEvent.pointerDown(screen.getByRole('menuitem', { name: /^Markdown$/ }))
 
     expect(screen.getByRole('menu')).toBeInTheDocument()
   })
@@ -651,8 +653,8 @@ describe('Topbar Download menu', () => {
     const { trigger } = renderMenu()
     fireEvent.click(trigger)
 
-    const markdownItem = screen.getByRole('menuitem', { name: /Markdown \(\.md\)/ })
-    const printItem = screen.getByRole('menuitem', { name: /Print \/ PDF/ })
+    const markdownItem = screen.getByRole('menuitem', { name: /^Markdown$/ })
+    const printItem = screen.getByRole('menuitem', { name: /^PDF$/ })
     expect(markdownItem).toHaveFocus()
 
     fireEvent.keyDown(markdownItem, { key: 'ArrowDown' })

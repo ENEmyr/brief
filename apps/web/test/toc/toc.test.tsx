@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, fireEvent, act } from '@testing-library/react'
-import { Toc, type TocProps } from '@/features/toc'
+import { Toc, useActiveSection, type TocProps } from '@/features/toc'
 
 const sections = [
   { id: 's1', no: 1, title: 'Introduction' },
@@ -10,6 +10,10 @@ const sections = [
 function renderToc(overrides: Partial<TocProps> = {}) {
   const props: TocProps = {
     sections,
+    activeId: null,
+    marks: [],
+    onJump: vi.fn(),
+    onMarkJump: vi.fn(),
     collapsed: false,
     onToggleCollapsed: vi.fn(),
     drawerOpen: false,
@@ -18,6 +22,25 @@ function renderToc(overrides: Partial<TocProps> = {}) {
   }
   const utils = render(<Toc {...props} />)
   return { ...utils, props }
+}
+
+// The active section is tracked by SessionReady (it also drives the mobile
+// section counter) and passed down; this harness wires the hook the same way.
+function SpiedToc() {
+  const activeId = useActiveSection(sections.map((s) => s.id))
+  return (
+    <Toc
+      sections={sections}
+      activeId={activeId}
+      marks={[]}
+      onJump={vi.fn()}
+      onMarkJump={vi.fn()}
+      collapsed={false}
+      onToggleCollapsed={vi.fn()}
+      drawerOpen={false}
+      onCloseDrawer={vi.fn()}
+    />
+  )
 }
 
 function mountSectionElements() {
@@ -70,62 +93,99 @@ function getObserver(): ControllableIntersectionObserver {
   return instance
 }
 
-describe('toc (expanded)', () => {
-  it('renders a nav item with number and title for each section', () => {
+describe('outline (expanded)', () => {
+  it('renders a row with the zero-padded number and title for each section', () => {
     renderToc()
 
-    expect(screen.getByRole('button', { name: /01 Introduction/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /02 Getting Started/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /01\s*Introduction/ })).toHaveAttribute('href', '#s1')
+    expect(screen.getByRole('link', { name: /02\s*Getting Started/ })).toHaveAttribute('href', '#s2')
+    expect(screen.getByText('OUTLINE')).toBeInTheDocument()
   })
 
-  it('scrolls the matching section into view on click and closes the drawer', () => {
-    mountSectionElements()
-    const scrollIntoView = vi.fn()
-    Element.prototype.scrollIntoView = scrollIntoView
+  it('jumps to the section on click (the shell scrolls and flashes) and closes the drawer', () => {
+    const onJump = vi.fn()
     const onCloseDrawer = vi.fn()
+    renderToc({ onJump, onCloseDrawer })
 
-    renderToc({ onCloseDrawer })
-    fireEvent.click(screen.getByRole('button', { name: /02 Getting Started/ }))
+    fireEvent.click(screen.getByRole('link', { name: /02\s*Getting Started/ }))
 
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' })
+    expect(onJump).toHaveBeenCalledWith('s2')
     expect(onCloseDrawer).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the toc nav landmark', () => {
+  it('renders the Outline nav landmark', () => {
     renderToc()
-    expect(screen.getByRole('navigation', { name: /table of contents/i })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: 'Outline' })).toBeInTheDocument()
+  })
+
+  it('marks the current section with aria-current and the chip fill', () => {
+    renderToc({ activeId: 's2' })
+    const current = screen.getByRole('link', { name: /02\s*Getting Started/ })
+    expect(current).toHaveAttribute('aria-current', 'true')
+    expect(current).toHaveClass('bg-chip', 'text-text', 'font-medium')
+    expect(screen.getByRole('link', { name: /01\s*Introduction/ })).not.toHaveAttribute('aria-current')
   })
 
   it('calls onToggleCollapsed (does not manage its own collapsed state) when the toggle is clicked', () => {
     const onToggleCollapsed = vi.fn()
     renderToc({ collapsed: false, onToggleCollapsed })
 
-    const toggle = screen.getByRole('button', { name: 'Collapse contents' })
-    // Prototype parity (coordinator adjudication): expanded shows '«'.
-    expect(toggle).toHaveTextContent('«')
-
-    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse outline' }))
     expect(onToggleCollapsed).toHaveBeenCalledTimes(1)
-    // Still expanded — Toc is controlled, it never flips `collapsed` itself.
-    expect(screen.getByRole('button', { name: /01 Introduction/ })).toBeInTheDocument()
+    // Still expanded: Toc is controlled, it never flips `collapsed` itself.
+    expect(screen.getByRole('link', { name: /01\s*Introduction/ })).toBeInTheDocument()
+  })
+
+  it('puts a warn dot on sections an open decision refers to', () => {
+    renderToc({ openSectionIds: new Set(['s2']) })
+    const row = screen.getByRole('link', { name: /02\s*Getting Started/ })
+    expect(within(row).getByRole('img', { name: 'open decisions' })).toBeInTheDocument()
+    expect(within(screen.getByRole('link', { name: /01\s*Introduction/ })).queryByRole('img')).not.toBeInTheDocument()
   })
 })
 
-describe('toc (collapsed to numbers)', () => {
+describe('outline: your marks', () => {
+  const marks = [
+    { id: 'h1', sectionId: 's1', text: 'burst traffic', ask: false },
+    { id: 'h2', sectionId: 's2', text: 'why 429', ask: true },
+  ]
+
+  it('is absent when the reader has no marks', () => {
+    renderToc()
+    expect(screen.queryByText('YOUR MARKS')).not.toBeInTheDocument()
+  })
+
+  it('lists each mark by its text: amber swatch for highlights, lime outline for asks', () => {
+    renderToc({ marks })
+    expect(screen.getByText('YOUR MARKS')).toBeInTheDocument()
+    const highlight = screen.getByRole('link', { name: 'burst traffic' })
+    const ask = screen.getByRole('link', { name: 'why 429' })
+    expect(highlight).toHaveAttribute('href', '#s1')
+    expect(highlight.querySelector('span')).toHaveClass('bg-[var(--c-warn-fill)]')
+    expect(ask.querySelector('span')).toHaveClass('border-accent-line')
+  })
+
+  it('jumps to the mark on click', () => {
+    const onMarkJump = vi.fn()
+    renderToc({ marks, onMarkJump })
+    fireEvent.click(screen.getByRole('link', { name: 'why 429' }))
+    expect(onMarkJump).toHaveBeenCalledWith(marks[1])
+  })
+})
+
+describe('outline (collapsed to a rail)', () => {
   it('renders only numbers, no titles, until hovered', () => {
     renderToc({ collapsed: true })
 
     expect(screen.queryByText('Introduction')).not.toBeInTheDocument()
     expect(screen.queryByText('Getting Started')).not.toBeInTheDocument()
-
-    const toggle = screen.getByRole('button', { name: 'Expand contents' })
-    // Prototype parity (coordinator adjudication): collapsed shows '»'.
-    expect(toggle).toHaveTextContent('»')
+    expect(screen.getByRole('link', { name: '1. Introduction' })).toHaveTextContent('01')
+    expect(screen.getByRole('button', { name: 'Expand outline' })).toBeInTheDocument()
   })
 
   it('shows titles on hover and hides them again on mouse leave', () => {
-    const { container } = renderToc({ collapsed: true })
-    const hoverZone = container.querySelector('nav > div') as Element
+    renderToc({ collapsed: true })
+    const hoverZone = screen.getByRole('navigation', { name: 'Outline' })
 
     fireEvent.mouseEnter(hoverZone)
     expect(screen.getByText('Introduction')).toBeInTheDocument()
@@ -135,29 +195,23 @@ describe('toc (collapsed to numbers)', () => {
   })
 
   it('clears hover state when the toggle is clicked', () => {
-    // onToggleCollapsed is a mock, so `collapsed` never actually flips here —
-    // this stays on the collapsed-to-numbers view throughout. The point is to
-    // exercise handleToggleCollapsed's own `setHovered(false)` call, not a
-    // parent-driven prop change (see the rerender-based version this replaced,
-    // which could never fail because it re-rendered with collapsed={false}).
+    // onToggleCollapsed is a mock, so `collapsed` never actually flips here.
+    // The point is handleToggleCollapsed's own setHovered(false).
     const onToggleCollapsed = vi.fn()
-    const { container } = renderToc({ collapsed: true, onToggleCollapsed })
-    const hoverZone = container.querySelector('nav > div') as Element
+    renderToc({ collapsed: true, onToggleCollapsed })
+    const hoverZone = screen.getByRole('navigation', { name: 'Outline' })
 
     fireEvent.mouseEnter(hoverZone)
     expect(screen.getByText('Introduction')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand contents' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Expand outline' })[0]!)
     expect(onToggleCollapsed).toHaveBeenCalledTimes(1)
-
-    // Still collapsed (the prop never changed) — but hover state must have
-    // been cleared by the click handler, so titles are hidden again.
     expect(screen.queryByText('Introduction')).not.toBeInTheDocument()
     expect(screen.queryByText('Getting Started')).not.toBeInTheDocument()
   })
 })
 
-describe('toc drawer', () => {
+describe('outline drawer', () => {
   it('does not render when drawerOpen is false', () => {
     renderToc({ drawerOpen: false })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -166,17 +220,17 @@ describe('toc drawer', () => {
   it('renders as a dialog with the section items when drawerOpen is true', () => {
     renderToc({ drawerOpen: true })
 
-    const dialog = screen.getByRole('dialog', { name: /table of contents/i })
+    const dialog = screen.getByRole('dialog', { name: 'Outline' })
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(within(dialog).getByText('Introduction')).toBeInTheDocument()
   })
 
-  it('keeps the 44px touch target floor (min-h-11) on every drawer item', () => {
-    renderToc({ drawerOpen: true })
+  it('keeps the 44px touch target floor (min-h-11) on every drawer item (bug-089)', () => {
+    renderToc({ drawerOpen: true, marks: [{ id: 'h1', sectionId: 's1', text: 'burst', ask: false }] })
 
-    const dialog = screen.getByRole('dialog', { name: /table of contents/i })
-    const items = within(dialog).getAllByRole('button')
-    expect(items).toHaveLength(sections.length)
+    const dialog = screen.getByRole('dialog', { name: 'Outline' })
+    const items = within(dialog).getAllByRole('link')
+    expect(items).toHaveLength(sections.length + 1)
     for (const item of items) {
       expect(item.className).toContain('min-h-11')
     }
@@ -205,24 +259,16 @@ describe('toc drawer', () => {
     outsideButton.focus()
     expect(document.activeElement).toBe(outsideButton)
 
-    const { rerender } = renderToc({ drawerOpen: true })
+    const { rerender, props } = renderToc({ drawerOpen: true })
     expect(screen.getByRole('dialog')).toHaveFocus()
 
-    rerender(
-      <Toc
-        sections={sections}
-        collapsed={false}
-        onToggleCollapsed={vi.fn()}
-        drawerOpen={false}
-        onCloseDrawer={vi.fn()}
-      />,
-    )
+    rerender(<Toc {...props} drawerOpen={false} />)
     expect(document.activeElement).toBe(outsideButton)
     document.body.removeChild(outsideButton)
   })
 })
 
-describe('toc scroll spy', () => {
+describe('outline scroll spy', () => {
   beforeEach(() => {
     ControllableIntersectionObserver.instances = []
     vi.stubGlobal('IntersectionObserver', ControllableIntersectionObserver)
@@ -232,9 +278,13 @@ describe('toc scroll spy', () => {
     vi.unstubAllGlobals()
   })
 
+  function row(name: RegExp) {
+    return screen.getByRole('link', { name })
+  }
+
   it('marks the top-most intersecting section active', () => {
     mountSectionElements()
-    renderToc()
+    render(<SpiedToc />)
     const observer = getObserver()
     const s1 = document.querySelector('[data-section="s1"]') as Element
 
@@ -242,18 +292,13 @@ describe('toc scroll spy', () => {
       observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 40 } }])
     })
 
-    expect(screen.getByRole('button', { name: /01 Introduction/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    )
-    expect(screen.getByRole('button', { name: /02 Getting Started/ })).not.toHaveAttribute(
-      'aria-current',
-    )
+    expect(row(/01\s*Introduction/)).toHaveAttribute('aria-current', 'true')
+    expect(row(/02\s*Getting Started/)).not.toHaveAttribute('aria-current')
   })
 
   it('a later entry with a smaller top wins over a previously stored one', () => {
     mountSectionElements()
-    renderToc()
+    render(<SpiedToc />)
     const observer = getObserver()
     const s1 = document.querySelector('[data-section="s1"]') as Element
     const s2 = document.querySelector('[data-section="s2"]') as Element
@@ -261,10 +306,7 @@ describe('toc scroll spy', () => {
     act(() => {
       observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 100 } }])
     })
-    expect(screen.getByRole('button', { name: /01 Introduction/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    )
+    expect(row(/01\s*Introduction/)).toHaveAttribute('aria-current', 'true')
 
     // Real IntersectionObserver callbacks only report targets whose
     // intersection changed, so s1's prior entry is expected to persist in
@@ -274,36 +316,81 @@ describe('toc scroll spy', () => {
       observer.callback([{ target: s2, isIntersecting: true, boundingClientRect: { top: 20 } }])
     })
 
-    expect(screen.getByRole('button', { name: /02 Getting Started/ })).toHaveAttribute(
-      'aria-current',
-      'true',
+    expect(row(/02\s*Getting Started/)).toHaveAttribute('aria-current', 'true')
+    expect(row(/01\s*Introduction/)).not.toHaveAttribute('aria-current')
+  })
+
+  describe('at the bottom of the page', () => {
+    const saved = (['scrollY', 'innerHeight'] as const).map(
+      (key) => [key, Object.getOwnPropertyDescriptor(window, key)!] as const,
     )
-    expect(screen.getByRole('button', { name: /01 Introduction/ })).not.toHaveAttribute(
-      'aria-current',
-    )
+
+    afterEach(() => {
+      for (const [key, descriptor] of saved) Object.defineProperty(window, key, descriptor)
+      Reflect.deleteProperty(document.documentElement, 'scrollHeight')
+    })
+
+    function scrollPage(scrollY: number, scrollHeight: number) {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 })
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: scrollY })
+      Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: scrollHeight })
+      act(() => {
+        window.dispatchEvent(new Event('scroll'))
+      })
+    }
+
+    // A last section shorter than the band under the top bar never reaches
+    // it, so the observer alone leaves the one above it current.
+    it('the last section is current, and the observer takes over again above the bottom', () => {
+      mountSectionElements()
+      render(<SpiedToc />)
+      const observer = getObserver()
+      const s1 = document.querySelector('[data-section="s1"]') as Element
+      act(() => {
+        observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 40 } }])
+      })
+
+      scrollPage(1200, 2000)
+      expect(row(/02\s*Getting Started/)).toHaveAttribute('aria-current', 'true')
+
+      act(() => {
+        observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: -100 } }])
+      })
+      expect(row(/02\s*Getting Started/)).toHaveAttribute('aria-current', 'true')
+
+      scrollPage(1100, 2000)
+      expect(row(/01\s*Introduction/)).toHaveAttribute('aria-current', 'true')
+    })
+
+    it('a page that fits the window has no bottom to reach: the observer decides', () => {
+      mountSectionElements()
+      render(<SpiedToc />)
+      const observer = getObserver()
+      const s1 = document.querySelector('[data-section="s1"]') as Element
+      act(() => {
+        observer.callback([{ target: s1, isIntersecting: true, boundingClientRect: { top: 40 } }])
+      })
+
+      scrollPage(0, 700)
+      expect(row(/01\s*Introduction/)).toHaveAttribute('aria-current', 'true')
+    })
   })
 
   it('keeps the last active section when nothing is intersecting (sticky)', () => {
     mountSectionElements()
-    renderToc()
+    render(<SpiedToc />)
     const observer = getObserver()
     const s2 = document.querySelector('[data-section="s2"]') as Element
 
     act(() => {
       observer.callback([{ target: s2, isIntersecting: true, boundingClientRect: { top: 10 } }])
     })
-    expect(screen.getByRole('button', { name: /02 Getting Started/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    )
+    expect(row(/02\s*Getting Started/)).toHaveAttribute('aria-current', 'true')
 
     act(() => {
       observer.callback([{ target: s2, isIntersecting: false, boundingClientRect: { top: -200 } }])
     })
 
-    expect(screen.getByRole('button', { name: /02 Getting Started/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    )
+    expect(row(/02\s*Getting Started/)).toHaveAttribute('aria-current', 'true')
   })
 })

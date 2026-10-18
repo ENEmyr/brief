@@ -66,7 +66,7 @@ export function CopyFallbackModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="max-[879px]:min-h-11 max-[879px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
+            className="max-[880px]:min-h-11 max-[880px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
           >
             ✕
           </button>
@@ -88,14 +88,14 @@ export function CopyFallbackModal({
           <button
             type="button"
             onClick={handleTryAgain}
-            className="max-[879px]:min-h-11 cursor-pointer rounded-[9px] border-0 bg-accent px-[18px] py-[9px] text-[13.5px] font-bold text-on-accent"
+            className="max-[880px]:min-h-11 cursor-pointer rounded-[9px] border-0 bg-accent px-[18px] py-[9px] text-[13.5px] font-bold text-on-accent"
           >
             ⧉ Try copy again
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="max-[879px]:min-h-11 cursor-pointer rounded-[9px] border border-line bg-elev px-4 py-[9px] text-[13.5px] text-text"
+            className="max-[880px]:min-h-11 cursor-pointer rounded-[9px] border border-line bg-elev px-4 py-[9px] text-[13.5px] text-text"
           >
             Done
           </button>

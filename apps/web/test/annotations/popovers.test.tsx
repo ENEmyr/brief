@@ -191,8 +191,8 @@ describe('NotePopover', () => {
 
   it('applies the 44px mobile touch floor to both footer buttons', () => {
     renderPopover()
-    expect(screen.getByRole('button', { name: 'Remove highlight' })).toHaveClass('max-[879px]:min-h-11')
-    expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('max-[879px]:min-h-11')
+    expect(screen.getByRole('button', { name: 'Remove highlight' })).toHaveClass('max-[880px]:min-h-11')
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('max-[880px]:min-h-11')
   })
 })
 
@@ -312,9 +312,9 @@ describe('AskPopover', () => {
 
   it('applies the 44px mobile touch floor to every footer button', () => {
     renderPopover()
-    expect(screen.getByRole('button', { name: /copy as prompt/i })).toHaveClass('max-[879px]:min-h-11')
-    expect(screen.getByRole('button', { name: 'Remove' })).toHaveClass('max-[879px]:min-h-11')
-    expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('max-[879px]:min-h-11')
+    expect(screen.getByRole('button', { name: /copy as prompt/i })).toHaveClass('max-[880px]:min-h-11')
+    expect(screen.getByRole('button', { name: 'Remove' })).toHaveClass('max-[880px]:min-h-11')
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('max-[880px]:min-h-11')
   })
 })
 

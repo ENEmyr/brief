@@ -101,7 +101,7 @@ describe('startKvSync debounce', () => {
     stop()
   })
 
-  it('silently swallows PUT failures', async () => {
+  it('sends the PUT and does not throw when it is rejected', async () => {
     const mockFetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ state: null })))
     mockFetch.mockRejectedValueOnce(new Error('network down'))
     vi.stubGlobal('fetch', mockFetch)
@@ -198,5 +198,85 @@ describe('startKvSync cleanup', () => {
     resolveGet(new Response(JSON.stringify({ state: JSON.stringify({ highlights: [], dsel: { d1: ['remote'] }, dnote: {} }) })))
     await flushMicrotasks()
     expect(store.getState().dsel).toEqual({})
+  })
+})
+
+describe('startKvSync status (save chip)', () => {
+  async function editAndFlush(store: ReturnType<typeof createReaderStateStore>) {
+    store.actions.pickOption('d1', 'a', false)
+    vi.advanceTimersByTime(5000)
+    await flushMicrotasks()
+  }
+
+  async function startWith(putResult: () => Promise<Response>) {
+    const mockFetch = vi.fn((_url: string, init?: RequestInit) =>
+      init?.method === 'PUT' ? putResult() : Promise.resolve(new Response(JSON.stringify({ state: null }))),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+    const store = createReaderStateStore(sessionId)
+    const statuses: string[] = []
+    const stop = startKvSync(sessionId, store, (s) => statuses.push(s))
+    await flushMicrotasks()
+    return { store, statuses, stop }
+  }
+
+  it('reports saving on an edit, then saved when the PUT answers 2xx', async () => {
+    const { store, statuses, stop } = await startWith(() => Promise.resolve(new Response('{}', { status: 200 })))
+    await editAndFlush(store)
+    expect(statuses).toEqual(['saving', 'saved'])
+    stop()
+  })
+
+  it('reports failed when the PUT never reaches the server (network error)', async () => {
+    const { store, statuses, stop } = await startWith(() => Promise.reject(new TypeError('Failed to fetch')))
+    await editAndFlush(store)
+    expect(statuses).toEqual(['saving', 'failed'])
+    stop()
+  })
+
+  it.each([400, 403, 404, 413, 429, 500])('reports failed when the PUT answers %i', async (status) => {
+    const { store, statuses, stop } = await startWith(() => Promise.resolve(new Response('{}', { status })))
+    await editAndFlush(store)
+    expect(statuses).toEqual(['saving', 'failed'])
+    stop()
+  })
+
+  it('a failure clears once a later PUT succeeds', async () => {
+    let ok = false
+    const { store, statuses, stop } = await startWith(() =>
+      Promise.resolve(new Response('{}', { status: ok ? 200 : 503 })),
+    )
+    await editAndFlush(store)
+    ok = true
+    await editAndFlush(store)
+    expect(statuses).toEqual(['saving', 'failed', 'saving', 'saved'])
+    stop()
+  })
+
+  it('an older PUT that settles after a newer edit does not report over it', async () => {
+    let resolveFirst: (res: Response) => void = () => {}
+    const { store, statuses, stop } = await startWith(
+      () => new Promise<Response>((resolve) => (resolveFirst = resolve)),
+    )
+    store.actions.pickOption('d1', 'a', false)
+    vi.advanceTimersByTime(5000)
+    store.actions.pickOption('d1', 'b', false)
+    resolveFirst(new Response('{}', { status: 200 }))
+    await flushMicrotasks()
+    expect(statuses).toEqual(['saving', 'saving'])
+    stop()
+  })
+
+  it('reports nothing after cleanup', async () => {
+    let resolvePut: (res: Response) => void = () => {}
+    const { store, statuses, stop } = await startWith(
+      () => new Promise<Response>((resolve) => (resolvePut = resolve)),
+    )
+    store.actions.pickOption('d1', 'a', false)
+    vi.advanceTimersByTime(5000)
+    stop()
+    resolvePut(new Response('{}', { status: 500 }))
+    await flushMicrotasks()
+    expect(statuses).toEqual(['saving'])
   })
 })

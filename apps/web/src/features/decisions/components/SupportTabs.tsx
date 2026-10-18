@@ -53,7 +53,7 @@ export function SupportTabs({ decision }: { decision: Decision }) {
             role="tab"
             aria-selected={active === t.key}
             onClick={() => selectTab(t.key)}
-            className={`max-[879px]:min-h-11 rounded-[7px] px-3 py-[5px] font-[inherit] text-[12.5px] ${
+            className={`max-[880px]:min-h-11 rounded-[7px] px-3 py-[5px] font-[inherit] text-[12.5px] ${
               active === t.key ? 'bg-accent-soft font-semibold text-accent-text' : 'font-normal text-sub'
             }`}
           >

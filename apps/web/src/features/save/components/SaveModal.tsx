@@ -178,7 +178,7 @@ export function SaveModal({
             type="button"
             onClick={dismiss}
             aria-label="Close"
-            className="max-[879px]:min-h-11 max-[879px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
+            className="max-[880px]:min-h-11 max-[880px]:min-w-11 cursor-pointer rounded-md border-0 bg-transparent text-base text-sub"
           >
             ✕
           </button>
@@ -196,7 +196,7 @@ export function SaveModal({
             // to real screen-reader users.
             aria-label="Archive without a password"
             onClick={() => setMode('plain')}
-            className={`max-[879px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
+            className={`max-[880px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
               mode === 'plain' ? 'border-accent-line bg-accent-soft text-text' : 'border-line bg-card text-sub'
             }`}
           >
@@ -208,7 +208,7 @@ export function SaveModal({
             type="button"
             aria-pressed={mode === 'encrypt'}
             onClick={() => setMode('encrypt')}
-            className={`max-[879px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
+            className={`max-[880px]:min-h-11 w-full rounded-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors ${
               mode === 'encrypt' ? 'border-accent-line bg-accent-soft text-text' : 'border-line bg-card text-sub'
             }`}
           >
@@ -258,14 +258,14 @@ export function SaveModal({
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="max-[879px]:min-h-11 flex-1 cursor-pointer rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="max-[880px]:min-h-11 flex-1 cursor-pointer rounded-[9px] border-0 bg-accent px-4 py-[9px] text-[13px] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy && mode === 'encrypt' ? 'Encrypting…' : 'Archive'}
           </button>
           <button
             type="button"
             onClick={dismiss}
-            className="max-[879px]:min-h-11 cursor-pointer rounded-[9px] border border-line bg-card px-4 py-[9px] text-[13px] font-semibold text-sub"
+            className="max-[880px]:min-h-11 cursor-pointer rounded-[9px] border border-line bg-card px-4 py-[9px] text-[13px] font-semibold text-sub"
           >
             Cancel
           </button>

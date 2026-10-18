@@ -43,7 +43,7 @@ export function Compare({
           'Comparison'
         )}
       </figcaption>
-      <div className="flex gap-3.5 items-stretch max-[879px]:flex-col">
+      <div className="flex gap-3.5 items-stretch max-[880px]:flex-col">
         {[
           { side: 'left', data: block.left },
           { side: 'right', data: block.right },

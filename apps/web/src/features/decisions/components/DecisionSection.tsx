@@ -128,7 +128,7 @@ export function DecisionSection({
                 aria-label={`Question ${d.id}`}
                 title={d.id}
                 aria-current={active ? 'true' : undefined}
-                className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-[7px] border font-mono text-[10.5px] leading-none transition-colors hover:border-accent-line max-[879px]:min-h-11 max-[879px]:min-w-11 ${
+                className={`inline-flex h-[26px] w-[26px] items-center justify-center rounded-[7px] border font-mono text-[10.5px] leading-none transition-colors hover:border-accent-line max-[880px]:min-h-11 max-[880px]:min-w-11 ${
                   active ? 'border-accent-line font-bold' : 'border-line font-normal'
                 } ${answered ? 'bg-accent-soft text-accent-text' : 'bg-card text-faint'}`}
               >
@@ -157,7 +157,7 @@ export function DecisionSection({
           type="button"
           onClick={() => goQ(index - 1)}
           disabled={index === 0}
-          className="max-[879px]:min-h-11 rounded-[9px] border border-line bg-card px-4 py-[9px] text-[13.5px] font-semibold text-text disabled:bg-elev disabled:text-faint"
+          className="max-[880px]:min-h-11 rounded-[9px] border border-line bg-card px-4 py-[9px] text-[13.5px] font-semibold text-text disabled:bg-elev disabled:text-faint"
         >
           ‹ Previous
         </button>
@@ -165,7 +165,7 @@ export function DecisionSection({
           type="button"
           onClick={() => goQ(index + 1)}
           disabled={index === total - 1}
-          className="max-[879px]:min-h-11 rounded-[9px] border border-line bg-card px-4 py-[9px] text-[13.5px] font-semibold text-text disabled:bg-elev disabled:text-faint"
+          className="max-[880px]:min-h-11 rounded-[9px] border border-line bg-card px-4 py-[9px] text-[13.5px] font-semibold text-text disabled:bg-elev disabled:text-faint"
         >
           Next ›
         </button>
@@ -174,7 +174,7 @@ export function DecisionSection({
             type="button"
             onClick={handleReset}
             title="Clear all answers"
-            className="max-[879px]:min-h-11 rounded-[9px] border border-line bg-card px-3.5 py-[9px] text-[13px] font-semibold text-bad"
+            className="max-[880px]:min-h-11 rounded-[9px] border border-line bg-card px-3.5 py-[9px] text-[13px] font-semibold text-bad"
           >
             ↺ Reset
           </button>
@@ -184,7 +184,7 @@ export function DecisionSection({
             <button
               type="button"
               onClick={handleGenerate}
-              className="max-[879px]:min-h-11 rounded-[9px] bg-accent px-5 py-2.5 text-[14px] font-bold text-on-accent shadow-[var(--shadow-accent-glow)]"
+              className="max-[880px]:min-h-11 rounded-[9px] bg-accent px-5 py-2.5 text-[14px] font-bold text-on-accent shadow-[var(--shadow-accent-glow)]"
             >
               ✦ Generate prompt
             </button>

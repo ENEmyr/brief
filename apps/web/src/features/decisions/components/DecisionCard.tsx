@@ -46,7 +46,7 @@ export function DecisionCard({
             type="button"
             onClick={() => onPick(opt.id)}
             aria-pressed={picked}
-            className={`mb-[7px] flex w-full items-start gap-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors max-[879px]:min-h-11 ${
+            className={`mb-[7px] flex w-full items-start gap-[9px] border px-3 py-[9px] text-left text-[13.5px] transition-colors max-[880px]:min-h-11 ${
               decision.multi ? 'rounded-[7px]' : 'rounded-[9px]'
             } ${picked ? 'border-accent-line bg-accent-soft text-text' : 'border-line bg-card text-sub'}`}
           >
