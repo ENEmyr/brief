@@ -7,6 +7,8 @@ const mmId = (s: string) => s.replace(/\W/g, '_')
 /**
  * Sanitize interpolated text before it lands inside a mermaid statement.
  * Newlines always collapse to a space (mermaid statements are single-line).
+ * < and > become mermaid's own entity codes, so a renderer with htmlLabels
+ * draws them as text instead of parsing the label as HTML.
  * `extra` strips characters that would break the specific syntax the text
  * is being dropped into (pipe-delimited edge labels, quoted strings).
  */
@@ -20,7 +22,7 @@ function oneLine(s: string): string {
 }
 
 function mmText(s: string, extra?: MmTextOptions): string {
-  let out = oneLine(s)
+  let out = oneLine(s).replaceAll('<', '#lt;').replaceAll('>', '#gt;')
   if (extra?.pipe) out = out.replaceAll('|', '')
   if (extra?.quote) out = out.replaceAll('"', '')
   return out
@@ -49,7 +51,7 @@ function stateToMermaid(b: BlockOf<'state'>): string {
 function layersToMermaid(b: BlockOf<'layers'>): string {
   // Flowchart labels are always emitted in quoted form (id["label"]): inside
   // quotes, brackets, parens and pipes are all legal, so label text passes
-  // through verbatim. Inner double quotes are stripped by mmText.
+  // through as is, apart from what mmText strips or escapes.
   const lines = ['flowchart TD']
   for (const layer of b.layers) {
     lines.push(`  subgraph ${mmId(layer.id)}["${mmText(layer.label, { quote: true })}"]`)
@@ -105,13 +107,14 @@ function table(head: string[], rows: string[][], align?: Align[]): string {
 /**
  * Fence body content so a literal ``` inside it can't terminate the block
  * early. Uses one more backtick than the longest backtick run found in the
- * body (minimum 3), matching CommonMark's fenced-code-block rule.
+ * body (minimum 3), matching CommonMark's fenced-code-block rule. The info
+ * string must stay on the opening line and, after backticks, hold none.
  */
 function fence(lang: string, body: string): string {
   const runs = body.match(/`+/g) ?? []
   const longest = runs.reduce((max, run) => Math.max(max, run.length), 0)
   const ticks = '`'.repeat(Math.max(3, longest + 1))
-  return `${ticks}${lang}\n${body}\n${ticks}`
+  return `${ticks}${oneLine(lang).replaceAll('`', '')}\n${body}\n${ticks}`
 }
 
 function assertNever(x: never): never {
@@ -265,7 +268,7 @@ function flowchart(nodes: { id: string; label: string; kind?: FlowNodeKind }[], 
 function emitWalkthrough(b: BlockOf<'walkthrough'>): string {
   const head = [b.filename && `\`${oneLine(b.filename)}\``, b.title && oneLine(b.title)].filter(Boolean).join(' / ')
   const steps = b.steps.map((s, i) => `${i + 1}. ${lineRange(s.from, s.to)}: ${oneLine(s.title)} (flow: ${s.nodes.map(oneLine).join(', ')})`)
-  return `${head ? `${head}\n\n` : ''}${fence(oneLine(b.language), b.code)}\n\nWalkthrough:\n${steps.join('\n')}\n\n${fence('mermaid', flowchart(b.flow.nodes, b.flow.edges))}`
+  return `${head ? `${head}\n\n` : ''}${fence(b.language, b.code)}\n\nWalkthrough:\n${steps.join('\n')}\n\n${fence('mermaid', flowchart(b.flow.nodes, b.flow.edges))}`
 }
 
 function diffChangeLine(c: DiffChange): string {

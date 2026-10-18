@@ -541,3 +541,45 @@ describe('round 2 Console block types', () => {
       .toBe('**c ## injected**\n\n[Image `img_4f9Kq2xZ7bN1`: a ## injected]\n')
   })
 })
+
+describe('payload text cannot break out of /raw fences or mermaid labels', () => {
+  type AnyBlock = Payload['sections'][number]['blocks'][number]
+  const blockMd = (block: AnyBlock) =>
+    payloadToMarkdown({ meta: { title: 'X' }, sections: [{ id: 's1', no: 1, title: 'S', blocks: [block] }], decisions: [] }, { url: 'https://example.test' })
+      .split('## 1. S\n\n')[1] ?? ''
+  const XSS = '<img src=x onerror=alert(1)>'
+  const ESCAPED = '#lt;img src=x onerror=alert(1)#gt;'
+
+  // d051: a newline or a backtick in the info string ends the opening fence
+  // line (or stops it being a fence), so the code body would render as markup.
+  it('keeps a code language on the opening fence line', () => {
+    expect(blockMd({ type: 'code', language: 'ts\n# injected', code: 'a' })).toBe('```ts # injected\na\n```\n')
+    expect(blockMd({ type: 'code', language: 'ts`x', code: 'a' })).toBe('```tsx\na\n```\n')
+  })
+
+  it('keeps a ba language on both opening fence lines', () => {
+    const md = blockMd({ type: 'ba', language: 'ts\n# injected', before: 'a', after: 'b' })
+    expect(md).toContain('```ts # injected\na\n```')
+    expect(md).toContain('```ts # injected\nb\n```')
+    expect(md).not.toMatch(/^# injected/m)
+  })
+
+  // d052: a downstream mermaid renderer with htmlLabels would parse < and > in a
+  // label as HTML, so labels carry mermaid's own entity codes instead.
+  it('escapes angle brackets in every mermaid label', () => {
+    const flow = { nodes: [{ id: 'a', label: XSS }], edges: [{ from: 'a', to: 'a', label: XSS }] }
+    const mds = [
+      blockMd({ type: 'layers', layers: [{ id: 'l', label: XSS, nodes: [{ id: 'n', label: XSS }], edges: [{ from: 'n', to: 'n', label: XSS }] }] }),
+      blockMd({ type: 'walkthrough', language: 'ts', code: 'a', flow, steps: [{ from: 1, title: 't', nodes: ['a'] }] }),
+      blockMd({ type: 'diff', files: [{ path: 'a.ts', status: 'added' }], map: flow }),
+      blockMd({ type: 'seq', actors: [XSS, 'b'], steps: [{ from: XSS, to: 'b', label: XSS, note: XSS }] }),
+      blockMd({ type: 'state', initial: 'a', states: [{ id: 'a', label: XSS }], transitions: [{ from: 'a', to: 'a', label: XSS }] }),
+      blockMd({ type: 'erd', tables: [{ name: 't', columns: [{ name: 'id', type: 'int', pk: true }] }, { name: 'u', columns: [{ name: XSS, type: 'int', fk: { table: 't', column: 'id' } }] }] }),
+    ]
+    for (const md of mds) {
+      const mermaid = md.slice(md.indexOf('```mermaid'))
+      expect(mermaid).toContain(ESCAPED)
+      expect(mermaid).not.toContain('<img')
+    }
+  })
+})
