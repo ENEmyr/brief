@@ -70,6 +70,7 @@ test.beforeAll(async () => {
   fs.mkdirSync(GENERATED_DIR, { recursive: true })
   writeLandingBoards()
   writeBlocksBoard()
+  writeReaderBoard()
   boards = await serveBoards()
 })
 
@@ -186,6 +187,27 @@ function writeBlocksBoard(): void {
   // (B-Blocks:169). The box is masked on both sides; only its height counts.
   html = patch(html, 'font-size: 20px">tokens(t)', 'font-size: 20px; line-height: 25px">tokens(t)', 'R-V3 KaTeX line')
   fs.writeFileSync(path.join(GENERATED_DIR, 'B-Blocks.dc.html'), html)
+}
+
+/**
+ * Writes B-Reader.dc.html into GENERATED_DIR. C10 (vt-b triage, owner D3:
+ * missing fields are [P] work): the payload has no seq emphasis field, so the
+ * app draws the Limiter node and the "4 forward" arrow like every other node
+ * and arrow. The board's accent on both is dropped and recorded in
+ * fixtures/brief-sample.gaps.json (section 02 seq block).
+ */
+function writeReaderBoard(): void {
+  let html = fs.readFileSync(path.join(BOARDS_DIR, 'B-Reader.dc.html'), 'utf8')
+  html = patch(
+    html,
+    'background: #1E2612; border: 1px solid #C5F05A; border-radius: 4px; font-family: \'Geist\', sans-serif; font-size: 13px; font-weight: 500">Limiter<',
+    'background: #171B1F; border: 1px solid #313940; border-radius: 4px; font-family: \'Geist\', sans-serif; font-size: 13px; font-weight: 500">Limiter<',
+    'C10 Limiter emphasis',
+  )
+  const arrow = /<svg[^>]*left: 240px; top: 248px[^>]*>[\s\S]*?<\/svg>/.exec(html)?.[0] ?? ''
+  html = patch(html, arrow, arrow.replaceAll('#C5F05A', '#A1AAB2'), 'C10 forward arrow')
+  html = patch(html, 'color: #C5F05A">4 forward<', 'color: #A1AAB2">4 forward<', 'C10 forward label')
+  fs.writeFileSync(path.join(GENERATED_DIR, 'B-Reader.dc.html'), html)
 }
 
 test('every row B board in full', async ({ browser }) => {
