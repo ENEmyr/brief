@@ -96,6 +96,18 @@ describe('POST /api/image', () => {
     expect(((await res.json()) as { contentType: string }).contentType).toBe(expected)
   })
 
+  // Camera files carry data after the end marker (MPF, maker notes, motion photos).
+  it.each([
+    ['image/png', PNG],
+    ['image/jpeg', JPEG],
+    ['image/gif', GIF89],
+    ['image/webp', WEBP],
+  ])('accepts %s with 64 bytes after its end marker', async (expected, image) => {
+    const res = await upload(concat(image, new Uint8Array(64).fill(0x5a)), 'text/plain')
+    expect(res.status).toBe(201)
+    expect(((await res.json()) as { contentType: string }).contentType).toBe(expected)
+  })
+
   it.each([
     ['an SVG', bytesOf('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'), 'image/svg+xml'],
     ['a text file renamed to .png', bytesOf('not really a png at all'), 'image/png'],
@@ -109,7 +121,7 @@ describe('POST /api/image', () => {
     ['a bare GIF header', bytesOf('GIF89a\x01\x00\x01\x00'), 'image/gif'],
     ['a GIF header and trailer with no image', concat(GIF87.slice(0, 19), Uint8Array.from([0x3b])), 'image/gif'],
     ['a header-only WebP', bytesOf('RIFF\x24\x00\x00\x00WEBPVP8 '), 'image/webp'],
-    ['a WebP whose RIFF size does not match the file', WEBP.slice(0, -2), 'image/webp'],
+    ['a WebP whose RIFF size is larger than the file', WEBP.slice(0, -2), 'image/webp'],
   ])('rejects %s with a fixed 415 message', async (_name, body, contentType) => {
     const res = await upload(body, contentType)
     expect(res.status).toBe(415)
