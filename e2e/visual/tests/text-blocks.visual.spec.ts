@@ -204,7 +204,8 @@ for (const [label, viewport] of [
         ['2.4 s', c.bad],
         ['0.2%', c.good],
       ] as const) {
-        const el = grid.getByText(value, { exact: true })
+        // The count-up copy reads the final value in its last frames; the board compares the value itself.
+        const el = grid.getByText(value, { exact: true }).and(grid.locator(':not([data-count-up])'))
         await expect(el).toBeVisible()
         await expectComputed(el, {
           'font-size': '28px',
