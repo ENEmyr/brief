@@ -114,6 +114,18 @@ describe('useShortcuts', () => {
     expect(palette).toHaveBeenCalledTimes(1)
   })
 
+  it('Ctrl K opens the palette while a closing (inert) modal is still fading out', () => {
+    const { palette } = bindAll()
+    render(
+      <div inert>
+        <div aria-modal="true" />
+      </div>,
+    )
+
+    expect(press({ key: 'k', ctrlKey: true })).toBe(true)
+    expect(palette).toHaveBeenCalledTimes(1)
+  })
+
   it('? shows the shortcut sheet', () => {
     const { help } = bindAll()
 
