@@ -447,6 +447,21 @@ describe('purgeExpired with images', () => {
     expect(listed.objects).toEqual([])
   })
 
+  it('deletes an R2 object with no row once it is older than the orphan window, and keeps rowed objects', async () => {
+    const live = await uploadId()
+    await createSession([live])
+    // What a worker that died between the DELETE route's row delete and its restore leaves behind.
+    await appEnv.IMAGES.put('images/img_stray00000000001', Uint8Array.from([7, 7, 7]))
+
+    expect(await purgeExpired(appEnv, Date.now())).toEqual({ sessions: 0, images: 0 })
+    expect(await appEnv.IMAGES.head('images/img_stray00000000001')).not.toBeNull()
+
+    expect(await purgeExpired(appEnv, Date.now() + 61 * 60 * 1000)).toEqual({ sessions: 0, images: 1 })
+    expect(await appEnv.IMAGES.head('images/img_stray00000000001')).toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${live}`)).not.toBeNull()
+    expect(await imageRow(live)).not.toBeNull()
+  })
+
   it('deletes a plaintext copy still linked to an encrypted session and keeps the encrypted copy', async () => {
     const plain = await uploadId()
     const sessionId = await createSession([plain])
@@ -517,6 +532,20 @@ describe('DELETE /api/session/:id/image/:imageId', () => {
     expect(res.status).toBe(404)
     expect(await res.json()).toEqual(notFound)
     expect(await imageRow(imageId)).not.toBeNull()
+  })
+
+  it('puts the row back and keeps the object when the R2 delete throws', async () => {
+    const sessionId = await createSession([])
+    const imageId = await encryptedCopy(sessionId)
+    const row = await imageRow(imageId)
+    const broken = { delete: async () => Promise.reject(new Error('r2 down')) }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await unlink(sessionId, imageId, { IMAGES: broken as unknown as R2Bucket })
+    vi.restoreAllMocks()
+    expect(res.status).toBe(500)
+    expect(await imageRow(imageId)).toEqual(row)
+    expect(await appEnv.IMAGES.head(`images/${imageId}`)).not.toBeNull()
+    expect(await encryptedCount(sessionId)).toBe(1)
   })
 
   it('404s an unknown id and an id outside the pattern', async () => {

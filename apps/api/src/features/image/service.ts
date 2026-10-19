@@ -11,7 +11,8 @@ const newImageId = (): string => `img_${customAlphabet(alphabet, 16)()}`
 // D1 caps bound parameters per statement at 100; R2 delete takes up to 1000 keys.
 const CHUNK = 90
 
-export const imageKey = (id: string): string => `images/${id}`
+const KEY_PREFIX = 'images/'
+export const imageKey = (id: string): string => `${KEY_PREFIX}${id}`
 
 type ImageEnv = { DB: D1Database; IMAGES: R2Bucket }
 
@@ -180,7 +181,8 @@ export async function getServableImage(env: ImageEnv, id: string, now: number): 
 // Images whose session expired or is already gone (getSession and saveSession delete expired
 // rows lazily), orphans never linked inside the window, and plaintext copies a failed
 // deletePlainImages left on an encrypted session. Objects go before rows so a failed R2 call
-// leaves the rows for the next run to retry.
+// leaves the rows for the next run to retry. Then objects with no row at all, which a worker
+// that died between deleteEncryptedImage's row delete and its restore leaves behind.
 export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
   let purged = 0
   for (;;) {
@@ -192,10 +194,29 @@ export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
     )
       .bind(now - ORPHAN_WINDOW_MS, now)
       .all<{ id: string }>()
-    if (results.length === 0) return purged
+    if (results.length === 0) break
     const ids = results.map((r) => r.id)
     await env.IMAGES.delete(ids.map(imageKey))
     await db(env.DB).delete(images).where(inArray(images.id, ids))
     purged += ids.length
   }
+  // shortcut: lists every object on each run; keep a stray-key log instead if the bucket grows
+  // past a few thousand objects.
+  let cursor: string | undefined
+  do {
+    const page = await env.IMAGES.list({ prefix: KEY_PREFIX, cursor })
+    const old = page.objects
+      .filter((object) => object.uploaded.getTime() <= now - ORPHAN_WINDOW_MS)
+      .map((object) => object.key.slice(KEY_PREFIX.length))
+    for (let i = 0; i < old.length; i += CHUNK) {
+      const ids = old.slice(i, i + CHUNK)
+      const rows = await db(env.DB).select({ id: images.id }).from(images).where(inArray(images.id, ids)).all()
+      const rowed = new Set(rows.map((r) => r.id))
+      const stray = ids.filter((id) => !rowed.has(id))
+      if (stray.length > 0) await env.IMAGES.delete(stray.map(imageKey))
+      purged += stray.length
+    }
+    cursor = page.truncated ? page.cursor : undefined
+  } while (cursor)
+  return purged
 }
