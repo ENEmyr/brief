@@ -28,12 +28,25 @@ const validEnvelope = {
   expiresAt: 2,
 }
 
-afterEach(() => {
+// PBKDF2 at the real 600,000 iterations takes seconds on a loaded machine, past
+// waitFor's 1 s default. These tests cover the unlock flow, crypto.test.ts covers
+// the real count, and encrypt and decrypt both derive through this spy.
+beforeEach(() => {
+  const deriveKey = crypto.subtle.deriveKey.bind(crypto.subtle)
+  vi.spyOn(crypto.subtle, 'deriveKey').mockImplementation((algorithm, ...rest) =>
+    deriveKey({ ...(algorithm as Pbkdf2Params), iterations: 1_000 }, ...rest),
+  )
+})
+
+afterEach(async () => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   // Reader state is keyed by session id and these tests share one, so a test
   // that seeds or writes an entry must not leak it into the next. Doing this
   // in afterEach rather than at the end of a test body means a failing test
-  // cleans up too.
+  // cleans up too. A click at the end of a test schedules a 0 ms persist
+  // write, so let it land first, or it writes the entry back after the clear.
+  await new Promise((resolve) => setTimeout(resolve, 0))
   window.localStorage.clear()
 })
 
@@ -421,6 +434,10 @@ describe('decision dock in the reader', () => {
     stubApi()
     const view = render(<SessionPage />)
     await waitFor(() => expect(screen.getByRole('group', { name: 'Question d1' })).toBeInTheDocument())
+    // The reader binds its keys in a mount effect, which React can flush after the
+    // dock is on screen; a key pressed before that is lost. The state GET starts in
+    // a mount effect of the same commit, so once it is sent the keys are bound.
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/\/state$/)))
     return view
   }
 
