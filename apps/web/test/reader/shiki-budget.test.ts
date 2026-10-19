@@ -55,10 +55,18 @@ describe('highlightToHast on pathological input', () => {
   })
 
   it('yields between lines on a block of many long lines under the line cap', async () => {
-    await highlightToHast('[x]', 'markdown')
-    // About 1 s of tokenizing in one pass on a fast machine.
-    const code = Array.from({ length: 60 }, () => '['.repeat(1999)).join('\n')
-    const freeze = await longestFreezeMs(() => highlightToHast(code, 'markdown'))
+    await highlightToHast('echo x', 'bash')
+    // About 0.6 s of tokenizing in one pass on a fast machine.
+    const code = Array.from({ length: 16 }, () => '-'.repeat(999)).join('\n')
+    const freeze = await longestFreezeMs(() => highlightToHast(code, 'bash'))
+    expect(freeze).toBeLessThan(LIMIT_MS)
+  })
+
+  it('highlights 6 bash lines of 1,999 - without freezing', async () => {
+    await highlightToHast('echo x', 'bash')
+    // About 140 ms per line in one pass on a fast machine.
+    const code = Array.from({ length: 6 }, () => '-'.repeat(1999)).join('\n')
+    const freeze = await longestFreezeMs(() => highlightToHast(code, 'bash'))
     expect(freeze).toBeLessThan(LIMIT_MS)
   })
 })

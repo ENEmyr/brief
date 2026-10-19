@@ -44,13 +44,14 @@ async function resolveLanguage(highlighter: Highlighter, lang: string): Promise<
 // Highlighting runs on the main thread, and the payload size cap (MAX_PAYLOAD_BYTES, about
 // 1.9 MB) allows code that takes many seconds to tokenize. Two bounds keep each synchronous
 // stretch short. A line longer than MAX_LINE_LENGTH renders as one plain span: some grammars
-// are superlinear in line length (20,000 "[" as markdown takes over 1 s), and a cap by length
-// stays the same on every device, unlike a time limit. Under the cap, the code is tokenized in
-// chunks of about CHUNK_CHARS characters, with a yield to the event loop between chunks. Each
-// chunk starts from the grammar state the previous one ended in, so the tree is the same as
-// one pass. The total work still grows with the code size.
-const MAX_LINE_LENGTH = 2000
-const CHUNK_CHARS = 4000
+// are superlinear in line length (20,000 "[" as markdown takes over 1 s, 1,999 "-" as bash
+// about 140 ms), and a cap by length stays the same on every device, unlike a time limit.
+// Under the cap, the code is tokenized in chunks of at most about CHUNK_CHARS characters, with
+// a yield to the event loop between chunks, so the worst chunk measured (999 "-" as bash) takes
+// 40 to 60 ms. Each chunk starts from the grammar state the previous one ended in, so the tree
+// is the same as one pass. The total work still grows with the code size.
+const MAX_LINE_LENGTH = 1000
+const CHUNK_CHARS = 1000
 
 async function renderInChunks(highlighter: Highlighter, code: string, lang: string): Promise<Root> {
   const lines = code.split(/\r?\n/)
