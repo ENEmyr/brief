@@ -32,20 +32,20 @@ const STEP_NUMBER = new Intl.NumberFormat('en', { minimumIntegerDigits: 2 })
 
 /**
  * B-NewBlocks:93, :96, :109-113: a toned branch draws its edge and label in the
- * tone. The current toned step borders in the strong tone over its soft fill
- * (:289); otherwise it borders in the line tone, as a toned state does
- * (B-Blocks2:37). A toned end stadium fills with the tone instead of good (:115).
+ * tone. A toned step borders in the strong tone over its soft fill only while
+ * current, and draws plain otherwise (:289). A toned end stadium fills with the
+ * tone instead of good (:115).
  */
-const TONE_CLASS: Record<Tone, { label: string; end: string; step: string; current: string }> = {
-  info: { label: 'text-info', end: 'bg-info', step: 'border-info-line bg-info-soft', current: 'border-info bg-info-soft' },
-  good: { label: 'text-good', end: 'bg-good', step: 'border-good-line bg-good-soft', current: 'border-good bg-good-soft' },
-  warn: { label: 'text-warn', end: 'bg-warn', step: 'border-warn-line bg-warn-soft', current: 'border-warn bg-warn-soft' },
-  bad: { label: 'text-bad', end: 'bg-bad', step: 'border-bad-line bg-bad-soft', current: 'border-bad bg-bad-soft' },
+const TONE_CLASS: Record<Tone, { label: string; end: string; current: string }> = {
+  info: { label: 'text-info', end: 'bg-info', current: 'border-info bg-info-soft' },
+  good: { label: 'text-good', end: 'bg-good', current: 'border-good bg-good-soft' },
+  warn: { label: 'text-warn', end: 'bg-warn', current: 'border-warn bg-warn-soft' },
+  bad: { label: 'text-bad', end: 'bg-bad', current: 'border-bad bg-bad-soft' },
 }
 
 function stepFrame(tone: Tone | undefined, current: boolean): string {
-  if (tone) return current ? TONE_CLASS[tone].current : TONE_CLASS[tone].step
-  return current ? 'border-accent-line bg-accent-soft' : 'border-line2 bg-elev'
+  if (!current) return 'border-line2 bg-elev'
+  return tone ? TONE_CLASS[tone].current : 'border-accent-line bg-accent-soft'
 }
 
 function nodeClass(box: FlowBox, current: boolean): string {

@@ -217,7 +217,7 @@ describe('Walkthrough', () => {
     expect(screen.getByText('yes').className).toContain('text-faint')
     expect(node('deny').split(' ')).toContain('bg-bad')
     expect(node('fwd').split(' ')).toContain('bg-good')
-    expect(node('key')).toContain('border-bad-line bg-bad-soft')
+    expect(node('key')).toContain('border-line2 bg-elev')
   })
 
   it('renders an injected label as text', () => {
