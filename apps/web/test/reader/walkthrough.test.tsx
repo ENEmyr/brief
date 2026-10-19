@@ -194,14 +194,40 @@ describe('Walkthrough', () => {
     expect(container.querySelectorAll('[data-hl][data-path^="code."]')).toHaveLength(6)
   })
 
+  it('draws a toned edge, its label and a toned node in the tone, and an untoned edge faint as before', () => {
+    const toned: WalkthroughBlock = {
+      ...LIMITER,
+      flow: {
+        nodes: LIMITER.flow.nodes.map((n) =>
+          n.id === 'deny' ? { ...n, tone: 'bad' } : n.id === 'key' ? { ...n, tone: 'bad' } : n,
+        ),
+        edges: LIMITER.flow.edges.map((e) => (e.label === 'no' ? { ...e, tone: 'bad' } : e)),
+      },
+    }
+    const { container } = renderBlock(toned)
+    const node = (id: string) => container.querySelector(`[data-node="${id}"]`)!.className
+    expect(node('key')).toContain('border-bad bg-bad-soft')
+    expect(node('req')).toContain('bg-text')
+    fireEvent.click(screen.getByRole('button', { name: '04 Passed, forward to origin' }))
+    const edges = [...container.querySelectorAll('[data-edge]')].map((e) => e.getAttribute('class'))
+    expect(edges[0]).toContain('stroke-faint fill-faint')
+    expect(edges[2]).toContain('stroke-bad fill-bad')
+    expect(edges[3]).toContain('stroke-faint fill-faint')
+    expect(screen.getByText('no').className).toContain('text-bad')
+    expect(screen.getByText('yes').className).toContain('text-faint')
+    expect(node('deny').split(' ')).toContain('bg-bad')
+    expect(node('fwd').split(' ')).toContain('bg-good')
+    expect(node('key')).toContain('border-line2 bg-elev')
+  })
+
   it('renders an injected label as text', () => {
     const xss = '<img src=x onerror="window.__xss=1">'
     const { container } = renderBlock({
       ...LIMITER,
       title: xss,
       flow: {
-        nodes: LIMITER.flow.nodes.map((n) => (n.id === 'req' ? { ...n, label: xss } : n)),
-        edges: [{ from: 'req', to: 'key', label: xss }],
+        nodes: LIMITER.flow.nodes.map((n) => (n.id === 'key' ? { ...n, label: xss, tone: 'bad' } : n)),
+        edges: [{ from: 'req', to: 'key', label: xss, tone: 'bad' }],
       },
       steps: [{ from: 1, title: xss, nodes: ['req', 'key'] }],
     })

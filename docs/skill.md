@@ -52,7 +52,7 @@ The payload supports 27 block types. All of them are defined in `packages/schema
 | `histogram` | A bar chart of labeled bins and counts, with an optional threshold line at a bin. |
 | `scatter` | A scatter plot with one or more labeled point series. |
 | `plot3d` | A 3D scatter or surface plot. |
-| `walkthrough` | A code listing beside a flowchart; each step claims code lines and lights up the flow nodes they run. |
+| `walkthrough` | A code listing beside a flowchart; each step claims code lines and lights up the flow nodes they run. A `tone` on a node or edge colors a good or bad branch. |
 | `diff` | A change set by file, with a note per changed symbol, an optional raw patch, and an optional change map. |
 | `trajectory` | The agent's run as a timed log of steps by kind (request, read, run, edit, decision, assumption, note), with flagged steps the reader can mark. |
 
