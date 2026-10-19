@@ -52,7 +52,7 @@ export default defineConfig({
     { name: 'light', use: { colorScheme: 'light' } },
   ],
   webServer: {
-    command: `bunx wrangler pages dev out --port ${ports.visualWeb} --inspector-port ${ports.visualInspector} --compatibility-date=2026-06-05`,
+    command: `bun ../../e2e/static-server.ts out ${ports.visualWeb}`,
     cwd: '../../apps/web',
     url: VISUAL_WEB_URL,
     reuseExistingServer: !process.env.CI && process.env.E2E_REUSE_SERVER === '1',
