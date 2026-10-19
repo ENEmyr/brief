@@ -19,7 +19,13 @@
     "typescript": "^5.8.0"
   },
   "overrides": {
+    "esbuild": "^0.28.2",
     "handlebars": "^4.7.10",
-    "tinypool": "^2.1.2"
+    "katex": "^0.18.11",
+    "postcss": "^8.5.31",
+    "sharp": "^0.35.4",
+    "tinypool": "^2.1.2",
+    "undici": "^7.29.0",
+    "ws": "^8.20.1"
   }
 }
