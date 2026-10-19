@@ -483,6 +483,34 @@ describe('purgeExpired with images', () => {
     expect(JSON.parse(lines[0]!)).toEqual({ event: 'stray_image_sweep_error', error: 'TypeError', at: expect.any(String) })
   })
 
+  it('deletes 1000 expired images in batched R2 calls, so one cron run stays far under the subrequest limit', async () => {
+    const now = Date.now()
+    const ids = Array.from({ length: 1000 }, (_, i) => `img_batch${String(i).padStart(4, '0')}`)
+    for (const id of ids) await appEnv.IMAGES.put(`images/${id}`, PNG)
+    await appEnv.DB.batch(
+      ids.map((id) =>
+        appEnv.DB.prepare(
+          'INSERT INTO images (id, session_id, content_type, encrypted, byte_size, created_at) VALUES (?, NULL, ?, 0, ?, ?)',
+        ).bind(id, 'image/png', PNG.byteLength, now - 61 * 60 * 1000),
+      ),
+    )
+    let deleteCalls = 0
+    const counted = {
+      delete: (keys: string | string[]) => {
+        deleteCalls++
+        return appEnv.IMAGES.delete(keys)
+      },
+      list: (options: R2ListOptions) => appEnv.IMAGES.list(options),
+    }
+
+    const purged = await purgeExpired({ ...appEnv, IMAGES: counted as unknown as R2Bucket }, now)
+
+    expect(purged.images).toBe(1000)
+    expect(deleteCalls).toBeLessThanOrEqual(12)
+    expect(await appEnv.DB.prepare('SELECT COUNT(*) AS n FROM images').first<{ n: number }>()).toEqual({ n: 0 })
+    expect((await appEnv.IMAGES.list({ prefix: 'images/img_batch' })).objects).toEqual([])
+  })
+
   it('keeps purging when one R2 object delete throws, and keeps that row for the next run', async () => {
     const failed = await uploadId()
     const others = [await uploadId(), await uploadId()]

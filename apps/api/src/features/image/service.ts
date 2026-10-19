@@ -199,15 +199,22 @@ export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
       .all<{ id: string }>()
     if (results.length === 0) break
     after = results.at(-1)!.id
-    const deleted: string[] = []
-    for (const { id } of results) {
-      try {
-        await env.IMAGES.delete(imageKey(id))
-        deleted.push(id)
-      } catch (error) {
-        console.error(
-          JSON.stringify({ event: 'image_purge_delete_error', error: error instanceof Error ? error.name : 'unknown', at: new Date(now).toISOString() }),
-        )
+    const ids = results.map((r) => r.id)
+    let deleted = ids
+    try {
+      await env.IMAGES.delete(ids.map(imageKey))
+    } catch {
+      // One call per key only after the batch failed: a Worker run has a subrequest cap.
+      deleted = []
+      for (const id of ids) {
+        try {
+          await env.IMAGES.delete(imageKey(id))
+          deleted.push(id)
+        } catch (error) {
+          console.error(
+            JSON.stringify({ event: 'image_purge_delete_error', error: error instanceof Error ? error.name : 'unknown', at: new Date(now).toISOString() }),
+          )
+        }
       }
     }
     if (deleted.length > 0) await db(env.DB).delete(images).where(inArray(images.id, deleted))
