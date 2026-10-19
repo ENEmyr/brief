@@ -653,7 +653,7 @@ body {
   /* B-Print:53, 82: a figure and a list print bare, the caption below in 12/18
      sub. A block with no caption prints no header row at all. */
   figure:has(> [data-image-body]),
-  figure:has(> :is(ul, ol):not([data-print-notes])) {
+  figure:has(> :is(ul, ol)) {
     display: flex;
     flex-direction: column-reverse;
     border: 0;
@@ -661,11 +661,11 @@ body {
     background: none;
   }
   figure:has(> [data-image-body]) > div:first-child:has(> span:nth-child(2):empty),
-  figure:has(> :is(ul, ol):not([data-print-notes])) > div:first-child:has(> span:nth-child(2):empty) {
+  figure:has(> :is(ul, ol)) > div:first-child:has(> span:nth-child(2):empty) {
     display: none;
   }
   figure:has(> [data-image-body]) > div:first-child,
-  figure:has(> :is(ul, ol):not([data-print-notes])) > div:first-child {
+  figure:has(> :is(ul, ol)) > div:first-child {
     margin: 6px 0 18px;
     padding: 0;
     border: 0;
@@ -675,7 +675,7 @@ body {
     color: var(--c-sub);
   }
   figure:has(> [data-image-body]) [data-kind-tag],
-  figure:has(> :is(ul, ol):not([data-print-notes])) [data-kind-tag] {
+  figure:has(> :is(ul, ol)) [data-kind-tag] {
     display: none;
   }
   figure:has(> [data-image-body]) > [data-image-body] {
@@ -686,7 +686,7 @@ body {
     font-size: 14px;
     line-height: 22px;
   }
-  figure:has(> ol:not([data-print-notes])) > ol:not([data-print-notes]) {
+  figure:has(> ol) > ol {
     padding-top: 0;
     padding-bottom: 0;
     font-size: 14px;
@@ -752,8 +752,11 @@ body {
     font-size: 11px;
     font-weight: 700;
   }
-  /* B-Print:64: the list sits 8px under the card's rule, flush with its left edge. */
+  /* B-Print:64: the list sits 8px under the card's rule, flush with its left edge.
+     break-before keeps it on the page where its card ends; the card is
+     break-inside: avoid, so a break here would strand the list alone. */
   [data-print-notes] {
+    break-before: avoid;
     margin: 8px 0 4px;
     padding: 0;
     font-family: var(--font-sans);
