@@ -59,7 +59,7 @@ const LABELLED_ROW_GAP = 64
 const COL_PITCH = 300
 const NODE_PAD = 8
 const NODE_LINE = 18
-const PAD = 24
+const PAD_Y = 24
 /** B-NewBlocks:101, :112: the main column starts at left 60; the canvas ends 10 past the side node (540 wide). */
 const PAD_LEFT = 60
 const PAD_RIGHT = 10
@@ -173,7 +173,7 @@ function layoutFlow(block: WalkthroughBlock) {
     edges.filter((e) => e.label !== undefined && cells.get(e.from)!.row !== cells.get(e.to)!.row).map((e) => cells.get(e.to)!.row),
   )
   const rowTop: number[] = []
-  let y = PAD
+  let y = PAD_Y
   for (let r = 0; r < rowCount; r += 1) {
     if (r > 0) y += labelled.has(r) ? LABELLED_ROW_GAP : ROW_GAP
     rowTop.push(y)
@@ -232,7 +232,7 @@ function layoutFlow(block: WalkthroughBlock) {
     return { from: e.from, to: e.to, label: e.label, points, labelAt }
   })
 
-  return { boxes, edges: flowEdges, width: maxX + PAD_RIGHT, height: y + PAD }
+  return { boxes, edges: flowEdges, width: maxX + PAD_RIGHT, height: y + PAD_Y }
 }
 
 /**

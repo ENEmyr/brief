@@ -20,8 +20,8 @@ export function readColorTokens<const N extends string>(theme: Theme, names: rea
 
 /**
  * The font-family list for text drawn outside CSS (canvas, mermaid). It
- * mirrors --font-sans / --font-mono in globals.css, resolved from the next/font
- * variables on <html>, because a canvas font string cannot hold var().
+ * mirrors --font-sans / --font-mono in globals.css, resolved from the font
+ * variables on :root (app/fonts.css), because a canvas font string cannot hold var().
  */
 export function readFontStack(kind: 'sans' | 'mono'): string {
   const root = getComputedStyle(document.documentElement)

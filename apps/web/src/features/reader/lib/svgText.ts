@@ -9,9 +9,9 @@
  */
 
 /**
- * `--font-geist-mono` and `--font-noto-thai` are the next/font variables defined
- * on <html> (see app/layout.tsx); the literal families are the fallback for any
- * context that renders this markup without those variables.
+ * `--font-geist-mono` and `--font-noto-thai` are the :root variables defined in
+ * app/fonts.css; the literal families are the fallback for any context that
+ * renders this markup without those variables.
  */
 export const DIAGRAM_FONT_STACK =
   "var(--font-geist-mono, 'Geist Mono'), var(--font-noto-thai, 'Noto Sans Thai'), ui-monospace, monospace"

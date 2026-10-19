@@ -18,8 +18,8 @@ export const APP_FONTS: FontSet = BOARD_FONTS
 /**
  * Waits for the fonts, then throws unless every needed family has a loaded face
  * and none of its faces failed. document.fonts.ready also resolves when a font
- * failed, so the faces are inspected. Other families are ignored: next/font's
- * `<family> Fallback` faces point at local fonts this machine may not have.
+ * failed, so the faces are inspected. Other families are ignored: the
+ * `<family> Fallback` faces in fonts.css point at local fonts this machine may not have.
  */
 export async function assertFontsLoaded(page: Page, fonts: FontSet, label: string): Promise<void> {
   const { faces, thaiNeeded } = await page.evaluate(async (thai) => {
