@@ -101,7 +101,7 @@ Errors:
 
 Returns the session as clean, self-describing Markdown (`text/markdown; charset=utf-8`), intended for agents that want to re-read a document without scraping HTML. This also bumps the sliding expiry.
 
-Known limit: a `mermaid` block's `code` is copied into the Markdown verbatim. The Brief reader renders it as text, but a downstream renderer that has HTML labels turned on could render raw HTML from a label. Render untrusted `/raw` output with HTML labels off. The server does escape `<` and `>` in the labels of the diagrams it builds from other blocks (`seq`, `state`, `layers`).
+Known limit: a `mermaid` block's `code` is copied into the Markdown verbatim. The Brief reader renders it as text, but a downstream renderer that has HTML labels turned on could render raw HTML from a label. Render untrusted `/raw` output with HTML labels off. The server does escape `<` and `>` in the labels of the diagrams it builds from other blocks: `seq`, `state`, `layers`, `erd`, the `walkthrough` flowchart and the `diff` change map.
 
 Errors:
 
