@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within, renderHook, act, fireEvent } from '@testing-library/react'
-import { ViewerOverlay, useViewer } from '@/features/diagram-viewer'
+import { DiagramViewerProvider, ViewerOverlay, useDiagramViewer, useViewer } from '@/features/diagram-viewer'
+import { endAnimation } from '../shared/endAnimation'
 
 // jsdom has no PointerEvent constructor, so testing-library's
 // fireEvent.pointerDown/Move/Cancel falls back to a plain Event and silently
@@ -349,5 +350,31 @@ describe('ViewerOverlay', () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
     })
     expect(buttons[0]).toHaveFocus()
+  })
+})
+
+describe('DiagramViewerProvider exit', () => {
+  function Opener() {
+    const { open } = useDiagramViewer()
+    return <button onClick={() => open('k', DIAGRAM)}>expand</button>
+  }
+
+  it('fades the viewer out inert, then unmounts it and hands focus back to the expand button', () => {
+    render(
+      <DiagramViewerProvider>
+        <Opener />
+      </DiagramViewerProvider>,
+    )
+    const expand = screen.getByRole('button', { name: 'expand' })
+    expand.focus()
+    fireEvent.click(expand)
+    const viewer = screen.getByRole('dialog', { name: 'Diagram viewer' })
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(viewer.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+
+    endAnimation(viewer)
+    expect(screen.queryByRole('dialog', { name: 'Diagram viewer' })).toBeNull()
+    expect(expand).toHaveFocus()
   })
 })

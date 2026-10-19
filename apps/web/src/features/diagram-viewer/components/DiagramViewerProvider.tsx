@@ -2,6 +2,7 @@
 import { createContext, useContext, useMemo } from 'react'
 import { useViewer, type ViewerExtras } from '../hooks/useViewer'
 import { ViewerOverlay } from './ViewerOverlay'
+import { OverlayExit } from '@/shared/OverlayExit'
 
 export interface DiagramViewerContextValue {
   /** Key of the block currently expanded, or null. */
@@ -40,12 +41,9 @@ export function DiagramViewerProvider({ children }: { children: React.ReactNode 
   return (
     <DiagramViewerContext.Provider value={value}>
       {children}
-      <ViewerOverlay
-        content={content?.node ?? null}
-        heading={content?.heading}
-        steps={content?.steps}
-        onClose={close}
-      />
+      <OverlayExit open={content !== null}>
+        {content && <ViewerOverlay content={content.node} heading={content.heading} steps={content.steps} onClose={close} />}
+      </OverlayExit>
     </DiagramViewerContext.Provider>
   )
 }
