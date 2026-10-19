@@ -1,6 +1,7 @@
 import type { Element, ElementContent, Root } from 'hast'
 import { DEFAULT_HIGHLIGHT_PATH } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
+import { markStacks } from '@/features/annotations'
 
 /**
  * Shiki's `codeToHast` output is `<pre><code>` with exactly one
@@ -147,17 +148,17 @@ function styledNode(text: string, style: CharStyle): ElementContent {
 /** Same highlight/mark/note/ask styling as HighlightedText, ported to hast
  * nodes instead of a JSX fragment (a line is coloured token spans, not one
  * plain string, so HighlightedText's own string-slicing can't be reused
- * as-is). `data-highlight-id` is read back by CodePre's click handler, since
+ * as-is). `data-mark-id` is read back by CodePre's click handler, since
  * a hast node can't carry a function onClick the way HighlightedText's
  * `<mark>` does. */
-function markNode(h: Highlight, children: ElementContent[]): ElementContent {
+function markNode(h: Highlight, children: ElementContent[], withMarker: boolean): ElementContent {
   const isAsk = h.question !== undefined
   return {
     type: 'element',
     tagName: 'mark',
     properties: {
-      'data-highlight-id': h.id,
-      'data-marker': isAsk ? 'ask' : h.note !== null ? 'note' : undefined,
+      'data-mark-id': h.id,
+      'data-marker': withMarker ? (isAsk ? 'ask' : h.note !== null ? 'note' : undefined) : undefined,
       class: isAsk
         ? 'cursor-pointer rounded-[3px] bg-accent-soft px-[2px] text-accent-text'
         : 'cursor-pointer rounded-[3px] px-[2px]',
@@ -171,8 +172,8 @@ function markNode(h: Highlight, children: ElementContent[]): ElementContent {
 
 /**
  * Splices `highlights` into a line's coloured token spans as `<mark>` hast
- * elements, mirroring HighlightedText's sort-by-start / track-`cur` walk so
- * the two behave identically (same treatment of overlapping ranges). Returns
+ * elements, with the same owner rule as HighlightedText (markStacks), so each
+ * character draws once and only a highlight's last piece carries its marker. Returns
  * the line's own children unchanged when there is nothing to paint, so an
  * unhighlighted line costs nothing beyond the filter that got it here.
  */
@@ -180,9 +181,15 @@ export function renderLineChildren(node: Element, highlights: Highlight[]): Elem
   if (!highlights.length) return node.children
 
   const chars = collectChars(node.children, {})
-  const sorted = [...highlights].sort((a, b) => a.start - b.start)
+  const owner = markStacks(
+    [...highlights].sort((a, b) => a.start - b.start),
+    chars.length,
+  )
+  const lastPiece = new Map<Highlight, number>()
+  owner.forEach((s, i) => {
+    if (s?.[0]) lastPiece.set(s[0], i)
+  })
   const out: ElementContent[] = []
-  let cur = 0
 
   function pushRun(from: number, to: number, target: ElementContent[]) {
     let start = from
@@ -194,16 +201,19 @@ export function renderLineChildren(node: Element, highlights: Highlight[]): Elem
     }
   }
 
-  for (const h of sorted) {
-    const start = Math.max(0, Math.min(h.start, chars.length))
-    const end = Math.max(0, Math.min(h.end, chars.length))
-    if (start > cur) pushRun(cur, start, out)
-    const markChildren: ElementContent[] = []
-    pushRun(Math.max(start, cur), end, markChildren)
-    out.push(markNode(h, markChildren))
-    cur = Math.max(cur, end)
+  let i = 0
+  while (i < chars.length) {
+    const stack = owner[i] ?? null
+    let j = i + 1
+    while (j < chars.length && (owner[j] ?? null) === stack) j++
+    if (stack?.[0]) {
+      const withMarker = lastPiece.get(stack[0]) === j - 1
+      const inner: ElementContent[] = []
+      pushRun(i, j, inner)
+      out.push(stack.reduceRight((children, h) => [markNode(h, children, withMarker)], inner)[0]!)
+    } else pushRun(i, j, out)
+    i = j
   }
-  if (cur < chars.length) pushRun(cur, chars.length, out)
 
   return out
 }

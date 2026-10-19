@@ -188,7 +188,7 @@ describe('insertPrintNotes on a rendered section', () => {
     ])
     expect(after(body!.querySelector('table')!.closest('section > div > *'))).toBe('Note: on a cell')
     expect(after(body!.querySelector('pre')!.parentElement)).toBe('Note: on code')
-    expect(container.querySelector('mark[data-highlight-id="k"]')).not.toBeNull()
+    expect(container.querySelector('mark[data-mark-id="k"]')).not.toBeNull()
   })
 })
 

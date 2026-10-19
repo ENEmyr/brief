@@ -79,7 +79,6 @@ export function DockSlot({
         {narrow && (
           <div
             hidden={sheet}
-            data-dock-chrome=""
             className="flex flex-col gap-[10px] px-3 pb-[30px] pt-2 leading-[normal] min-[880px]:hidden"
           >
             <span aria-hidden="true" className={HANDLE} />
@@ -105,7 +104,7 @@ export function DockSlot({
         {sheet && (
           <>
             <DialogFocus panelRef={asideRef} onClose={close} returnFocusRef={openRef} />
-            <div data-dock-chrome="" className="flex flex-col leading-[normal]">
+            <div className="flex flex-col leading-[normal]">
               <span aria-hidden="true" className={`${HANDLE} mt-2`} />
               <div className="flex items-center gap-2 border-b border-line py-[10px] pl-[14px] pr-[6px]">
                 <span className="grow font-mono text-[11px] text-faint">
@@ -119,7 +118,7 @@ export function DockSlot({
             </div>
           </>
         )}
-        <div data-dock-body="" className={`flex min-h-0 grow flex-col ${sheet ? '' : 'max-[880px]:hidden'}`}>
+        <div className={`flex min-h-0 grow flex-col ${sheet ? '' : 'max-[880px]:hidden'}`}>
           {sheet ? sheetContent : column}
         </div>
       </aside>

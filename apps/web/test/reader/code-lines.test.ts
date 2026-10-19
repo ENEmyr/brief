@@ -102,7 +102,7 @@ describe('renderLineChildren', () => {
     expect((before.children[0] as { value: string }).value).toBe('f')
 
     expect(mark.tagName).toBe('mark')
-    expect(mark.properties?.['data-highlight-id']).toBe('h1')
+    expect(mark.properties?.['data-mark-id']).toBe('h1')
     const markSpans = mark.children as Element[]
     expect(markSpans[0]!.properties?.style).toBe('color:red')
     expect((markSpans[0]!.children[0] as { value: string }).value).toBe('oo')
@@ -171,8 +171,48 @@ describe('renderLineChildren', () => {
     expect(flattenText(out)).toBe(modelLine)
     const markIds = out
       .filter((n): n is Element => n.type === 'element' && n.tagName === 'mark')
-      .map((m) => m.properties?.['data-highlight-id'])
+      .map((m) => m.properties?.['data-mark-id'])
     expect(markIds).toEqual(['first', 'second'])
+  })
+})
+
+describe('renderLineChildren with nested highlights', () => {
+  const plainLine = (value: string): Element => ({
+    type: 'element',
+    tagName: 'span',
+    properties: { class: 'line' },
+    children: [{ type: 'text', value }],
+  })
+  const marksOf = (nodes: ElementContent[]): [unknown, string, number, unknown][] =>
+    nodes.flatMap((n) =>
+      n.type === 'element' && n.tagName === 'mark'
+        ? [[n.properties?.['data-mark-id'], flattenText(n.children), n.children.length, n.properties?.['data-marker']], ...marksOf(n.children)]
+        : n.type === 'element'
+          ? marksOf(n.children)
+          : [],
+    )
+
+  it('draws a highlight wholly inside an earlier one with its own characters', () => {
+    const outer = highlight({ id: 'outer', start: 0, end: 6, text: 'abcdef', note: 'n' })
+    const inner = highlight({ id: 'inner', start: 2, end: 4, text: 'cd' })
+    const out = renderLineChildren(plainLine('abcdefghij'), [outer, inner])
+    expect(flattenText(out)).toBe('abcdefghij')
+    expect(marksOf(out)).toEqual([
+      ['outer', 'ab', 1, undefined],
+      ['inner', 'cd', 1, undefined],
+      ['outer', 'ef', 1, 'note'],
+    ])
+  })
+
+  it('nests the later of two identical highlights inside the earlier one', () => {
+    const first = highlight({ id: 'first', start: 0, end: 3, text: 'abc', note: 'n' })
+    const second = highlight({ id: 'second', start: 0, end: 3, text: 'abc' })
+    const out = renderLineChildren(plainLine('abcdef'), [first, second])
+    expect(flattenText(out)).toBe('abcdef')
+    expect(marksOf(out)).toEqual([
+      ['first', 'abc', 1, 'note'],
+      ['second', 'abc', 1, undefined],
+    ])
   })
 })
 
