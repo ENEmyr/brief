@@ -28,15 +28,15 @@ A document fails this reader in two ways. It buries the point under the story of
 1. **Research and verify.** Read the real files, trace the real code paths, run the real commands. Every number and claim that reaches the payload must come from something you actually saw. Note where each fact came from; that note belongs in an evidence block, not in your sentences.
 2. **List what the reader needs.** Find the kind of work in "What the reader needs" below and write down each fact its row asks for. A fact you could not get is a gap to state in the document, not a row to drop.
 3. **Plan the sections.** Section 1 is a summary of two to four sentences: what you found or did, what it means for the reader, and what they should do now, with no name the reader has not met. Do not restate the request. After it comes one topic per section, in reading order, numbered from 1.
-4. **Pick a block for each fact.** Use "Choosing blocks" below to match each fact to the block built for its shape, then read `BLOCKS.md` in this skill directory for that block's exact fields, enum values, and a valid JSON example. It covers all 27 block types.
+4. **Pick a block for each fact.** Use "Choosing blocks" below to match each fact to the block built for its shape, then read `BLOCKS.md` in this skill directory: it holds the rules every block shares and says which file in `blocks/` documents each of the 27 block types. Read only the files of the blocks you use; each has the exact fields, enum values, and a valid JSON example.
 5. **Write for the reader.** Follow "Writing for the reader" below.
 6. **Add decisions only for calls the human must make.** Settle every question you can answer by thinking it through or checking, and say in the document what you chose. A decision is for a choice that turns on the human's priorities, money, risk, or taste, with at least two options you would accept. Write those last, so the options reflect what the research found, each with honest `detail` text and usually a `why` that states your recommendation and its cost. Add `refs` with the ids of the sections that set the decision up, so the reader can jump back to the evidence. When nothing is left to decide, send `"decisions": []`; the reader then shows no decision area.
 7. **Reread it as the reader.** Before validating, read the payload as someone who saw none of this session. Every name, path, id, abbreviation, and number is explained where it first appears, or it goes. Every fact from step 2 is there. No sentence describes how you worked.
-8. **Validate before publishing.** If the document has an `image` block, upload each image first and put the returned `imageId` in the block, as "Uploading an image" says. Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. It also prints readability hints. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
+8. **Validate before publishing.** If the document has an `image` block, upload each image first and put the returned `imageId` in the block, as `reference/images.md` says. Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. It also prints readability hints. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
 9. **Publish and hand over the URL.** Give the human the link and nothing else; the document carries the content now.
-10. **Act on the reply.** The human pastes a generated prompt back into the conversation. See "What comes back" below.
+10. **Act on the reply.** The human pastes a generated prompt back into the conversation. Read `reference/replies.md`.
 
-This skill directory holds three things you will use: `BLOCKS.md` (every field of every block), `example.payload.json` (a complete, valid document to model yours on), and `validate.mjs` (the pre-flight check).
+This skill directory holds what you will use: `BLOCKS.md` (shared block rules and an index), `blocks/` (one file per block), `reference/` (decisions, glossary, image upload, replies, and writing in Thai, each read when you need it), `example.payload.json` (a complete, valid document to model yours on), and `validate.mjs` (the pre-flight check).
 
 ## What the reader needs
 
@@ -64,7 +64,7 @@ Three rules hold for every kind of work. A claim about code shows the few lines 
 - **Leave out how you worked.** Subagents, lanes, verifiers, worktrees, the commands you ran, and the folders your notes live in mean nothing to the reader. Give the result. If the method changes how far to trust it, say so in one sentence or put it in a `details` block.
 - **Say how facts relate.** The reader takes two facts placed side by side as cause and effect. If they are unrelated, say so, or keep them apart.
 - **Mark uncertainty once.** Say which numbers are estimates in one place, such as a stat hint or a `coverage` block of what was not checked. A parenthesis in every clause buries the result.
-- **Write in the language the human uses most with you, the way you would say it to a colleague.** If they mostly write Thai, write the document in Thai from the first draft, even when the code, your notes, and your own reasoning are in English. A translated English draft keeps English grammar and reads as a translation. See "Writing in Thai" below.
+- **Write in the language the human uses most with you, the way you would say it to a colleague.** If they mostly write Thai, write the document in Thai from the first draft, even when the code, your notes, and your own reasoning are in English. A translated English draft keeps English grammar and reads as a translation. If you write in Thai, read `reference/thai.md` first.
 - **Only paragraphs, callouts and list items render inline markdown.** In a `p`, in the title and text of a `note`, `warn`, or `good`, and in each item of a `list`, the reader renders `` `inline code` ``, `**bold**`, and `*italic*`. Nothing nests, and links are not rendered. Every other field, such as a table cell, a list caption, a decision, or a label, shows exactly as typed, so backticks and asterisks there appear as literal characters. Put longer code in a `code` block.
 - **No emoji, no em dash, no en dash.** Use a plain hyphen.
 - **Honest `detail` on every option.** An option with no downside listed reads as a sales pitch, and it costs the reader their trust in the rest of the document.
@@ -95,21 +95,6 @@ Write every text field by the writing rules of ASD-STE100, Simplified Technical 
 | ระบบตรวจสอบสิทธิ์การเข้าถึงข้อมูลผู้ใช้ระดับโรงเรียน | ระบบที่ตรวจว่าผู้ใช้เปิดข้อมูลของโรงเรียนได้หรือไม่ |
 | ข้อเสีย: ลึกขึ้นหนึ่งชั้น | ข้อเสียคือโฟลเดอร์จะลึกขึ้นหนึ่งชั้น |
 | Log what would have been blocked, block nothing. | Log each request that the limit would stop. Do not stop any request. |
-
-### Writing in Thai
-
-- Keep in English the terms Thai engineers say in English: API, PR, merge, branch, commit, deploy, migration, cache, endpoint, CPU, container, login, autosave. Use Thai for the rest: ข้อที่พบ, not finding; ผู้เขียน PR, not author; ตรวจแล้ว, not verify แล้ว.
-- End a Thai sentence with a space, not a full stop.
-- Use the words the product itself uses. If the screen says โลก, write โลก, not world.
-- Check words that change meaning in Thai. เทอม means a school term, so a term of an equation is พจน์. ค่าใช้จ่าย means money, so CPU overhead is ภาระ CPU.
-- Keep one voice. Use the same word for yourself from start to end, and call the reader คุณ.
-
-| Translated from English | Written in Thai |
-| --- | --- |
-| lint และ sync:docs:check ผ่าน. ยัง merge แบบนี้ไม่ได้ | lint และการตรวจเอกสารผ่านแล้ว แต่ยัง merge ไม่ได้ |
-| ข้อเหล่านี้ author รู้และตัดออกจาก scope ไว้แล้ว. | ผู้เขียน PR รู้เรื่องเหล่านี้ และตั้งใจไม่แก้ใน PR นี้ |
-| PR พา frontend เข้าใกล้ contract v2 | PR นี้แก้หน้าเว็บให้ส่งข้อมูลตรงกับสเปก API ฉบับที่ 2 มากขึ้น |
-| เทอมต่อนักเรียนที่กำลังทำมาจาก autosave | ภาระ CPU ต่อนักเรียนที่กำลังทำแบบประเมิน ส่วนใหญ่มาจาก autosave |
 
 ## The envelope
 
@@ -148,11 +133,11 @@ At least one. Each needs `id` (short, unique, used as the URL fragment), `no` (i
 
 ### `decisions`
 
-May be empty, and then the reader shows no decision area. Each decision needs `id`, `q`, `multi`, and at least two `opts`. Set `multi` to `false` for an either-or choice and `true` when several options can be taken together. The optional `refs` field lists the ids of the sections that set the decision up. The full field reference, including the two fields agents habitually get wrong (`cmp` and `dia`), is in `BLOCKS.md`.
+May be empty, and then the reader shows no decision area. Each decision needs `id`, `q`, `multi`, and at least two `opts`. Set `multi` to `false` for an either-or choice and `true` when several options can be taken together. The optional `refs` field lists the ids of the sections that set the decision up. The full field reference, including the two fields agents habitually get wrong (`cmp` and `dia`), is in `reference/decisions.md`.
 
 ### `glossary`
 
-Optional. An array of at most 60 entries, each with a `term`, a `def` of at most 400 characters, and up to five `aliases`. The reader underlines the first use of each term in each section and shows the definition on hover or tap. It looks for terms only in paragraphs and in `note`, `warn`, and `good` callouts. Leave the key out when there is nothing to define. The fields and the matching rules are in `BLOCKS.md`.
+Optional. An array of at most 60 entries, each with a `term`, a `def` of at most 400 characters, and up to five `aliases`. The reader underlines the first use of each term in each section and shows the definition on hover or tap. It looks for terms only in paragraphs and in `note`, `warn`, and `good` callouts. Leave the key out when there is nothing to define. The fields and the matching rules are in `reference/glossary.md`.
 
 ## Choosing blocks
 
@@ -262,29 +247,7 @@ Write the payload to a file and POST it with `-d @file`. Inlining a large JSON d
 | 404 | `{ "error": "Session not found or expired." }` | The id is wrong or the session has expired. |
 | 403 | `{ "error": "This session is protected..." }` | The reader encrypted it; the content is no longer readable by you. |
 
-### Uploading an image
-
-An `image` block names an image the API already holds. Upload each file first, then put the returned `imageId` in the block, then create the brief.
-
-```bash
-curl -sS -X POST https://brief-api.algoryth.me/api/image \
-  -H 'content-type: image/png' \
-  --data-binary @screenshot.png
-```
-
-Send the raw bytes of the file as the body, with `--data-binary`, not a form or JSON, and set the `content-type` header to the image type of the file. The API does not trust that header. It reads the first bytes of the file instead: it accepts PNG, JPEG, GIF, and WEBP, and nothing else. SVG is refused. A file may hold at most 5242880 bytes (5 MiB).
-
-| Status | Body | What to do |
-| --- | --- | --- |
-| 201 | `{ "imageId": "img_Vb7kQ2nR9xLm4TzA", "contentType": "image/png", "bytes": 48213 }` | Put `imageId` in the `image` block as it is. |
-| 400 | `{ "error": "Image body is empty." }` | Send the file bytes with `--data-binary @file`. |
-| 413 | `{ "error": "Image exceeds 5242880 bytes." }` | Shrink or crop the image, or save it as JPEG or WEBP. |
-| 415 | `{ "error": "Unsupported image type. Upload PNG, JPEG, WebP or GIF." }` | Convert the file to one of those four formats. An SVG must become a PNG. |
-| 429 | `{ "error": "Rate limit exceeded. Try again in a minute." }` | Ten uploads per 60 seconds per IP. Wait a minute, then upload the rest. |
-
-An upload is held unlinked. The brief links it when `POST /api/session` creates a brief that names the `imageId` in an `image` block, at the top level of a section or inside a `details`, within one hour of the upload. An upload that no brief names within that hour can no longer be linked and is never served, and the daily purge job deletes it. A linked image lives and expires with its brief, and one upload links to one brief only, so upload the file again for a second brief. The API links at most 50 images per brief.
-
-Until a brief links it, the API never serves the image, so `GET /api/image/<imageId>` returns 404 `{ "error": "Image not found or expired." }` straight after the upload. That is expected; do not retry. A brief that names an unknown, expired, or already linked id still publishes, and the reader shows "Image is missing or has expired." in that block.
+If the document has an `image` block, read `reference/images.md` first: it says how to upload each file and get its `imageId`.
 
 ### Reading a document back
 
@@ -292,42 +255,7 @@ Until a brief links it, the API never serves the image, so `GET /api/image/<imag
 
 ## What comes back
 
-The reader replies by pasting a generated prompt into this conversation. There are two shapes, both plain text. Recognise them and act; do not ask the human to restate them.
-
-**Decision answers**, generated from the decision dock, one block per decision:
-
-```text
-Reply to the "Rate limiting for /api/session" doc (session aB3xYz01qWe9rT) - my decisions:
-
-[limiter-choice] Which rate limiter should we put in front of POST /api/session?
-  - Choice: Cloudflare Rate Limiting binding
-  - Note: Ship it behind a flag.
-
-[rollout] How should the limit reach production?
-  - Choice: Shadow mode for one week; Alert on sustained 429s
-
-Please act on the answers above; consider the extra context for any item that has a note
-```
-
-The bracketed name is the decision `id` you set. `Choice` holds option **labels**, semicolon-separated when `multi` is true, or `(not answered)`. A `Note` is free text the reader added, and it usually carries a constraint that changes the work; treat it as part of the answer, not as decoration.
-
-**A question about a passage**, generated when the reader highlights text and asks about it:
-
-```text
-Question about a specific part of the "Rate limiting for /api/session" doc (session aB3xYz01qWe9rT).
-
-Reference:
-- URL: https://brief.algoryth.me/s/aB3xYz01qWe9rT#evidence
-- Location: section 02 "What the traffic shows" - paragraph 3 - chars 41-118
-- Quoted text: "the free D1 tier throttles within four minutes"
-
-Question:
-Where does the four minute figure come from?
-
-Please answer specifically about the quoted part above, using the reference to locate it.
-```
-
-Answer the quoted passage specifically. If the answer changes a claim in the document, say so plainly: a published document is immutable, so a correction lives in the conversation or in a new document.
+The reader replies by pasting a generated prompt into this conversation: decision answers, or a question about a highlighted passage. When one arrives, read `reference/replies.md`, which shows both shapes and how to act on them. Do not ask the human to restate them.
 
 When the document has decisions, design them so this loop closes in one pass. A question the human cannot settle from the document alone is a question that comes back as another round trip.
 
