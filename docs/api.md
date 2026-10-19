@@ -182,6 +182,20 @@ Errors:
 | 413 | The request body exceeds 2,700,000 bytes, or the ciphertext exceeds 1,950,000 bytes (documents over about 1.4 MB cannot be protected). |
 | 429 | Rate limit exceeded. |
 
+## DELETE /api/session/:id/image/:imageId
+
+Deletes an encrypted image copy that the session uploaded for an encrypt save that never happened. The reader calls it when an encrypted archive fails or is cancelled before the save is sent, so the copy stops counting toward the session's cap of 50 encrypted images. Only an unencrypted session can lose a copy this way: once an encrypt save has committed, its ciphertext may name any of the session's copies, and they stay until the session expires. Plaintext images are never deleted by this route.
+
+Response: `204` with no body.
+
+Errors:
+
+| Status | Meaning |
+| --- | --- |
+| 404 | No encrypted copy with this id belongs to this session: the id is unknown, malformed, a plaintext image, or a copy of another session. |
+| 409 | The session is encrypted, so the saved archive may reference the copy. Nothing is deleted. |
+| 429 | Rate limit exceeded, 10 per minute per client IP, counted separately from uploads. The response carries `retry-after: 60`. |
+
 ## GET /health
 
 Liveness probe. Returns `200` with:

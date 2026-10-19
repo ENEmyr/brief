@@ -68,6 +68,47 @@ export async function storeEncryptedImage(
   return { ok: true, imageId }
 }
 
+export type UnlinkResult = { ok: true } | { ok: false; status: 404 | 409; error: string }
+
+// Removes an encrypted copy a failed or cancelled archive left behind. The row goes first, in
+// one statement that also checks the session is still unencrypted: the server cannot read an
+// encrypted payload, and only an encrypt-save can make one name a copy, so an encrypt-save that
+// commits first always wins and a copy it references is never deleted.
+export async function deleteEncryptedImage(env: ImageEnv, sessionId: string, imageId: string): Promise<UnlinkResult> {
+  const deleted = await env.DB.prepare(
+    `DELETE FROM images WHERE id = ?1 AND session_id = ?2 AND encrypted = 1
+       AND EXISTS (SELECT 1 FROM sessions WHERE id = ?2 AND encrypted = 0)
+     RETURNING content_type, byte_size, created_at`,
+  )
+    .bind(imageId, sessionId)
+    .first<{ content_type: string; byte_size: number; created_at: number }>()
+  if (!deleted) {
+    const owned = await db(env.DB)
+      .select({ id: images.id })
+      .from(images)
+      .where(and(eq(images.id, imageId), eq(images.sessionId, sessionId), eq(images.encrypted, true)))
+      .get()
+    return owned
+      ? { ok: false, status: 409, error: 'Image belongs to the saved archive.' }
+      : { ok: false, status: 404, error: 'Image not found.' }
+  }
+  try {
+    await env.IMAGES.delete(imageKey(imageId))
+  } catch (error) {
+    // Put the row back so purge still finds the object with its session.
+    await db(env.DB).insert(images).values({
+      id: imageId,
+      sessionId,
+      contentType: deleted.content_type,
+      encrypted: true,
+      byteSize: deleted.byte_size,
+      createdAt: deleted.created_at,
+    })
+    throw error
+  }
+  return { ok: true }
+}
+
 // Runs after an encrypt-save committed: the client has uploaded encrypted copies and the new
 // payload names only those, so the plaintext copies must not outlive the encryption. Objects go
 // before rows, as in purgeImages, so a failed R2 call never leaves an object without its row.

@@ -455,3 +455,93 @@ describe('purgeExpired with images', () => {
     expect(await imageRow(sealedId)).not.toBeNull()
   })
 })
+
+describe('DELETE /api/session/:id/image/:imageId', () => {
+  const unlink = (sessionId: string, imageId: string, overrides: Partial<AppEnv> = {}) =>
+    app(overrides).handle(new Request(`http://localhost/api/session/${sessionId}/image/${imageId}`, { method: 'DELETE' }))
+  const encryptedCount = async (sessionId: string) =>
+    (await appEnv.DB.prepare('SELECT COUNT(*) AS n FROM images WHERE session_id = ? AND encrypted = 1').bind(sessionId).first<{ n: number }>())!.n
+  async function encryptedCopy(sessionId: string): Promise<string> {
+    const res = await uploadEncrypted(sessionId, Uint8Array.from([7, 7, 7]))
+    expect(res.status).toBe(201)
+    return ((await res.json()) as { imageId: string }).imageId
+  }
+  const notFound = { error: 'Image not found.' }
+
+  it('removes an unlinked encrypted copy from R2 and D1, so it no longer counts toward the cap', async () => {
+    const sessionId = await createSession([])
+    const [gone, kept] = [await encryptedCopy(sessionId), await encryptedCopy(sessionId)]
+    expect(await encryptedCount(sessionId)).toBe(2)
+    const res = await unlink(sessionId, gone)
+    expect(res.status).toBe(204)
+    expect(await imageRow(gone)).toBeNull()
+    expect(await appEnv.IMAGES.get(`images/${gone}`)).toBeNull()
+    expect(await encryptedCount(sessionId)).toBe(1)
+    expect(await imageRow(kept)).not.toBeNull()
+  })
+
+  it('refuses a copy the saved encrypted archive references with 409 and deletes nothing', async () => {
+    const sessionId = await createSession([])
+    const imageId = await encryptedCopy(sessionId)
+    await appEnv.DB.prepare('UPDATE sessions SET encrypted = 1 WHERE id = ?').bind(sessionId).run()
+    const res = await unlink(sessionId, imageId)
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({ error: 'Image belongs to the saved archive.' })
+    expect(await imageRow(imageId)).not.toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${imageId}`)).not.toBeNull()
+  })
+
+  it('404s a copy of another session and deletes nothing', async () => {
+    const owner = await createSession([])
+    const imageId = await encryptedCopy(owner)
+    const other = await createSession([])
+    const res = await unlink(other, imageId)
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual(notFound)
+    expect(await imageRow(imageId)).not.toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${imageId}`)).not.toBeNull()
+  })
+
+  it('404s a plaintext image linked to the session and deletes nothing', async () => {
+    const imageId = await uploadId()
+    const sessionId = await createSession([imageId])
+    const res = await unlink(sessionId, imageId)
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual(notFound)
+    expect(await imageRow(imageId)).not.toBeNull()
+  })
+
+  it('404s an unknown id and an id outside the pattern', async () => {
+    const sessionId = await createSession([])
+    for (const id of ['img_absent0000000001', 'not-an-id']) {
+      const res = await unlink(sessionId, id)
+      expect(res.status).toBe(404)
+      expect(await res.json()).toEqual(notFound)
+    }
+  })
+
+  it('allows DELETE in the CORS preflight, so the reader on another origin can call it', async () => {
+    const res = await app().handle(
+      new Request('http://localhost/api/session/sess1/image/img_absent0000000001', {
+        method: 'OPTIONS',
+        headers: { origin: 'http://localhost:3000', 'access-control-request-method': 'DELETE' },
+      }),
+    )
+    expect(res.headers.get('access-control-allow-methods')).toMatch(/(^|,\s*)DELETE(\s*,|$)/)
+  })
+
+  it('answers 429 with retry-after once the limiter refuses, on its own key', async () => {
+    const sessionId = await createSession([])
+    const imageId = await encryptedCopy(sessionId)
+    const keys: string[] = []
+    const refuse = { limit: async ({ key }: { key: string }) => (keys.push(key), { success: false }) }
+    const res = await app({ RATE_LIMITER: refuse }).handle(
+      new Request(`http://localhost/api/session/${sessionId}/image/${imageId}`, { method: 'DELETE', headers: { 'cf-connecting-ip': '203.0.113.7' } }),
+    )
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBe('60')
+    expect(await res.json()).toEqual({ error: 'Rate limit exceeded. Try again in a minute.' })
+    expect(keys).toEqual(['image-delete:203.0.113.7'])
+    expect(await imageRow(imageId)).not.toBeNull()
+  })
+})

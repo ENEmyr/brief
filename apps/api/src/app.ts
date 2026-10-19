@@ -27,7 +27,7 @@ export function createApp(env: AppEnv) {
           if (origin.startsWith('http://localhost:')) return true
           return false
         },
-        methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         // Not CORS-safelisted: without this the reader cannot see how long a 429 asks it to wait.
         exposeHeaders: ['Retry-After'],
       }),
