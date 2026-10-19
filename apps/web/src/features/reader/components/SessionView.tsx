@@ -42,6 +42,7 @@ import { adjacentSectionId, findSection, scrollToElement, scrollToTrajectory } f
 import { BackPill } from './BackPill'
 import type { BackTarget } from './BackPill'
 import { DockSlot } from './DockSlot'
+import { OverlayExit } from '@/shared/OverlayExit'
 import { RawView } from './RawView'
 import { Skeleton } from './Skeleton'
 import { HomeLink, STATUS_ACTION, StatusPage } from './StatusPage'
@@ -504,24 +505,26 @@ function SessionReady({
           }}
         />
       )}
-      {!protectedSession && saveModalOpen && (
-        <SaveModal
-          sessionId={data.id}
-          storedJson={data.raw}
-          onClose={closeSaveModal}
-          onSaved={(mode) => {
-            setSavedOverride(true)
-            if (mode === 'encrypt') setEncryptedNow(true)
-          }}
-          // A save the user cancelled mid-flight can still commit server-side
-          // (the PUT cannot be recalled). No toast/modal feedback in that
-          // case, but the Archive icon must still reflect server truth.
-          onBackgroundSaveSettled={(mode) => {
-            setSavedOverride(true)
-            if (mode === 'encrypt') setEncryptedNow(true)
-          }}
-        />
-      )}
+      <OverlayExit open={!protectedSession && saveModalOpen}>
+        {!protectedSession && saveModalOpen && (
+          <SaveModal
+            sessionId={data.id}
+            storedJson={data.raw}
+            onClose={closeSaveModal}
+            onSaved={(mode) => {
+              setSavedOverride(true)
+              if (mode === 'encrypt') setEncryptedNow(true)
+            }}
+            // A save the user cancelled mid-flight can still commit server-side
+            // (the PUT cannot be recalled). No toast/modal feedback in that
+            // case, but the Archive icon must still reflect server truth.
+            onBackgroundSaveSettled={(mode) => {
+              setSavedOverride(true)
+              if (mode === 'encrypt') setEncryptedNow(true)
+            }}
+          />
+        )}
+      </OverlayExit>
     </div>
     </GlossaryProvider>
   )

@@ -14,6 +14,7 @@ import {
   printDocument,
 } from '@/features/export'
 import { useTheme, beginThemedRender } from '@/features/theme'
+import { endAnimation } from '../shared/endAnimation'
 import { Topbar } from '@/features/reader/components/Topbar'
 
 function stubFetch() {
@@ -229,9 +230,10 @@ describe('copyText chain', () => {
 })
 
 function ExportProbe({ retry = () => {} }: { retry?: () => void }) {
-  const { copy, toast, print, copyEditPrompt } = useExport()
+  const { copy, toast, print, copyEditPrompt, share } = useExport()
   return (
     <div>
+      <button onClick={share}>do-share</button>
       <button onClick={() => copy('some text')}>do-copy</button>
       <button onClick={() => toast({ kind: 'info', message: 'Custom message' })}>do-toast</button>
       <button onClick={() => toast({ kind: 'error', message: 'It broke', action: { label: 'Retry', run: retry } })}>
@@ -373,6 +375,35 @@ describe('ExportProvider', () => {
 
     expect(screen.getByRole('dialog', { name: 'Copy manually' })).toBeInTheDocument()
     expect(screen.getByRole('textbox')).toHaveValue('some text')
+  })
+
+  it('the share dialog fades out inert, then unmounts and hands focus back; a reopen mid-exit works', async () => {
+    stubFetch()
+    render(
+      <ReaderStateProvider sessionId="sess-exit">
+        <ExportProvider sessionId="sess-exit" payload={basePayload}>
+          <ExportProbe />
+        </ExportProvider>
+      </ReaderStateProvider>,
+    )
+    const trigger = screen.getByText('do-share')
+    trigger.focus()
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog', { name: 'Share this doc' })
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(dialog).toBeInTheDocument()
+    expect(dialog.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+
+    fireEvent.click(trigger)
+    const reopened = screen.getByRole('dialog', { name: 'Share this doc' })
+    expect(reopened.closest('[inert]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Copy link' })).toHaveFocus()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    endAnimation(reopened.parentElement!)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(trigger).toHaveFocus()
   })
 
   it('copyEditPrompt() toasts instead of copying when there is nothing to act on', async () => {
@@ -633,14 +664,16 @@ describe('stacked dialogs (ShareModal + CopyFallbackModal)', () => {
     expect(screen.getByRole('dialog', { name: 'Copy manually' })).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Share this doc' })).toBeInTheDocument()
 
-    // First Escape: only the fallback modal (topmost) closes.
+    // First Escape: only the fallback modal (topmost) closes. A closing
+    // dialog stays mounted, inert, through its exit fade.
+    const closing = (name: string) => screen.queryByRole('dialog', { name })?.closest('[data-overlay-exit]') ?? null
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: 'Copy manually' })).not.toBeInTheDocument()
-    expect(screen.getByRole('dialog', { name: 'Share this doc' })).toBeInTheDocument()
+    expect(closing('Copy manually')).not.toBeNull()
+    expect(closing('Share this doc')).toBeNull()
 
-    // Second Escape: now the share modal closes.
+    // Second Escape, still inside that fade: now the share modal closes.
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: 'Share this doc' })).not.toBeInTheDocument()
+    expect(closing('Share this doc')).not.toBeNull()
   })
 })
 
