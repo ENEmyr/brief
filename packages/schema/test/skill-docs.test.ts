@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { BLOCK_TYPES } from '../src'
 
 const root = resolve(import.meta.dirname, '../../..')
 const read = (p: string) => readFileSync(resolve(root, p), 'utf8')
 
-const blocksMd = read('skills/brief/BLOCKS.md')
+const blocksIndex = read('skills/brief/BLOCKS.md')
+/** Block docs live one file per block under blocks/, decisions and glossary under reference/. */
+const docFiles = ['blocks', 'reference'].flatMap((dir) =>
+  readdirSync(resolve(root, 'skills/brief', dir)).map((f) => `${dir}/${f}`),
+)
+const blocksMd = [blocksIndex, ...docFiles.map((f) => read(`skills/brief/${f}`))].join('\n')
 const skillMd = read('skills/brief/SKILL.md')
 const docsMd = read('docs/skill.md')
 const schema = read('skills/brief/payload.schema.json')
@@ -41,11 +46,11 @@ function enumValues(node: unknown, found = new Set<string>()): Set<string> {
  * ("update the skill when you change the payload") enforceable rather than
  * something a reviewer has to remember. */
 describe('the brief skill tracks the payload schema', () => {
-  it.each(BLOCK_TYPES)('BLOCKS.md documents the %s block under its own heading', (type) => {
-    const heading = new RegExp('^### .*`' + type + '`', 'm')
+  it.each(BLOCK_TYPES)('blocks/ documents the %s block under its own heading', (type) => {
+    const heading = new RegExp('^#+ .*`' + type + '`', 'm')
     expect(
       heading.test(blocksMd),
-      `skills/brief/BLOCKS.md has no heading for the '${type}' block. Add its fields and a valid example.`,
+      `skills/brief/blocks/ has no file with a heading for the '${type}' block. Add blocks/${type}.md with its fields and a valid example, and list it in BLOCKS.md.`,
     ).toBe(true)
   })
 
@@ -56,12 +61,25 @@ describe('the brief skill tracks the payload schema', () => {
     ).toBe(true)
   })
 
-  it('BLOCKS.md documents every enum value the schema accepts', () => {
+  it('the block docs mention every enum value the schema accepts', () => {
     const missing = [...enumValues(JSON.parse(schema))].filter((v) => !blocksMd.includes(v))
     expect(
       missing,
-      `skills/brief/BLOCKS.md never mentions these accepted values: ${missing.join(', ')}`,
+      `skills/brief/BLOCKS.md, blocks/ and reference/ never mention these accepted values: ${missing.join(', ')}`,
     ).toEqual([])
+  })
+
+  it.each(docFiles)('an agent can find %s from BLOCKS.md or SKILL.md', (file) => {
+    expect(
+      blocksIndex.includes(file) || skillMd.includes(file),
+      `skills/brief/${file} is not named in BLOCKS.md or SKILL.md, so no agent will read it.`,
+    ).toBe(true)
+  })
+
+  it('every file BLOCKS.md and SKILL.md point to exists', () => {
+    const named = [...(blocksIndex + skillMd).matchAll(/(?:blocks|reference)\/[a-z0-9]+\.md/g)].map((m) => m[0])
+    const missing = [...new Set(named)].filter((f) => !existsSync(resolve(root, 'skills/brief', f)))
+    expect(missing, `BLOCKS.md or SKILL.md point to files that do not exist: ${missing.join(', ')}`).toEqual([])
   })
 
   it('SKILL.md states the current number of block types', () => {
