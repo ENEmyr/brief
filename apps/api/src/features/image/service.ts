@@ -183,11 +183,15 @@ export async function getServableImage(env: ImageEnv, id: string, now: number): 
 // deletePlainImages left on an encrypted session. Objects go before rows so a failed R2 call
 // leaves the rows for the next run to retry. Then objects with no row at all, which a worker
 // that died between deleteEncryptedImage's row delete and its restore leaves behind.
-export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
+// Makes at most `budget` binding calls; what is left waits for the next run.
+export async function purgeImages(env: ImageEnv, now: number, budget: number): Promise<number> {
   let purged = 0
+  let left = budget
   // Paged by id, so a row kept after a failed delete is not selected again in this run.
   let after = ''
-  for (;;) {
+  // Worst case per batch: the select, the batch delete, one delete per key and the row delete.
+  while (left >= CHUNK + 3) {
+    left--
     const { results } = await env.DB.prepare(
       `SELECT i.id FROM images i LEFT JOIN sessions s ON s.id = i.session_id
        WHERE ((i.session_id IS NULL AND i.created_at <= ?1)
@@ -202,12 +206,14 @@ export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
     const ids = results.map((r) => r.id)
     let deleted = ids
     try {
+      left--
       await env.IMAGES.delete(ids.map(imageKey))
     } catch {
       // One call per key only after the batch failed: a Worker run has a subrequest cap.
       deleted = []
       for (const id of ids) {
         try {
+          left--
           await env.IMAGES.delete(imageKey(id))
           deleted.push(id)
         } catch (error) {
@@ -217,7 +223,10 @@ export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
         }
       }
     }
-    if (deleted.length > 0) await db(env.DB).delete(images).where(inArray(images.id, deleted))
+    if (deleted.length > 0) {
+      left--
+      await db(env.DB).delete(images).where(inArray(images.id, deleted))
+    }
     purged += deleted.length
   }
   // A failed sweep must not stop purgeExpired from deleting expired sessions; the next run retries.
@@ -225,21 +234,27 @@ export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
   // past a few thousand objects.
   try {
     let cursor: string | undefined
-    do {
+    while (left >= 3) {
+      left--
       const page = await env.IMAGES.list({ prefix: KEY_PREFIX, cursor })
       const old = page.objects
         .filter((object) => object.uploaded.getTime() <= now - ORPHAN_WINDOW_MS)
         .map((object) => object.key.slice(KEY_PREFIX.length))
-      for (let i = 0; i < old.length; i += CHUNK) {
+      for (let i = 0; i < old.length && left >= 2; i += CHUNK) {
         const ids = old.slice(i, i + CHUNK)
+        left--
         const rows = await db(env.DB).select({ id: images.id }).from(images).where(inArray(images.id, ids)).all()
         const rowed = new Set(rows.map((r) => r.id))
         const stray = ids.filter((id) => !rowed.has(id))
-        if (stray.length > 0) await env.IMAGES.delete(stray.map(imageKey))
+        if (stray.length > 0) {
+          left--
+          await env.IMAGES.delete(stray.map(imageKey))
+        }
         purged += stray.length
       }
-      cursor = page.truncated ? page.cursor : undefined
-    } while (cursor)
+      if (!page.truncated) break
+      cursor = page.cursor
+    }
   } catch (error) {
     console.error(
       JSON.stringify({ event: 'stray_image_sweep_error', error: error instanceof Error ? error.name : 'unknown', at: new Date(now).toISOString() }),
