@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState } from 'react'
 import { DialogFocus } from '@/features/export'
+import { OverlayExit } from '@/shared/OverlayExit'
 
 export interface TocSection {
   id: string
@@ -231,26 +232,28 @@ export function Toc({
         )}
       </nav>
 
-      {drawerOpen && (
-        <div className="fixed inset-0 z-[60] min-[880px]:hidden" onClick={onCloseDrawer}>
-          <div role="presentation" className="console-fade absolute inset-0 bg-[var(--c-scrim)]" />
-          <div
-            ref={drawerPanelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Outline"
-            tabIndex={-1}
-            onClick={(event) => event.stopPropagation()}
-            className="absolute inset-y-0 left-0 flex w-[260px] flex-col overflow-y-auto border-r border-line bg-card p-[6px] text-[14px] leading-[normal] shadow-[var(--shadow-overlay)] outline-none"
-          >
-            <DialogFocus panelRef={drawerPanelRef} onClose={onCloseDrawer} />
-            <span className={LABEL}>OUTLINE</span>
-            {renderSections('min-h-11')}
-            {renderMarks('min-h-11')}
-            {renderTrail('min-h-11')}
+      <OverlayExit open={drawerOpen}>
+        {drawerOpen && (
+          <div className="fixed inset-0 z-[60] min-[880px]:hidden" onClick={onCloseDrawer}>
+            <div role="presentation" className="console-fade absolute inset-0 bg-[var(--c-scrim)]" />
+            <div
+              ref={drawerPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Outline"
+              tabIndex={-1}
+              onClick={(event) => event.stopPropagation()}
+              className="absolute inset-y-0 left-0 flex w-[260px] flex-col overflow-y-auto border-r border-line bg-card p-[6px] text-[14px] leading-[normal] shadow-[var(--shadow-overlay)] outline-none"
+            >
+              <DialogFocus panelRef={drawerPanelRef} onClose={onCloseDrawer} />
+              <span className={LABEL}>OUTLINE</span>
+              {renderSections('min-h-11')}
+              {renderMarks('min-h-11')}
+              {renderTrail('min-h-11')}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </OverlayExit>
     </>
   )
 }
