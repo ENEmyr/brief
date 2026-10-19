@@ -16,6 +16,10 @@ const fromBase64 = (b64: string): Uint8Array<ArrayBuffer> => Uint8Array.from(ato
 const JPEG = fromBase64(
   '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAVAQEBAAAAAAAAAAAAAAAAAAAHCf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/ADoDFU3/2Q==',
 )
+// 8 x 8 gradient written by ImageMagick: JFIF, two DQT, SOF0, four DHT, SOS, scan data, EOI.
+const JPEG8 = fromBase64(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAWEAEBAQAAAAAAAAAAAAAAAAAAFWL/xAAVAQEBAAAAAAAAAAAAAAAAAAAFB//EABkRAAEFAAAAAAAAAAAAAAAAAAAFFlOR8P/aAAwDAQACEQMRAD8AjdnQCtM1Jj1DLsU5NZ//2Q==',
+)
 const GIF89 = fromBase64('R0lGODlhAQABAPAAAP8AAAAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==')
 const GIF87 = fromBase64('R0lGODdhAQABAPAAAP8AAAAAACwAAAAAAQABAAACAkQBADs=')
 const WEBP = fromBase64('UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA')
@@ -87,6 +91,7 @@ describe('POST /api/image', () => {
 
   it.each([
     ['image/jpeg', JPEG],
+    ['image/jpeg', JPEG8],
     ['image/gif', GIF89],
     ['image/gif', GIF87],
     ['image/webp', WEBP],
@@ -100,6 +105,7 @@ describe('POST /api/image', () => {
   it.each([
     ['image/png', PNG],
     ['image/jpeg', JPEG],
+    ['image/jpeg', JPEG8],
     ['image/gif', GIF89],
     ['image/webp', WEBP],
   ])('accepts %s with 64 bytes after its end marker', async (expected, image) => {
@@ -118,6 +124,8 @@ describe('POST /api/image', () => {
     ['a PNG cut off before IEND', PNG.slice(0, -12), 'image/png'],
     ['a bare JPEG marker', Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]), 'image/jpeg'],
     ['a JPEG cut off before its end marker', JPEG.slice(0, -2), 'image/jpeg'],
+    ['a JPEG start marker and a stray end marker with no frame or scan', Uint8Array.from([0xff, 0xd8, 0xff, 0xff, 0xd9]), 'image/jpeg'],
+    ['a JPEG segment whose length runs past the file end', Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0xff, 0xf0, 0, 0, 0xff, 0xd9]), 'image/jpeg'],
     ['a bare GIF header', bytesOf('GIF89a\x01\x00\x01\x00'), 'image/gif'],
     ['a GIF header and trailer with no image', concat(GIF87.slice(0, 19), Uint8Array.from([0x3b])), 'image/gif'],
     ['a header-only WebP', bytesOf('RIFF\x24\x00\x00\x00WEBPVP8 '), 'image/webp'],

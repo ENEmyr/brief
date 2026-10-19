@@ -30,12 +30,38 @@ function isPng(bytes: Uint8Array): boolean {
   return false
 }
 
-// shortcut: needs SOI and an EOI somewhere after it, not the segments between; walk the
-// segments if a header plus end marker upload ever matters.
+// SOF0..SOF15, except DHT (C4), JPG (C8) and DAC (CC), which share the range.
+const isFrameMarker = (marker: number): boolean =>
+  marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc
+
+// A segment walk from SOI that must see a frame header, then a scan, then reach EOI. Bytes after
+// EOI are allowed, as for PNG. Inside scan data, FF 00 is a stuffed byte and FF D0..D7 a restart.
 function isJpeg(bytes: Uint8Array): boolean {
-  if (!startsWith(bytes, [0xff, 0xd8, 0xff])) return false
-  for (let at = bytes.indexOf(0xff, 3); at !== -1; at = bytes.indexOf(0xff, at + 1)) {
-    if (bytes[at + 1] === 0xd9) return true
+  if (!startsWith(bytes, [0xff, 0xd8])) return false
+  let sawFrame = false
+  let inScan = false
+  for (let at = 2; at + 1 < bytes.length; ) {
+    if (bytes[at] !== 0xff) {
+      if (!inScan) return false
+      at = bytes.indexOf(0xff, at)
+      if (at === -1) return false
+      continue
+    }
+    const marker = bytes[at + 1]!
+    if (marker === 0xd9) return inScan
+    if (marker === 0xff) at += 1
+    else if (inScan && (marker === 0 || (marker >= 0xd0 && marker <= 0xd7))) at += 2
+    else {
+      if (at + 4 > bytes.length) return false
+      const end = at + 2 + ((bytes[at + 2]! << 8) | bytes[at + 3]!)
+      if (end < at + 4 || end > bytes.length) return false
+      if (isFrameMarker(marker)) sawFrame = true
+      if (marker === 0xda) {
+        if (!sawFrame) return false
+        inScan = true
+      }
+      at = end
+    }
   }
   return false
 }
