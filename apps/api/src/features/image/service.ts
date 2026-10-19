@@ -185,20 +185,33 @@ export async function getServableImage(env: ImageEnv, id: string, now: number): 
 // that died between deleteEncryptedImage's row delete and its restore leaves behind.
 export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
   let purged = 0
+  // Paged by id, so a row kept after a failed delete is not selected again in this run.
+  let after = ''
   for (;;) {
     const { results } = await env.DB.prepare(
       `SELECT i.id FROM images i LEFT JOIN sessions s ON s.id = i.session_id
-       WHERE (i.session_id IS NULL AND i.created_at <= ?1)
-          OR (i.session_id IS NOT NULL AND (s.id IS NULL OR s.expires_at <= ?2 OR (s.encrypted = 1 AND i.encrypted = 0)))
-       LIMIT ${CHUNK}`,
+       WHERE ((i.session_id IS NULL AND i.created_at <= ?1)
+          OR (i.session_id IS NOT NULL AND (s.id IS NULL OR s.expires_at <= ?2 OR (s.encrypted = 1 AND i.encrypted = 0))))
+         AND i.id > ?3
+       ORDER BY i.id LIMIT ${CHUNK}`,
     )
-      .bind(now - ORPHAN_WINDOW_MS, now)
+      .bind(now - ORPHAN_WINDOW_MS, now, after)
       .all<{ id: string }>()
     if (results.length === 0) break
-    const ids = results.map((r) => r.id)
-    await env.IMAGES.delete(ids.map(imageKey))
-    await db(env.DB).delete(images).where(inArray(images.id, ids))
-    purged += ids.length
+    after = results.at(-1)!.id
+    const deleted: string[] = []
+    for (const { id } of results) {
+      try {
+        await env.IMAGES.delete(imageKey(id))
+        deleted.push(id)
+      } catch (error) {
+        console.error(
+          JSON.stringify({ event: 'image_purge_delete_error', error: error instanceof Error ? error.name : 'unknown', at: new Date(now).toISOString() }),
+        )
+      }
+    }
+    if (deleted.length > 0) await db(env.DB).delete(images).where(inArray(images.id, deleted))
+    purged += deleted.length
   }
   // A failed sweep must not stop purgeExpired from deleting expired sessions; the next run retries.
   // shortcut: lists every object on each run; keep a stray-key log instead if the bucket grows

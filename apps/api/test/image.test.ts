@@ -483,6 +483,35 @@ describe('purgeExpired with images', () => {
     expect(JSON.parse(lines[0]!)).toEqual({ event: 'stray_image_sweep_error', error: 'TypeError', at: expect.any(String) })
   })
 
+  it('keeps purging when one R2 object delete throws, and keeps that row for the next run', async () => {
+    const failed = await uploadId()
+    const others = [await uploadId(), await uploadId()]
+    const sessionId = await createSession([failed, ...others])
+    await appEnv.DB.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').bind(Date.now() - 1, sessionId).run()
+    const broken = {
+      delete: async (keys: string | string[]) =>
+        [keys].flat().includes(`images/${failed}`) ? Promise.reject(new TypeError('r2 down at /srv/secret/path.ts')) : appEnv.IMAGES.delete(keys),
+      list: (options: R2ListOptions) => appEnv.IMAGES.list(options),
+    }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const purged = await purgeExpired({ ...appEnv, IMAGES: broken as unknown as R2Bucket }, Date.now())
+    const lines = logged.mock.calls.map((call) => call[0] as string)
+    logged.mockRestore()
+
+    expect(purged).toEqual({ sessions: 1, images: 2 })
+    for (const gone of others) {
+      expect(await appEnv.IMAGES.head(`images/${gone}`)).toBeNull()
+      expect(await imageRow(gone)).toBeNull()
+    }
+    expect(await imageRow(failed)).not.toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${failed}`)).not.toBeNull()
+    expect(await appEnv.DB.prepare('SELECT id FROM sessions WHERE id = ?').bind(sessionId).first()).toBeNull()
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).not.toContain('/srv/secret')
+    expect(JSON.parse(lines[0]!)).toEqual({ event: 'image_purge_delete_error', error: 'TypeError', at: expect.any(String) })
+  })
+
   it('deletes a plaintext copy still linked to an encrypted session and keeps the encrypted copy', async () => {
     const plain = await uploadId()
     const sessionId = await createSession([plain])
