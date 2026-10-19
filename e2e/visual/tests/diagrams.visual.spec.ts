@@ -70,7 +70,7 @@ const COLORS: Record<
     line: 'rgb(225, 228, 231)',
     line2: 'rgb(205, 210, 215)',
     sub: 'rgb(76, 85, 93)',
-    faint: 'rgb(106, 115, 123)',
+    faint: 'rgb(104, 113, 121)',
     text: 'rgb(15, 18, 20)',
     accent: 'rgb(197, 240, 90)',
     accentText: 'rgb(77, 122, 0)',

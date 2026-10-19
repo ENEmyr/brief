@@ -72,7 +72,7 @@
   --c-line2: #cdd2d7;
   --c-text: #0f1214;
   --c-sub: #4c555d;
-  --c-faint: #6a737b;
+  --c-faint: #687179;
 
   --c-accent: #c5f05a; /* lime stays a fill, with dark text */
   --c-accent-text: #4d7a00; /* lime as text darkens for contrast */
@@ -92,6 +92,7 @@
   --c-good-line: #a9dcc2;
   --c-warn-line: #ebcb8a;
   --c-bad-line: #f0b8b5;
+  --c-bad-text: #9e2a26; /* a bad state label; no tokens.css entry, dark is the board #FFB3B3 (B-Blocks2:37) */
   --c-data-orange: #b4530f;
   --c-data-teal: #0b7a70;
 
@@ -188,6 +189,7 @@
     --c-good-line: #1d4434;
     --c-warn-line: #4a3a16;
     --c-bad-line: #5a2328;
+    --c-bad-text: #ffb3b3;
     --c-data-orange: #ff9f5a;
     --c-data-teal: #3dd6c6;
 

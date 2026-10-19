@@ -380,7 +380,7 @@ export function StateMachine({ block, ...anchor }: { block: StateBlock } & Block
           onPointerEnter={() => setHovered(n.id)}
           onPointerLeave={() => setHovered(null)}
           data-tone={n.tone}
-          className={`absolute box-border flex items-center justify-center rounded-[6px] p-1.5 text-center text-text ${fade} ${dimNode(n.id)} ${nodeFrame(n)}`}
+          className={`absolute box-border flex items-center justify-center rounded-[6px] p-1.5 text-center ${n.tone === 'bad' ? 'text-[var(--c-bad-text)]' : 'text-text'} ${fade} ${dimNode(n.id)} ${nodeFrame(n)}`}
           style={{ left: n.x, top: n.y, width: NODE_WIDTH, height: layout.nodeHeight }}
         >
           <span>

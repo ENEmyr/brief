@@ -4,7 +4,7 @@ import type { Palette } from '@/features/reader/services/echarts'
 export const LIGHT_PALETTE: Palette = {
   text: '#0f1214',
   sub: '#4c555d',
-  faint: '#6a737b',
+  faint: '#687179',
   line2: '#cdd2d7',
   card: '#ffffff',
   page: '#f4f5f6',

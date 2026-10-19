@@ -45,7 +45,7 @@ const C: Record<Theme, Palette> = {
     line2: 'rgb(205, 210, 215)',
     text: 'rgb(15, 18, 20)',
     sub: 'rgb(76, 85, 93)',
-    faint: 'rgb(106, 115, 123)',
+    faint: 'rgb(104, 113, 121)',
     accent: 'rgb(197, 240, 90)',
     accentLine: 'rgb(94, 140, 16)',
     accentSoft: 'rgb(238, 248, 217)',

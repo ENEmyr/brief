@@ -61,6 +61,10 @@ const BAD = {
   light: { soft: 'rgb(251, 233, 232)', line: 'rgb(240, 184, 181)', strong: 'rgb(192, 50, 45)' },
 } as const
 
+/** --c-bad-text (B-Blocks2:37 draws #FFB3B3; lightify.py:27 pairs it with #9E2A26) and --c-text per theme. */
+const BAD_TEXT = { dark: 'rgb(255, 179, 179)', light: 'rgb(158, 42, 38)' } as const
+const TEXT = { dark: 'rgb(232, 236, 238)', light: 'rgb(15, 18, 20)' } as const
+
 const dialogs = new WeakMap<Page, string[]>()
 
 async function open(page: Page, id: string) {
@@ -111,6 +115,18 @@ test.describe('round 1 board fields on seq, state and layers', () => {
       await expect(firstEdge).toHaveCSS('stroke', BAD[theme].strong)
       await expect(node.locator('xpath=..').getByText(XSS, { exact: true })).toHaveCSS('color', BAD[theme].strong)
       await expectNoScript(page)
+    })
+  }
+
+  for (const theme of ['dark', 'light'] as const) {
+    test(`only a bad state's label takes the bad-text color in ${theme}`, async ({ page, createSession }) => {
+      await page.emulateMedia({ colorScheme: theme })
+      const { id } = await createSession(payload)
+      await open(page, id)
+      await expect(page.locator('[data-state-node="429"]')).toHaveCSS('color', BAD_TEXT[theme])
+      // B-Blocks2 has no text color for the other tones: they keep the text token.
+      await expect(page.locator('[data-state-node="done"]')).toHaveCSS('color', TEXT[theme])
+      await expect(page.locator('[data-state-node="in"]')).toHaveCSS('color', TEXT[theme])
     })
   }
 

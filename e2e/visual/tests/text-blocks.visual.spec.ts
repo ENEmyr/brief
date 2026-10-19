@@ -52,7 +52,7 @@ const C = {
   light: {
     text: 'rgb(15, 18, 20)',
     sub: 'rgb(76, 85, 93)',
-    faint: 'rgb(106, 115, 123)',
+    faint: 'rgb(104, 113, 121)',
     line: 'rgb(225, 228, 231)',
     line2: 'rgb(205, 210, 215)',
     elev: 'rgb(249, 250, 250)',
