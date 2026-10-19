@@ -4,10 +4,11 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // One env var, E2E_PORT_BASE, places every local server the e2e and visual
-// suites start: API = base, web = base + 1, visual web = base + 2. Each wrangler
-// process also opens a devtools inspector (default 9229, and two processes that
-// start together race for the next free port and one dies), so those get fixed
-// ports too: API base + 4, web base + 5, visual web base + 6.
+// suites start: API = base, web = base + 1, visual web = base + 2. The API runs
+// under wrangler, which opens a devtools inspector (default 9229, and two
+// processes that start together race for the next free port and one dies), so
+// it gets a fixed port: API base + 4. The web servers run e2e/static-server.ts
+// and open no inspector; base + 5 and base + 6 stay reserved for them.
 // CI keeps 8787/8788/8789. Locally each checkout derives its own slot from its
 // absolute path, so concurrent worktrees never share a server. Slots tile
 // 10000..32767 (below Linux's ephemeral range from 32768), 2846 of them, so

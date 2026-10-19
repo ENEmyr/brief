@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "e2e": "playwright test",
-    "test": "bun ports.check.ts",
+    "test": "bun ports.check.ts && bun static-server.check.ts",
     "ports:check": "bun ports.check.ts",
-    "lint": "eslint tests visual playwright.config.ts ports.ts ports.check.ts",
+    "lint": "eslint tests visual playwright.config.ts ports.ts ports.check.ts static-server.ts static-server.check.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

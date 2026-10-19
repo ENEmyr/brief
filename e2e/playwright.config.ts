@@ -19,7 +19,7 @@ const reuseExistingServer = !process.env.CI && process.env.E2E_REUSE_SERVER === 
 // reachable, so a single `bunx playwright test` run here is self-contained.
 export default defineConfig({
   testDir: './tests',
-  // A single local `wrangler dev`/`wrangler pages dev` pair backs every
+  // A single local `wrangler dev` API and static web server back every
   // spec (webServer below), not a scalable environment -- running the
   // handful of specs one at a time is far more reliable than racing several
   // workers against one workerd instance and one D1/KV state directory.
@@ -55,11 +55,11 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      // wrangler pages dev serves the static export as-is, including
-      // apps/web/public/_redirects (the `/s/* -> /s/ 200` rewrite the
-      // reader route depends on) -- a plain static file server would not
-      // honor that rewrite.
-      command: `bunx wrangler pages dev out --port ${ports.web} --inspector-port ${ports.webInspector} --compatibility-date=2026-06-05`,
+      // static-server.ts serves the static export and applies
+      // apps/web/public/_redirects (the `/s/* -> /s/ 200` rewrite the reader
+      // route depends on), as Pages does. It replaced `wrangler pages dev`,
+      // whose miniflare ProxyWorker crashed under repeated runs.
+      command: `bun ../../e2e/static-server.ts out ${ports.web}`,
       cwd: '../apps/web',
       url: WEB_URL,
       reuseExistingServer,
