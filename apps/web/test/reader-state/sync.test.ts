@@ -17,6 +17,17 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** Leaves the sync mark a real first load leaves: no local entry, the server
+ * answers `synced`, the store hydrates from it and the mark is saved. */
+async function syncMarkFor(synced: object) {
+  localStorage.removeItem(`idocs:${sessionId}`)
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: JSON.stringify(synced) }))))
+  const stop = startKvSync(sessionId, createReaderStateStore(sessionId))
+  await flushMicrotasks()
+  stop()
+  expect(localStorage.getItem(`idocs-synced:${sessionId}`)).not.toBeNull()
+}
+
 describe('startKvSync hydration precedence', () => {
   it('hydrates from remote state when localStorage has no entry for the session', async () => {
     const mockFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ state: JSON.stringify({ highlights: [], dsel: { d1: ['remote'] }, dnote: {} }) })))
@@ -28,7 +39,10 @@ describe('startKvSync hydration precedence', () => {
     stop()
   })
 
-  it('keeps local state when localStorage already has an entry, ignoring remote', async () => {
+  // A browser without a sync mark now takes a differing server copy (d066), so
+  // local wins only once this browser synced the copy the server still holds.
+  it('keeps local state when localStorage has an entry and the server copy has not moved since the last sync', async () => {
+    await syncMarkFor({ highlights: [], dsel: { d1: ['remote'] }, dnote: {} })
     localStorage.setItem(
       `idocs:${sessionId}`,
       JSON.stringify({ highlights: [], dsel: { d1: ['local'] }, dnote: {} }),
@@ -432,8 +446,11 @@ describe('startKvSync when this browser holds a stored state', () => {
     stop()
   })
 
-  it('PUTs it when the server copy differs', async () => {
-    const { mockFetch, statuses, stop } = startWithRemote({ ...local, dnote: { d1: 'older' } })
+  // Needs the mark: without one the differing server copy wins (d066).
+  it('PUTs it when the server copy differs but has not moved since the last sync', async () => {
+    const synced = { ...local, dnote: { d1: 'older' } }
+    await syncMarkFor(synced)
+    const { mockFetch, statuses, stop } = startWithRemote(synced)
     await flushMicrotasks()
     expect(putBodies(mockFetch)).toEqual([local])
     expect(statuses).toEqual(['saving', 'saved'])
@@ -453,5 +470,65 @@ describe('startKvSync when this browser holds a stored state', () => {
     await flushMicrotasks()
     expect(statuses).toEqual(['saving', 'failed'])
     stop()
+  })
+})
+
+describe('startKvSync sync mark: server wins at load when it moved since the last sync', () => {
+  const local = { highlights: [], dsel: { d1: ['local'] }, dnote: {}, dother: {} }
+  const server = { highlights: [], dsel: { d1: ['server'] }, dnote: {}, dother: {} }
+  const statePath = `/api/session/${sessionId}/state`
+
+  async function loadWithLocal(remote: object | null) {
+    localStorage.setItem(`idocs:${sessionId}`, JSON.stringify(local))
+    const mockFetch = vi.fn((_url: string, init?: RequestInit) =>
+      Promise.resolve(
+        init?.method === 'PUT'
+          ? new Response('{}')
+          : new Response(JSON.stringify({ state: remote === null ? null : JSON.stringify(remote) })),
+      ),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+    const store = createReaderStateStore(sessionId)
+    const statuses: string[] = []
+    const stop = startKvSync(sessionId, store, (s) => statuses.push(s))
+    await flushMicrotasks()
+    const calls = mockFetch.mock.calls.map(([url, init]) => {
+      const path = url.slice(url.indexOf('/api/'))
+      if (init?.method !== 'PUT') return [path, 'GET']
+      return [path, 'PUT', JSON.parse(JSON.parse(init.body as string).state as string) as unknown]
+    })
+    stop()
+    return { calls, state: store.getState(), statuses }
+  }
+
+  it('takes a differing server copy when this browser has no sync mark, and never PUTs the local copy', async () => {
+    const { calls, state, statuses } = await loadWithLocal(server)
+    expect(calls).toEqual([[statePath, 'GET']])
+    expect(state).toEqual(server)
+    expect(statuses).toEqual(['saving', 'saved'])
+    expect(localStorage.getItem(`idocs-synced:${sessionId}`)).not.toBeNull()
+  })
+
+  it('PUTs the local copy when this browser has no sync mark and the server has no copy', async () => {
+    const { calls, state, statuses } = await loadWithLocal(null)
+    expect(calls).toEqual([[statePath, 'GET'], [statePath, 'PUT', local]])
+    expect(state).toEqual(local)
+    expect(statuses).toEqual(['saving', 'saved'])
+  })
+
+  it('takes the server copy when it moved since the mark', async () => {
+    await syncMarkFor({ highlights: [], dsel: { d1: ['older'] }, dnote: {}, dother: {} })
+    const { calls, state, statuses } = await loadWithLocal(server)
+    expect(calls).toEqual([[statePath, 'GET']])
+    expect(state).toEqual(server)
+    expect(statuses).toEqual(['saving', 'saved'])
+  })
+
+  it('PUTs the local copy when the server copy still equals the mark', async () => {
+    await syncMarkFor(server)
+    const { calls, state, statuses } = await loadWithLocal(server)
+    expect(calls).toEqual([[statePath, 'GET'], [statePath, 'PUT', local]])
+    expect(state).toEqual(local)
+    expect(statuses).toEqual(['saving', 'saved'])
   })
 })

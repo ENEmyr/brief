@@ -564,6 +564,18 @@ describe('payload text cannot break out of /raw fences or mermaid labels', () =>
     expect(md).not.toMatch(/^# injected/m)
   })
 
+  // d175: the info string is only a language label, so < and > never reach the fence line.
+  it('drops angle brackets from a code language', () => {
+    expect(blockMd({ type: 'code', language: XSS, code: 'a' })).toBe('```img src=x onerror=alert(1)\na\n```\n')
+  })
+
+  it('drops angle brackets from both ba opening fence lines', () => {
+    const md = blockMd({ type: 'ba', language: 'ts<b>', before: 'a', after: 'b' })
+    expect(md).toContain('```tsb\na\n```')
+    expect(md).toContain('```tsb\nb\n```')
+    expect(md).not.toContain('<')
+  })
+
   // d052: a downstream mermaid renderer with htmlLabels would parse < and > in a
   // label as HTML, so labels carry mermaid's own entity codes instead.
   it('escapes angle brackets in every mermaid label', () => {

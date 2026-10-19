@@ -64,7 +64,7 @@ export function saveSyncMark(sessionId: string, mark: string): void {
   try {
     window.localStorage.setItem(syncMarkKey(sessionId), mark)
   } catch {
-    // private mode / quota exceeded: the next load falls back to local wins
+    // private mode / quota exceeded: the next load takes any server copy
   }
 }
 

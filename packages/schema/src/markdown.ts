@@ -108,13 +108,14 @@ function table(head: string[], rows: string[][], align?: Align[]): string {
  * Fence body content so a literal ``` inside it can't terminate the block
  * early. Uses one more backtick than the longest backtick run found in the
  * body (minimum 3), matching CommonMark's fenced-code-block rule. The info
- * string must stay on the opening line and, after backticks, hold none.
+ * string must stay on the opening line and hold no backticks; it drops < and >
+ * too, since it is only a language label.
  */
 function fence(lang: string, body: string): string {
   const runs = body.match(/`+/g) ?? []
   const longest = runs.reduce((max, run) => Math.max(max, run.length), 0)
   const ticks = '`'.repeat(Math.max(3, longest + 1))
-  return `${ticks}${oneLine(lang).replaceAll('`', '')}\n${body}\n${ticks}`
+  return `${ticks}${oneLine(lang).replaceAll(/[`<>]/g, '')}\n${body}\n${ticks}`
 }
 
 function assertNever(x: never): never {
