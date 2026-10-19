@@ -413,6 +413,16 @@ body {
 .save-pulse {
   animation: save-pulse 1.2s ease-in-out infinite;
 }
+/* Overlay exit (interactions.md:40, B-Overlays:186): opacity only, fast.
+ * Reduced motion keeps it: opacity at 90ms is what it allows. */
+@keyframes console-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+[data-overlay-exit] > * {
+  animation: console-out var(--dur-fast) ease both !important;
+  pointer-events: none;
+}
 
 /* Section flash (S8): after a jump the card border goes from lime back to
  * its own color (line; transparent under 880, where sections sit flush) with a
