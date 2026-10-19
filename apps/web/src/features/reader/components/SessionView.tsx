@@ -492,21 +492,23 @@ function SessionReady({
       <OverlayExit open={paletteOpen}>
         {paletteOpen && <CommandPalette entries={paletteEntries} onSelect={selectEntry} onClose={closePalette} />}
       </OverlayExit>
-      {shortcutsOpen && <ShortcutSheet onClose={closeShortcuts} />}
-      {reviewOpen && (
-        <PromptReviewSheet
-          decisions={payload.decisions}
-          docTitle={payload.meta.title}
-          sessionId={data.id}
-          flagLines={(state) => flagPromptLines(payload, state)}
-          copyText={copy}
-          onClose={closeReview}
-          onGoTo={(id) => {
-            closeReview()
-            goToDecision(id)
-          }}
-        />
-      )}
+      <OverlayExit open={shortcutsOpen}>{shortcutsOpen && <ShortcutSheet onClose={closeShortcuts} />}</OverlayExit>
+      <OverlayExit open={reviewOpen}>
+        {reviewOpen && (
+          <PromptReviewSheet
+            decisions={payload.decisions}
+            docTitle={payload.meta.title}
+            sessionId={data.id}
+            flagLines={(state) => flagPromptLines(payload, state)}
+            copyText={copy}
+            onClose={closeReview}
+            onGoTo={(id) => {
+              closeReview()
+              goToDecision(id)
+            }}
+          />
+        )}
+      </OverlayExit>
       <OverlayExit open={!protectedSession && saveModalOpen}>
         {!protectedSession && saveModalOpen && (
           <SaveModal

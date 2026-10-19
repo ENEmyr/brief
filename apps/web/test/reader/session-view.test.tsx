@@ -485,8 +485,40 @@ describe('decision dock in the reader', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Copy prompt for agent/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Go to d2' }))
 
+    // The review fades out inert; once it unmounts, focus stays on d2 instead of going back to the trigger.
+    const review = screen.getByRole('dialog', { name: 'Review prompt before copying' })
+    expect(review.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+    endAnimation(review.parentElement!)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
+  })
+
+  it('the review sheet fades out inert on Escape, then unmounts and hands focus back to its trigger', async () => {
+    await openReader()
+    const trigger = screen.getByRole('button', { name: /^Copy prompt for agent/ })
+    trigger.focus()
+    fireEvent.click(trigger)
+    const review = screen.getByRole('dialog', { name: 'Review prompt before copying' })
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(review.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+    endAnimation(review.parentElement!)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('the shortcut sheet fades out inert on Escape, then unmounts and hands focus back', async () => {
+    await openReader()
+    const search = screen.getByRole('button', { name: 'Search' })
+    search.focus()
+    fireEvent.keyDown(search, { key: '?' })
+    const sheet = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(sheet.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+    endAnimation(sheet.parentElement!)
+    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull()
+    expect(search).toHaveFocus()
   })
 
   it('N jumps to the next unanswered question, then the one after the focused question', async () => {
@@ -546,8 +578,9 @@ describe('decision dock in the reader', () => {
       fireEvent.click(within(sheet).getByRole('button', { name: 'Copy prompt for agent' }))
       expect(screen.getByRole('dialog', { name: 'Review prompt before copying' })).toBeInTheDocument()
 
+      // The review fades out inert, so the next Escape already reaches the sheet.
       fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
-      expect(screen.queryByRole('dialog', { name: 'Review prompt before copying' })).not.toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Review prompt before copying' }).closest('[data-overlay-exit]')).toHaveAttribute('inert')
       expect(screen.getByRole('dialog', { name: 'Decision dock' })).toBeInTheDocument()
 
       fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
@@ -560,6 +593,8 @@ describe('decision dock in the reader', () => {
       fireEvent.click(within(sheet).getByRole('button', { name: 'Copy prompt for agent' }))
       fireEvent.click(screen.getByRole('button', { name: 'Go to d2' }))
 
+      const review = screen.getByRole('dialog', { name: 'Review prompt before copying' })
+      endAnimation(review.parentElement!)
       expect(screen.queryByRole('dialog', { name: 'Review prompt before copying' })).not.toBeInTheDocument()
       expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
     })
