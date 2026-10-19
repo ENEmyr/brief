@@ -35,7 +35,7 @@ first use for Google Fonts and refuses to write references if a font is missing.
   it (`BOARD_FONTS`); the app side needs its next/font families (`APP_FONTS`,
   the same set since Phase 1).
   A missing family fails the run as a harness error, not as a pixel diff.
-- `visual.config.ts` serves `apps/web/out` with `wrangler pages dev` on the visual port, `E2E_PORT_BASE + 2` (8789 in CI, a per-worktree port locally that moves to the next free slot when a port is taken; see `e2e/ports.ts`).
+- `visual.config.ts` serves `apps/web/out` with `e2e/static-server.ts` on the visual port, `E2E_PORT_BASE + 2` (8789 in CI, a per-worktree port locally that moves to the next free slot when a port is taken; see `e2e/ports.ts`).
   The API is never started: `lib/session.ts` answers `GET /api/session/<id>` and
   the state endpoints with `page.route`, using `fixtures/brief-sample.payload.json`
   under session id `k2p9x4Qm7Zr1Ta` with a fixed `expiresAt`, freezes `Date` with
