@@ -742,9 +742,10 @@ body {
     font-size: 11px;
     font-weight: 700;
   }
+  /* B-Print:64: the list sits 8px under the card's rule, flush with its left edge. */
   [data-print-notes] {
     margin: 8px 0 4px;
-    padding: 0 10px;
+    padding: 0;
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 22px;
