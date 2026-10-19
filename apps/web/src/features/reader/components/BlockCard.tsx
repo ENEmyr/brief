@@ -165,7 +165,7 @@ function CardBody({ state, children }: { state: BlockCardState; children: ReactN
     return (
       <div className="flex flex-col gap-2 p-3">
         <p className="m-0 text-[13px] leading-5 text-sub">
-          This reader cannot show this block. The content is below as data.
+          This reader does not know this block type yet. The content is below as data.
         </p>
         <RawBlock raw={state.raw} />
       </div>

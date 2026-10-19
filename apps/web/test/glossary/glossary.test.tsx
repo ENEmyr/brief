@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { act, fireEvent, render } from '@testing-library/react'
+import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import type { Payload } from '@brief/schema'
 import { Annotatable } from '@/features/annotations'
 import { buildGlossaryIndex, compileNeedles, findTermHits, GlossaryProvider, PrintTerms } from '@/features/glossary'
@@ -148,6 +148,22 @@ describe('glossary terms in a leaf', () => {
     expect(tip.className).toContain('motion-reduce:animate-none')
   })
 
+  it('fades the popover out over 120 ms before it unmounts', async () => {
+    const { leaf } = renderLeaf()
+    const term = leaf.querySelector<HTMLElement>('[data-term="1"]')!
+    act(() => term.focus())
+    const tip = document.querySelector<HTMLElement>('[data-glossary-tip="1"]')!
+    fireEvent.keyDown(tip, { key: 'Escape' })
+    const leaving = document.querySelector<HTMLElement>('[data-glossary-tip="1"]')!
+    // A new element, so the reversed animation plays from its start.
+    expect(leaving).not.toBe(tip)
+    expect(leaving.className).toContain('animate-[console-in_120ms_ease_both_reverse]')
+    expect(leaving.className).toContain('pointer-events-none')
+    expect(leaving.className).toContain('motion-reduce:invisible')
+    expect(document.activeElement).toBe(term)
+    await waitFor(() => expect(document.querySelector('[data-glossary-tip]')).toBeNull())
+  })
+
   it('splits a highlight that crosses a term edge and keeps one note marker', () => {
     const h: Highlight = {
       id: 'h1', sid: 0, bid: 0, path: 'text', start: 7, end: 17, text: 'the token ', note: 'n', createdAt: 0,
@@ -159,7 +175,7 @@ describe('glossary terms in a leaf', () => {
     expect(marks.filter((m) => m.getAttribute('data-marker') === 'note')).toHaveLength(1)
   })
 
-  it('opens on focus with the definition and its uses, and Escape returns focus', () => {
+  it('opens on focus with the definition and its uses, and Escape returns focus', async () => {
     const { leaf, handlers } = renderLeaf()
     const term = leaf.querySelector<HTMLElement>('[data-term="1"]')!
     act(() => term.focus())
@@ -169,14 +185,14 @@ describe('glossary terms in a leaf', () => {
     fireEvent.keyDown(term, { key: 'Tab' })
     expect(document.activeElement).toBe(links[0])
     fireEvent.keyDown(links[0]!, { key: 'Escape' })
-    expect(document.querySelector('[data-glossary-tip]')).toBeNull()
     expect(document.activeElement).toBe(term)
+    await waitFor(() => expect(document.querySelector('[data-glossary-tip]')).toBeNull())
     fireEvent.click(term)
     fireEvent.click(document.querySelector<HTMLElement>('[data-glossary-tip="1"] button:nth-child(2)')!)
     expect(handlers.onSection).toHaveBeenCalledWith('how')
   })
 
-  it('toggles on tap and stays open on a mouse click', () => {
+  it('toggles on tap and stays open on a mouse click', async () => {
     const { leaf } = renderLeaf()
     const term = leaf.querySelector<HTMLElement>('[data-term="2"]')!
     // jsdom has no PointerEvent, so pointerType is set by hand.
@@ -190,7 +206,7 @@ describe('glossary terms in a leaf', () => {
     tap()
     expect(document.querySelector('[data-glossary-tip="2"]')).not.toBeNull()
     tap()
-    expect(document.querySelector('[data-glossary-tip="2"]')).toBeNull()
+    await waitFor(() => expect(document.querySelector('[data-glossary-tip="2"]')).toBeNull())
     press('mouse')
     press('mouse')
     expect(document.querySelector('[data-glossary-tip="2"]')).not.toBeNull()

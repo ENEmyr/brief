@@ -19,6 +19,8 @@ describe('list block', () => {
     const { container } = renderBlock({ type: 'list', items: ['Burst webhooks hit 429', 'Fail open or closed'] })
     const list = screen.getByRole('list')
     expect(list.tagName).toBe('UL')
+    // No gap and no item margin: a flex column would only look like it spaces the items.
+    expect(list.className).not.toMatch(/\bflex\b/)
     expect(container.querySelector('figure [data-kind-tag]')?.textContent).toBe('list')
     const items = screen.getAllByRole('listitem')
     expect(items.map((li) => li.textContent)).toEqual(['Burst webhooks hit 429', 'Fail open or closed'])

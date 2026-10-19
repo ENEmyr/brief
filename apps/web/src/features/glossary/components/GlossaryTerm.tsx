@@ -5,8 +5,10 @@ import { useGlossary } from './GlossaryProvider'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
-// B-NewBlocks .b-tip: 300 wide, 8px below the term, opacity .12s ease. Fade in only: the popover unmounts on close.
+// B-NewBlocks .b-tip: 300 wide, 8px below the term, opacity .12s ease. It fades in, and on close runs
+// the same fade backwards before it unmounts.
 const TIP_WIDTH = 300
+const FADE_MS = 120
 const TIP_GAP = 8
 const GUTTER = 16
 // Time for a pointer to cross the 8px gap into the popover before it closes.
@@ -26,6 +28,8 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
   const { index, onSection, onDecision } = useGlossary()
   const term = index.terms[n - 1]
   const [open, setOpen] = useState(false)
+  // Stays true through the fade-out after `open` turns false.
+  const [fading, setFading] = useState(false)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
   const termRef = useRef<HTMLSpanElement>(null)
   const tipRef = useRef<HTMLDivElement>(null)
@@ -56,6 +60,15 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
   }, [])
 
   useEffect(() => () => window.clearTimeout(leaveTimer.current), [])
+
+  useEffect(() => {
+    if (open) {
+      setFading(true)
+      return
+    }
+    const timer = window.setTimeout(() => setFading(false), FADE_MS)
+    return () => window.clearTimeout(timer)
+  }, [open])
 
   useLayoutEffect(() => {
     if (!open || !termRef.current) return
@@ -154,10 +167,12 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
       >
         {children}
       </span>
-      {open &&
+      {(open || fading) &&
         pos &&
         createPortal(
           <div
+            // A new element on close: a finished animation that only changes direction would not replay.
+            key={open ? 'open' : 'closing'}
             ref={tipRef}
             id={tipId}
             // A tooltip may hold no controls; this one holds the section and decision links.
@@ -166,13 +181,18 @@ export function GlossaryTerm({ n, children }: { n: number; children: React.React
             data-glossary-tip={term.n}
             onMouseEnter={cancelLeave}
             onMouseLeave={hideSoon}
+            inert={!open}
             onKeyDown={onTipKeyDown}
             onBlur={(e) => {
               const next = e.relatedTarget as Node | null
               if (!tipRef.current?.contains(next) && next !== termRef.current) setOpen(false)
             }}
             style={{ left: pos.left, top: pos.top, width: Math.min(TIP_WIDTH, window.innerWidth - 2 * GUTTER) }}
-            className="fixed z-50 flex animate-[console-in_120ms_ease_both] flex-col gap-[6px] rounded-[6px] border border-line2 bg-elev p-3 text-left text-[13px] leading-5 text-text shadow-[var(--shadow-overlay)] motion-reduce:animate-none print:hidden"
+            className={`fixed z-50 flex flex-col gap-[6px] rounded-[6px] border border-line2 bg-elev p-3 text-left text-[13px] leading-5 text-text shadow-[var(--shadow-overlay)] motion-reduce:animate-none print:hidden ${
+              open
+                ? 'animate-[console-in_120ms_ease_both]'
+                : 'pointer-events-none animate-[console-in_120ms_ease_both_reverse] motion-reduce:invisible'
+            }`}
           >
             <span className="flex justify-between gap-2 font-mono text-[11px] text-info">
               <span>{term.term}</span>

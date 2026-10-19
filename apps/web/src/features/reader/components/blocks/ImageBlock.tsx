@@ -44,6 +44,8 @@ function ImageCard({
   anchor: BlockAnchor
 }) {
   const [load, setLoad] = useState<ImageLoad>({ status: 'loading' })
+  // The bytes are here but the image has not decoded: its natural size is still unknown.
+  const [decoded, setDecoded] = useState(false)
 
   useEffect(() => {
     let live = true
@@ -65,25 +67,29 @@ function ImageCard({
   }, [block.imageId, imageKey])
 
   const sized = block.width !== undefined && block.height !== undefined
+  // An unsized image keeps the skeleton until it has decoded, so the card changes height once, to the final size.
+  const holdSkeleton = !sized && !decoded
   // No header "loading" label: it wraps the header at phone width, and the
   // header shrinking on load would shift the card the box was reserved for.
   return (
     <BlockCard {...cardHeader(block, anchor)} state={load.status === 'missing' ? MISSING : READY}>
       <div data-image-body className="p-3">
         <div
-          className={`mx-auto max-w-full ${sized || load.status !== 'ready' ? '' : 'w-fit'}`}
+          className={`mx-auto max-w-full ${sized || holdSkeleton ? '' : 'w-fit'}`}
           style={sized ? { width: block.width, aspectRatio: `${block.width} / ${block.height}` } : undefined}
         >
-          {load.status === 'ready' ? (
+          {load.status === 'ready' && (
             <img
               src={load.url}
               alt={block.alt}
               width={block.width}
               height={block.height}
+              onLoad={() => setDecoded(true)}
               onError={() => setLoad({ status: 'missing' })}
-              className={sized ? 'block size-full' : 'block h-auto max-w-full'}
+              className={sized ? 'block size-full' : `${holdSkeleton ? 'hidden' : 'block'} h-auto max-w-full`}
             />
-          ) : (
+          )}
+          {(load.status !== 'ready' || holdSkeleton) && (
             <div data-image-loading aria-hidden="true" className={`sk rounded-[4px] ${sized ? 'h-full' : 'h-32'}`} />
           )}
         </div>

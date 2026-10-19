@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { hasOpenDialog } from '@/features/export'
 import { findSection } from '../lib/sectionNav'
 
@@ -15,7 +15,7 @@ export interface BackTarget {
  * 24 above the viewport's bottom edge, and under 880 24 above the dock's peek
  * bar (97 high, B-Mobile), on the peek bar's layer so the open sheet, dialogs
  * and toasts cover it. From 880 a toast takes its spot, so it rises above
- * the toast: 24 + the toast's 42 + an 8 gap. It leaves on an Escape that no
+ * the toast as measured: 24 + the toast's height + an 8 gap (B-States:150). It leaves on an Escape that no
  * dialog takes, and once the section it jumped to has been on screen and is
  * scrolled out of view.
  */
@@ -28,6 +28,28 @@ export function BackPill({
   onBack: () => void
   onDismiss: () => void
 }) {
+  const [toastHeight, setToastHeight] = useState<number>()
+  useEffect(() => {
+    let watched: Element | null = null
+    const size = new ResizeObserver(() => {
+      if (watched) setToastHeight(watched.getBoundingClientRect().height)
+    })
+    const sync = () => {
+      const toast = document.querySelector('[data-toast]')
+      if (toast === watched) return
+      if (watched) size.unobserve(watched)
+      watched = toast
+      if (toast) size.observe(toast)
+    }
+    const toasts = new MutationObserver(sync)
+    toasts.observe(document.body, { childList: true, subtree: true })
+    sync()
+    return () => {
+      toasts.disconnect()
+      size.disconnect()
+    }
+  }, [])
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape' && !hasOpenDialog()) onDismiss()
@@ -53,8 +75,9 @@ export function BackPill({
     <button
       type="button"
       data-back-pill=""
+      style={toastHeight === undefined ? undefined : ({ '--toast-h': `${toastHeight}px` } as CSSProperties)}
       onClick={onBack}
-      className="console-toast fixed inset-x-0 bottom-6 z-40 mx-auto flex min-h-[42px] w-fit cursor-pointer items-center gap-2 rounded-panel border border-line2 bg-chip px-[14px] text-[13px] font-semibold leading-[normal] text-text shadow-[var(--shadow-toast)] transition-transform duration-[var(--dur-fast)] active:scale-[.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line motion-reduce:transition-none max-[880px]:bottom-[121px] max-[880px]:min-h-11 min-[880px]:[body:has([data-toast])_&]:bottom-[74px] print:hidden"
+      className="console-toast fixed inset-x-0 bottom-6 z-40 mx-auto flex min-h-[42px] w-fit cursor-pointer items-center gap-2 rounded-panel border border-line2 bg-chip px-[14px] text-[13px] font-semibold leading-[normal] text-text shadow-[var(--shadow-toast)] transition-transform duration-[var(--dur-fast)] active:scale-[.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-line motion-reduce:transition-none max-[880px]:bottom-[121px] max-[880px]:min-h-11 min-[880px]:[body:has([data-toast])_&]:bottom-[calc(1.5rem+var(--toast-h,42px)+0.5rem)] print:hidden"
     >
       <svg
         width="14"

@@ -73,6 +73,13 @@ describe('CommandPalette', () => {
     expect(screen.getAllByRole('option')[0]).toHaveAttribute('id', input.getAttribute('aria-activedescendant'))
   })
 
+  it('caps the panel to the viewport so the list scrolls inside it', () => {
+    openPalette()
+
+    expect(screen.getByRole('dialog', { name: 'Command palette' }).className).toMatch(/\bmax-h-full\b/)
+    expect(screen.getByRole('listbox', { name: 'Results' }).className).toMatch(/\boverflow-y-auto\b/)
+  })
+
   it('labels each group with its board title', () => {
     openPalette()
 
