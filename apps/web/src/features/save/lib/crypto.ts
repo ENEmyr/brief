@@ -58,13 +58,6 @@ export async function newSessionKey(password: string): Promise<NewSessionKey> {
   return { key: await deriveKey(password, salt, PBKDF2_ITERATIONS), salt }
 }
 
-export async function encryptPayload(
-  plaintext: string,
-  password: string,
-): Promise<{ ciphertext: string; encParams: EncParams }> {
-  return encryptPayloadWithKey(plaintext, await newSessionKey(password))
-}
-
 export async function encryptPayloadWithKey(
   plaintext: string,
   { key, salt }: NewSessionKey,

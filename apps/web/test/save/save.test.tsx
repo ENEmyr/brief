@@ -218,7 +218,7 @@ describe('SaveModal', () => {
     expect(screen.getByRole('button', { name: 'Archive' })).toBeEnabled()
   })
 
-  it('encrypt path: calls encryptPayload then saveSession with mode encrypt + encParams, toasts, and closes', async () => {
+  it('encrypt path: calls encryptPayloadWithKey then saveSession with mode encrypt + encParams, toasts, and closes', async () => {
     stubFetch({ status: 200, body: { saved: true, encrypted: true, expiresAt: 1 } })
     const { onSaved, onClose } = renderModal()
     fireEvent.click(screen.getByRole('radio', { name: 'Archive with password' }))
