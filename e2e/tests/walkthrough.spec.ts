@@ -178,3 +178,25 @@ test.describe('walkthrough block', () => {
     expect(await drawn()).toBe(11)
   })
 })
+
+for (const width of [388, 879]) {
+  test(`at ${width}x700 Previous hunk and Next hunk are the hit target at their centre`, async ({
+    page,
+    createSession,
+  }) => {
+    await page.setViewportSize({ width, height: 700 })
+    const { id } = await createSession(payload)
+    await page.goto(`/s/${id}`)
+    await expect(block(page).locator('pre.shiki')).toHaveCount(1)
+    for (const name of ['Previous hunk', 'Next hunk']) {
+      const button = hunk(page, name)
+      await button.scrollIntoViewIfNeeded()
+      const box = (await button.boundingBox())!
+      const hit = await button.evaluate((el, { x, y }) => el.contains(document.elementFromPoint(x, y)), {
+        x: box.x + box.width / 2,
+        y: box.y + box.height / 2,
+      })
+      expect(hit).toBe(true)
+    }
+  })
+}
