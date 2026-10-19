@@ -101,6 +101,8 @@ Errors:
 
 Returns the session as clean, self-describing Markdown (`text/markdown; charset=utf-8`), intended for agents that want to re-read a document without scraping HTML. This also bumps the sliding expiry.
 
+Known limit: a `mermaid` block's `code` is copied into the Markdown verbatim. The Brief reader renders it as text, but a downstream renderer that has HTML labels turned on could render raw HTML from a label. Render untrusted `/raw` output with HTML labels off. The server does escape `<` and `>` in the labels of the diagrams it builds from other blocks: `seq`, `state`, `layers`, `erd`, the `walkthrough` flowchart and the `diff` change map.
+
 Errors:
 
 | Status | Meaning |
@@ -129,6 +131,8 @@ Request body:
 ```
 
 Response: `204` with no body.
+
+Known limit: the last write wins. When two devices change the same brief between syncs, a browser that has synced before takes the server copy at load when that copy changed since its last sync. It drops its own unsynced edit, with no conflict message.
 
 Errors:
 
@@ -171,6 +175,8 @@ Response, `200` (both modes):
 ```
 
 For a plain save, `encrypted` reflects the session's existing state. Both modes invalidate the KV payload cache. An encrypt save additionally replaces the stored payload with the ciphertext, blanks the stored title, records `encParams`, and purges any plaintext reader state for the session.
+
+Known limit: an encrypted archive made by a reader older than v1.4.0 holds a re-serialized copy of the payload. It lacks any field that reader's schema did not declare, for example a field from a newer agent. Nothing can rewrite such an archive without its password. Archives made from v1.4.0 on encrypt the stored payload as the server returned it. The string is unchanged unless the brief has image blocks, where only the image ids are swapped and every other field is kept.
 
 Errors:
 

@@ -158,10 +158,12 @@ B-Overlays prompt review sheet. Board numbers were read relative to the dock (or
 sheet) box, with the board fonts fetched the way the renderer fetches them; a
 board measured with Google's default font files has different text widths. The
 spec pins `navigator.platform` to a Mac so the app draws the boards' ⌘ key
-chips. Every B-Reader decision has a context-chip row that waits on
-`decision.refs`, so positions below it are the board's minus 34 per row
-(`CHIPS`). The phone sheet opens with B-Mobile's own answers (D1 binding, D3 api),
-not the shared seed. Its pixel crops (`crop-reader-<theme>-dock-*`) cover the
+chips. The fixture sets `refs` on every decision, so each dock decision draws
+its context-chip row (28 high: the board's 26 plus the border). The spec uses
+the board's numbers as drawn, with no per-row offset. The phone sheet uses
+`mobile-sample.payload.json` (D2 has `refs`), where the context link is 44 high,
+6 taller than B-Mobile's 38. It opens with B-Mobile's own answers (D1 binding,
+D3 api), not the shared seed. Its pixel crops (`crop-reader-<theme>-dock-*`) cover the
 header, two option rows, a checkbox and the Copy button.
 
 ## Foundations
