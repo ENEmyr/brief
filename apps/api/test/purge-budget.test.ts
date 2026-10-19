@@ -67,26 +67,30 @@ describe('purgeExpired call budget', () => {
     expect(await rowCount()).toBe(1000)
   }, 30_000)
 
-  it('deletes 5000 expired images under the budget, and a cut-off run leaves the rest for the next run', async () => {
+  // A few hundred, not thousands: isolated storage copies every R2 object when the test ends, and
+  // at 5000 that teardown lost its connection on CI runners.
+  it('deletes 450 expired images under the budget, and a cut-off run leaves the rest for the next run', async () => {
     const now = Date.now()
-    await seedImages(5000, null, now)
+    const count = 450
+    const cutOffBudget = 100
+    await seedImages(count, null, now)
 
     const first = counted(appEnv.IMAGES)
-    const firstPurged = await purgeExpired(first.env, now, 200)
+    const firstPurged = await purgeExpired(first.env, now, cutOffBudget)
     const firstTotal = first.calls.d1 + first.calls.r2
-    expect(firstTotal).toBeLessThanOrEqual(200)
+    expect(firstTotal).toBeLessThanOrEqual(cutOffBudget)
     expect(firstPurged.images).toBeGreaterThan(0)
-    expect(firstPurged.images).toBeLessThan(5000)
-    expect(await rowCount()).toBe(5000 - firstPurged.images)
+    expect(firstPurged.images).toBeLessThan(count)
+    expect(await rowCount()).toBe(count - firstPurged.images)
 
     const second = counted(appEnv.IMAGES)
     const secondPurged = await purgeExpired(second.env, now)
     const secondTotal = second.calls.d1 + second.calls.r2
     expect(secondTotal).toBeLessThanOrEqual(PURGE_CALL_BUDGET)
-    expect(firstPurged.images + secondPurged.images).toBe(5000)
+    expect(firstPurged.images + secondPurged.images).toBe(count)
     const deleted = [...first.calls.deletedKeys, ...second.calls.deletedKeys]
     expect(new Set(deleted).size).toBe(deleted.length)
-    expect(deleted).toHaveLength(5000)
+    expect(deleted).toHaveLength(count)
     expect(await rowCount()).toBe(0)
     expect((await appEnv.IMAGES.list({ prefix: 'images/' })).objects).toEqual([])
   }, 30_000)
