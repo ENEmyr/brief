@@ -98,6 +98,35 @@ describe('encrypted copies of a failed or cancelled archive', () => {
     expect(imageIdsIn(saved)).toEqual(['img_sealed000000003', 'img_sealed000000004'])
   })
 
+  it('deletes the copies when the API refuses the save, but not when the save never got an answer', async () => {
+    let saveStatus = 500
+    const api = stubApi((url, method) => {
+      if (method === 'GET' && url.startsWith(`${API_URL}/api/image/`)) return png()
+      if (method === 'POST') return sealed(api.log.filter((line) => line.startsWith('POST ')).length)
+      if (method === 'DELETE') return new Response(null, { status: 204 })
+      if (method === 'PUT') {
+        if (saveStatus === 0) throw new TypeError('Failed to fetch')
+        return new Response(JSON.stringify({ error: 'Internal error.' }), { status: saveStatus })
+      }
+      return undefined
+    })
+    archiveWithPassword()
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not archive. Nothing was changed.'))
+    await waitFor(() =>
+      expect(api.deletes()).toEqual([
+        `DELETE ${API_URL}/api/session/sess1/image/img_sealed000000001`,
+        `DELETE ${API_URL}/api/session/sess1/image/img_sealed000000002`,
+      ]),
+    )
+
+    saveStatus = 0
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(api.log.filter((line) => line.startsWith('PUT '))).toHaveLength(2))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(api.deletes()).toHaveLength(2)
+  })
+
   it('deletes the copy uploaded before a cancel, and a failed delete shows nothing new', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     let finishUpload: (response: Response) => void = () => {}

@@ -68,11 +68,8 @@ async function sendWithLimitWaits(
  * shown, and the copy expires with the session. The API refuses a copy an encrypted archive
  * references.
  */
-export async function deleteImageCopies(
-  sessionId: string,
-  imageIds: string[],
-  wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
-): Promise<void> {
+export async function deleteImageCopies(sessionId: string, imageIds: string[]): Promise<void> {
+  const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
   for (const imageId of imageIds) {
     const url = `${API_URL}/api/session/${encodeURIComponent(sessionId)}/image/${encodeURIComponent(imageId)}`
     try {

@@ -221,6 +221,9 @@ export function SaveModal({
       return
     }
     const result = await saveSession(sessionId, body)
+    // Only when the API answered: its answer comes after the save settled, and a committed save
+    // makes the API refuse the delete. A network failure may still commit after a delete lands.
+    if (!result.ok && result.status !== 0) deleteUploaded()
     settleSave(result, 'encrypt')
   }
 
