@@ -106,10 +106,12 @@ async function openBlocks(page: Page): Promise<void> {
   await assertFontsLoaded(page, APP_FONTS, 'app')
 }
 
-/** The nth top-level card of a kind in a section. */
+/** The nth top-level card of a kind in a section. A card with code notes sits
+    in the wrapper that prints its note list under it (WithPrintedNotes). */
 function cardOf(page: Page, section: string, kind: string, nth = 0): Locator {
+  const blocks = `section#${section} > div:last-child`
   return page
-    .locator(`section#${section} > div:last-child > figure`)
+    .locator(`${blocks} > figure, ${blocks} > div > figure`)
     .filter({
       has: page.locator(':scope > div:first-child > [data-kind-tag]', {
         hasText: new RegExp(`^${kind}$`),

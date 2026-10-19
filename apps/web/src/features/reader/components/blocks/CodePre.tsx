@@ -6,11 +6,10 @@ import { jsx, jsxs } from 'react/jsx-runtime'
 import type { Element as HastElement } from 'hast'
 import { useReaderState } from '@/features/reader-state'
 import type { Highlight } from '@/features/reader-state'
-import type { CodeNote } from '@brief/schema'
 import { highlightToHast } from '../../services/shiki'
 import type { BlockAnchor } from '../blockAnchor'
 import { FOCUS_RING } from '../topbarChrome'
-import { notesByLine, placeNotes, type PlacedNote } from './codeNotes'
+import { notesByLine, type PlacedNote } from './codeNotes'
 import {
   extractLineNodes,
   highlightsForLine,
@@ -344,17 +343,21 @@ function PinnedNote({ note }: { note: PlacedNote }) {
   )
 }
 
-/** B-Print:65-68: agent notes print as lettered notes under the listing. */
-export function PrintedNotes({ notes }: { notes: readonly PlacedNote[] }) {
-  if (!notes.length) return null
+/** B-Print:55-67: agent notes print as a lettered list under the card, outside
+    its rule. The wrapper has no box on screen, so the card lays out as before. */
+export function WithPrintedNotes({ notes, children }: { notes: readonly PlacedNote[]; children: ReactNode }) {
+  if (!notes.length) return children
   return (
-    <ol data-print-notes="" className="hidden list-none print:block">
-      {notes.map((note) => (
-        <li key={note.key}>
-          <b>[{note.letter}]</b> {note.text}
-        </li>
-      ))}
-    </ol>
+    <div className="contents print:block">
+      {children}
+      <ol data-print-notes="" className="hidden list-none print:block">
+        {notes.map((note) => (
+          <li key={note.key}>
+            <b>[{note.letter}]</b> {note.text}
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 
@@ -366,7 +369,7 @@ export function CodePre({
   code,
   language,
   highlightLines,
-  notes,
+  placed,
   pathPrefix = '',
   annotatable = true,
   ...anchor
@@ -375,35 +378,32 @@ export function CodePre({
   language: string
   /** 1-based lines the agent marked (code.highlight); tinted as on B-Reader:157. */
   highlightLines?: number[]
-  notes?: readonly CodeNote[]
+  /** The block's notes after placeNotes, so the card's printed list shares the letters. */
+  placed: readonly PlacedNote[]
 } & BlockAnchor) {
   const highlighted = useHighlightedCode(code, language)
   const { highlights } = useReaderState()
   const marked = new Set(highlightLines)
   const lines = code.split('\n')
-  const placed = useMemo(() => placeNotes(notes, { code: lines.length }), [notes, lines.length])
   const byLine = useMemo(() => notesByLine(placed), [placed])
 
   return (
-    <>
-      <CodePanel highlighted={highlighted} className="py-2 text-[13px] leading-6">
-        {lines.map((text, i) => (
-          <CodeRow
-            key={i}
-            node={highlighted?.lines[i]}
-            text={text}
-            number={i + 1}
-            gutter="w-[26px]"
-            tone={marked.has(i + 1) ? 'mark' : undefined}
-            notes={byLine.get(`code.${i}`)}
-            path={`${pathPrefix}code.${i}`}
-            annotatable={annotatable}
-            highlights={highlights}
-            {...anchor}
-          />
-        ))}
-      </CodePanel>
-      <PrintedNotes notes={placed} />
-    </>
+    <CodePanel highlighted={highlighted} className="py-2 text-[13px] leading-6">
+      {lines.map((text, i) => (
+        <CodeRow
+          key={i}
+          node={highlighted?.lines[i]}
+          text={text}
+          number={i + 1}
+          gutter="w-[26px]"
+          tone={marked.has(i + 1) ? 'mark' : undefined}
+          notes={byLine.get(`code.${i}`)}
+          path={`${pathPrefix}code.${i}`}
+          annotatable={annotatable}
+          highlights={highlights}
+          {...anchor}
+        />
+      ))}
+    </CodePanel>
   )
 }

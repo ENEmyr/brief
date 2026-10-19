@@ -44,7 +44,14 @@ const payload = {
         { type: 'list', caption: 'Risks', items: ['First risk', 'Second risk'] },
         { type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'one pixel', width: 40, height: 20 },
         { type: 'image', imageId: 'img_4f9Kq2xZ7bN1', alt: 'one pixel', caption: 'Figure 1', width: 40, height: 20 },
-        { type: 'ba', language: 'ts', filename: 'a.ts', before: 'let a = 1', after: 'const a = 1' },
+        {
+          type: 'ba',
+          language: 'ts',
+          filename: 'a.ts',
+          before: 'let a = 1',
+          after: 'const a = 1',
+          notes: [{ side: 'after', from: 1, text: 'Never reassigned.' }],
+        },
       ],
     },
   ],
@@ -78,14 +85,30 @@ test.describe('print', () => {
     await expectComputed(figure.locator('> pre'), { 'font-size': '12.5px', 'line-height': '20px' })
     await expect(figure.locator('> div:first-child [data-kind-tag]')).toBeHidden()
     await expect(figure.locator('> div:first-child')).toHaveText('src/limiter.ts', { useInnerText: true })
-    const [head, listing, notes] = await Promise.all([
+    const [head, listing] = await Promise.all([
       figure.locator('> div:first-child').boundingBox(),
       figure.locator('> pre').boundingBox(),
-      figure.locator('> [data-print-notes]').boundingBox(),
     ])
     expect(head!.y, 'header above the listing').toBeLessThan(listing!.y)
-    expect(notes!.y, 'notes under the listing').toBeGreaterThanOrEqual(listing!.y + listing!.height - 1)
   })
+
+  // B-Print:55-64: the card's rule closes round the header and listing, and the
+  // lettered list follows it with margin 8px 0 4px, flush with the card's left edge.
+  for (const [name, card] of [
+    ['code', 'figure:has(> pre.shiki)'],
+    ['before/after', 'figure:has([data-kind-tag]:text-is("ba"))'],
+  ] as const) {
+    test(`a ${name} note list prints 8px under the card's rule`, async ({ page }) => {
+      const figure = page.locator(card).first()
+      const notes = figure.locator('xpath=following-sibling::*[1]')
+      await expect(notes).toHaveAttribute('data-print-notes', '')
+      await expect(figure.locator('[data-print-notes]')).toHaveCount(0)
+      const [box, list] = await Promise.all([figure.boundingBox(), notes.boundingBox()])
+      expect(list!.y, 'list top vs card bottom').toBeGreaterThanOrEqual(box!.y + box!.height)
+      expect(list!.y - (box!.y + box!.height), 'gap under the card').toBeCloseTo(8, 0)
+      expect(list!.x, 'list left vs card left').toBeCloseTo(box!.x, 0)
+    })
+  }
 
   test('note letters line up in one column and the list follows the listing', async ({ page }) => {
     const letters = page.locator('figure:has(> pre.shiki) [data-print-letter]')

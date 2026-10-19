@@ -5,7 +5,7 @@ import { Annotatable } from '@/features/annotations'
 import { useReaderState } from '@/features/reader-state'
 import { BlockCard, cardHeader } from '../BlockCard'
 import type { BlockAnchor } from '../blockAnchor'
-import { CodePanel, CodeRow, PrintedNotes, type LineTone } from './CodePre'
+import { CodePanel, CodeRow, WithPrintedNotes, type LineTone } from './CodePre'
 import { notesByLine, placeNotes } from './codeNotes'
 import { diffLines } from './lineDiff'
 
@@ -108,42 +108,43 @@ export function BeforeAfter({
   )
 
   return (
-    <BlockCard
-      {...cardHeader(block, { ...anchor, pathPrefix, annotatable })}
-      captionSuffix={block.filename === undefined ? undefined : 'before and after'}
-      controls={toggle}
-    >
-      <div
-        data-ba-body=""
-        className={`font-mono text-[13px] leading-[22px] ${view === 'split' ? 'grid grid-cols-2 max-[880px]:grid-cols-1' : ''}`}
+    <WithPrintedNotes notes={placed}>
+      <BlockCard
+        {...cardHeader(block, { ...anchor, pathPrefix, annotatable })}
+        captionSuffix={block.filename === undefined ? undefined : 'before and after'}
+        controls={toggle}
       >
-        {view === 'split' ? (
-          (['before', 'after'] as const).map((side) => (
-            <Pane key={side} label={label(side)} divider={side === 'before'}>
-              {lines[side].map((_, i) =>
-                row(side, i, sides[side].changed.has(i) ? sides[side].tone : undefined),
+        <div
+          data-ba-body=""
+          className={`font-mono text-[13px] leading-[22px] ${view === 'split' ? 'grid grid-cols-2 max-[880px]:grid-cols-1' : ''}`}
+        >
+          {view === 'split' ? (
+            (['before', 'after'] as const).map((side) => (
+              <Pane key={side} label={label(side)} divider={side === 'before'}>
+                {lines[side].map((_, i) =>
+                  row(side, i, sides[side].changed.has(i) ? sides[side].tone : undefined),
+                )}
+              </Pane>
+            ))
+          ) : (
+            <Pane
+              label={
+                <>
+                  {label('before')} / {label('after')}
+                </>
+              }
+              divider={false}
+            >
+              {rows.map((r) =>
+                r.kind === 'del'
+                  ? row('before', r.before, 'del')
+                  : row('after', r.after, r.kind === 'add' ? 'add' : undefined),
               )}
             </Pane>
-          ))
-        ) : (
-          <Pane
-            label={
-              <>
-                {label('before')} / {label('after')}
-              </>
-            }
-            divider={false}
-          >
-            {rows.map((r) =>
-              r.kind === 'del'
-                ? row('before', r.before, 'del')
-                : row('after', r.after, r.kind === 'add' ? 'add' : undefined),
-            )}
-          </Pane>
-        )}
-      </div>
-      <PrintedNotes notes={placed} />
-    </BlockCard>
+          )}
+        </div>
+      </BlockCard>
+    </WithPrintedNotes>
   )
 }
 
