@@ -127,6 +127,37 @@ describe('encrypted copies of a failed or cancelled archive', () => {
     expect(api.deletes()).toHaveLength(2)
   })
 
+  it('shows "Waiting for the upload limit" on Retry while the cleanup waits on the delete limiter', async () => {
+    let uploads = 0
+    let deletes = 0
+    const api = stubApi((url, method) => {
+      if (method === 'GET' && url.startsWith(`${API_URL}/api/image/`)) return png()
+      if (method === 'POST') {
+        uploads++
+        return uploads === 2 ? new Response(JSON.stringify({ error: 'Internal error.' }), { status: 500 }) : sealed(uploads)
+      }
+      if (method === 'DELETE') {
+        deletes++
+        return deletes === 1
+          ? new Response(JSON.stringify({ error: 'Rate limit exceeded.' }), { status: 429, headers: { 'retry-after': '1' } })
+          : new Response(null, { status: 204 })
+      }
+      if (method === 'PUT') return new Response(JSON.stringify({ saved: true }), { status: 200 })
+      return undefined
+    })
+    const { onSaved } = archiveWithPassword()
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not archive. Nothing was changed.'))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Waiting for the upload limit' })).toBeDisabled())
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('encrypt'), { timeout: 3000 })
+    expect(api.deletes()).toEqual([
+      `DELETE ${API_URL}/api/session/sess1/image/img_sealed000000001`,
+      `DELETE ${API_URL}/api/session/sess1/image/img_sealed000000001`,
+    ])
+  })
+
   it('deletes the copy uploaded before a cancel, and a failed delete shows nothing new', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     let finishUpload: (response: Response) => void = () => {}

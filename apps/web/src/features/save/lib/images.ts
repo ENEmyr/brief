@@ -66,14 +66,18 @@ async function sendWithLimitWaits(
  * Deletes the encrypted copies a failed or cancelled archive uploaded, so they stop counting
  * toward the session's cap and a Retry starts clean. Best effort: a failure is logged, never
  * shown, and the copy expires with the session. The API refuses a copy an encrypted archive
- * references.
+ * references. onWait reports a delete limiter wait, so a Retry that awaits this cleanup can say so.
  */
-export async function deleteImageCopies(sessionId: string, imageIds: string[]): Promise<void> {
+export async function deleteImageCopies(
+  sessionId: string,
+  imageIds: string[],
+  onWait?: (waiting: boolean) => void,
+): Promise<void> {
   const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
   for (const imageId of imageIds) {
     const url = `${API_URL}/api/session/${encodeURIComponent(sessionId)}/image/${encodeURIComponent(imageId)}`
     try {
-      const res = await sendWithLimitWaits(() => fetch(url, { method: 'DELETE' }), wait)
+      const res = await sendWithLimitWaits(() => fetch(url, { method: 'DELETE' }), wait, onWait)
       if (res && !res.ok) console.warn(`Could not delete encrypted image copy ${imageId}: ${res.status}`)
     } catch (error) {
       console.warn(`Could not delete encrypted image copy ${imageId}`, error)

@@ -184,7 +184,7 @@ export function SaveModal({
     let body: SaveRequestBody
     let uploaded: string[] = []
     const deleteUploaded = () => {
-      imageCleanupRef.current = deleteImageCopies(sessionId, uploaded)
+      imageCleanupRef.current = deleteImageCopies(sessionId, uploaded, setWaitingForLimit)
     }
     try {
       await imageCleanupRef.current
