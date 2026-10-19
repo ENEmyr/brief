@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, fireEvent, act } from '@testing-library/react'
 import { Toc, useActiveSection, type TocProps } from '@/features/toc'
+import { endAnimation } from '../shared/endAnimation'
 
 const sections = [
   { id: 's1', no: 1, title: 'Introduction' },
@@ -256,7 +257,7 @@ describe('outline drawer', () => {
     expect(onCloseDrawer).toHaveBeenCalledTimes(1)
   })
 
-  it('moves focus into the dialog on open and restores it to the previously focused element on close', () => {
+  it('moves focus into the dialog on open, fades out inert on close, then restores focus', () => {
     const outsideButton = document.createElement('button')
     outsideButton.textContent = 'outside'
     document.body.appendChild(outsideButton)
@@ -266,7 +267,12 @@ describe('outline drawer', () => {
     const { rerender, props } = renderToc({ drawerOpen: true })
     expect(screen.getByRole('dialog')).toHaveFocus()
 
+    // The drawer fades out inert first, and hands focus back when it unmounts.
     rerender(<Toc {...props} drawerOpen={false} />)
+    const drawer = screen.getByRole('dialog', { name: 'Outline' })
+    expect(drawer.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+    endAnimation(drawer.parentElement!)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(document.activeElement).toBe(outsideButton)
     document.body.removeChild(outsideButton)
   })

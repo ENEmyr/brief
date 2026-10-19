@@ -2,20 +2,22 @@ import { useEffect, useId, useRef } from 'react'
 import type { RefObject } from 'react'
 
 /**
- * Module-level stack of currently-open dialog ids, newest last. Escape must
- * only close the TOPMOST dialog: with CopyFallbackModal stacked over
- * ShareModal, both hooks receive the same document keydown, and without the
- * stack check a single Escape would close both at once (review finding on
- * this task). Each useDialogFocus instance registers its id on mount and
- * removes it on close/unmount, so "am I on top?" is just a last-element
- * comparison.
+ * Module-level stack of dialogs, newest last. Escape must only close the
+ * TOPMOST dialog: with CopyFallbackModal stacked over ShareModal, both hooks
+ * receive the same document keydown, and without the stack check a single
+ * Escape would close both at once. Each useDialogFocus instance registers on
+ * mount and removes itself on unmount. A dialog fading out under OverlayExit
+ * is inert and no longer counts, so a quick second Escape reaches the one
+ * underneath.
  */
-const dialogStack: string[] = []
+const dialogStack: { id: string; panelRef: RefObject<HTMLElement | null> }[] = []
+const openDialogs = () => dialogStack.filter(({ panelRef }) => !panelRef.current?.closest('[inert]'))
+const isTopmost = (id: string) => openDialogs().at(-1)?.id === id
 let lockCount = 0
 let stylesBeforeLock = { overflow: '', gutter: '' }
 
 /** True while any dialog is open, so a page-level Escape handler can leave Escape to it. */
-export const hasOpenDialog = (): boolean => dialogStack.length > 0
+export const hasOpenDialog = (): boolean => openDialogs().length > 0
 
 function lockScroll() {
   const root = document.documentElement
@@ -64,19 +66,20 @@ export function useDialogFocus(
   useEffect(() => {
     const modal = panelRef.current?.getAttribute('aria-modal') === 'true'
     if (modal && lockCount++ === 0) lockScroll()
-    dialogStack.push(dialogId)
+    dialogStack.push({ id: dialogId, panelRef })
     const previouslyFocused = document.activeElement as HTMLElement | null
+    const panel = panelRef.current
     const initial = initialFocusRef?.current ?? panelRef.current
     initial?.focus()
     if (initial instanceof HTMLTextAreaElement) initial.select()
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        if (dialogStack[dialogStack.length - 1] === dialogId) onCloseRef.current()
+        if (isTopmost(dialogId)) onCloseRef.current()
         return
       }
 
-      if (event.key === 'Tab' && panelRef.current && dialogStack[dialogStack.length - 1] === dialogId) {
+      if (event.key === 'Tab' && panelRef.current && isTopmost(dialogId)) {
         const selector = 'button, [href], input, select, textarea, [tabindex]'
         const focusable = [
           ...panelRef.current.querySelectorAll<HTMLElement>(selector),
@@ -99,10 +102,13 @@ export function useDialogFocus(
 
     document.addEventListener('keydown', handleKeyDown)
     return () => {
-      const at = dialogStack.indexOf(dialogId)
+      const at = dialogStack.findIndex((d) => d.id === dialogId)
       if (at !== -1) dialogStack.splice(at, 1)
       if (modal && --lockCount === 0) unlockScroll()
       document.removeEventListener('keydown', handleKeyDown)
+      // An overlay unmounts after its exit fade; focus the caller moved meanwhile (a palette jump, Go to Dn) stays.
+      const active = document.activeElement
+      if (active && active !== document.body && !panel?.contains(active)) return
       const lost = !previouslyFocused || previouslyFocused === document.body || !previouslyFocused.isConnected
       const back = lost ? (returnFocusRef?.current ?? previouslyFocused) : previouslyFocused
       back?.focus()

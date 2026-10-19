@@ -96,7 +96,9 @@ function matches(binding: Binding, event: KeyboardEvent, key: string): boolean {
   if (key !== binding.key) return false
   if (binding.mod) {
     const modal = binding.inDock ? '[aria-modal="true"]:not([data-dock])' : '[aria-modal="true"]'
-    return (event.metaKey || event.ctrlKey) && !document.querySelector(modal)
+    // A modal inside [inert] is mid-exit (OverlayExit): it no longer owns the keyboard.
+    const open = [...document.querySelectorAll(modal)].some((el) => !el.closest('[inert]'))
+    return (event.metaKey || event.ctrlKey) && !open
   }
   return (
     !event.ctrlKey &&

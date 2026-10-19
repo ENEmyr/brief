@@ -46,6 +46,11 @@ function ImageCard({
   const [load, setLoad] = useState<ImageLoad>({ status: 'loading' })
   // The bytes are here but the image has not decoded: its natural size is still unknown.
   const [decoded, setDecoded] = useState(false)
+  const [shown, setShown] = useState({ id: block.imageId, key: imageKey })
+  if (shown.id !== block.imageId || shown.key !== imageKey) {
+    setShown({ id: block.imageId, key: imageKey })
+    setDecoded(false)
+  }
 
   useEffect(() => {
     let live = true

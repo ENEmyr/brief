@@ -9,6 +9,7 @@ import { downloadMarkdown as downloadMarkdownFile } from '../lib/download'
 import { printDocument } from '../lib/print'
 import { usePrintSnapshot } from '../hooks/usePrintSnapshot'
 import { PrintAnswers, PrintHeader } from './PrintSheet'
+import { OverlayExit } from '@/shared/OverlayExit'
 import { Toast, isSticky } from './Toast'
 import type { ShownToast, ToastSpec } from './Toast'
 import { ShareModal } from './ShareModal'
@@ -156,22 +157,26 @@ export function ExportProvider({
       {printSnapshot && <PrintAnswers decisions={payload.decisions} state={printSnapshot.state} />}
       <PrintTerms glossary={payload.glossary} />
       <Toast toast={shown} onDismiss={() => shown && dismissToast(shown.id)} />
-      {shareOpen && (
-        <ShareModal
-          sessionId={sessionId}
-          version={payload.meta.version}
-          expiresAt={expiresAt}
-          onClose={() => setShareOpen(false)}
-          onCopy={copy}
-        />
-      )}
-      {fallbackText != null && (
-        <CopyFallbackModal
-          text={fallbackText}
-          onClose={() => setFallbackText(null)}
-          onCopied={() => toast(COPIED)}
-        />
-      )}
+      <OverlayExit open={shareOpen}>
+        {shareOpen && (
+          <ShareModal
+            sessionId={sessionId}
+            version={payload.meta.version}
+            expiresAt={expiresAt}
+            onClose={() => setShareOpen(false)}
+            onCopy={copy}
+          />
+        )}
+      </OverlayExit>
+      <OverlayExit open={fallbackText != null}>
+        {fallbackText != null && (
+          <CopyFallbackModal
+            text={fallbackText}
+            onClose={() => setFallbackText(null)}
+            onCopied={() => toast(COPIED)}
+          />
+        )}
+      </OverlayExit>
     </ExportContext.Provider>
   )
 }

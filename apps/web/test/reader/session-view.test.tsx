@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import SessionPage from '@/app/s/page'
 import { encryptPayloadWithKey, newSessionKey } from '@/features/save/lib/crypto'
+import { endAnimation } from '../shared/endAnimation'
 
 const validPayload = {
   meta: {
@@ -274,6 +275,30 @@ describe('SessionPage / SessionView', () => {
     expect(screen.getByLabelText('Password')).toHaveValue('')
   })
 
+  it('the archive dialog fades out inert on Escape and on Close, then unmounts and hands focus back to Archive', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
+    const archive = screen.getByRole('button', { name: 'Archive' })
+
+    for (const close of [
+      () => fireEvent.keyDown(document.activeElement!, { key: 'Escape' }),
+      (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Close' })),
+    ]) {
+      archive.focus()
+      fireEvent.click(archive)
+      const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
+
+      close(dialog)
+      expect(dialog).toBeInTheDocument()
+      expect(dialog.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+      endAnimation(dialog.parentElement!)
+      expect(screen.queryByRole('dialog', { name: 'Archive this doc' })).toBeNull()
+      expect(archive).toHaveFocus()
+    }
+  })
+
   // The "archived" chip is gone from the top bar (B-Reader); the Archive icon fills and reads "Archived" instead.
   it('Archive button opens SaveModal, and a plain save marks the Archive button archived without losing the doc', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
@@ -443,6 +468,21 @@ describe('decision dock in the reader', () => {
 
   const question = (id: string) => screen.getByRole('group', { name: `Question ${id}` })
 
+  it('the command palette fades out inert, then unmounts and hands focus back to Search', async () => {
+    await openReader()
+    const search = screen.getByRole('button', { name: 'Search' })
+    search.focus()
+    fireEvent.click(search)
+    const palette = screen.getByRole('dialog', { name: 'Command palette' })
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(palette.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+
+    endAnimation(palette.parentElement!)
+    expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull()
+    expect(search).toHaveFocus()
+  })
+
   // jsdom has no layout, so it does not implement scrollIntoView.
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn()
@@ -469,8 +509,40 @@ describe('decision dock in the reader', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Copy prompt for agent/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Go to d2' }))
 
+    // The review fades out inert; once it unmounts, focus stays on d2 instead of going back to the trigger.
+    const review = screen.getByRole('dialog', { name: 'Review prompt before copying' })
+    expect(review.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+    endAnimation(review.parentElement!)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
+  })
+
+  it('the review sheet fades out inert on Escape, then unmounts and hands focus back to its trigger', async () => {
+    await openReader()
+    const trigger = screen.getByRole('button', { name: /^Copy prompt for agent/ })
+    trigger.focus()
+    fireEvent.click(trigger)
+    const review = screen.getByRole('dialog', { name: 'Review prompt before copying' })
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(review.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+    endAnimation(review.parentElement!)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('the shortcut sheet fades out inert on Escape, then unmounts and hands focus back', async () => {
+    await openReader()
+    const search = screen.getByRole('button', { name: 'Search' })
+    search.focus()
+    fireEvent.keyDown(search, { key: '?' })
+    const sheet = screen.getByRole('dialog', { name: 'Keyboard shortcuts' })
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(sheet.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+    endAnimation(sheet.parentElement!)
+    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).toBeNull()
+    expect(search).toHaveFocus()
   })
 
   it('N jumps to the next unanswered question, then the one after the focused question', async () => {
@@ -530,8 +602,9 @@ describe('decision dock in the reader', () => {
       fireEvent.click(within(sheet).getByRole('button', { name: 'Copy prompt for agent' }))
       expect(screen.getByRole('dialog', { name: 'Review prompt before copying' })).toBeInTheDocument()
 
+      // The review fades out inert, so the next Escape already reaches the sheet.
       fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
-      expect(screen.queryByRole('dialog', { name: 'Review prompt before copying' })).not.toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: 'Review prompt before copying' }).closest('[data-overlay-exit]')).toHaveAttribute('inert')
       expect(screen.getByRole('dialog', { name: 'Decision dock' })).toBeInTheDocument()
 
       fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
@@ -544,6 +617,8 @@ describe('decision dock in the reader', () => {
       fireEvent.click(within(sheet).getByRole('button', { name: 'Copy prompt for agent' }))
       fireEvent.click(screen.getByRole('button', { name: 'Go to d2' }))
 
+      const review = screen.getByRole('dialog', { name: 'Review prompt before copying' })
+      endAnimation(review.parentElement!)
       expect(screen.queryByRole('dialog', { name: 'Review prompt before copying' })).not.toBeInTheDocument()
       expect(within(question('d2')).getByRole('checkbox', { name: 'US' })).toHaveFocus()
     })

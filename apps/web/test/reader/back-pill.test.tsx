@@ -37,4 +37,26 @@ describe('BackPill', () => {
     })
     expect(pill.style.getPropertyValue('--toast-h')).toBe('66px')
   })
+
+  it('measures a toast the moment it mounts, before the resize observer reports', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    render(<BackPill target={target} onBack={() => {}} onDismiss={() => {}} />)
+    const pill = screen.getByRole('button', { name: 'Back to D2' })
+
+    const toast = document.createElement('div')
+    toast.setAttribute('data-toast', '')
+    toast.getBoundingClientRect = () => ({ height: 66 }) as DOMRect
+    await act(async () => {
+      document.body.append(toast)
+      await Promise.resolve()
+    })
+    expect(pill.style.getPropertyValue('--toast-h')).toBe('66px')
+  })
 })
