@@ -1,6 +1,6 @@
 # `note`, `warn`, `good`
 
-Same three fields for all three types. `note` is informational, `warn` signals risk, `good` signals a positive result.
+All three types share same three fields. `note` = info, `warn` = risk, `good` = positive result.
 
 | Field | Required | Type |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 # `layers`
 
-The reader draws every layer at once, one band per layer from top to bottom, with the layer's label at the top left. An edge may join any two nodes in the block. A node repeated in a later layer keeps its first position, and an edge to an id that no layer defines is dropped.
+Reader draws all layers at once, one band per layer top to bottom, label top left. Edge may join any two nodes in block. Node repeated in later layer keeps first position. Edge to id no layer defines -> dropped.
 
 | Field | Required | Type |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ Layer object:
 | `nodes` | yes | array of `{ id: label, label: label, diffNode?: label }`, at least 1 |
 | `edges` | yes | array of `{ from: label, to: label, label?: string }`, may be empty |
 
-`diffNode` links a node to a node of a diff block, so the node can carry that change's badge. No diff block exists in this version of Brief, so the reader shows nothing for it. Leave it out.
+`diffNode` names the `id` of a node in a `diff` block's `map.nodes` in the same document. When that map node has `status` `added` or `modified`, reader draws a badge on this node; `deleted`, or an id that matches no map node, draws nothing. Omit `diffNode` when the document has no `diff` block with a `map`.
 
 ```json
 {

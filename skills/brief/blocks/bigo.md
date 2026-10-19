@@ -3,11 +3,11 @@
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"bigo"` |
-| `series` | yes | array of `{ label: label, curve: curve }`, at least 1 |
+| `series` | yes | array of `{ label: label, curve: curve }`, min 1 |
 | `title` | no | `label` |
-| `maxN` | no | integer from 10 to 1,000,000 |
+| `maxN` | no | integer 10-1,000,000 |
 
-`curve` is one of exactly: `1`, `logn`, `sqrt`, `n`, `nlogn`, `n2`, `n3`, `2n`. They are strings, not numbers: `"curve": "n2"`, never `"curve": "O(n^2)"`.
+`curve` exactly one of: `1`, `logn`, `sqrt`, `n`, `nlogn`, `n2`, `n3`, `2n`. Strings, not numbers: `"curve": "n2"`, never `"curve": "O(n^2)"`.
 
 ```json
 {

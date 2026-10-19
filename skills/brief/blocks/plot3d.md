@@ -9,7 +9,7 @@
 | `title` | no | `label` |
 | `xLabel`, `yLabel`, `zLabel` | no | `label` |
 
-The schema marks both `points` and `grid` optional, so a `plot3d` with neither passes validation and renders empty. Supply `points` for `scatter3d` and `grid` for `surface`.
+Schema marks `points` and `grid` both optional, so `plot3d` with neither passes validation, renders empty. Give `points` for `scatter3d`, `grid` for `surface`.
 
 ```json
 {

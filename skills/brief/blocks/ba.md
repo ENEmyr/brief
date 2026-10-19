@@ -8,21 +8,21 @@
 | `after` | yes | string (may be `""`) |
 | `titleBefore` | no | `label` |
 | `titleAfter` | no | `label` |
-| `filename` | no | `label`, the file both sides come from |
-| `notes` | no | array of ba note objects, at most 30 |
+| `filename` | no | `label`, file both sides from |
+| `notes` | no | array of ba note objects, max 30 |
 
 Both sides share one language.
 
-Ba note object, the same as a `code` note plus `side`:
+Ba note object = `code` note plus `side`:
 
 | Field | Required | Type |
 | --- | --- | --- |
-| `side` | yes | `"before"` or `"after"`, the side the line numbers count in |
-| `from` | yes | `position`, the first noted line of that side |
-| `to` | no | `position`, the last noted line; absent means the note covers `from` only |
-| `text` | yes | string of 1 to 280 characters |
+| `side` | yes | `"before"` or `"after"`, side line numbers count in |
+| `from` | yes | `position`, first noted line of that side |
+| `to` | no | `position`, last noted line; absent = note covers `from` only |
+| `text` | yes | string, 1 to 280 chars |
 
-Count lines in the side the note names, from 1. A note whose `to` is before its `from`, or whose lines run past the end of its side, is dropped without an error, so check each range against the string you wrote.
+Count lines in named side, from 1. Note with `to` before `from`, or lines past end of side, dropped silently, no error. Check each range against string you wrote.
 
 ```json
 {

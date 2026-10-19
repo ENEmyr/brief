@@ -1,27 +1,27 @@
 # `diff`
 
-A change set, file by file. The semantic view lists each change with the agent's note, and the raw view prints the patch. Use it to review what a change did. For one snippet before and after use `ba`.
+Change set, per file. Semantic view lists each change with agent note; raw view prints patch. Use to review what change did. One snippet before/after -> use `ba`.
 
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"diff"` |
-| `files` | yes | array of 1 to 50 files |
+| `files` | yes | array, 1-50 files |
 | `files[].path` | yes | `label` |
 | `files[].status` | yes | one of `added`, `modified`, `deleted`, `renamed` |
-| `files[].from` | no | `label`, the old path of a renamed file |
-| `files[].patch` | no | string of at most 50000 characters, unified diff text for the raw view |
-| `files[].folded` | no | boolean; `true` starts the file folded, with an Unfold button |
-| `files[].changes` | no | array of at most 30 changes |
-| `changes[].symbol` | yes | `label`, the function, type, or key that changed |
+| `files[].from` | no | `label`, old path of renamed file |
+| `files[].patch` | no | string <=50000 chars, unified diff text for raw view |
+| `files[].folded` | no | boolean; `true` starts file folded, with Unfold button |
+| `files[].changes` | no | array <=30 changes |
+| `changes[].symbol` | yes | `label`, changed function, type, or key |
 | `changes[].change` | yes | one of `added`, `modified`, `removed`, `moved`, `config` |
-| `changes[].summary` | yes | string of 1 to 280 characters, what the change does |
-| `changes[].steps` | no | array of at most 8 `label`, the steps of an added function |
-| `map` | no | object `{ nodes, edges }`, a change map above the file list |
-| `map.nodes` | yes, when `map` is given | array of 1 to 40 `{ id: label, label: label, status? }` |
+| `changes[].summary` | yes | string 1-280 chars, what change does |
+| `changes[].steps` | no | array <=8 `label`, steps of added function |
+| `map` | no | object `{ nodes, edges }`, change map above file list |
+| `map.nodes` | yes, when `map` given | array 1-40 `{ id: label, label: label, status? }` |
 | `map.nodes[].status` | no | one of `added`, `modified`, `deleted` |
-| `map.edges` | yes, when `map` is given | array of at most 80 `{ from: label, to: label }`, node `id` values |
+| `map.edges` | yes, when `map` given | array <=80 `{ from: label, to: label }`, node `id` values |
 
-A file's `status` takes `deleted`, while a change's `change` takes `removed`: the two vocabularies differ. A map node with a `status` is marked as changed, and a node that a changed node points to is drawn under it.
+File `status` takes `deleted`; change `change` takes `removed`. Vocabularies differ. Map node with `status` marked changed. Node pointed to by changed node drawn under it.
 
 ```json
 {

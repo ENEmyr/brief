@@ -1,16 +1,16 @@
 # `state`
 
-`initial` and every `from` and `to` must match a state `id`, not a state `label`.
+`initial`, every `from`, every `to` must match state `id`, not state `label`.
 
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"state"` |
-| `initial` | yes | `label`, must match a state `id` |
-| `states` | yes | array of `{ id: label, label: label, tone?: tone }`, at least 1 |
+| `initial` | yes | `label`, must match state `id` |
+| `states` | yes | array of `{ id: label, label: label, tone?: tone }`, min 1 |
 | `transitions` | yes | array of `{ from: label, to: label, label?: string, tone?: tone }`, may be empty |
 | `title` | no | `label` |
 
-`tone` is one of `info`, `good`, `warn`, `bad`, on a state or on a transition. Use it for the meaning, such as `bad` on a failure state or `warn` on a retry path. Leave the normal path without a tone, so the marked parts stand out.
+`tone` is one of `info`, `good`, `warn`, `bad`, on state or transition. Use for meaning: `bad` on failure state, `warn` on retry path. Normal path gets no tone, so marked parts stand out.
 
 ```json
 {

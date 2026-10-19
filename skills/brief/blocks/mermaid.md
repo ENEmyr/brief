@@ -1,6 +1,6 @@
 # `mermaid`
 
-Rendered client side, so an invalid Mermaid body passes the API and fails in the reader's browser. Use a named block instead where one exists.
+Rendered client side, so invalid Mermaid body passes API, fails in reader's browser. Use named block instead where one exists.
 
 | Field | Required | Type |
 | --- | --- | --- |

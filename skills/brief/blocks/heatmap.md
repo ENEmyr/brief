@@ -1,13 +1,13 @@
 # `heatmap`
 
-`values` is row-major: `values[y][x]`. Give it `yLabels.length` rows, each of `xLabels.length` numbers.
+`values` row-major: `values[y][x]`. Give `yLabels.length` rows, each `xLabels.length` numbers.
 
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"heatmap"` |
-| `xLabels` | yes | array of `label`, at least 1 |
-| `yLabels` | yes | array of `label`, at least 1 |
-| `values` | yes | array of arrays of number, at least 1 row |
+| `xLabels` | yes | array of `label`, min 1 |
+| `yLabels` | yes | array of `label`, min 1 |
+| `values` | yes | array of number arrays, min 1 row |
 | `title` | no | `label` |
 
 ```json

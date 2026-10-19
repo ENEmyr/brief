@@ -9,13 +9,13 @@
 | `align` | no | array of `left`, `center`, or `right`, at most 50; entry N aligns column N |
 | `cells` | no | array of `{ row: position, col: position, tone: tone }`, at most 200 |
 
-Cells are plain strings, never numbers. Write `"1200"`, not `1200`. Ragged rows are accepted by the schema but render badly; keep every row the same length as `head`.
+Cells plain strings, never numbers. Write `"1200"`, not `1200`. Schema accepts ragged rows but they render badly; keep every row same length as `head`.
 
-Keep each cell to a phrase; the validator hints at a cell over 200 characters. Make the `caption` say what the table shows, not which file the numbers came from.
+Keep each cell to phrase; validator hints at cell over 200 characters. `caption` say what table shows, not which file numbers came from.
 
-`align` lists one alignment per column, from the first column. A column with no entry is left aligned, so `["left", "right"]` right-aligns only the second column. Right-align columns of numbers.
+`align` lists one alignment per column, from first column. Column with no entry left aligned, so `["left", "right"]` right-aligns only second column. Right-align number columns.
 
-`cells` colours single cells with a `tone`: `info`, `good`, `warn`, or `bad`. `row` and `col` count from 1, and `row` counts the body rows only: `row: 1` is the first array in `rows`, never the header. A position outside the table is ignored without an error. Colour the cells that carry the verdict, such as a failed check, not whole rows.
+`cells` colours single cells with `tone`: `info`, `good`, `warn`, or `bad`. `row` and `col` count from 1, and `row` counts body rows only: `row: 1` is first array in `rows`, never header. Position outside table ignored, no error. Colour cells carrying verdict, such as failed check, not whole rows.
 
 ```json
 {

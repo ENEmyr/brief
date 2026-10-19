@@ -1,6 +1,6 @@
 # `compare`
 
-Two sides, each with its own items. Each item carries `ok`, which renders as a positive or negative mark, so one side can legitimately hold a mix.
+Two sides, each own items. Each item carry `ok` -> renders positive or negative mark, so one side can hold mix.
 
 | Field | Required | Type |
 | --- | --- | --- |

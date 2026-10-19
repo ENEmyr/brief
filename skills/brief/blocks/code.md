@@ -6,18 +6,18 @@
 | `language` | yes | `label` |
 | `code` | yes | string (may be `""`) |
 | `filename` | no | `label` |
-| `highlight` | no | array of integers of 1 or more, 1-indexed line numbers |
-| `notes` | no | array of code note objects, at most 30 |
+| `highlight` | no | array of integers >=1, 1-indexed line numbers |
+| `notes` | no | array of code note objects, max 30 |
 
 Code note object:
 
 | Field | Required | Type |
 | --- | --- | --- |
-| `from` | yes | `position`, the first noted line |
-| `to` | no | `position`, the last noted line; absent means the note covers `from` only |
-| `text` | yes | string of 1 to 280 characters |
+| `from` | yes | `position`, first noted line |
+| `to` | no | `position`, last noted line; absent = note covers `from` only |
+| `text` | yes | string, 1-280 chars |
 
-A note is your comment on a line or a range of lines. The reader marks the last line of the range, shows the note when the reader points at the mark, and pins it under the line on a click. Line numbers count from 1, the same as `highlight`. A note whose `to` is before its `from`, or whose lines run past the last line of `code`, is dropped without an error. Count the lines of the `code` string after you write it, including blank lines. Never put a secret, a credential, or personal data in a note. Every reader of the document sees it.
+Note = your comment on one line or line range. Reader marks last line of range, shows note on hover over mark, pins it under line on click. Line numbers start at 1, same as `highlight`. Note with `to` before `from`, or lines past last line of `code`, dropped silently, no error. Count lines of `code` string after writing, blank lines included. Never put secret, credential, or personal data in note. Every reader of document sees it.
 
 ```json
 {

@@ -1,6 +1,6 @@
 # `details`
 
-A collapsible disclosure. Its `blocks` array holds any block type except another `details`; nesting a `details` inside a `details` fails validation.
+Collapsible disclosure. `blocks` array holds any block type except another `details`; `details` nested in `details` fails validation.
 
 | Field | Required | Type |
 | --- | --- | --- |

@@ -1,26 +1,26 @@
 # Glossary
 
-The glossary is not a block either. It is an optional top-level `glossary` array beside `meta`, `sections`, and `decisions`. Each entry explains one term the reader may not know.
+Glossary not block either. Optional top-level `glossary` array beside `meta`, `sections`, `decisions`. Each entry explains one term reader may not know.
 
 | Field | Required | Type |
 | --- | --- | --- |
-| `term` | yes | `label`, the term as it appears in the text |
-| `def` | yes | string of 1 to 400 characters, the definition in plain words |
-| `aliases` | no | array of `label`, at most 5, other spellings of the same term |
+| `term` | yes | `label`, term as appears in text |
+| `def` | yes | string 1-400 chars, definition in plain words |
+| `aliases` | no | array of `label`, max 5, other spellings of same term |
 
-The array holds at most 60 entries. Leave it out, or send `[]`, when the document has no terms to explain.
+Array holds max 60 entries. Omit it, or send `[]`, when doc has no terms to explain.
 
-How the reader finds a term:
+How reader finds term:
 
-- The match ignores case and takes whole words only. In scripts written without spaces, such as Thai, a term matches inside a longer run of text.
-- The reader underlines the first use of each term in each section. Hover, focus, or a tap shows `def`.
-- The reader looks for terms only in paragraphs (`p`) and in the title and text of `note`, `warn`, and `good` blocks, including those inside a `details` block. A term inside a table, a list, a stat tile, a diagram, or a code block is not underlined.
-- A term in a decision question, an option, or a `why` is not underlined. The term's definition lists that decision as a place that uses the term.
-- Each alias matches the same as the term. Use aliases for a plural, an abbreviation, or a second language, such as `["RPS", "requests per second"]`.
-- A term inside an inline code run, such as `` `KV` `` in a paragraph, is not underlined.
+- Match case-insensitive, whole words only. In scripts without spaces (e.g. Thai), term matches inside longer text run.
+- Reader underlines first use of each term per section. Hover, focus, or tap shows `def`.
+- Reader scans terms only in paragraphs (`p`) and title + text of `note`, `warn`, `good` blocks, incl. those inside `details` block. Term inside table, list, stat tile, diagram, or code block not underlined.
+- Term in decision question, option, or `why` not underlined. Term's definition lists that decision as place using term.
+- Each alias matches same as term. Use aliases for plural, abbreviation, or second language, e.g. `["RPS", "requests per second"]`.
+- Term inside inline code run, e.g. `` `KV` `` in a paragraph, is not underlined.
 - When two entries share a spelling, such as a term that is also another entry's alias, the earlier entry in the array wins and the later one never matches that spelling. Keep every term and alias unique.
 
-Write `def` as one or two sentences that stand alone, and do not explain a word the reader already knows. Never put a secret, a credential, or personal data in a term, an alias, or a definition. Every reader of the document sees them.
+Write `def` as 1-2 standalone sentences. Don't explain words reader already knows. Never put secret, credential, or personal data in term, alias, or definition. Every reader of doc sees them.
 
 ```json
 {

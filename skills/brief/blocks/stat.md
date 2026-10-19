@@ -3,25 +3,25 @@
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"stat"` |
-| `items` | yes | array of stat items, at least 1 |
-| `caption` | no | `label`, one line about the whole row of tiles |
+| `items` | yes | array of stat items, min 1 |
+| `caption` | no | `label`, one line about whole tile row |
 
 Stat item:
 
 | Field | Required | Type |
 | --- | --- | --- |
 | `label` | yes | `label` |
-| `value` | yes | string (any string, including `""`) |
+| `value` | yes | string (any string, incl `""`) |
 | `hint` | no | string |
 | `tone` | no | stat tone: one of `mauve`, `blue`, `green`, `red`, `peach`, `teal`, `yellow` |
-| `hintTone` | no | stat tone, the colour of the `hint` text |
-| `spark` | no | array of 2 to 32 numbers, each 0 or more |
+| `hintTone` | no | stat tone, colour of `hint` text |
+| `spark` | no | array of 2-32 numbers, each >=0 |
 
-`tone` and `hintTone` take the stat palette only. `info`, `good`, `warn`, and `bad` fail here, as does any other colour name. Values are strings: `"82 ms"`, `"48,120"`, `"3.2x"`.
+`tone` and `hintTone` take stat palette only. `info`, `good`, `warn`, `bad` fail here, same any other colour name. Values are strings: `"82 ms"`, `"48,120"`, `"3.2x"`.
 
-`spark` draws the values as small bars in the tile, from left to right, and marks the highest bar. List the oldest value first. Give it the real series behind `value`, such as the last seven daily counts; a tile with no history has no `spark`. Negative numbers fail validation. Use `hintTone` when the hint is the verdict, such as `"+12% since last week"` in `red`.
+`spark` draws values as small bars in tile, left to right, marks highest bar. Oldest value first. Give real series behind `value`, e.g. last seven daily counts; tile with no history has no `spark`. Negative numbers fail validation. Use `hintTone` when hint is verdict, e.g. `"+12% since last week"` in `red`.
 
-A tile holds a number and a few words. Keep `label` and `hint` short; the validator hints at either one over 50 characters. Qualifiers such as how the number was measured go in the paragraph beside the tile.
+Tile holds number + few words. Keep `label` and `hint` short; validator hints at either over 50 chars. Qualifiers like how number measured go in paragraph beside tile.
 
 ```json
 {

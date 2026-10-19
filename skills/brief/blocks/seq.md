@@ -1,25 +1,25 @@
 # `seq`
 
-An interactive sequence diagram. Every `from` and `to` must be a string that appears in `actors`, or the step renders against nothing.
+Interactive sequence diagram. Every `from` and `to` must be string in `actors`, else reader drops that step, no error.
 
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"seq"` |
-| `actors` | yes | array of `label`, at least 2 |
-| `steps` | yes | array of step objects, at least 1 |
+| `actors` | yes | array of `label`, min 2 |
+| `steps` | yes | array of step objects, min 1 |
 | `title` | no | `label` |
 
 Step object:
 
 | Field | Required | Type |
 | --- | --- | --- |
-| `from` | yes | `label`, must match an actor |
-| `to` | yes | `label`, must match an actor |
-| `label` | yes | string (may be `""`), drawn on the arrow |
+| `from` | yes | `label`, must match actor |
+| `to` | yes | `label`, must match actor |
+| `label` | yes | string (may be `""`), drawn on arrow |
 | `note` | no | string |
-| `text` | no | `label`, the step as a sentence in the step list |
+| `text` | no | `label`, step as sentence in step list |
 
-The reader also shows the steps as a list of sentences. Without `text`, that list shows the step as its `from`, an arrow, its `to`, and its `label`. Set `text` to say what the step does in plain words, such as "The API stores the document". Keep `label` short, because it sits on the arrow.
+Reader also shows steps as sentence list. Without `text`, list shows step as `from`, arrow, `to`, `label`. Set `text` to say what step does in plain words, e.g. "The API stores the document". Keep `label` short - sits on arrow.
 
 ```json
 {

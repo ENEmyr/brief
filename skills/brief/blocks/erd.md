@@ -3,7 +3,7 @@
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"erd"` |
-| `tables` | yes | array of table objects, at least 1 |
+| `tables` | yes | table object array, min 1 |
 | `title` | no | `label` |
 
 Table object:
@@ -11,14 +11,14 @@ Table object:
 | Field | Required | Type |
 | --- | --- | --- |
 | `name` | yes | `label` |
-| `columns` | yes | array of column objects, at least 1 |
+| `columns` | yes | column object array, min 1 |
 
 Column object:
 
 | Field | Required | Type |
 | --- | --- | --- |
 | `name` | yes | `label` |
-| `type` | yes | `label`, free text such as `"text"` or `"integer"` |
+| `type` | yes | `label`, free text e.g. `"text"` or `"integer"` |
 | `pk` | no | boolean |
 | `fk` | no | `{ table: label, column: label }` |
 

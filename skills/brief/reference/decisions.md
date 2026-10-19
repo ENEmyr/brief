@@ -1,32 +1,32 @@
 # Decisions
 
-A decision is not a block. Decisions live in the top-level `decisions` array, and the reader answers them in the decision dock, not at the end of the document. The array may be empty; the reader then shows no decision area.
+Decision not block. Decisions live in top-level `decisions` array; reader answers them in decision dock, not at document end. Array may be empty; then reader shows no decision area.
 
 | Field | Required | Type |
 | --- | --- | --- |
-| `id` | yes | `label`, unique across the document; it appears verbatim in the reader's reply |
+| `id` | yes | `label`, unique across document; appears verbatim in reader's reply |
 | `q` | yes | `text`, the question |
-| `multi` | yes | boolean; `false` for either-or, `true` when options can be combined |
-| `opts` | yes | array of option objects, at least 2 |
-| `why` | no | string; your recommendation, shown in an "Explanation" tab |
-| `cmp` | no | a table **without** its `type` field: `{ head, rows, caption? }`; shown in a "Compare" tab |
+| `multi` | yes | boolean; `false` for either-or, `true` when options combine |
+| `opts` | yes | array of option objects, min 2 |
+| `why` | no | string; your recommendation, shown in "Explanation" tab |
+| `cmp` | no | table **without** its `type` field: `{ head, rows, caption? }`; shown in "Compare" tab |
 | `dia` | no | string; see below |
-| `refs` | no | array of section `id` values, at most 6, each a `label` |
+| `refs` | no | array of section `id` values, max 6, each a `label` |
 
-`refs` names the sections that give the reader the context for this decision, in reading order. The reader shows each one as a chip with the section number and title, and a click on a chip scrolls to that section. A ref holds a section `id`, such as `"evidence"`. It never holds a decision id, a section number, or a title. An id that matches no section is dropped without an error, and so is a repeated id.
+`refs` names sections giving reader context for this decision, in reading order. Reader shows each as chip with section number + title; click on chip scrolls to section. Ref holds section `id`, e.g. `"evidence"`. Never decision id, section number, or title. Id matching no section dropped silently; repeated id too.
 
 Option object:
 
 | Field | Required | Type |
 | --- | --- | --- |
-| `id` | yes | `label`, unique within the decision |
-| `label` | yes | `label`, the option as the reader sees it, in words; do not repeat the `id` |
-| `detail` | no | string, the honest tradeoff |
+| `id` | yes | `label`, unique within decision |
+| `label` | yes | `label`, option as reader sees it, in words; don't repeat `id` |
+| `detail` | no | string, honest tradeoff |
 
-Two fields that agents routinely get wrong:
+Two fields agents often get wrong:
 
-- `cmp` is a `table` block with the `type` key removed. Including `"type": "table"` inside `cmp` fails validation.
-- `dia` is a plain **string label**, not a diagram specification. The reader renders it literally as `[diagram: <your string>]` (`apps/web/src/features/decisions/components/SupportTabs.tsx`). Putting Mermaid source in it produces a line of visible Mermaid source. If a decision needs a real diagram, put a `seq`, `state`, `layers`, or `mermaid` block in the section that sets the decision up, and leave `dia` out.
+- `cmp` = `table` block with `type` key removed. Including `"type": "table"` inside `cmp` fails validation.
+- `dia` = plain **string label**, not diagram spec. Reader renders literally as `[diagram: <your string>]` in the decision's Diagram tab. Mermaid source in it -> visible line of Mermaid source. Decision needs real diagram -> put `seq`, `state`, `layers`, or `mermaid` block in section that sets up decision, leave `dia` out.
 
 ```json
 {

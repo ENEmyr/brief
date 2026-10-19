@@ -1,11 +1,11 @@
 # `scatter`
 
-Each point is a two-number tuple `[x, y]`, not an object. `{ "x": 1, "y": 2 }` fails validation.
+Each point = two-number tuple `[x, y]`, not object. `{ "x": 1, "y": 2 }` fails validation.
 
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"scatter"` |
-| `series` | yes | array of `{ label: label, points: [number, number][] }`, at least 1 series, at least 1 point each |
+| `series` | yes | array of `{ label: label, points: [number, number][] }`, >=1 series, >=1 point each |
 | `title` | no | `label` |
 | `xLabel` | no | `label` |
 | `yLabel` | no | `label` |

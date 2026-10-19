@@ -2,69 +2,68 @@
 name: brief
 description: Use when research, analysis, review, or planning work produces findings too large or too visual for chat, such as an architecture walkthrough, an incident review, a migration plan, or a comparison of options. Publishes the work as an interactive document on Brief (https://brief.algoryth.me) that the human reads, annotates, questions, and answers any open decisions in, then replies back into the conversation.
 ---
-
 # Publish a document to Brief
 
 ## Overview
 
-Brief turns a piece of agent work into a web document the human can act on. You POST one JSON payload; the API returns a URL; the human opens it, reads the sections, highlights passages to ask about or change, answers any decision cards, and pastes a generated reply back into this conversation. You then act on that reply.
+Brief turns agent work into web doc human can act on. POST one JSON payload; API returns URL; human opens it, reads sections, highlights passages to ask about or change, answers decision cards, pastes generated reply back into this conversation. You act on reply.
 
-The payload has three required top-level keys, `meta`, `sections`, and `decisions`, and one optional key, `glossary`. Everything the reader sees is built from those.
+Payload has three required top-level keys, `meta`, `sections`, `decisions`, and one optional, `glossary`. Everything reader sees built from those.
 
 ## When to use
 
-Use it when the work produced more than chat carries well: evidence the reader should see laid out, a flow or structure that prose flattens, numbers worth a chart, or a choice that needs the evidence in front of the reader. A document does not need a decision to be worth publishing. The reader can question or ask for an edit on any passage, so an explanation or a review still gets a reply back.
+Use when work produced more than chat carries well: evidence reader should see laid out, flow or structure prose flattens, numbers worth chart, or choice needing evidence in front of reader. Doc need not have decision to be worth publishing. Reader can question or request edit on any passage, so explanation or review still gets reply back.
 
-Do not use it for an answer that fits in a few chat paragraphs, or as a place to dump raw logs and command output.
+Not for answer fitting in few chat paragraphs, or dump for raw logs and command output.
 
 ## Who reads it
 
-The reader asked for this document because they did not follow the work. They know their product and what they asked you to do. They do not know the files you opened, the commands you ran, the names you gave things along the way, the ticket and task numbers you tracked, or what an earlier document said. Write every sentence so that person can follow it without asking. If they would have to ask "what is that?", the sentence is not finished.
+Reader asked for doc because they did not follow work. They know their product and what they asked. They do not know files you opened, commands you ran, names you coined, ticket and task numbers you tracked, or what earlier doc said. Write every sentence so that person follows without asking. If they would ask "what is that?", sentence not finished.
 
-A document fails this reader in two ways. It buries the point under the story of how you worked, or it reads smoothly and leaves out the facts the reader came for. "What the reader needs" and "Writing for the reader" below guard against each.
+Doc fails reader two ways: buries point under story of how you worked, or reads smoothly but omits facts reader came for. "What the reader needs" and "Writing for the reader" below guard each.
 
 ## Workflow
 
-1. **Research and verify.** Read the real files, trace the real code paths, run the real commands. Every number and claim that reaches the payload must come from something you actually saw. Note where each fact came from; that note belongs in an evidence block, not in your sentences.
-2. **List what the reader needs.** Find the kind of work in "What the reader needs" below and write down each fact its row asks for. A fact you could not get is a gap to state in the document, not a row to drop.
-3. **Plan the sections.** Section 1 is a summary of two to four sentences: what you found or did, what it means for the reader, and what they should do now, with no name the reader has not met. Do not restate the request. After it comes one topic per section, in reading order, numbered from 1.
-4. **Pick a block for each fact.** Use "Choosing blocks" below to match each fact to the block built for its shape, then read `BLOCKS.md` in this skill directory: it holds the rules every block shares and says which file in `blocks/` documents each of the 27 block types. Read only the files of the blocks you use; each has the exact fields, enum values, and a valid JSON example.
+1. **Research and verify.** Read real files, trace real code paths, run real commands. Every number and claim in payload must come from something you saw. Note source of each fact; note goes in a `details` block, not in your sentences.
+2. **List what the reader needs.** Find kind of work in "What the reader needs" below, write down each fact its row asks for. Fact you could not get = gap to state in doc, not row to drop.
+3. **Plan the sections.** Section 1 = summary of two to four sentences: what you found or did, what it means for reader, what they should do now, no name reader has not met. Do not restate request. Then one topic per section, reading order, numbered from 1.
+4. **Pick a block for each fact.** Use "Choosing blocks" below to match each fact to block built for its shape, then read `BLOCKS.md` in this skill directory: holds rules all blocks share, says which file in `blocks/` documents each of 27 block types. Read only files of blocks you use; each has exact fields, enum values, valid JSON example.
 5. **Write for the reader.** Follow "Writing for the reader" below.
-6. **Add decisions only for calls the human must make.** Settle every question you can answer by thinking it through or checking, and say in the document what you chose. A decision is for a choice that turns on the human's priorities, money, risk, or taste, with at least two options you would accept. Write those last, so the options reflect what the research found, each with honest `detail` text and usually a `why` that states your recommendation and its cost. Add `refs` with the ids of the sections that set the decision up, so the reader can jump back to the evidence. When nothing is left to decide, send `"decisions": []`; the reader then shows no decision area.
-7. **Reread it as the reader.** Before validating, read the payload as someone who saw none of this session. Every name, path, id, abbreviation, and number is explained where it first appears, or it goes. Every fact from step 2 is there. No sentence describes how you worked.
-8. **Validate before publishing.** If the document has an `image` block, upload each image first and put the returned `imageId` in the block, as `reference/images.md` says. Write the payload to a file and run `node <skill-dir>/validate.mjs payload.json`. It is offline, needs no install, and it rejects exactly what the API rejects. It also prints readability hints. Do not skip it; a failed POST costs a request against a ten-per-minute limit and returns at most ten of the problems.
-9. **Publish and hand over the URL.** Give the human the link and nothing else; the document carries the content now.
-10. **Act on the reply.** The human pastes a generated prompt back into the conversation. Read `reference/replies.md`.
+6. **Add decisions only for calls the human must make.** Settle every question you can answer by thinking or checking, say in doc what you chose. Decision = choice turning on human's priorities, money, risk, or taste, with at least two options you would accept. Write those last, so options reflect research, each with honest `detail` text and usually `why` stating your recommendation and its cost. Add `refs` with ids of sections setting decision up, so reader can jump back to evidence. Nothing left to decide -> send `"decisions": []`; reader then shows no decision area.
+7. **Reread it as the reader.** Before validating, read payload as someone who saw none of this session. Every name, path, id, abbreviation, number explained where it first appears, or cut. Every fact from step 2 present. No sentence describes how you worked.
+8. **Validate before publishing.** If doc has `image` block, upload each image first and put returned `imageId` in block, per `reference/images.md`. Write payload to file, run `node <skill-dir>/validate.mjs payload.json`. Offline, no install, rejects exactly what API rejects. Also prints readability hints. Do not skip; failed POST costs request against ten-per-minute limit and returns at most ten problems.
+9. **Publish and hand over the URL.** Give human link, nothing else; doc carries content now.
+10. **Act on the reply.** Human pastes generated prompt back into conversation. Read `reference/replies.md`.
 
-This skill directory holds what you will use: `BLOCKS.md` (shared block rules and an index), `blocks/` (one file per block), `reference/` (decisions, glossary, image upload, replies, and writing in Thai, each read when you need it), `example.payload.json` (a complete, valid document to model yours on), and `validate.mjs` (the pre-flight check).
+Skill directory holds: `BLOCKS.md` (shared block rules + index), `blocks/` (one file per block), `reference/` (decisions, glossary, image upload, replies, writing in Thai, read when needed), `example.payload.json` (complete valid doc to model on), `validate.mjs` (pre-flight check).
 
 ## What the reader needs
 
-A document can read well and still fail because the number the reader came for is missing. Before writing, find the row for the kind of work and collect each fact it lists.
+Doc can read well and still fail because number reader came for is missing. Before writing, find row for kind of work, collect each fact listed.
 
 | Kind of work | Facts the reader needs | Blocks that carry them |
 | --- | --- | --- |
-| Performance, load, or capacity | The target, and the machine or plan it runs on with its size and price. The result against the target, before and after, measured the same way. How each number was measured: tool, load, data size, runs, and spread. Where the time or the resources go. Each fix, shown as code. How cost grows with users or data. The money cost now and at the target. What was not measured. | `stat`, `table`, `histogram`, `scatter`, `bigo`, `ba`, `coverage` |
-| Bug, incident, or failed test | What the user saw. The cause, as a chain of steps. The fix. The proof that it works. What can still go wrong. | `seq`, `state`, or a `mermaid` flowchart, then `ba`, `good`, `warn` |
-| Code review | What the change is for, in the user's terms. The verdict. Findings by severity, each with its effect on users. The code behind each blocking finding, and its fix. What the tests cover, and which checks fail. | `table`, `code` or `ba`, `coverage` |
-| A change you made | What changed for the user. How it works now. What changed where. How you checked it. What is left. | `mermaid` or `layers`, `table`, `ba`, `coverage` |
-| How something works | What each part is. How a request or a record moves through the parts. Its states. Its data. | `mermaid` flowchart, `seq`, `state`, `erd` |
-| Deployment, migration, or rollout | The target layout. The steps in order, with who does each. The risks. How to roll back. The cost. | `mermaid`, `table`, `warn` |
-| Database design | The tables and how they relate. Example rows. The queries it must serve. | `erd`, `table`, `code` |
-| Choosing between options | What each option is. The same criteria applied to every option. Cost and effort. Your recommendation and its downside. | `table` with one row per criterion, `compare` for two options, a decision |
+| Performance, load, or capacity | Target, and machine or plan it runs on with size and price. Result vs target, before and after, measured same way. How each number measured: tool, load, data size, runs, spread. Where time or resources go. Each fix, shown as code. How cost grows with users or data. Money cost now and at target. What was not measured. | `stat`, `table`, `histogram`, `scatter`, `bigo`, `ba`, `coverage` |
+| Bug, incident, or failed test | What user saw. Cause, as chain of steps. Fix. Proof it works. What can still go wrong. | `seq`, `state`, or a `mermaid` flowchart, then `ba`, `good`, `warn` |
+| Code review | What change is for, in user's terms. Verdict. Findings by severity, each with effect on users. Code behind each blocking finding, and its fix. What tests cover, which checks fail. | `table`, `code` or `ba`, `coverage` |
+| A change you made | What changed for user. How it works now. What changed where. How you checked. What is left. | `mermaid` or `layers`, `table`, `ba`, `coverage` |
+| How something works | What each part is. How request or record moves through parts. Its states. Its data. | `mermaid` flowchart, `seq`, `state`, `erd` |
+| Deployment, migration, or rollout | Target layout. Steps in order, with who does each. Risks. How to roll back. Cost. | `mermaid`, `table`, `warn` |
+| Database design | Tables and how they relate. Example rows. Queries it must serve. | `erd`, `table`, `code` |
+| Choosing between options | What each option is. Same criteria applied to every option. Cost and effort. Your recommendation and its downside. | `table` with one row per criterion, `compare` for two options, a decision |
 
-Three rules hold for every kind of work. A claim about code shows the few lines of code in a `code` or `ba` block instead of naming a file and a line; code shown as it is today is copied from the source, and code you propose says whether you ran it. An equation comes with its variables explained and one worked example. A number comes with what it is measured against, such as the target, the previous value, or the limit.
+Three rules for every kind of work. Claim about code shows the few lines in `code` or `ba` block instead of naming file and line; code shown as today is copied from source, proposed code says whether you ran it. Equation comes with variables explained and one worked example. Number comes with what it is measured against: target, previous value, or limit.
 
 ## Writing for the reader
 
-- **Lead with the point.** The first sentence of each section is its conclusion. Evidence and method follow it, and long evidence goes in a `details` block.
-- **One topic per paragraph.** Six sentences at most, usually two or three, with the topic in the first sentence. A paragraph that counts "first ..., second ..., third ..." is a `list`, or a `table` with one row per item when each item has more than one attribute. The validator hints at any paragraph over 400 characters.
-- **Explain or cut every name the reader has not met.** That covers file paths, function and variable names, ticket and PR numbers, decision ids, and the labels you made up while working, such as lanes, phases, or cards. Say what the thing is or does in plain words: "the function that saves the host settings", not `config.SaveHost`. When the reader needs the exact path to act or to check, put it in a table column, a code block's `filename`, or a `details` block. A domain term the reader needs but may not know goes in the `glossary`, so its definition shows where the term appears.
-- **Make the document stand alone.** If it follows an earlier document or conversation, restate in one sentence what that one found or decided. Never point to "the card" or "last round".
-- **Leave out how you worked.** Subagents, lanes, verifiers, worktrees, the commands you ran, and the folders your notes live in mean nothing to the reader. Give the result. If the method changes how far to trust it, say so in one sentence or put it in a `details` block.
-- **Say how facts relate.** The reader takes two facts placed side by side as cause and effect. If they are unrelated, say so, or keep them apart.
-- **Mark uncertainty once.** Say which numbers are estimates in one place, such as a stat hint or a `coverage` block of what was not checked. A parenthesis in every clause buries the result.
-- **Write in the language the human uses most with you, the way you would say it to a colleague.** If they mostly write Thai, write the document in Thai from the first draft, even when the code, your notes, and your own reasoning are in English. A translated English draft keeps English grammar and reads as a translation. If you write in Thai, read `reference/thai.md` first.
+- **Lead with the point.** First sentence of each section = its conclusion. Evidence and method follow; long evidence goes in `details` block.
+- **One topic per paragraph.** Six sentences max, usually two or three, topic in first sentence. Paragraph counting "first ..., second ..., third ..." is a `list`, or `table` with one row per item when each item has more than one attribute. Validator hints at any paragraph over 400 characters.
+- **Explain or cut every name the reader has not met.** Covers file paths, function and variable names, ticket and PR numbers, decision ids, labels you made up while working (lanes, phases, cards). Say what thing is or does in plain words: "the function that saves the host settings", not `config.SaveHost`. When reader needs exact path to act or check, put it in table column, code block's `filename`, or `details` block. Domain term reader needs but may not know goes in `glossary`, so definition shows where term appears.
+- **Make the document stand alone.** If it follows earlier doc or conversation, restate in one sentence what that one found or decided. Never point to "the card" or "last round".
+- **Leave out how you worked.** Subagents, lanes, verifiers, worktrees, commands you ran, folders your notes live in mean nothing to reader. Give result. If method changes how far to trust it, say so in one sentence or put in `details` block.
+- **Say how facts relate.** Reader takes two facts side by side as cause and effect. If unrelated, say so, or keep apart.
+- **Mark uncertainty once.** Say which numbers are estimates in one place, such as stat hint or `coverage` block of what was not checked. Parenthesis in every clause buries result.
+- **Write in the language the human uses most with you, the way you would say it to a colleague.** If they mostly write Thai, write doc in Thai from first draft, even when code, notes, and own reasoning are English. Translated English draft keeps English grammar, reads as translation. If writing Thai, read `reference/thai.md` first.
 - **Only paragraphs, callouts and list items render inline markdown.** In a `p`, in the title and text of a `note`, `warn`, or `good`, and in each item of a `list`, the reader renders `` `inline code` ``, `**bold**`, and `*italic*`. Nothing nests, and links are not rendered. Every other field, such as a table cell, a list caption, a decision, or a label, shows exactly as typed, so backticks and asterisks there appear as literal characters. Put longer code in a `code` block.
 - **No emoji, no em dash, no en dash.** Use a plain hyphen.
 - **Honest `detail` on every option.** An option with no downside listed reads as a sales pitch, and it costs the reader their trust in the rest of the document.
@@ -133,7 +132,7 @@ At least one. Each needs `id` (short, unique, used as the URL fragment), `no` (i
 
 ### `decisions`
 
-May be empty, and then the reader shows no decision area. Each decision needs `id`, `q`, `multi`, and at least two `opts`. Set `multi` to `false` for an either-or choice and `true` when several options can be taken together. The optional `refs` field lists the ids of the sections that set the decision up. The full field reference, including the two fields agents habitually get wrong (`cmp` and `dia`), is in `reference/decisions.md`.
+May be empty, and then the reader shows no decision area. Each decision needs `id`, `q`, `multi`, and at least two `opts`. Each option needs an `id` and a `label`, and takes an optional `detail`. Set `multi` to `false` for an either-or choice and `true` when several options can be taken together. The optional `refs` field lists the ids of the sections that set the decision up. The full field reference, including the two fields agents habitually get wrong (`cmp` and `dia`), is in `reference/decisions.md`.
 
 ### `glossary`
 
@@ -207,7 +206,7 @@ Read a path literally: `sections.1.blocks.0.head` is the `head` field of the fir
 
 Warnings are different from errors. A warning means the API will accept the payload but the field you wrote does nothing, because the schema strips keys it does not know. `sections.0.blocks.1.items.0.color` is a real example: the field is called `tone`, so a block with `color` publishes and renders with no colour at all. Treat a warning as a silently broken block, not as a nit.
 
-Hints are the third kind of line, and they never change the exit code. Each one names a pattern that makes the document hard to read for someone who did not follow the work: a paragraph over 400 characters, an English sentence over 25 words, a table cell over 200 characters, a stat label or hint over 50, a file path in running text, or markdown that the field does not render: a link anywhere, or backticks and `**` outside a paragraph or callout.
+Hints are the third kind of line, and they never change the exit code. Each one names a pattern that makes the document hard to read for someone who did not follow the work: a paragraph over 400 characters, an English sentence over 25 words, a table cell over 200 characters, a stat label or hint over 50, a file path in running text, or markdown that the field does not render: a link anywhere, or backticks and `**` outside a paragraph, a callout, or a list item.
 
 ```text
 hint     sections.1.blocks.0.text: 512 characters in one paragraph. Keep one point per paragraph: split it, or move the supporting detail into a table or a details block.
@@ -244,18 +243,16 @@ Write the payload to a file and POST it with `-d @file`. Inlining a large JSON d
 | 400 | `{ "error": "path: message; path: message" }` | Fix the named paths and re-POST. |
 | 413 | `{ "error": "Payload exceeds 1900000 bytes." }` | Cut content. Long code and raw command output are the usual cause; move them into a `details` block or drop them. |
 | 429 | `{ "error": "Rate limit exceeded. Try again in a minute." }` | Ten creations per minute per IP. Wait; do not retry in a loop. |
-| 404 | `{ "error": "Session not found or expired." }` | The id is wrong or the session has expired. |
-| 403 | `{ "error": "This session is protected..." }` | The reader encrypted it; the content is no longer readable by you. |
 
 If the document has an `image` block, read `reference/images.md` first: it says how to upload each file and get its `imageId`.
 
 ### Reading a document back
 
-`GET https://brief-api.algoryth.me/api/session/<id>/raw` returns the document as markdown. It contains only the payload you sent, never the reader's annotations or answers, and it returns 403 once the reader password-protects the session. Keep your own copy of any payload you may need later rather than relying on this endpoint.
+`GET https://brief-api.algoryth.me/api/session/<id>/raw` returns the document as markdown. It contains only the payload you sent, never the reader's annotations or answers. It returns 404 `{ "error": "Session not found or expired." }` for a wrong or expired id, and 403 `{ "error": "This session is protected..." }` once the reader password-protects the session; the content is then not readable by you. Keep your own copy of any payload you may need later rather than relying on this endpoint.
 
 ## What comes back
 
-The reader replies by pasting a generated prompt into this conversation: decision answers, or a question about a highlighted passage. When one arrives, read `reference/replies.md`, which shows both shapes and how to act on them. Do not ask the human to restate them.
+The reader replies by pasting a generated prompt into this conversation: decision answers, a question about a highlighted passage, or a request to update the document. When one arrives, read `reference/replies.md`, which shows each shape and how to act on it. Do not ask the human to restate them.
 
 When the document has decisions, design them so this loop closes in one pass. A question the human cannot settle from the document alone is a question that comes back as another round trip.
 

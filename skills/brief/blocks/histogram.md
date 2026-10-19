@@ -7,7 +7,7 @@
 | `title` | no | `label` |
 | `threshold` | no | `{ bin: position, label: short, value?: short }` |
 
-`threshold` marks a limit on the chart, such as a timeout or a target. `bin` counts the bins from 1, and the line sits on the left edge of that bin. The reader colours that bin and every bin after it as past the limit. The line shows `label`, followed by `value` when you give one, and each is 1 to 40 characters. A `bin` past the last bin draws no threshold and gives no error. A histogram has one threshold and no separate percentile field. To mark a percentile such as p95, use `threshold` with `"label": "p95"` and the measured value in `value`.
+`threshold` marks chart limit (e.g. timeout, target). `bin` counts bins from 1; line sits on left edge of that bin. Reader colours that bin + every later bin as past limit. Line shows `label`, then `value` if given; each 1-40 chars. `bin` past last bin -> no threshold drawn, no error. Histogram has one threshold, no separate percentile field. To mark percentile like p95: use `threshold` with `"label": "p95"`, measured value in `value`.
 
 ```json
 {

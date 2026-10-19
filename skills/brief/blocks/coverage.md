@@ -3,7 +3,7 @@
 | Field | Required | Type |
 | --- | --- | --- |
 | `type` | yes | `"coverage"` |
-| `items` | yes | array of coverage items, at least 1 |
+| `items` | yes | array of coverage items, min 1 |
 | `caption` | no | `label` |
 
 Coverage item:

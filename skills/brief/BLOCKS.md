@@ -1,31 +1,31 @@
 # Block reference
 
-Every field below is transcribed from `payloadSchema` in `packages/schema/src/payload.ts` of the ENEmyr/brief repository. If a field is not listed here, the API rejects it only when it breaks a listed rule; unknown extra keys are stripped, not honoured, so do not invent fields.
+Every field below transcribed from `payloadSchema` in `packages/schema/src/payload.ts` of ENEmyr/brief repo. Field not listed here: API rejects only when it breaks listed rule; unknown extra keys stripped, not honoured. Do not invent fields.
 
 ## Shared constraints
 
-These two string rules are referenced throughout the tables.
+String rules referenced throughout tables:
 
-- `label`: a string of 1 to 300 characters. Used for titles, ids, captions, axis names, and any short piece of text.
-- `text`: a string of at least 1 character, with no upper bound. Used for prose.
-- `short`: a string of 1 to 40 characters. Used for the histogram threshold.
-- `position`: an integer of 1 or more. Line numbers, table rows and columns, and histogram bins all count from 1.
+- `label`: string, 1-300 chars. Titles, ids, captions, axis names, any short text.
+- `text`: string, >=1 char, no upper bound. Prose.
+- `short`: string, 1-40 chars. Histogram threshold.
+- `position`: integer >=1. Line numbers, table rows/columns, histogram bins all count from 1.
 
-Two colour vocabularies exist, and they do not mix:
+Two colour vocabularies, no mixing:
 
-- `tone`: one of `info`, `good`, `warn`, `bad`. It is the meaning of a colour, and table cells, states, and transitions take it.
-- stat tone: one of `mauve`, `blue`, `green`, `red`, `peach`, `teal`, `yellow`. It is a palette colour, and only stat tiles take it.
+- `tone`: one of `info`, `good`, `warn`, `bad`. Meaning of colour; table cells, states, transitions take it.
+- stat tone: one of `mauve`, `blue`, `green`, `red`, `peach`, `teal`, `yellow`. Palette colour; only stat tiles take it.
 
-`"tone": "red"` on a table cell fails validation, and so does `"tone": "bad"` on a stat tile.
+`"tone": "red"` on table cell fails validation, same for `"tone": "bad"` on stat tile.
 
 Two more rules that catch agents out:
 
-- A section requires `id`, `no`, `title`, and at least one block. `no` is an integer of 1 or more and is what the reader sees as the section number.
-- Every block is discriminated on `type`. A misspelled `type` fails validation with `sections.N.blocks.M: Invalid discriminator value`.
+- Section requires `id`, `no`, `title`, >=1 block. `no` = integer >=1, shown to reader as section number.
+- Every block discriminated on `type`. Misspelled `type` fails validation at `sections.N.blocks.M`; `validate.mjs` names the accepted types.
 
 ## Where each block is documented
 
-Read only the files of the blocks you use. Each file has the field table, the exact enum values and a valid JSON example.
+Read only files of blocks you use. Each file has field table, exact enum values, valid JSON example.
 
 | Group | Block | File |
 | --- | --- | --- |
