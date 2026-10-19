@@ -42,8 +42,8 @@ export function insertPrintNotes(root: ParentNode, highlights: Highlight[]): () 
   for (const stale of root.querySelectorAll('[data-print-note]')) stale.remove()
   const byId = new Map(highlights.map((h) => [h.id, h]))
   const added: Element[] = []
-  for (const mark of root.querySelectorAll<HTMLElement>('mark[data-mark-id], mark[data-highlight-id]')) {
-    const highlight = byId.get(mark.dataset.markId ?? mark.dataset.highlightId ?? '')
+  for (const mark of root.querySelectorAll<HTMLElement>('mark[data-mark-id]')) {
+    const highlight = byId.get(mark.dataset.markId ?? '')
     if (!highlight) continue
     // A highlight across inline-markdown runs is one mark per run; print its note once.
     byId.delete(highlight.id)

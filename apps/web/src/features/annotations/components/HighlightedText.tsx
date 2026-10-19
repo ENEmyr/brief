@@ -5,12 +5,13 @@ import { GlossaryTerm, useLeafTerms } from '@/features/glossary'
 import type { TermHit } from '@/features/glossary'
 import { Fragment } from 'react'
 import { parseInline } from '../lib/inlineMarkdown'
+import type { InlineRun } from '../lib/inlineMarkdown'
+import { markStacks } from '../lib/markStacks'
 
 /**
- * Renders one leaf string with its highlights spliced in as <mark> segments.
- * Highlights for this (sid, bid, path) are sorted by start, and the walk tracks
- * `cur` so text already covered by an earlier mark is not re-emitted.
- * Overlapping highlights each still slice their own full start..end range.
+ * Renders one leaf string with its highlights spliced in as <mark> segments,
+ * each character once (see markStacks). A plain leaf is one plain run of
+ * InlineMarkdown, so both paths share one walk.
  *
  * A highlight whose stored text no longer matches the characters at its offsets
  * is dropped rather than painted. That single check covers every way an anchor
@@ -48,17 +49,7 @@ export function HighlightedText({
 
   if (markdown) return <InlineMarkdown text={text} highlights={hs} terms={terms} onMarkClick={onMarkClick} />
   if (!hs.length) return <>{text}</>
-
-  const out: React.ReactNode[] = []
-  let cur = 0
-  hs.forEach((h) => {
-    if (h.start > cur) out.push(text.slice(cur, h.start))
-    out.push(markFor(h, text.slice(h.start, h.end), h.id, true, onMarkClick))
-    cur = Math.max(cur, h.end)
-  })
-  if (cur < text.length) out.push(text.slice(cur))
-
-  return <>{out}</>
+  return <InlineMarkdown text={text} highlights={hs} onMarkClick={onMarkClick} plain />
 }
 
 // Where the last press on a mark began. One pointer presses one mark at a time.
@@ -83,7 +74,9 @@ function markFor(
         pressAt = { x: e.clientX, y: e.clientY }
       }}
       onClick={(e) => {
-        const moved = pressAt !== null && (e.clientX !== pressAt.x || e.clientY !== pressAt.y)
+        // A same-range highlight nests inside this mark; only the innermost mark under the pointer opens.
+        if ((e.target as Element).closest('mark') !== e.currentTarget) return
+        const moved = pressAt !== null && (e.clientX - pressAt.x) ** 2 + (e.clientY - pressAt.y) ** 2 > 16
         pressAt = null
         if (!moved) onMarkClick(h)
       }}
@@ -126,35 +119,30 @@ const RUN_CLASS = {
  * stored before markdown rendered (when visible text was the source) still
  * lands on the same characters.
  *
- * Each source character belongs to at most one mark, so the DOM never repeats
- * text. A highlight that lies wholly inside another owns its characters, so a
- * nested highlight, note or ask draws its own mark and marker; where two only
- * partly overlap, the earlier-starting one keeps the shared part. A highlight that
- * crosses a run boundary draws as one <mark> per run, and only its last piece
- * carries the note or ask marker.
+ * Each source character belongs to one owner (markStacks), so the DOM never
+ * repeats text and a nested highlight, note or ask draws its own mark and
+ * marker. A highlight that crosses a run boundary draws as one <mark> per run,
+ * and only its last piece carries the note or ask marker. `plain` renders the
+ * whole text as one plain run, for a leaf that does not render markdown.
  */
 export function InlineMarkdown({
   text,
   highlights,
   terms = [],
   onMarkClick,
+  plain = false,
 }: {
   text: string
   highlights: Highlight[]
   /** Glossary first uses to underline; each lies inside one run's content. */
   terms?: TermHit[]
   onMarkClick: (highlight: Highlight) => void
+  plain?: boolean
 }) {
   const termAt = new Array<number | null>(text.length).fill(null)
   for (const t of terms) for (let i = t.start; i < t.end; i++) termAt[i] = t.n
-  const owner: (Highlight | null)[] = new Array<Highlight | null>(text.length).fill(null)
-  for (const h of highlights) {
-    for (let i = h.start; i < h.end; i++) {
-      const o = owner[i] ?? null
-      if (!o || (o.start <= h.start && h.end <= o.end)) owner[i] = h
-    }
-  }
-  const runs = parseInline(text)
+  const owner = markStacks(highlights, text.length)
+  const runs: InlineRun[] = plain ? [{ kind: 'plain', start: 0, end: text.length, marker: 0 }] : parseInline(text)
   const hidden = new Array<boolean>(text.length).fill(false)
   for (const run of runs) {
     for (let k = 0; k < run.marker; k++) {
@@ -165,12 +153,12 @@ export function InlineMarkdown({
   // A highlight stored before markdown rendered may cover marker characters
   // only. Show those characters inside its mark, so it still draws.
   const markersOnly = new Set(highlights.filter((h) => hidden.slice(h.start, h.end).every(Boolean)))
-  owner.forEach((h, i) => {
-    if (h && markersOnly.has(h)) hidden[i] = false
+  owner.forEach((s, i) => {
+    if (s?.[0] && markersOnly.has(s[0])) hidden[i] = false
   })
   const lastPiece = new Map<string, number>()
-  owner.forEach((h, i) => {
-    if (h && !hidden[i]) lastPiece.set(h.id, i)
+  owner.forEach((s, i) => {
+    if (s?.[0] && !hidden[i]) lastPiece.set(s[0].id, i)
   })
 
   return (
@@ -183,10 +171,11 @@ export function InlineMarkdown({
         while (i < run.end) {
           const zoneEnd = i < contentStart ? contentStart : i >= contentEnd ? run.end : contentEnd
           const isMarker = hidden[i]
-          const h = owner[i] ?? null
+          const stack = owner[i] ?? null
+          const h = stack?.[0]
           const term = termAt[i] ?? null
           let j = i + 1
-          while (j < zoneEnd && (owner[j] ?? null) === h && (termAt[j] ?? null) === term) j++
+          while (j < zoneEnd && (owner[j] ?? null) === stack && (termAt[j] ?? null) === term) j++
           const slice = text.slice(i, j)
           if (isMarker)
             pieces.push({
@@ -197,11 +186,16 @@ export function InlineMarkdown({
               ),
               term,
             })
-          else if (h)
+          else if (stack && h) {
+            const withMarker = lastPiece.get(h.id) === j - 1
             pieces.push({
-              node: markFor(h, slice, `${h.id}:${i}`, lastPiece.get(h.id) === j - 1, onMarkClick),
+              node: stack.reduceRight<React.ReactNode>(
+                (child, m) => markFor(m, child, `${m.id}:${i}`, withMarker, onMarkClick),
+                slice,
+              ),
               term,
             })
+          }
           else pieces.push({ node: <Fragment key={i}>{slice}</Fragment>, term })
           i = j
         }

@@ -82,7 +82,7 @@ const CodeLine = memo(function CodeLine({
     if (!stable.length) return
     const target = ev.target
     if (!(target instanceof Element)) return
-    const id = target.closest('mark[data-highlight-id]')?.getAttribute('data-highlight-id')
+    const id = target.closest('mark[data-mark-id]')?.getAttribute('data-mark-id')
     const hit = id === null || id === undefined ? undefined : stable.find((h) => h.id === id)
     if (hit) onMarkClick(hit)
   }
