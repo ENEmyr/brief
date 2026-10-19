@@ -275,6 +275,30 @@ describe('SessionPage / SessionView', () => {
     expect(screen.getByLabelText('Password')).toHaveValue('')
   })
 
+  it('the archive dialog fades out inert on Escape and on Close, then unmounts and hands focus back to Archive', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
+    render(<SessionPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Test Doc' })).toBeInTheDocument())
+    const archive = screen.getByRole('button', { name: 'Archive' })
+
+    for (const close of [
+      () => fireEvent.keyDown(document.activeElement!, { key: 'Escape' }),
+      (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Close' })),
+    ]) {
+      archive.focus()
+      fireEvent.click(archive)
+      const dialog = screen.getByRole('dialog', { name: 'Archive this doc' })
+
+      close(dialog)
+      expect(dialog).toBeInTheDocument()
+      expect(dialog.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+      endAnimation(dialog.parentElement!)
+      expect(screen.queryByRole('dialog', { name: 'Archive this doc' })).toBeNull()
+      expect(archive).toHaveFocus()
+    }
+  })
+
   // The "archived" chip is gone from the top bar (B-Reader); the Archive icon fills and reads "Archived" instead.
   it('Archive button opens SaveModal, and a plain save marks the Archive button archived without losing the doc', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
