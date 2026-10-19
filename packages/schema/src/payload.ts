@@ -188,8 +188,8 @@ const listBlock = z.object({
   items: z.array(z.string().min(1).max(500)).min(1).max(100),
 })
 
-const flowNode = z.object({ id: label, label, kind: z.enum(FLOW_NODE_KINDS).optional() })
-const flowEdge = z.object({ from: label, to: label, label: label.optional() })
+const flowNode = z.object({ id: label, label, kind: z.enum(FLOW_NODE_KINDS).optional(), tone: tone.optional() })
+const flowEdge = z.object({ from: label, to: label, label: label.optional(), tone: tone.optional() })
 
 const walkthroughBlock = z.object({
   type: z.literal('walkthrough'),

@@ -1416,6 +1416,15 @@
                                       "decision",
                                       "end"
                                     ]
+                                  },
+                                  "tone": {
+                                    "type": "string",
+                                    "enum": [
+                                      "info",
+                                      "good",
+                                      "warn",
+                                      "bad"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -1445,6 +1454,15 @@
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 300
+                                  },
+                                  "tone": {
+                                    "type": "string",
+                                    "enum": [
+                                      "info",
+                                      "good",
+                                      "warn",
+                                      "bad"
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -3148,6 +3166,15 @@
                                             "decision",
                                             "end"
                                           ]
+                                        },
+                                        "tone": {
+                                          "type": "string",
+                                          "enum": [
+                                            "info",
+                                            "good",
+                                            "warn",
+                                            "bad"
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -3177,6 +3204,15 @@
                                           "type": "string",
                                           "minLength": 1,
                                           "maxLength": 300
+                                        },
+                                        "tone": {
+                                          "type": "string",
+                                          "enum": [
+                                            "info",
+                                            "good",
+                                            "warn",
+                                            "bad"
+                                          ]
                                         }
                                       },
                                       "required": [
