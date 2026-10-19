@@ -38,13 +38,15 @@ beforeEach(() => {
   )
 })
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   // Reader state is keyed by session id and these tests share one, so a test
   // that seeds or writes an entry must not leak it into the next. Doing this
   // in afterEach rather than at the end of a test body means a failing test
-  // cleans up too.
+  // cleans up too. A click at the end of a test schedules a 0 ms persist
+  // write, so let it land first, or it writes the entry back after the clear.
+  await new Promise((resolve) => setTimeout(resolve, 0))
   window.localStorage.clear()
 })
 
