@@ -33,7 +33,7 @@ const COLORS: Record<
     card: 'rgb(255, 255, 255)',
     line: 'rgb(225, 228, 231)',
     line2: 'rgb(205, 210, 215)',
-    faint: 'rgb(106, 115, 123)',
+    faint: 'rgb(104, 113, 121)',
     elev: 'rgb(249, 250, 250)',
     text: 'rgb(15, 18, 20)',
   },
