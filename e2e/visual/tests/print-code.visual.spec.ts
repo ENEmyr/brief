@@ -9,7 +9,23 @@ import { expect, openReader, serveSession, test } from '../lib/session'
 // (B-Print:53-82). Computed-style and box assertions, no reference images.
 const fixture = (file: string): Record<string, unknown> =>
   JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, '..', 'fixtures', file), 'utf8'))
-const printSeed = fixture('print-state.seed.json')
+const baseSeed = fixture('print-state.seed.json')
+// A reader highlight on line 4 of the noted code block, so the highlight note joins the code notes.
+const printSeed = {
+  ...baseSeed,
+  highlights: [
+    {
+      id: 'h-code-1',
+      sid: 0,
+      bid: 0,
+      path: 'code.3',
+      start: 2,
+      end: 15,
+      text: 'b.tokens -= 1',
+      note: 'Two requests at once may charge twice.',
+    },
+  ],
+}
 
 const CODE = [
   'export async function take(key: string) {',
@@ -109,6 +125,28 @@ test.describe('print', () => {
       expect(list!.x, 'list left vs card left').toBeCloseTo(box!.x, 0)
     })
   }
+
+  // The wrapper holds the card and the lettered list; the highlight note follows
+  // the wrapper. The list must not start a page apart from its card.
+  test('a highlighted noted code block prints card, lettered notes, then the highlight note', async ({ page }) => {
+    const figure = page.locator('figure:has(> pre.shiki)').first()
+    await expect(figure.locator('mark')).toHaveCount(1)
+    const letters = figure.locator('xpath=following-sibling::*')
+    const highlightNote = figure.locator('xpath=../following-sibling::*[1]')
+    await expect(letters).toHaveCount(1)
+    await expect(letters).toHaveAttribute('data-print-notes', '')
+    await expect(letters.locator('li')).toHaveText(['[A] Read the bucket.', '[B] Take one token.'])
+    await expect(highlightNote).toHaveAttribute('data-print-note', '')
+    await expect(highlightNote).toHaveText('Note: Two requests at once may charge twice.')
+    const [card, list, note] = await Promise.all([
+      figure.boundingBox(),
+      letters.boundingBox(),
+      highlightNote.boundingBox(),
+    ])
+    expect(list!.y, 'lettered list under the card').toBeGreaterThanOrEqual(card!.y + card!.height)
+    expect(note!.y, 'highlight note under the lettered list').toBeGreaterThanOrEqual(list!.y + list!.height)
+    await expectComputed(letters, { 'break-before': 'avoid' })
+  })
 
   test('note letters line up in one column and the list follows the listing', async ({ page }) => {
     const letters = page.locator('figure:has(> pre.shiki) [data-print-letter]')

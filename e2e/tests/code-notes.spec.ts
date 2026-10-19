@@ -192,3 +192,25 @@ test.describe('agent notes on code, reader marks and copy', () => {
     expect(await selectAll(page)).toBe(CODE)
   })
 })
+
+test('at 388 a tap on the line above a diamond lands on that line, not on the diamond', async ({
+  page,
+  createSession,
+}) => {
+  // d127: under 880 a noted row grows to the 44 px chip, so the chip never reaches the row above.
+  await page.setViewportSize({ width: 388, height: 900 })
+  const { id } = await createSession(payload)
+  await page.goto(`/s/${id}`)
+  const chip = diamond(page, 'L2')
+  await chip.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+  const box = (await chip.boundingBox())!
+  const above = (await leaf(page, 0).boundingBox())!
+  expect(box.height).toBeGreaterThanOrEqual(44)
+  // The probe is the bottom pixel of the row above, under the chip's centre.
+  const probe = { x: box.x + box.width / 2, y: above.y + above.height - 1 }
+  const inChip = await page.evaluate(
+    ({ x, y }) => !!document.elementFromPoint(x, y)?.closest('button[data-code-note]'),
+    probe,
+  )
+  expect(inChip).toBe(false)
+})

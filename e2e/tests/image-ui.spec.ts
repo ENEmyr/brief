@@ -166,3 +166,54 @@ test.describe('image block in the reader', () => {
     expect(copied).toBe(CAPTION)
   })
 })
+
+test.describe('an encrypted image brief that does not decrypt', () => {
+  const password = 'image-tamper-passphrase'
+  let id = ''
+  let imageId = ''
+
+  test.beforeEach(async ({ request, createSession }) => {
+    const salt = globalThis.crypto.getRandomValues(new Uint8Array(16))
+    const iterations = 600_000
+    const key = await sessionKey(password, salt, iterations)
+    ;({ id } = await createSession(withImage('img_placeholder00001', 'Before encrypt')))
+    const sealed = await seal(key, new Uint8Array(PNG))
+    const upload = await request.post(`${API_URL}/api/session/${id}/image`, {
+      headers: { 'content-type': 'application/octet-stream' },
+      data: Buffer.concat([Buffer.from(sealed.iv), Buffer.from(sealed.ciphertext)]),
+    })
+    ;({ imageId } = (await upload.json()) as { imageId: string })
+    const payload = await seal(key, new TextEncoder().encode(JSON.stringify(withImage(imageId, 'Encrypted image'))))
+    const save = await request.put(`${API_URL}/api/session/${id}/save`, {
+      data: {
+        mode: 'encrypt',
+        ciphertext: b64(payload.ciphertext),
+        encParams: { salt: b64(salt), iv: b64(payload.iv), iterations },
+      },
+    })
+    expect(save.ok()).toBe(true)
+  })
+
+  test('a wrong password shows the fixed error and keeps the unlock card', async ({ page }) => {
+    await page.goto(`/s/${id}`)
+    await page.getByLabel('Password').fill('not-the-passphrase')
+    await page.getByRole('button', { name: 'Unlock' }).click()
+    await expect(page.getByText('Wrong password or corrupted data.')).toBeVisible()
+    await expect(page.getByRole('img', { name: ALT })).toHaveCount(0)
+  })
+
+  test('a flipped byte in the image ciphertext shows the missing image message in the card', async ({ page }) => {
+    await page.route(`${API_URL}/api/image/${imageId}`, async (route) => {
+      const response = await route.fetch()
+      const body = Buffer.from(await response.body())
+      body[body.length - 1] = body[body.length - 1]! ^ 0x01
+      await route.fulfill({ response, body })
+    })
+    await page.goto(`/s/${id}`)
+    await page.getByLabel('Password').fill(password)
+    await page.getByRole('button', { name: 'Unlock' }).click()
+    const card = page.locator('figure', { has: page.locator('[data-kind-tag]', { hasText: 'image' }) })
+    await expect(card.getByRole('alert')).toHaveText('Image is missing or has expired.')
+    await expect(card.locator('img')).toHaveCount(0)
+  })
+})

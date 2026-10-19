@@ -309,7 +309,7 @@ function NoteMarker({
         aria-label={`Agent note ${note.range}`}
         onClick={() => onPin(!pinned)}
         onKeyDown={handleKeyDown}
-        className={`group/note relative ml-3 inline-flex min-h-6 shrink-0 select-none items-center self-center whitespace-nowrap rounded-[3px] border px-1.5 font-mono text-[11px] leading-[22px] text-info max-[880px]:-my-2.5 max-[880px]:min-h-11 max-[880px]:min-w-11 max-[880px]:justify-center print:hidden ${pinned ? 'border-info-line bg-info-soft' : 'border-transparent bg-transparent'} ${FOCUS_RING}`}
+        className={`group/note relative ml-3 inline-flex min-h-6 shrink-0 select-none items-center self-center whitespace-nowrap rounded-[3px] border px-1.5 font-mono text-[11px] leading-[22px] text-info max-[880px]:min-h-11 max-[880px]:min-w-11 max-[880px]:justify-center print:hidden ${pinned ? 'border-info-line bg-info-soft' : 'border-transparent bg-transparent'} ${FOCUS_RING}`}
       >
         <span aria-hidden="true">{pinned ? '\u25C6 note' : '\u25C6'}</span>
         {pinned ? null : (
