@@ -24,14 +24,14 @@ const payload: Payload = {
               { id: 'req', label: 'Request in', kind: 'start' },
               { id: 'key', label: 'Find the key' },
               { id: 'ok', label: 'Token left?', kind: 'decision' },
-              { id: 'deny', label: 'Reply 429', kind: 'end' },
+              { id: 'deny', label: 'Reply 429', kind: 'end', tone: 'bad' },
               { id: 'fwd', label: 'Forward to origin', kind: 'end' },
             ],
             edges: [
               { from: 'req', to: 'key' },
               { from: 'key', to: 'ok' },
-              { from: 'ok', to: 'deny', label: 'no' },
-              { from: 'ok', to: 'fwd', label: 'yes' },
+              { from: 'ok', to: 'deny', label: 'no', tone: 'bad' },
+              { from: 'ok', to: 'fwd', label: 'yes', tone: 'good' },
             ],
           },
           steps: [
@@ -165,6 +165,32 @@ test.describe('walkthrough block', () => {
       expect(gap).toBe(290)
       expect(width).toBe(170)
     }
+  })
+
+  test('a toned branch draws its edge, label and node in the tone and an untoned edge stays faint', async ({
+    page,
+  }) => {
+    await hunk(page, '03 Out of tokens, reply 429').click()
+    const token = (name: string) =>
+      page.evaluate((v) => {
+        const probe = document.body.appendChild(document.createElement('i'))
+        probe.style.color = `var(${v})`
+        const color = getComputedStyle(probe).color
+        probe.remove()
+        return color
+      }, name)
+    const edge = (i: number) =>
+      block(page)
+        .locator('[data-edge]')
+        .nth(i)
+        .evaluate((el) => [getComputedStyle(el.children[0]!).stroke, getComputedStyle(el.children[1]!).fill])
+    const bad = await token('--c-bad')
+    const faint = await token('--c-faint')
+    expect(bad).not.toBe(faint)
+    expect(await edge(2)).toEqual([bad, bad])
+    expect(await edge(0)).toEqual([faint, faint])
+    await expect(block(page).locator('[data-flow] > span', { hasText: /^no$/ })).toHaveCSS('color', bad)
+    await expect(block(page).locator('[data-node="deny"]')).toHaveCSS('background-color', bad)
   })
 
   test('print draws the whole flow, not only the steps up to the current one', async ({ page }) => {

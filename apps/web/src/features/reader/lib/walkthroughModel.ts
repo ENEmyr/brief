@@ -1,4 +1,4 @@
-import type { FlowNodeKind, WalkthroughBlock } from '@brief/schema'
+import type { FlowNodeKind, Tone, WalkthroughBlock } from '@brief/schema'
 import { wrapText } from './svgText'
 
 /** A run of code lines that one step claims, or no step. Captions follow the run. */
@@ -15,6 +15,7 @@ export interface FlowBox {
   id: string
   label: string
   kind: FlowNodeKind
+  tone?: Tone
   x: number
   y: number
   w: number
@@ -25,6 +26,7 @@ export interface FlowEdge {
   from: string
   to: string
   label?: string
+  tone?: Tone
   points: { x: number; y: number }[]
   /** Where the label's box starts; it sits 12px off the edge's first segment. */
   labelAt?: { x: number; y: number; align: 'left' | 'center' }
@@ -191,6 +193,7 @@ function layoutFlow(block: WalkthroughBlock) {
       id,
       label: node.label,
       kind,
+      tone: node.tone,
       x: PAD_LEFT + c.col * COL_PITCH + (c.col === 0 || kind === 'decision' ? (NODE_WIDTH - w) / 2 : 0),
       y: rowTop[c.row]! + (rowHeight[c.row]! - h) / 2,
       w,
@@ -223,13 +226,13 @@ function layoutFlow(block: WalkthroughBlock) {
       maxX = Math.max(maxX, x)
       points = [{ x: s.x + s.w, y: scy }, { x, y: scy }, { x, y: tcy }, { x: t.x + t.w, y: tcy }]
     }
-    if (e.label === undefined) return { from: e.from, to: e.to, points }
+    if (e.label === undefined) return { from: e.from, to: e.to, tone: e.tone, points }
     const [a, b] = points as [{ x: number; y: number }, { x: number; y: number }]
     const labelAt =
       a.x === b.x
         ? { x: a.x + LABEL_GAP, y: (a.y + b.y) / 2 - LABEL_HEIGHT / 2, align: 'left' as const }
         : { x: (a.x + b.x) / 2, y: a.y - LABEL_GAP - LABEL_HEIGHT, align: 'center' as const }
-    return { from: e.from, to: e.to, label: e.label, points, labelAt }
+    return { from: e.from, to: e.to, label: e.label, tone: e.tone, points, labelAt }
   })
 
   return { boxes, edges: flowEdges, width: maxX + PAD_RIGHT, height: y + PAD }

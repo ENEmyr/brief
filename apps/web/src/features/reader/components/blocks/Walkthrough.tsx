@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { WalkthroughBlock } from '@brief/schema'
+import type { Tone, WalkthroughBlock } from '@brief/schema'
 import { useReaderState } from '@/features/reader-state'
 import { BlockCard, cardHeader } from '../BlockCard'
 import { CardCaption } from '../CardCaption'
@@ -30,20 +30,36 @@ const FLOW_MARGIN = 10
 
 const STEP_NUMBER = new Intl.NumberFormat('en', { minimumIntegerDigits: 2 })
 
+/**
+ * B-NewBlocks:93, :96, :109-113: a toned branch draws its edge and label in the
+ * tone. The current toned step borders in the strong tone over its soft fill
+ * (:289); otherwise it borders in the line tone, as a toned state does
+ * (B-Blocks2:37). A toned end stadium fills with the tone instead of good (:115).
+ */
+const TONE_CLASS: Record<Tone, { label: string; end: string; step: string; current: string }> = {
+  info: { label: 'text-info', end: 'bg-info', step: 'border-info-line bg-info-soft', current: 'border-info bg-info-soft' },
+  good: { label: 'text-good', end: 'bg-good', step: 'border-good-line bg-good-soft', current: 'border-good bg-good-soft' },
+  warn: { label: 'text-warn', end: 'bg-warn', step: 'border-warn-line bg-warn-soft', current: 'border-warn bg-warn-soft' },
+  bad: { label: 'text-bad', end: 'bg-bad', step: 'border-bad-line bg-bad-soft', current: 'border-bad bg-bad-soft' },
+}
+
+function stepFrame(tone: Tone | undefined, current: boolean): string {
+  if (tone) return current ? TONE_CLASS[tone].current : TONE_CLASS[tone].step
+  return current ? 'border-accent-line bg-accent-soft' : 'border-line2 bg-elev'
+}
+
 function nodeClass(box: FlowBox, current: boolean): string {
   switch (box.kind) {
     case 'start':
       return 'rounded-full bg-text font-sans text-[13px] font-semibold text-page'
     case 'end':
-      return 'rounded-full bg-good font-sans text-[13px] font-semibold text-page'
+      return `rounded-full ${box.tone ? TONE_CLASS[box.tone].end : 'bg-good'} font-sans text-[13px] font-semibold text-page`
     case 'decision':
       return `font-mono text-[12px] font-medium [clip-path:polygon(50%_0,100%_50%,50%_100%,0_50%)] ${
         current ? 'bg-accent text-on-accent' : 'bg-line2 text-text'
       }`
     case 'step':
-      return `rounded-[4px] border p-2 font-mono text-[12px] text-text ${
-        current ? 'border-accent-line bg-accent-soft' : 'border-line2 bg-elev'
-      }`
+      return `rounded-[4px] border p-2 font-mono text-[12px] text-text ${stepFrame(box.tone, current)}`
   }
 }
 
@@ -199,7 +215,7 @@ export function Walkthrough({
                 <Edge
                   key={`${e.from}-${e.to}`}
                   points={e.points}
-                  className={`${EDGE_TONE.faint} ${revealedClass(shown.has(e.from) && shown.has(e.to), 'wt-draw', 'print:inline')}`}
+                  className={`${EDGE_TONE[e.tone ?? 'faint']} ${revealedClass(shown.has(e.from) && shown.has(e.to), 'wt-draw', 'print:inline')}`}
                 />
               ))}
             </EdgeLayer>
@@ -208,7 +224,7 @@ export function Walkthrough({
               .map((e) => (
                 <span
                   key={`label-${e.from}-${e.to}`}
-                  className={`absolute whitespace-pre font-mono text-[12px] leading-4 text-faint ${revealedClass(shown.has(e.from) && shown.has(e.to), 'wt-node', 'print:block')}`}
+                  className={`absolute whitespace-pre font-mono text-[12px] leading-4 ${e.tone ? TONE_CLASS[e.tone].label : 'text-faint'} ${revealedClass(shown.has(e.from) && shown.has(e.to), 'wt-node', 'print:block')}`}
                   style={{
                     left: e.labelAt!.x,
                     top: e.labelAt!.y,
