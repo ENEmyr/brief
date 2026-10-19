@@ -1,5 +1,5 @@
 import { StrictMode, useState } from 'react'
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { parseStoredPayload, type Payload } from '@brief/schema'
 import { saveSession } from '@/features/save/lib/api'
@@ -18,6 +18,16 @@ function stubFetch(response: { status: number; body?: unknown } | Error) {
   vi.stubGlobal('fetch', fn)
   return fn
 }
+
+// PBKDF2 at the real 600,000 iterations takes seconds on a loaded machine, past
+// waitFor's 1 s default. These tests cover the save flow, crypto.test.ts covers
+// the real count, and encrypt and decrypt both derive through this spy.
+beforeEach(() => {
+  const deriveKey = crypto.subtle.deriveKey.bind(crypto.subtle)
+  vi.spyOn(crypto.subtle, 'deriveKey').mockImplementation((algorithm, ...rest) =>
+    deriveKey({ ...(algorithm as Pbkdf2Params), iterations: 1_000 }, ...rest),
+  )
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -225,7 +235,7 @@ describe('SaveModal', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
 
-    // Real PBKDF2 (600k iterations) runs here, so the submit handler's promise
+    // PBKDF2 runs here, so the submit handler's promise
     // outlives the click event itself -- wait for the outcome instead of
     // asserting immediately after act(), same as the busy-state test below.
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
@@ -413,7 +423,7 @@ describe('SaveModal cancel during an in-flight save', () => {
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'password123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
 
-    // Wait for the real PBKDF2 to finish and the PUT to actually be in flight.
+    // Wait for PBKDF2 to finish and the PUT to actually be in flight.
     await waitFor(() => expect(putFired()).toBe(true))
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
