@@ -68,6 +68,7 @@ export function useDialogFocus(
     if (modal && lockCount++ === 0) lockScroll()
     dialogStack.push({ id: dialogId, panelRef })
     const previouslyFocused = document.activeElement as HTMLElement | null
+    const panel = panelRef.current
     const initial = initialFocusRef?.current ?? panelRef.current
     initial?.focus()
     if (initial instanceof HTMLTextAreaElement) initial.select()
@@ -105,6 +106,9 @@ export function useDialogFocus(
       if (at !== -1) dialogStack.splice(at, 1)
       if (modal && --lockCount === 0) unlockScroll()
       document.removeEventListener('keydown', handleKeyDown)
+      // An overlay unmounts after its exit fade; focus the caller moved meanwhile (a palette jump, Go to Dn) stays.
+      const active = document.activeElement
+      if (active && active !== document.body && !panel?.contains(active)) return
       const lost = !previouslyFocused || previouslyFocused === document.body || !previouslyFocused.isConnected
       const back = lost ? (returnFocusRef?.current ?? previouslyFocused) : previouslyFocused
       back?.focus()

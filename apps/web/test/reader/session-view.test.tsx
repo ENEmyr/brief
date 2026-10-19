@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import SessionPage from '@/app/s/page'
 import { encryptPayloadWithKey, newSessionKey } from '@/features/save/lib/crypto'
+import { endAnimation } from '../shared/endAnimation'
 
 const validPayload = {
   meta: {
@@ -442,6 +443,21 @@ describe('decision dock in the reader', () => {
   }
 
   const question = (id: string) => screen.getByRole('group', { name: `Question ${id}` })
+
+  it('the command palette fades out inert, then unmounts and hands focus back to Search', async () => {
+    await openReader()
+    const search = screen.getByRole('button', { name: 'Search' })
+    search.focus()
+    fireEvent.click(search)
+    const palette = screen.getByRole('dialog', { name: 'Command palette' })
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(palette.closest('[data-overlay-exit]')).toHaveAttribute('inert')
+
+    endAnimation(palette.parentElement!)
+    expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull()
+    expect(search).toHaveFocus()
+  })
 
   // jsdom has no layout, so it does not implement scrollIntoView.
   beforeEach(() => {

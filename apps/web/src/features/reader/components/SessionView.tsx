@@ -489,7 +489,9 @@ function SessionReady({
           copyText={copy}
         />
       )}
-      {paletteOpen && <CommandPalette entries={paletteEntries} onSelect={selectEntry} onClose={closePalette} />}
+      <OverlayExit open={paletteOpen}>
+        {paletteOpen && <CommandPalette entries={paletteEntries} onSelect={selectEntry} onClose={closePalette} />}
+      </OverlayExit>
       {shortcutsOpen && <ShortcutSheet onClose={closeShortcuts} />}
       {reviewOpen && (
         <PromptReviewSheet
