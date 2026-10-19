@@ -39,7 +39,11 @@ export function BackPill({
       if (toast === watched) return
       if (watched) size.unobserve(watched)
       watched = toast
-      if (toast) size.observe(toast)
+      if (toast) {
+        size.observe(toast)
+        // The observer reports a frame later; until then the pill would sit at the 42 px fallback.
+        setToastHeight(toast.getBoundingClientRect().height)
+      }
     }
     const toasts = new MutationObserver(sync)
     toasts.observe(document.body, { childList: true, subtree: true })

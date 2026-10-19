@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { Block } from '@brief/schema'
 import { BlockRenderer } from '@/features/reader'
 import { ImageKeyContext } from '@/features/reader/components/blocks/ImageBlock'
@@ -79,6 +79,26 @@ describe('ImageBlock', () => {
     fireEvent.load(img)
     expect(container.querySelector('[data-image-loading]')).toBeNull()
     expect(img.className).not.toContain('hidden')
+  })
+
+  it('shows the skeleton again when the session key changes under a decoded unsized image', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(served(PNG, 'image/png'))))
+    const encParams = { salt: btoa('0123456789abcdef'), iv: btoa('0123456789ab'), iterations: 1000 }
+    const [first, second] = [await deriveSessionKey('one', encParams), await deriveSessionKey('two', encParams)]
+    const unsized = { ...image, width: undefined, height: undefined }
+    const ui = (key: CryptoKey) => (
+      <ImageKeyContext.Provider value={key}>
+        <BlockRenderer block={unsized} />
+      </ImageKeyContext.Provider>
+    )
+    const { container, rerender } = render(ui(first))
+    fireEvent.load(await screen.findByRole('img', { name: 'p95 latency per day' }))
+    expect(container.querySelector('[data-image-loading]')).toBeNull()
+
+    rerender(ui(second))
+    await waitFor(() => expect(screen.getByRole('img', { name: 'p95 latency per day' })).toHaveAttribute('src', 'blob:test/2'))
+    expect(container.querySelector('[data-image-loading]')).not.toBeNull()
+    expect(screen.getByRole('img', { name: 'p95 latency per day' }).className).toContain('hidden')
   })
 
   it('reserves the box from width and height before the bytes arrive', () => {
