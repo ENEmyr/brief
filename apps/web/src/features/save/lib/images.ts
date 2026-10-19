@@ -38,7 +38,51 @@ export function withImageIds(storedJson: string, ids: ReadonlyMap<string, string
 const MAX_LIMIT_WAITS = 2
 const MAX_RETRY_AFTER_SECONDS = 60
 
-export type ResealResult = { ok: true; ids: Map<string, string> } | { ok: false; error: string; status: number }
+export type ResealResult =
+  | { ok: true; ids: Map<string, string> }
+  | { ok: false; error: string; status: number; uploaded: string[] }
+
+// Resends while the limiter answers 429 with a Retry-After; null when the signal aborts a wait.
+async function sendWithLimitWaits(
+  send: () => Promise<Response>,
+  wait: (ms: number) => Promise<void>,
+  onWait?: (waiting: boolean) => void,
+  signal?: AbortSignal,
+): Promise<Response | null> {
+  let res = await send()
+  for (let waits = 0; res.status === 429 && waits < MAX_LIMIT_WAITS; waits++) {
+    const seconds = Number(res.headers.get('retry-after'))
+    if (!(seconds > 0)) break
+    onWait?.(true)
+    await wait(Math.min(seconds, MAX_RETRY_AFTER_SECONDS) * 1000)
+    onWait?.(false)
+    if (signal?.aborted) return null
+    res = await send()
+  }
+  return res
+}
+
+/**
+ * Deletes the encrypted copies a failed or cancelled archive uploaded, so they stop counting
+ * toward the session's cap and a Retry starts clean. Best effort: a failure is logged, never
+ * shown, and the copy expires with the session. The API refuses a copy an encrypted archive
+ * references.
+ */
+export async function deleteImageCopies(
+  sessionId: string,
+  imageIds: string[],
+  wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+): Promise<void> {
+  for (const imageId of imageIds) {
+    const url = `${API_URL}/api/session/${encodeURIComponent(sessionId)}/image/${encodeURIComponent(imageId)}`
+    try {
+      const res = await sendWithLimitWaits(() => fetch(url, { method: 'DELETE' }), wait)
+      if (res && !res.ok) console.warn(`Could not delete encrypted image copy ${imageId}: ${res.status}`)
+    } catch (error) {
+      console.warn(`Could not delete encrypted image copy ${imageId}`, error)
+    }
+  }
+}
 
 /**
  * Encrypts each plaintext image with the session key and uploads the copy, returning old id to
@@ -48,6 +92,7 @@ export type ResealResult = { ok: true; ids: Map<string, string> } | { ok: false;
  * 10 per 60 s per IP) waits that long and resumes at the same image, so a brief with more images
  * than the limit still finishes. Any other failure stops the flow before anything is saved, and
  * an aborted signal stops it before the next request or upload, including during a limiter wait.
+ * A failed result lists the copies already uploaded, for deleteImageCopies.
  */
 export async function resealImages(
   sessionId: string,
@@ -70,12 +115,13 @@ export async function resealImages(
     onWait,
   }: { signal?: AbortSignal; wait?: (ms: number) => Promise<void>; onWait?: (waiting: boolean) => void } = {},
 ): Promise<ResealResult> {
+  const ids = new Map<string, string>()
   const failed = (status: number): ResealResult => ({
     ok: false,
     error: status === 429 ? mapErrorStatus(429) : ARCHIVE_FAILED,
     status,
+    uploaded: [...ids.values()],
   })
-  const ids = new Map<string, string>()
   for (const imageId of imageIds) {
     if (signal?.aborted) return failed(0)
     try {
@@ -93,16 +139,8 @@ export async function resealImages(
           signal,
         })
       if (signal?.aborted) return failed(0)
-      let uploaded = await upload()
-      for (let waits = 0; uploaded.status === 429 && waits < MAX_LIMIT_WAITS; waits++) {
-        const seconds = Number(uploaded.headers.get('retry-after'))
-        if (!(seconds > 0)) break
-        onWait?.(true)
-        await wait(Math.min(seconds, MAX_RETRY_AFTER_SECONDS) * 1000)
-        onWait?.(false)
-        if (signal?.aborted) return failed(0)
-        uploaded = await upload()
-      }
+      const uploaded = await sendWithLimitWaits(upload, wait, onWait, signal)
+      if (!uploaded) return failed(0)
       if (!uploaded.ok) return failed(uploaded.status)
       ids.set(imageId, ((await uploaded.json()) as { imageId: string }).imageId)
     } catch {

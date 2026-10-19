@@ -3,7 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Dialog, DialogActions, DialogIcon, PRIMARY_BUTTON, SECONDARY_BUTTON, useExport } from '@/features/export'
 import { encryptPayloadWithKey, newSessionKey } from '../lib/crypto'
 import { ARCHIVE_FAILED, saveSession, type SaveRequestBody } from '../lib/api'
-import { imageIdsIn, resealImages, withImageIds } from '../lib/images'
+import { deleteImageCopies, imageIdsIn, resealImages, withImageIds } from '../lib/images'
 
 const MIN_PASSWORD_LENGTH = 8
 // Server's ciphertext char cap (model.ts saveBody / service.ts MAX_CIPHERTEXT_BYTES) --
@@ -68,6 +68,8 @@ export function SaveModal({
   const [focusPassword, setFocusPassword] = useState(false)
   const cancelledRef = useRef(false)
   const resealAbortRef = useRef<AbortController | null>(null)
+  // A Retry waits for the last attempt's copies to go, so they never count toward the cap twice.
+  const imageCleanupRef = useRef<Promise<void>>(Promise.resolve())
   const errorToastRef = useRef<number | null>(null)
   const [mode, setMode] = useState<SaveMode>('plain')
   const [password, setPassword] = useState('')
@@ -180,7 +182,12 @@ export function SaveModal({
 
     setBusy(true)
     let body: SaveRequestBody
+    let uploaded: string[] = []
+    const deleteUploaded = () => {
+      imageCleanupRef.current = deleteImageCopies(sessionId, uploaded)
+    }
     try {
+      await imageCleanupRef.current
       const sessionKey = await newSessionKey(password)
       if (cancelledRef.current) return
       // Images first, with the payload's own key: the save that follows deletes
@@ -191,22 +198,28 @@ export function SaveModal({
         onWait: setWaitingForLimit,
       })
       if (!resealed.ok) {
+        uploaded = resealed.uploaded
+        deleteUploaded()
         if (!cancelledRef.current) fail(resealed.error, !NOT_RETRYABLE.has(resealed.status))
         return
       }
+      uploaded = [...resealed.ids.values()]
       const encrypted = await encryptPayloadWithKey(withImageIds(storedJson, resealed.ids), sessionKey)
       body = { mode: 'encrypt', ...encrypted }
     } catch {
       // WebCrypto can throw (unsupported browser/context, key derivation
       // failure) before the save is sent -- surface it the same way a
       // failed PUT does instead of leaving the dialog silently stuck busy.
+      deleteUploaded()
       if (!cancelledRef.current) fail(ARCHIVE_FAILED, true)
       return
     }
-    // Cancelled before the PUT: the reseal stopped at its next request, the
-    // copies it already uploaded stay until the session expires (no API route
-    // removes one), and the brief itself is left unarchived.
-    if (cancelledRef.current) return
+    // Cancelled before the PUT: the copies go, and the brief is left unarchived.
+    // Once the PUT is sent they stay, since a committed save references them.
+    if (cancelledRef.current) {
+      deleteUploaded()
+      return
+    }
     const result = await saveSession(sessionId, body)
     settleSave(result, 'encrypt')
   }
