@@ -200,23 +200,30 @@ export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
     await db(env.DB).delete(images).where(inArray(images.id, ids))
     purged += ids.length
   }
+  // A failed sweep must not stop purgeExpired from deleting expired sessions; the next run retries.
   // shortcut: lists every object on each run; keep a stray-key log instead if the bucket grows
   // past a few thousand objects.
-  let cursor: string | undefined
-  do {
-    const page = await env.IMAGES.list({ prefix: KEY_PREFIX, cursor })
-    const old = page.objects
-      .filter((object) => object.uploaded.getTime() <= now - ORPHAN_WINDOW_MS)
-      .map((object) => object.key.slice(KEY_PREFIX.length))
-    for (let i = 0; i < old.length; i += CHUNK) {
-      const ids = old.slice(i, i + CHUNK)
-      const rows = await db(env.DB).select({ id: images.id }).from(images).where(inArray(images.id, ids)).all()
-      const rowed = new Set(rows.map((r) => r.id))
-      const stray = ids.filter((id) => !rowed.has(id))
-      if (stray.length > 0) await env.IMAGES.delete(stray.map(imageKey))
-      purged += stray.length
-    }
-    cursor = page.truncated ? page.cursor : undefined
-  } while (cursor)
+  try {
+    let cursor: string | undefined
+    do {
+      const page = await env.IMAGES.list({ prefix: KEY_PREFIX, cursor })
+      const old = page.objects
+        .filter((object) => object.uploaded.getTime() <= now - ORPHAN_WINDOW_MS)
+        .map((object) => object.key.slice(KEY_PREFIX.length))
+      for (let i = 0; i < old.length; i += CHUNK) {
+        const ids = old.slice(i, i + CHUNK)
+        const rows = await db(env.DB).select({ id: images.id }).from(images).where(inArray(images.id, ids)).all()
+        const rowed = new Set(rows.map((r) => r.id))
+        const stray = ids.filter((id) => !rowed.has(id))
+        if (stray.length > 0) await env.IMAGES.delete(stray.map(imageKey))
+        purged += stray.length
+      }
+      cursor = page.truncated ? page.cursor : undefined
+    } while (cursor)
+  } catch (error) {
+    console.error(
+      JSON.stringify({ event: 'stray_image_sweep_error', error: error instanceof Error ? error.name : 'unknown', at: new Date(now).toISOString() }),
+    )
+  }
   return purged
 }

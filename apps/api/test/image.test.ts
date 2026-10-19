@@ -462,6 +462,27 @@ describe('purgeExpired with images', () => {
     expect(await imageRow(live)).not.toBeNull()
   })
 
+  it('still deletes expired sessions when the R2 list of the stray sweep throws, and logs the error name only', async () => {
+    const expired = await uploadId()
+    const sessionId = await createSession([expired])
+    await appEnv.DB.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').bind(Date.now() - 1, sessionId).run()
+    const broken = {
+      delete: (keys: string[]) => appEnv.IMAGES.delete(keys),
+      list: async () => Promise.reject(new TypeError('r2 down at /srv/secret/path.ts')),
+    }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const purged = await purgeExpired({ ...appEnv, IMAGES: broken as unknown as R2Bucket }, Date.now())
+    const lines = logged.mock.calls.map((call) => call[0] as string)
+    logged.mockRestore()
+
+    expect(purged).toEqual({ sessions: 1, images: 1 })
+    expect(await appEnv.DB.prepare('SELECT id FROM sessions WHERE id = ?').bind(sessionId).first()).toBeNull()
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).not.toContain('/srv/secret')
+    expect(JSON.parse(lines[0]!)).toEqual({ event: 'stray_image_sweep_error', error: 'TypeError', at: expect.any(String) })
+  })
+
   it('deletes a plaintext copy still linked to an encrypted session and keeps the encrypted copy', async () => {
     const plain = await uploadId()
     const sessionId = await createSession([plain])
