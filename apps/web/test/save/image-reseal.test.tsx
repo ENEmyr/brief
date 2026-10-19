@@ -103,6 +103,17 @@ describe('image ids in the stored JSON', () => {
       stored.replace('img_top0000000000001', 'img_sealed000000001').replace('img_nested000000001', 'img_sealed000000002'),
     )
   })
+
+  it('keeps every other byte of a payload the API stored from big integers, -0 and \\u escapes', () => {
+    // The API stores JSON.stringify of the parsed body, so this is the exact storedJson the reader gets.
+    const body = String.raw`{"meta":{"title":"caf\u00e9 \u0000 \ud800"},"sections":[{"id":"s1","no":1,"title":"T","blocks":[{"type":"image","imageId":"img_top0000000000001","alt":"a"},{"type":"plot","x":[9007199254740993,-0,1e400,0.1]}]}],"decisions":[]}`
+    const stored = JSON.stringify(JSON.parse(body))
+    const ids = new Map([['img_top0000000000001', 'img_sealed000000001']])
+    expect(withImageIds(stored, ids)).toBe(stored.replace('img_top0000000000001', 'img_sealed000000001'))
+    expect(stored).toContain('"café ')
+    expect(stored).toContain(String.raw`\u0000 \ud800`)
+    expect(stored).toContain('[9007199254740992,0,null,0.1]')
+  })
 })
 
 describe('SaveModal encrypt path with images', () => {
@@ -162,6 +173,55 @@ describe('SaveModal encrypt path with images', () => {
     archiveWithPassword()
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Too many attempts - try again in a minute'))
+    expect(calls('PUT', '/api/session/sess1/save')).toHaveLength(0)
+  })
+
+  it('a cancel while an upload is in flight stops the uploads after it', async () => {
+    let finishUpload: (response: Response) => void = () => {}
+    const calls = stubApi(() => undefined)
+    vi.mocked(fetch).mockImplementation((url, init) => {
+      if (isUpload(url as string, init)) return new Promise((resolve) => (finishUpload = resolve))
+      return Promise.resolve(isImageGet(url as string, init) ? png() : new Response('{}', { status: 200 }))
+    })
+    archiveWithPassword()
+
+    await waitFor(() => expect(calls('POST', '/api/session/sess1/image')).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    finishUpload(new Response(JSON.stringify({ imageId: 'img_sealed000000001' }), { status: 201 }))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    expect(calls('POST', '/api/session/sess1/image')).toHaveLength(1)
+    expect(calls('PUT', '/api/session/sess1/save')).toHaveLength(0)
+  })
+
+  it('shows "Waiting for the upload limit" while the upload limiter holds the flow', async () => {
+    stubApi((url, init) => {
+      if (isImageGet(url, init)) return png()
+      if (isUpload(url, init)) {
+        return new Response(JSON.stringify({ error: 'Rate limit exceeded.' }), { status: 429, headers: { 'retry-after': '1' } })
+      }
+      return undefined
+    })
+    archiveWithPassword()
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Waiting for the upload limit' })).toBeDisabled())
+  })
+
+  it('a cancel during the upload limiter wait stops the upload retry', async () => {
+    const calls = stubApi((url, init) => {
+      if (isImageGet(url, init)) return png()
+      if (isUpload(url, init)) {
+        return new Response(JSON.stringify({ error: 'Rate limit exceeded.' }), { status: 429, headers: { 'retry-after': '1' } })
+      }
+      return undefined
+    })
+    archiveWithPassword()
+
+    await waitFor(() => expect(calls('POST', '/api/session/sess1/image')).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    expect(calls('POST', '/api/session/sess1/image')).toHaveLength(1)
     expect(calls('PUT', '/api/session/sess1/save')).toHaveLength(0)
   })
 

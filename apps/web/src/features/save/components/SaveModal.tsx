@@ -3,7 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Dialog, DialogActions, DialogIcon, PRIMARY_BUTTON, SECONDARY_BUTTON, useExport } from '@/features/export'
 import { encryptPayloadWithKey, newSessionKey } from '../lib/crypto'
 import { ARCHIVE_FAILED, saveSession, type SaveRequestBody } from '../lib/api'
-import { imageIdsIn, resealImages, withImageIds } from '../lib/images'
+import { deleteImageCopies, imageIdsIn, resealImages, withImageIds } from '../lib/images'
 
 const MIN_PASSWORD_LENGTH = 8
 // Server's ciphertext char cap (model.ts saveBody / service.ts MAX_CIPHERTEXT_BYTES) --
@@ -67,11 +67,15 @@ export function SaveModal({
   const confirmRef = useRef<HTMLInputElement>(null)
   const [focusPassword, setFocusPassword] = useState(false)
   const cancelledRef = useRef(false)
+  const resealAbortRef = useRef<AbortController | null>(null)
+  // A Retry waits for the last attempt's copies to go, so they never count toward the cap twice.
+  const imageCleanupRef = useRef<Promise<void>>(Promise.resolve())
   const errorToastRef = useRef<number | null>(null)
   const [mode, setMode] = useState<SaveMode>('plain')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
+  const [waitingForLimit, setWaitingForLimit] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const fieldId = useId()
 
@@ -88,6 +92,7 @@ export function SaveModal({
     cancelledRef.current = false
     return () => {
       cancelledRef.current = true
+      resealAbortRef.current?.abort()
       dismissErrorToast()
     }
   }, [dismissErrorToast])
@@ -100,6 +105,7 @@ export function SaveModal({
 
   const dismiss = useCallback(() => {
     cancelledRef.current = true
+    resealAbortRef.current?.abort()
     onClose()
   }, [onClose])
 
@@ -176,29 +182,48 @@ export function SaveModal({
 
     setBusy(true)
     let body: SaveRequestBody
+    let uploaded: string[] = []
+    const deleteUploaded = () => {
+      imageCleanupRef.current = deleteImageCopies(sessionId, uploaded, setWaitingForLimit)
+    }
     try {
+      await imageCleanupRef.current
       const sessionKey = await newSessionKey(password)
       if (cancelledRef.current) return
       // Images first, with the payload's own key: the save that follows deletes
       // the plaintext copies, so the payload must already name the encrypted ones.
-      const resealed = await resealImages(sessionId, imageIdsIn(storedJson), sessionKey.key)
+      resealAbortRef.current = new AbortController()
+      const resealed = await resealImages(sessionId, imageIdsIn(storedJson), sessionKey.key, {
+        signal: resealAbortRef.current.signal,
+        onWait: setWaitingForLimit,
+      })
       if (!resealed.ok) {
+        uploaded = resealed.uploaded
+        deleteUploaded()
         if (!cancelledRef.current) fail(resealed.error, !NOT_RETRYABLE.has(resealed.status))
         return
       }
+      uploaded = [...resealed.ids.values()]
       const encrypted = await encryptPayloadWithKey(withImageIds(storedJson, resealed.ids), sessionKey)
       body = { mode: 'encrypt', ...encrypted }
     } catch {
       // WebCrypto can throw (unsupported browser/context, key derivation
       // failure) before the save is sent -- surface it the same way a
       // failed PUT does instead of leaving the dialog silently stuck busy.
+      deleteUploaded()
       if (!cancelledRef.current) fail(ARCHIVE_FAILED, true)
       return
     }
-    // Cancelled before the PUT: at most some encrypted image copies were
-    // uploaded, and the brief itself is left unarchived.
-    if (cancelledRef.current) return
+    // Cancelled before the PUT: the copies go, and the brief is left unarchived.
+    // Once the PUT is sent they stay, since a committed save references them.
+    if (cancelledRef.current) {
+      deleteUploaded()
+      return
+    }
     const result = await saveSession(sessionId, body)
+    // Only when the API answered: its answer comes after the save settled, and a committed save
+    // makes the API refuse the delete. A network failure may still commit after a delete lands.
+    if (!result.ok && result.status !== 0) deleteUploaded()
     settleSave(result, 'encrypt')
   }
 
@@ -301,7 +326,7 @@ export function SaveModal({
             Cancel
           </button>
           <button type="button" onClick={handleSubmit} disabled={busy} className={`${PRIMARY_BUTTON} px-4`}>
-            {busy && mode === 'encrypt' ? 'Encrypting…' : 'Archive'}
+            {busy && mode === 'encrypt' ? (waitingForLimit ? 'Waiting for the upload limit' : 'Encrypting…') : 'Archive'}
           </button>
         </DialogActions>
       </div>

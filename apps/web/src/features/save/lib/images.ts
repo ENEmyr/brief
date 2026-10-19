@@ -38,7 +38,52 @@ export function withImageIds(storedJson: string, ids: ReadonlyMap<string, string
 const MAX_LIMIT_WAITS = 2
 const MAX_RETRY_AFTER_SECONDS = 60
 
-export type ResealResult = { ok: true; ids: Map<string, string> } | { ok: false; error: string; status: number }
+export type ResealResult =
+  | { ok: true; ids: Map<string, string> }
+  | { ok: false; error: string; status: number; uploaded: string[] }
+
+// Resends while the limiter answers 429 with a Retry-After; null when the signal aborts a wait.
+async function sendWithLimitWaits(
+  send: () => Promise<Response>,
+  wait: (ms: number) => Promise<void>,
+  onWait?: (waiting: boolean) => void,
+  signal?: AbortSignal,
+): Promise<Response | null> {
+  let res = await send()
+  for (let waits = 0; res.status === 429 && waits < MAX_LIMIT_WAITS; waits++) {
+    const seconds = Number(res.headers.get('retry-after'))
+    if (!(seconds > 0)) break
+    onWait?.(true)
+    await wait(Math.min(seconds, MAX_RETRY_AFTER_SECONDS) * 1000)
+    onWait?.(false)
+    if (signal?.aborted) return null
+    res = await send()
+  }
+  return res
+}
+
+/**
+ * Deletes the encrypted copies a failed or cancelled archive uploaded, so they stop counting
+ * toward the session's cap and a Retry starts clean. Best effort: a failure is logged, never
+ * shown, and the copy expires with the session. The API refuses a copy an encrypted archive
+ * references. onWait reports a delete limiter wait, so a Retry that awaits this cleanup can say so.
+ */
+export async function deleteImageCopies(
+  sessionId: string,
+  imageIds: string[],
+  onWait?: (waiting: boolean) => void,
+): Promise<void> {
+  const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+  for (const imageId of imageIds) {
+    const url = `${API_URL}/api/session/${encodeURIComponent(sessionId)}/image/${encodeURIComponent(imageId)}`
+    try {
+      const res = await sendWithLimitWaits(() => fetch(url, { method: 'DELETE' }), wait, onWait)
+      if (res && !res.ok) console.warn(`Could not delete encrypted image copy ${imageId}: ${res.status}`)
+    } catch (error) {
+      console.warn(`Could not delete encrypted image copy ${imageId}`, error)
+    }
+  }
+}
 
 /**
  * Encrypts each plaintext image with the session key and uploads the copy, returning old id to
@@ -46,23 +91,42 @@ export type ResealResult = { ok: true; ids: Map<string, string> } | { ok: false;
  * and the save deletes the plaintext copies. An image the API no longer serves, or one that is
  * already ciphertext, keeps its id. A 429 that names its Retry-After (the upload limiter allows
  * 10 per 60 s per IP) waits that long and resumes at the same image, so a brief with more images
- * than the limit still finishes. Any other failure stops the flow before anything is saved.
+ * than the limit still finishes. Any other failure stops the flow before anything is saved, and
+ * an aborted signal stops it before the next request or upload, including during a limiter wait.
+ * A failed result lists the copies already uploaded, for deleteImageCopies.
  */
 export async function resealImages(
   sessionId: string,
   imageIds: string[],
   key: CryptoKey,
-  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  {
+    signal,
+    wait = (ms) =>
+      new Promise((resolve) => {
+        const timer = setTimeout(resolve, ms)
+        signal?.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer)
+            resolve()
+          },
+          { once: true },
+        )
+      }),
+    onWait,
+  }: { signal?: AbortSignal; wait?: (ms: number) => Promise<void>; onWait?: (waiting: boolean) => void } = {},
 ): Promise<ResealResult> {
+  const ids = new Map<string, string>()
   const failed = (status: number): ResealResult => ({
     ok: false,
     error: status === 429 ? mapErrorStatus(429) : ARCHIVE_FAILED,
     status,
+    uploaded: [...ids.values()],
   })
-  const ids = new Map<string, string>()
   for (const imageId of imageIds) {
+    if (signal?.aborted) return failed(0)
     try {
-      const plain = await fetch(`${API_URL}/api/image/${encodeURIComponent(imageId)}`)
+      const plain = await fetch(`${API_URL}/api/image/${encodeURIComponent(imageId)}`, { signal })
       if (plain.status === 404) continue
       if (!plain.ok) return failed(plain.status)
       const blob = await plain.blob()
@@ -73,14 +137,11 @@ export async function resealImages(
           method: 'POST',
           headers: { 'Content-Type': 'application/octet-stream' },
           body,
+          signal,
         })
-      let uploaded = await upload()
-      for (let waits = 0; uploaded.status === 429 && waits < MAX_LIMIT_WAITS; waits++) {
-        const seconds = Number(uploaded.headers.get('retry-after'))
-        if (!(seconds > 0)) break
-        await wait(Math.min(seconds, MAX_RETRY_AFTER_SECONDS) * 1000)
-        uploaded = await upload()
-      }
+      if (signal?.aborted) return failed(0)
+      const uploaded = await sendWithLimitWaits(upload, wait, onWait, signal)
+      if (!uploaded) return failed(0)
       if (!uploaded.ok) return failed(uploaded.status)
       ids.set(imageId, ((await uploaded.json()) as { imageId: string }).imageId)
     } catch {

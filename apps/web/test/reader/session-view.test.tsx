@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import SessionPage from '@/app/s/page'
-import { encryptPayload } from '@/features/save/lib/crypto'
+import { encryptPayloadWithKey, newSessionKey } from '@/features/save/lib/crypto'
 
 const validPayload = {
   meta: {
@@ -198,7 +198,7 @@ describe('SessionPage / SessionView', () => {
   // The "protected" chip became the save chip's "this tab only" state (B-States).
   it('unlocking a protected session (real WebCrypto round trip) renders the ready view with the decrypted payload, no Archive button, and "this tab only"', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
-    const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
+    const { ciphertext, encParams } = await encryptPayloadWithKey(JSON.stringify(validPayload), await newSessionKey('correct-horse'))
     const encEnvelope = {
       ...validEnvelope,
       encrypted: true,
@@ -228,7 +228,7 @@ describe('SessionPage / SessionView', () => {
       'idocs:abc12345678901',
       JSON.stringify({ highlights: [], dsel: {}, dnote: { d1: 'plaintext note' } }),
     )
-    const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
+    const { ciphertext, encParams } = await encryptPayloadWithKey(JSON.stringify(validPayload), await newSessionKey('correct-horse'))
     const encEnvelope = { ...validEnvelope, encrypted: true, payload: ciphertext, encParams }
     const fetchMock = vi
       .fn()
@@ -259,7 +259,7 @@ describe('SessionPage / SessionView', () => {
 
   it('wrong password on a protected session shows the generic error and lets the reader retry', async () => {
     window.history.replaceState(null, '', '/s/abc12345678901/')
-    const { ciphertext, encParams } = await encryptPayload(JSON.stringify(validPayload), 'correct-horse')
+    const { ciphertext, encParams } = await encryptPayloadWithKey(JSON.stringify(validPayload), await newSessionKey('correct-horse'))
     const encEnvelope = { ...validEnvelope, encrypted: true, payload: ciphertext, encParams }
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(encEnvelope))))
 

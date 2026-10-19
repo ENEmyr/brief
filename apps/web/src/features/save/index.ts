@@ -2,7 +2,6 @@ export { SaveModal } from './components/SaveModal'
 export { UnlockCard } from './components/UnlockCard'
 export {
   PBKDF2_ITERATIONS,
-  encryptPayload,
   decryptPayload,
   deriveSessionKey,
   encryptImage,

@@ -2,7 +2,7 @@ import { Elysia } from 'elysia'
 import { IMAGE_ID_PATTERN } from '@brief/schema'
 import type { AppEnv } from '../../env'
 import { ENCRYPTED_CONTENT_TYPE, MAX_ENCRYPTED_IMAGE_BYTES, MAX_IMAGE_BYTES, sniffImageType } from './model'
-import { getServableImage, storeEncryptedImage, storePlainImage } from './service'
+import { deleteEncryptedImage, getServableImage, storeEncryptedImage, storePlainImage } from './service'
 
 export { deletePlainImages, imageIdsIn, linkImages, purgeImages } from './service'
 
@@ -42,10 +42,12 @@ async function readBody(request: Request, cap: number): Promise<ReadResult> {
 }
 
 export function imageFeature(env: AppEnv) {
-  const limited = async (request: Request): Promise<boolean> => {
+  // Deletes take their own key, so cleaning up a failed archive never spends the upload budget
+  // its Retry needs.
+  const limited = async (request: Request, prefix = 'image'): Promise<boolean> => {
     if (!env.RATE_LIMITER) return false
     const ip = request.headers.get('cf-connecting-ip') ?? 'unknown'
-    const { success } = await env.RATE_LIMITER.limit({ key: `image:${ip}` })
+    const { success } = await env.RATE_LIMITER.limit({ key: `${prefix}:${ip}` })
     return !success
   }
   const rateLimited = { error: 'Rate limit exceeded. Try again in a minute.' }
@@ -90,6 +92,22 @@ export function imageFeature(env: AppEnv) {
       set.status = 201
       return { imageId: result.imageId, contentType: ENCRYPTED_CONTENT_TYPE, bytes: read.bytes.byteLength }
     })
+    .delete('/api/session/:id/image/:imageId', async ({ params, request, set }) => {
+      if (await limited(request, 'image-delete')) {
+        set.status = 429
+        set.headers['retry-after'] = RETRY_AFTER_SECONDS
+        return rateLimited
+      }
+      const result = IMAGE_ID_PATTERN.test(params.imageId)
+        ? await deleteEncryptedImage(env, params.id, params.imageId)
+        : ({ ok: false, status: 404, error: 'Image not found.' } as const)
+      if (!result.ok) {
+        set.status = result.status
+        return { error: result.error }
+      }
+      set.status = 204
+      return null
+    })
     .get('/api/image/:imageId', async ({ params, set }) => {
       const now = Date.now()
       const image = IMAGE_ID_PATTERN.test(params.imageId) ? await getServableImage(env, params.imageId, now) : null
@@ -103,7 +121,8 @@ export function imageFeature(env: AppEnv) {
       set.headers['x-content-type-options'] = 'nosniff'
       set.headers['content-security-policy'] = "default-src 'none'; sandbox"
       set.headers['cross-origin-resource-policy'] = 'cross-origin'
-      set.headers['cache-control'] = `private, max-age=${Math.floor((image.expiresAt - now) / 1000)}`
+      // A cached plaintext copy would outlive a later encrypt; ciphertext is safe to keep.
+      set.headers['cache-control'] = encrypted ? `private, max-age=${Math.floor((image.expiresAt - now) / 1000)}` : 'no-store'
       set.headers['content-disposition'] = encrypted ? 'attachment' : 'inline'
       return new Response(image.body)
     })

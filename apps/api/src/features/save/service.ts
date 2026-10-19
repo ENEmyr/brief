@@ -70,7 +70,7 @@ export async function saveSession(
   try {
     await deletePlainImages(env, id)
   } catch (error) {
-    console.error(JSON.stringify({ event: 'plain_image_delete_error', error: String(error), at: new Date(now).toISOString() }))
+    console.error(JSON.stringify({ event: 'plain_image_delete_error', error: error instanceof Error ? error.name : 'unknown', at: new Date(now).toISOString() }))
   }
   return { ok: true, encrypted: true, expiresAt }
 }

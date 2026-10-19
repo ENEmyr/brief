@@ -11,7 +11,8 @@ const newImageId = (): string => `img_${customAlphabet(alphabet, 16)()}`
 // D1 caps bound parameters per statement at 100; R2 delete takes up to 1000 keys.
 const CHUNK = 90
 
-export const imageKey = (id: string): string => `images/${id}`
+const KEY_PREFIX = 'images/'
+export const imageKey = (id: string): string => `${KEY_PREFIX}${id}`
 
 type ImageEnv = { DB: D1Database; IMAGES: R2Bucket }
 
@@ -66,6 +67,47 @@ export async function storeEncryptedImage(
   }
   const imageId = await storeImage(env, bytes, { contentType: ENCRYPTED_CONTENT_TYPE, encrypted: true, sessionId }, now)
   return { ok: true, imageId }
+}
+
+export type UnlinkResult = { ok: true } | { ok: false; status: 404 | 409; error: string }
+
+// Removes an encrypted copy a failed or cancelled archive left behind. The row goes first, in
+// one statement that also checks the session is still unencrypted: the server cannot read an
+// encrypted payload, and only an encrypt-save can make one name a copy, so an encrypt-save that
+// commits first always wins and a copy it references is never deleted.
+export async function deleteEncryptedImage(env: ImageEnv, sessionId: string, imageId: string): Promise<UnlinkResult> {
+  const deleted = await env.DB.prepare(
+    `DELETE FROM images WHERE id = ?1 AND session_id = ?2 AND encrypted = 1
+       AND EXISTS (SELECT 1 FROM sessions WHERE id = ?2 AND encrypted = 0)
+     RETURNING content_type, byte_size, created_at`,
+  )
+    .bind(imageId, sessionId)
+    .first<{ content_type: string; byte_size: number; created_at: number }>()
+  if (!deleted) {
+    const owned = await db(env.DB)
+      .select({ id: images.id })
+      .from(images)
+      .where(and(eq(images.id, imageId), eq(images.sessionId, sessionId), eq(images.encrypted, true)))
+      .get()
+    return owned
+      ? { ok: false, status: 409, error: 'Image belongs to the saved archive.' }
+      : { ok: false, status: 404, error: 'Image not found.' }
+  }
+  try {
+    await env.IMAGES.delete(imageKey(imageId))
+  } catch (error) {
+    // Put the row back so purge still finds the object with its session.
+    await db(env.DB).insert(images).values({
+      id: imageId,
+      sessionId,
+      contentType: deleted.content_type,
+      encrypted: true,
+      byteSize: deleted.byte_size,
+      createdAt: deleted.created_at,
+    })
+    throw error
+  }
+  return { ok: true }
 }
 
 // Runs after an encrypt-save committed: the client has uploaded encrypted copies and the new
@@ -139,22 +181,84 @@ export async function getServableImage(env: ImageEnv, id: string, now: number): 
 // Images whose session expired or is already gone (getSession and saveSession delete expired
 // rows lazily), orphans never linked inside the window, and plaintext copies a failed
 // deletePlainImages left on an encrypted session. Objects go before rows so a failed R2 call
-// leaves the rows for the next run to retry.
-export async function purgeImages(env: ImageEnv, now: number): Promise<number> {
+// leaves the rows for the next run to retry. Then objects with no row at all, which a worker
+// that died between deleteEncryptedImage's row delete and its restore leaves behind.
+// Makes at most `budget` binding calls; what is left waits for the next run.
+export async function purgeImages(env: ImageEnv, now: number, budget: number): Promise<number> {
   let purged = 0
-  for (;;) {
+  let left = budget
+  // Paged by id, so a row kept after a failed delete is not selected again in this run.
+  let after = ''
+  // Worst case per batch: the select, the batch delete, one delete per key and the row delete.
+  while (left >= CHUNK + 3) {
+    left--
     const { results } = await env.DB.prepare(
       `SELECT i.id FROM images i LEFT JOIN sessions s ON s.id = i.session_id
-       WHERE (i.session_id IS NULL AND i.created_at <= ?1)
-          OR (i.session_id IS NOT NULL AND (s.id IS NULL OR s.expires_at <= ?2 OR (s.encrypted = 1 AND i.encrypted = 0)))
-       LIMIT ${CHUNK}`,
+       WHERE ((i.session_id IS NULL AND i.created_at <= ?1)
+          OR (i.session_id IS NOT NULL AND (s.id IS NULL OR s.expires_at <= ?2 OR (s.encrypted = 1 AND i.encrypted = 0))))
+         AND i.id > ?3
+       ORDER BY i.id LIMIT ${CHUNK}`,
     )
-      .bind(now - ORPHAN_WINDOW_MS, now)
+      .bind(now - ORPHAN_WINDOW_MS, now, after)
       .all<{ id: string }>()
-    if (results.length === 0) return purged
+    if (results.length === 0) break
+    after = results.at(-1)!.id
     const ids = results.map((r) => r.id)
-    await env.IMAGES.delete(ids.map(imageKey))
-    await db(env.DB).delete(images).where(inArray(images.id, ids))
-    purged += ids.length
+    let deleted = ids
+    try {
+      left--
+      await env.IMAGES.delete(ids.map(imageKey))
+    } catch {
+      // One call per key only after the batch failed: a Worker run has a subrequest cap.
+      deleted = []
+      for (const id of ids) {
+        try {
+          left--
+          await env.IMAGES.delete(imageKey(id))
+          deleted.push(id)
+        } catch (error) {
+          console.error(
+            JSON.stringify({ event: 'image_purge_delete_error', error: error instanceof Error ? error.name : 'unknown', at: new Date(now).toISOString() }),
+          )
+        }
+      }
+    }
+    if (deleted.length > 0) {
+      left--
+      await db(env.DB).delete(images).where(inArray(images.id, deleted))
+    }
+    purged += deleted.length
   }
+  // A failed sweep must not stop purgeExpired from deleting expired sessions; the next run retries.
+  // shortcut: lists every object on each run; keep a stray-key log instead if the bucket grows
+  // past a few thousand objects.
+  try {
+    let cursor: string | undefined
+    while (left >= 3) {
+      left--
+      const page = await env.IMAGES.list({ prefix: KEY_PREFIX, cursor })
+      const old = page.objects
+        .filter((object) => object.uploaded.getTime() <= now - ORPHAN_WINDOW_MS)
+        .map((object) => object.key.slice(KEY_PREFIX.length))
+      for (let i = 0; i < old.length && left >= 2; i += CHUNK) {
+        const ids = old.slice(i, i + CHUNK)
+        left--
+        const rows = await db(env.DB).select({ id: images.id }).from(images).where(inArray(images.id, ids)).all()
+        const rowed = new Set(rows.map((r) => r.id))
+        const stray = ids.filter((id) => !rowed.has(id))
+        if (stray.length > 0) {
+          left--
+          await env.IMAGES.delete(stray.map(imageKey))
+        }
+        purged += stray.length
+      }
+      if (!page.truncated) break
+      cursor = page.cursor
+    }
+  } catch (error) {
+    console.error(
+      JSON.stringify({ event: 'stray_image_sweep_error', error: error instanceof Error ? error.name : 'unknown', at: new Date(now).toISOString() }),
+    )
+  }
+  return purged
 }

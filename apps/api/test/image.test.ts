@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { env } from 'cloudflare:test'
 import { createApp } from '../src/app'
 import { purgeExpired } from '../src/features/purge'
@@ -11,6 +11,18 @@ const PNG = Uint8Array.from(
   atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='),
   (c) => c.charCodeAt(0),
 )
+// 1 x 1 images written by ImageMagick; the GIF87a copy drops the 89a-only extension block.
+const fromBase64 = (b64: string): Uint8Array<ArrayBuffer> => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+const JPEG = fromBase64(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAVAQEBAAAAAAAAAAAAAAAAAAAHCf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/ADoDFU3/2Q==',
+)
+// 8 x 8 gradient written by ImageMagick: JFIF, two DQT, SOF0, four DHT, SOS, scan data, EOI.
+const JPEG8 = fromBase64(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAWEAEBAQAAAAAAAAAAAAAAAAAAFWL/xAAVAQEBAAAAAAAAAAAAAAAAAAAFB//EABkRAAEFAAAAAAAAAAAAAAAAAAAFFlOR8P/aAAwDAQACEQMRAD8AjdnQCtM1Jj1DLsU5NZ//2Q==',
+)
+const GIF89 = fromBase64('R0lGODlhAQABAPAAAP8AAAAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==')
+const GIF87 = fromBase64('R0lGODdhAQABAPAAAP8AAAAAACwAAAAAAQABAAACAkQBADs=')
+const WEBP = fromBase64('UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA')
 const bytesOf = (text: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(text)
 const concat = (...parts: Uint8Array[]): Uint8Array<ArrayBuffer> => {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.byteLength, 0))
@@ -78,12 +90,26 @@ describe('POST /api/image', () => {
   })
 
   it.each([
-    ['image/jpeg', Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10])],
-    ['image/gif', bytesOf('GIF89a\x01\x00\x01\x00')],
-    ['image/gif', bytesOf('GIF87a\x01\x00\x01\x00')],
-    ['image/webp', bytesOf('RIFF\x24\x00\x00\x00WEBPVP8 ')],
+    ['image/jpeg', JPEG],
+    ['image/jpeg', JPEG8],
+    ['image/gif', GIF89],
+    ['image/gif', GIF87],
+    ['image/webp', WEBP],
   ])('sniffs %s from magic bytes, whatever the declared type', async (expected, body) => {
     const res = await upload(body, 'text/plain')
+    expect(res.status).toBe(201)
+    expect(((await res.json()) as { contentType: string }).contentType).toBe(expected)
+  })
+
+  // Camera files carry data after the end marker (MPF, maker notes, motion photos).
+  it.each([
+    ['image/png', PNG],
+    ['image/jpeg', JPEG],
+    ['image/jpeg', JPEG8],
+    ['image/gif', GIF89],
+    ['image/webp', WEBP],
+  ])('accepts %s with 64 bytes after its end marker', async (expected, image) => {
+    const res = await upload(concat(image, new Uint8Array(64).fill(0x5a)), 'text/plain')
     expect(res.status).toBe(201)
     expect(((await res.json()) as { contentType: string }).contentType).toBe(expected)
   })
@@ -94,6 +120,16 @@ describe('POST /api/image', () => {
     ['a RIFF file that is not WebP', bytesOf('RIFF\x24\x00\x00\x00WAVEfmt '), 'image/webp'],
     ['a bare PNG signature', PNG.slice(0, 8), 'image/png'],
     ['a PNG signature cut off inside its IHDR chunk', PNG.slice(0, 20), 'image/png'],
+    ['a header-only PNG (signature and IHDR, no IDAT or IEND)', PNG.slice(0, 33), 'image/png'],
+    ['a PNG cut off before IEND', PNG.slice(0, -12), 'image/png'],
+    ['a bare JPEG marker', Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]), 'image/jpeg'],
+    ['a JPEG cut off before its end marker', JPEG.slice(0, -2), 'image/jpeg'],
+    ['a JPEG start marker and a stray end marker with no frame or scan', Uint8Array.from([0xff, 0xd8, 0xff, 0xff, 0xd9]), 'image/jpeg'],
+    ['a JPEG segment whose length runs past the file end', Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0xff, 0xf0, 0, 0, 0xff, 0xd9]), 'image/jpeg'],
+    ['a bare GIF header', bytesOf('GIF89a\x01\x00\x01\x00'), 'image/gif'],
+    ['a GIF header and trailer with no image', concat(GIF87.slice(0, 19), Uint8Array.from([0x3b])), 'image/gif'],
+    ['a header-only WebP', bytesOf('RIFF\x24\x00\x00\x00WEBPVP8 '), 'image/webp'],
+    ['a WebP whose RIFF size is larger than the file', WEBP.slice(0, -2), 'image/webp'],
   ])('rejects %s with a fixed 415 message', async (_name, body, contentType) => {
     const res = await upload(body, contentType)
     expect(res.status).toBe(415)
@@ -145,6 +181,7 @@ describe('POST /api/image', () => {
       }),
     )
     expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBe('60')
     expect(await res.json()).toEqual({ error: 'Rate limit exceeded. Try again in a minute.' })
     expect(keys).toEqual(['image:203.0.113.7'])
   })
@@ -176,10 +213,9 @@ describe('linking at POST /api/session', () => {
 })
 
 describe('GET /api/image/:imageId', () => {
-  it('serves a linked image byte for byte with its type, nosniff, CSP, CORS and a cache that ends at expiry', async () => {
+  it('serves a linked image byte for byte with its type, nosniff, CSP, CORS and no-store', async () => {
     const imageId = await uploadId()
-    const sessionId = await createSession([imageId])
-    const expiresAt = (await appEnv.DB.prepare('SELECT expires_at FROM sessions WHERE id = ?').bind(sessionId).first<{ expires_at: number }>())!.expires_at
+    await createSession([imageId])
     const res = await serve(imageId, 'http://localhost:3000')
     expect(res.status).toBe(200)
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(PNG)
@@ -188,9 +224,8 @@ describe('GET /api/image/:imageId', () => {
     expect(res.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox")
     expect(res.headers.get('content-disposition')).toBe('inline')
     expect(res.headers.get('access-control-allow-origin')).toBe('http://localhost:3000')
-    const maxAge = Number(/^private, max-age=(\d+)$/.exec(res.headers.get('cache-control') ?? '')?.[1])
-    expect(maxAge).toBeLessThanOrEqual(Math.ceil((expiresAt - Date.now()) / 1000))
-    expect(maxAge).toBeGreaterThan(7 * 86400 - 60)
+    // A browser must not keep a plaintext copy that outlives a later encrypt.
+    expect(res.headers.get('cache-control')).toBe('no-store')
   })
 
   it('404s an unlinked upload, an unknown id and an id outside the pattern with a fixed message', async () => {
@@ -216,8 +251,9 @@ describe('GET /api/image/:imageId', () => {
 })
 
 describe('POST /api/session/:id/image (encrypted)', () => {
-  it('round-trips client ciphertext byte for byte as application/octet-stream', async () => {
+  it('round-trips client ciphertext byte for byte as application/octet-stream, cached until expiry', async () => {
     const sessionId = await createSession([])
+    const expiresAt = (await appEnv.DB.prepare('SELECT expires_at FROM sessions WHERE id = ?').bind(sessionId).first<{ expires_at: number }>())!.expires_at
     const ciphertext = new Uint8Array(4096)
     crypto.getRandomValues(ciphertext)
     ciphertext.set([0x3c, 0x73, 0x76, 0x67], 0)
@@ -237,6 +273,9 @@ describe('POST /api/session/:id/image (encrypted)', () => {
     expect(served.headers.get('content-type')).toBe('application/octet-stream')
     expect(served.headers.get('content-disposition')).toBe('attachment')
     expect(served.headers.get('x-content-type-options')).toBe('nosniff')
+    const maxAge = Number(/^private, max-age=(\d+)$/.exec(served.headers.get('cache-control') ?? '')?.[1])
+    expect(maxAge).toBeLessThanOrEqual(Math.ceil((expiresAt - Date.now()) / 1000))
+    expect(maxAge).toBeGreaterThan(7 * 86400 - 60)
     expect(new Uint8Array(await served.arrayBuffer())).toEqual(ciphertext)
   })
 
@@ -352,6 +391,21 @@ describe('PUT /api/session/:id/save deletes plaintext images on encrypt', () => 
     expect(await imageRow(plain)).not.toBeNull()
     expect(await servedStatus(plain)).toBe(404)
   })
+
+  it('logs a failed R2 delete with the error name only, so error text never reaches the logs', async () => {
+    const plain = await uploadId()
+    const sessionId = await createSession([plain])
+    const broken = { delete: async () => Promise.reject(new TypeError('r2 down at /srv/secret/path.ts')) }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await save(sessionId, encryptBody, { IMAGES: broken as unknown as R2Bucket })
+    const lines = logged.mock.calls.map((call) => call[0] as string)
+    logged.mockRestore()
+    expect(res.status).toBe(200)
+    expect(lines).toHaveLength(1)
+    const line = lines[0]!
+    expect(line).not.toContain('/srv/secret')
+    expect(JSON.parse(line)).toEqual({ event: 'plain_image_delete_error', error: 'TypeError', at: expect.any(String) })
+  })
 })
 
 describe('purgeExpired with images', () => {
@@ -393,6 +447,99 @@ describe('purgeExpired with images', () => {
     expect(listed.objects).toEqual([])
   })
 
+  it('deletes an R2 object with no row once it is older than the orphan window, and keeps rowed objects', async () => {
+    const live = await uploadId()
+    await createSession([live])
+    // What a worker that died between the DELETE route's row delete and its restore leaves behind.
+    await appEnv.IMAGES.put('images/img_stray00000000001', Uint8Array.from([7, 7, 7]))
+
+    expect(await purgeExpired(appEnv, Date.now())).toEqual({ sessions: 0, images: 0 })
+    expect(await appEnv.IMAGES.head('images/img_stray00000000001')).not.toBeNull()
+
+    expect(await purgeExpired(appEnv, Date.now() + 61 * 60 * 1000)).toEqual({ sessions: 0, images: 1 })
+    expect(await appEnv.IMAGES.head('images/img_stray00000000001')).toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${live}`)).not.toBeNull()
+    expect(await imageRow(live)).not.toBeNull()
+  })
+
+  it('still deletes expired sessions when the R2 list of the stray sweep throws, and logs the error name only', async () => {
+    const expired = await uploadId()
+    const sessionId = await createSession([expired])
+    await appEnv.DB.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').bind(Date.now() - 1, sessionId).run()
+    const broken = {
+      delete: (keys: string[]) => appEnv.IMAGES.delete(keys),
+      list: async () => Promise.reject(new TypeError('r2 down at /srv/secret/path.ts')),
+    }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const purged = await purgeExpired({ ...appEnv, IMAGES: broken as unknown as R2Bucket }, Date.now())
+    const lines = logged.mock.calls.map((call) => call[0] as string)
+    logged.mockRestore()
+
+    expect(purged).toEqual({ sessions: 1, images: 1 })
+    expect(await appEnv.DB.prepare('SELECT id FROM sessions WHERE id = ?').bind(sessionId).first()).toBeNull()
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).not.toContain('/srv/secret')
+    expect(JSON.parse(lines[0]!)).toEqual({ event: 'stray_image_sweep_error', error: 'TypeError', at: expect.any(String) })
+  })
+
+  it('deletes 1000 expired images in batched R2 calls, so one cron run stays far under the subrequest limit', async () => {
+    const now = Date.now()
+    const ids = Array.from({ length: 1000 }, (_, i) => `img_batch${String(i).padStart(4, '0')}`)
+    for (const id of ids) await appEnv.IMAGES.put(`images/${id}`, PNG)
+    await appEnv.DB.batch(
+      ids.map((id) =>
+        appEnv.DB.prepare(
+          'INSERT INTO images (id, session_id, content_type, encrypted, byte_size, created_at) VALUES (?, NULL, ?, 0, ?, ?)',
+        ).bind(id, 'image/png', PNG.byteLength, now - 61 * 60 * 1000),
+      ),
+    )
+    let deleteCalls = 0
+    const counted = {
+      delete: (keys: string | string[]) => {
+        deleteCalls++
+        return appEnv.IMAGES.delete(keys)
+      },
+      list: (options: R2ListOptions) => appEnv.IMAGES.list(options),
+    }
+
+    const purged = await purgeExpired({ ...appEnv, IMAGES: counted as unknown as R2Bucket }, now)
+
+    expect(purged.images).toBe(1000)
+    expect(deleteCalls).toBeLessThanOrEqual(12)
+    expect(await appEnv.DB.prepare('SELECT COUNT(*) AS n FROM images').first<{ n: number }>()).toEqual({ n: 0 })
+    expect((await appEnv.IMAGES.list({ prefix: 'images/img_batch' })).objects).toEqual([])
+  })
+
+  it('keeps purging when one R2 object delete throws, and keeps that row for the next run', async () => {
+    const failed = await uploadId()
+    const others = [await uploadId(), await uploadId()]
+    const sessionId = await createSession([failed, ...others])
+    await appEnv.DB.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').bind(Date.now() - 1, sessionId).run()
+    const broken = {
+      delete: async (keys: string | string[]) =>
+        [keys].flat().includes(`images/${failed}`) ? Promise.reject(new TypeError('r2 down at /srv/secret/path.ts')) : appEnv.IMAGES.delete(keys),
+      list: (options: R2ListOptions) => appEnv.IMAGES.list(options),
+    }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const purged = await purgeExpired({ ...appEnv, IMAGES: broken as unknown as R2Bucket }, Date.now())
+    const lines = logged.mock.calls.map((call) => call[0] as string)
+    logged.mockRestore()
+
+    expect(purged).toEqual({ sessions: 1, images: 2 })
+    for (const gone of others) {
+      expect(await appEnv.IMAGES.head(`images/${gone}`)).toBeNull()
+      expect(await imageRow(gone)).toBeNull()
+    }
+    expect(await imageRow(failed)).not.toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${failed}`)).not.toBeNull()
+    expect(await appEnv.DB.prepare('SELECT id FROM sessions WHERE id = ?').bind(sessionId).first()).toBeNull()
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).not.toContain('/srv/secret')
+    expect(JSON.parse(lines[0]!)).toEqual({ event: 'image_purge_delete_error', error: 'TypeError', at: expect.any(String) })
+  })
+
   it('deletes a plaintext copy still linked to an encrypted session and keeps the encrypted copy', async () => {
     const plain = await uploadId()
     const sessionId = await createSession([plain])
@@ -407,5 +554,109 @@ describe('purgeExpired with images', () => {
     expect(await imageRow(plain)).toBeNull()
     expect(await appEnv.IMAGES.head(`images/${sealedId}`)).not.toBeNull()
     expect(await imageRow(sealedId)).not.toBeNull()
+  })
+})
+
+describe('DELETE /api/session/:id/image/:imageId', () => {
+  const unlink = (sessionId: string, imageId: string, overrides: Partial<AppEnv> = {}) =>
+    app(overrides).handle(new Request(`http://localhost/api/session/${sessionId}/image/${imageId}`, { method: 'DELETE' }))
+  const encryptedCount = async (sessionId: string) =>
+    (await appEnv.DB.prepare('SELECT COUNT(*) AS n FROM images WHERE session_id = ? AND encrypted = 1').bind(sessionId).first<{ n: number }>())!.n
+  async function encryptedCopy(sessionId: string): Promise<string> {
+    const res = await uploadEncrypted(sessionId, Uint8Array.from([7, 7, 7]))
+    expect(res.status).toBe(201)
+    return ((await res.json()) as { imageId: string }).imageId
+  }
+  const notFound = { error: 'Image not found.' }
+
+  it('removes an unlinked encrypted copy from R2 and D1, so it no longer counts toward the cap', async () => {
+    const sessionId = await createSession([])
+    const [gone, kept] = [await encryptedCopy(sessionId), await encryptedCopy(sessionId)]
+    expect(await encryptedCount(sessionId)).toBe(2)
+    const res = await unlink(sessionId, gone)
+    expect(res.status).toBe(204)
+    expect(await imageRow(gone)).toBeNull()
+    expect(await appEnv.IMAGES.get(`images/${gone}`)).toBeNull()
+    expect(await encryptedCount(sessionId)).toBe(1)
+    expect(await imageRow(kept)).not.toBeNull()
+  })
+
+  it('refuses a copy the saved encrypted archive references with 409 and deletes nothing', async () => {
+    const sessionId = await createSession([])
+    const imageId = await encryptedCopy(sessionId)
+    await appEnv.DB.prepare('UPDATE sessions SET encrypted = 1 WHERE id = ?').bind(sessionId).run()
+    const res = await unlink(sessionId, imageId)
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({ error: 'Image belongs to the saved archive.' })
+    expect(await imageRow(imageId)).not.toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${imageId}`)).not.toBeNull()
+  })
+
+  it('404s a copy of another session and deletes nothing', async () => {
+    const owner = await createSession([])
+    const imageId = await encryptedCopy(owner)
+    const other = await createSession([])
+    const res = await unlink(other, imageId)
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual(notFound)
+    expect(await imageRow(imageId)).not.toBeNull()
+    expect(await appEnv.IMAGES.head(`images/${imageId}`)).not.toBeNull()
+  })
+
+  it('404s a plaintext image linked to the session and deletes nothing', async () => {
+    const imageId = await uploadId()
+    const sessionId = await createSession([imageId])
+    const res = await unlink(sessionId, imageId)
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual(notFound)
+    expect(await imageRow(imageId)).not.toBeNull()
+  })
+
+  it('puts the row back and keeps the object when the R2 delete throws', async () => {
+    const sessionId = await createSession([])
+    const imageId = await encryptedCopy(sessionId)
+    const row = await imageRow(imageId)
+    const broken = { delete: async () => Promise.reject(new Error('r2 down')) }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await unlink(sessionId, imageId, { IMAGES: broken as unknown as R2Bucket })
+    vi.restoreAllMocks()
+    expect(res.status).toBe(500)
+    expect(await imageRow(imageId)).toEqual(row)
+    expect(await appEnv.IMAGES.head(`images/${imageId}`)).not.toBeNull()
+    expect(await encryptedCount(sessionId)).toBe(1)
+  })
+
+  it('404s an unknown id and an id outside the pattern', async () => {
+    const sessionId = await createSession([])
+    for (const id of ['img_absent0000000001', 'not-an-id']) {
+      const res = await unlink(sessionId, id)
+      expect(res.status).toBe(404)
+      expect(await res.json()).toEqual(notFound)
+    }
+  })
+
+  it('allows DELETE in the CORS preflight, so the reader on another origin can call it', async () => {
+    const res = await app().handle(
+      new Request('http://localhost/api/session/sess1/image/img_absent0000000001', {
+        method: 'OPTIONS',
+        headers: { origin: 'http://localhost:3000', 'access-control-request-method': 'DELETE' },
+      }),
+    )
+    expect(res.headers.get('access-control-allow-methods')).toMatch(/(^|,\s*)DELETE(\s*,|$)/)
+  })
+
+  it('answers 429 with retry-after once the limiter refuses, on its own key', async () => {
+    const sessionId = await createSession([])
+    const imageId = await encryptedCopy(sessionId)
+    const keys: string[] = []
+    const refuse = { limit: async ({ key }: { key: string }) => (keys.push(key), { success: false }) }
+    const res = await app({ RATE_LIMITER: refuse }).handle(
+      new Request(`http://localhost/api/session/${sessionId}/image/${imageId}`, { method: 'DELETE', headers: { 'cf-connecting-ip': '203.0.113.7' } }),
+    )
+    expect(res.status).toBe(429)
+    expect(res.headers.get('retry-after')).toBe('60')
+    expect(await res.json()).toEqual({ error: 'Rate limit exceeded. Try again in a minute.' })
+    expect(keys).toEqual(['image-delete:203.0.113.7'])
+    expect(await imageRow(imageId)).not.toBeNull()
   })
 })
