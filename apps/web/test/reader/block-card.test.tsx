@@ -402,7 +402,7 @@ describe('unknown block (B-States)', () => {
     expect(screen.getByText('not supported here')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'This reader cannot show this block. The content is below as data.',
+        'This reader does not know this block type yet. The content is below as data.',
       ),
     ).toBeInTheDocument()
     const summary = screen.getByText('Show raw block')

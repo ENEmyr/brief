@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import type { Block } from '@brief/schema'
 import { BlockRenderer } from '@/features/reader'
 import { ImageKeyContext } from '@/features/reader/components/blocks/ImageBlock'
@@ -66,6 +66,19 @@ describe('ImageBlock', () => {
     expect(fetchMock).toHaveBeenCalledWith(`${API_URL}/api/image/img_4f9Kq2xZ7bN1aaaa`)
     expect(screen.getByText('Figure 1')).toBeInTheDocument()
     expect(await bytesOf(created[0]!)).toEqual(PNG)
+  })
+
+  it('keeps the skeleton of an unsized image until the image has loaded, then swaps once', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(served(PNG, 'image/png')))
+    const { container } = render(<BlockRenderer block={{ ...image, width: undefined, height: undefined }} />)
+
+    const img = await screen.findByRole('img', { name: 'p95 latency per day' })
+    expect(container.querySelector('[data-image-loading]')).not.toBeNull()
+    expect(img.className).toContain('hidden')
+
+    fireEvent.load(img)
+    expect(container.querySelector('[data-image-loading]')).toBeNull()
+    expect(img.className).not.toContain('hidden')
   })
 
   it('reserves the box from width and height before the bytes arrive', () => {

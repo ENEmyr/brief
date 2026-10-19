@@ -8,7 +8,7 @@ import { BlockCard, cardHeader } from '../BlockCard'
 // B-Print:82's 22px list indent. Native markers keep bullets and numbers on
 // paper and out of the copied text.
 const LIST_CLASS =
-  'm-0 flex flex-col py-3 pr-3.5 text-[15px] leading-[26px] text-text marker:text-faint max-[880px]:text-[16px] max-[880px]:leading-[27px] max-[880px]:text-[var(--c-body)]'
+  'm-0 py-3 pr-3.5 text-[15px] leading-[26px] text-text marker:text-faint max-[880px]:text-[16px] max-[880px]:leading-[27px] max-[880px]:text-[var(--c-body)]'
 
 // The ol is set in mono so `ch` is one numeral of its mono marker: the indent
 // fits "100. " as well as "1. ", and no number runs past the card edge.

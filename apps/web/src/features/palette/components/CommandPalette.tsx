@@ -94,9 +94,9 @@ export function CommandPalette({
         aria-modal="true"
         aria-label="Command palette"
         onClick={(event) => event.stopPropagation()}
-        className="console-pop w-full max-w-[560px] rounded-overlay border border-line2 bg-card shadow-[var(--shadow-overlay)]"
+        className="console-pop flex max-h-full w-full max-w-[560px] flex-col rounded-overlay border border-line2 bg-card shadow-[var(--shadow-overlay)]"
       >
-        <div className="flex h-12 items-center gap-2.5 border-b border-line px-3.5">
+        <div className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line px-3.5">
           <svg
             width="16"
             height="16"
@@ -138,7 +138,7 @@ export function CommandPalette({
             // A mousedown on a row would blur the input, and the arrow keys
             // only work while the input has focus.
             onMouseDown={(event) => event.preventDefault()}
-            className="flex flex-col p-1.5 text-[14px]"
+            className="flex min-h-0 flex-col overflow-y-auto p-1.5 text-[14px]"
           >
             {groups.map((group, groupIndex) => {
               const labelId = `${listId}-${group.kind}`
