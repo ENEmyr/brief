@@ -197,9 +197,7 @@ test('at 388 a tap on the line above a diamond lands on that line, not on the di
   page,
   createSession,
 }) => {
-  // d127: the 44 px chip's -my-2.5 reaches 10 px into the row above, so this fails today.
-  // shortcut: remove test.fail when the board settles taller rows or a smaller target under 880.
-  test.fail()
+  // d127: under 880 a noted row grows to the 44 px chip, so the chip never reaches the row above.
   await page.setViewportSize({ width: 388, height: 900 })
   const { id } = await createSession(payload)
   await page.goto(`/s/${id}`)
