@@ -17,6 +17,7 @@ Body = raw file bytes via `--data-binary`, not form or JSON. Set `content-type` 
 | 413 | `{ "error": "Image exceeds 5242880 bytes." }` | Shrink/crop image, or save as JPEG or WEBP. |
 | 415 | `{ "error": "Unsupported image type. Upload PNG, JPEG, WebP or GIF." }` | Convert to one of those four formats. SVG must become PNG. |
 | 429 | `{ "error": "Rate limit exceeded. Try again in a minute." }` | Ten uploads per 60 seconds per IP. Wait a minute, upload rest. |
+| 403 | `error code: 1010` (plain text from Cloudflare) | Cloudflare blocked the user agent, such as Python's default `Python-urllib`. Set an explicit `User-Agent` header; curl's default works. |
 
 Upload held unlinked. Brief links it when `POST /api/session` creates brief naming the `imageId` in `image` block (top level of section or inside `details`) within one hour of upload. Upload no brief names within that hour: can't be linked, never served, daily purge job deletes it. Linked image lives and expires with its brief. One upload links to one brief only - upload again for second brief. Max 50 linked images per brief.
 
