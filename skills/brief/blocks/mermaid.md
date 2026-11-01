@@ -1,6 +1,6 @@
 # `mermaid`
 
-Rendered client side, so invalid Mermaid body passes API, fails in reader's browser. Use named block instead where one exists.
+Rendered client side, so invalid Mermaid body passes API, fails in reader's browser. Use named block instead where one exists. Before POST, parse every mermaid block: the Mermaid Chart MCP validate tool, or `mermaid.parse(code)` in a headless browser with mermaid loaded.
 
 | Field | Required | Type |
 | --- | --- | --- |

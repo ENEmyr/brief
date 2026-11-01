@@ -23,3 +23,5 @@ Give `width` and `height` together: only then reader reserves box before image l
   "height": 720
 }
 ```
+
+An annotated screenshot (numbered markers drawn on controls, with a table that maps each number to what it calls): match each marker to the control's event handler in the source, not to how the control looks, and check that the API allows every control the picture shows in the state shown. A picture of an enabled button that the API refuses in that state is a wrong fact.
