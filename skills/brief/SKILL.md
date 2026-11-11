@@ -1,6 +1,6 @@
 ---
 name: brief
-description: Use when research, analysis, review, or planning work produces findings too large or too visual for chat, such as an architecture walkthrough, an incident review, a migration plan, or a comparison of options. Publishes the work as an interactive document on Brief (https://brief.algoryth.me) that the human reads, annotates, questions, and answers any open decisions in, then replies back into the conversation.
+description: Use when research, analysis, review, or planning work produces findings too large or too visual for chat, such as an architecture walkthrough, an incident review, a migration plan, or a comparison of options. Publishes the work as an interactive document on Brief (https://brief.algoryth.me) that the human reads, annotates, questions, and answers any open decisions in, then replies back into the conversation. Load it in full before you build, validate or POST a Brief payload, before you brief a subagent to build or verify one, and before you write owner decision cards.
 ---
 # Publish a document to Brief
 
@@ -24,16 +24,21 @@ Doc fails reader two ways: buries point under story of how you worked, or reads 
 
 ## Workflow
 
-1. **Research and verify.** Read real files, trace real code paths, run real commands. Every number and claim in payload must come from something you saw. Note source of each fact; note goes in a `details` block, not in your sentences. A claim that later work "will add" or "will provide" something is a plan, not a fact: label it planned and name the check that will confirm it.
+1. **Research and verify.** Read real files, trace real code paths, run real commands. Every number and claim in payload must come from something you saw. Note source of each fact; note goes in a `details` block, not in your sentences. A claim that later work "will add" or "will provide" something is a plan, not a fact: label it planned and name the check that will confirm it. When a script extracts facts or code spans for the document, use a real parser or the runtime's own source, not a hand-written scanner, and compare a few generated rows with the raw source before anyone writes from them. If a writer reports that the source contradicts itself, suspect the extraction tool first.
 2. **List what the reader needs.** Find kind of work in "What the reader needs" below, write down each fact its row asks for. Fact you could not get = gap to state in doc, not row to drop.
 3. **Plan the sections.** Section 1 = summary of two to four sentences: what you found or did, what it means for reader, what they should do now, no name reader has not met. Do not restate request. Then one topic per section, reading order, numbered from 1.
 4. **Pick a block for each fact.** Use "Choosing blocks" below to match each fact to block built for its shape, then read `BLOCKS.md` in this skill directory: holds rules all blocks share, says which file in `blocks/` documents each of 27 block types. Read only files of blocks you use; each has exact fields, enum values, valid JSON example.
 5. **Write for the reader.** Follow "Writing for the reader" below.
 6. **Add decisions only for calls the human must make.** Settle every question you can answer by thinking or checking, say in doc what you chose. Decision = choice turning on human's priorities, money, risk, or taste, with at least two options you would accept. Write those last, so options reflect research, each with honest `detail` text and usually `why` stating your recommendation and its cost. Add `refs` with ids of sections setting decision up, so reader can jump back to evidence. Nothing left to decide -> send `"decisions": []`; reader then shows no decision area.
+   - Before a question becomes a decision: pull the source repos (requirements docs, specs) to latest, search all of them, not only the pages the work started from, and sort each question into "docs answer it" (follow the doc, cite it), "team decides" (mechanics, naming, error codes, order of work: decide and record why) or "owner only". Only "owner only" becomes a decision. Have a verifier check the sort.
+   - When no requirements doc or design settles the choice, it is always "owner only", never "team decides", if it changes who is eligible, what someone is scored or paid, what personal data is shown, or who holds approval or unlock authority. A field, number or view that the design or the requirements docs show to a role is settled for that role. A system that the owner builds and runs separately is out of scope, so do not ask about it.
 7. **Reread it as the reader.** Before validating, read payload as someone who saw none of this session. Every name, path, id, abbreviation, number explained where it first appears, or cut. Every fact from step 2 present. No sentence describes how you worked.
-8. **Validate before publishing.** Write payload to file, run `node <skill-dir>/validate.mjs payload.json`. If doc has `image` block, validate and verify it with a placeholder `imageId` (any `[\w-]{8,64}`, such as `img_PLACEHOLDER1`); upload each image per `reference/images.md` only after the last check passes, put the returned `imageId` in the block, and publish at once, because an upload that no brief names within an hour is lost. Offline, no install, rejects exactly what API rejects. Also prints readability hints. Do not skip; failed POST costs request against ten-per-minute limit and returns at most ten problems.
+   After a verifier's findings are fixed, someone other than the writer re-checks only the fixed items before you publish. A writer's "fixed" and a clean build are not that check.
+8. **Validate before publishing.** First re-check every item the document calls undecided, open, or pending against what changed since you started: `git log` since the start time and any answer files. A parallel session may have settled it. Write payload to file, run `node <skill-dir>/validate.mjs payload.json`. If doc has `image` block, validate and verify it with a placeholder `imageId` (any `[\w-]{8,64}`, such as `img_PLACEHOLDER1`); upload each image per `reference/images.md` only after the last check passes, put the returned `imageId` in the block, and publish at once, because an upload that no brief names within an hour is lost. Offline, no install, rejects exactly what API rejects. Also prints readability hints. Do not skip; failed POST costs request against ten-per-minute limit and returns at most ten problems. `validate.mjs` does not parse Mermaid: parse every `mermaid` block too (`blocks/mermaid.md`).
 9. **Publish and hand over the URL.** Give human link, nothing else; doc carries content now.
 10. **Act on the reply.** Human pastes generated prompt back into conversation. Read `reference/replies.md`.
+
+**When a subagent builds or verifies the payload**, tell it to read `<skill-dir>/SKILL.md` in full before it writes or checks any content, and to read the block files it uses. A guide or prompt you write for it adds to the skill and never replaces it: a hand-written guide that leaves out "Choosing blocks" or step 6 produces prose-heavy sections and decision cards for questions the agent could settle. Name a durable work folder for its scripts and intermediate files, not the session scratchpad.
 
 Skill directory holds: `BLOCKS.md` (shared block rules + index), `blocks/` (one file per block), `reference/` (decisions, glossary, image upload, replies, writing in Thai, read when needed), `example.payload.json` (complete valid doc to model on), `validate.mjs` (pre-flight check).
 
@@ -48,6 +53,7 @@ Doc can read well and still fail because number reader came for is missing. Befo
 | Code review | What change is for, in user's terms. Verdict. Findings by severity, each with effect on users. Code behind each blocking finding, and its fix. What tests cover, which checks fail. | `table`, `code` or `ba`, `coverage` |
 | A change you made | What changed for user. How it works now. What changed where. How you checked. What is left. | `mermaid` or `layers`, `table`, `ba`, `coverage` |
 | How something works | What each part is. How request or record moves through parts. Its states. Its data. | `mermaid` flowchart, `seq`, `state`, `erd` |
+| API or module guide for developers | Core concepts first. Then per endpoint: method and path, permission, request and response shape, error codes with their meaning, the business rules as a condition / result / error table taken from the contract and the spec, any formula with a worked example, the tables it reads and writes, an example call, and an annotated screenshot of each screen that calls it. Name the authority of every code sample, such as "mock, not authoritative" or "contract"; the rule tables come from the contract, the code only illustrates. | `table`, `walkthrough`, `seq`, `mermaid` stateDiagram, `erd`, `math`, `image` |
 | Deployment, migration, or rollout | Target layout. Steps in order, with who does each. Risks. How to roll back. Cost. | `mermaid`, `table`, `warn` |
 | Database design | Tables and how they relate. Example rows. Queries it must serve. | `erd`, `table`, `code` |
 | Choosing between options | What each option is. Same criteria applied to every option. Cost and effort. Your recommendation and its downside. | `table` with one row per criterion, `compare` for two options, a decision |
@@ -142,7 +148,7 @@ Optional. An array of at most 60 entries, each with a `term`, a `def` of at most
 
 Pick a block when the reader gets the point from it faster than from a sentence. Several blocks also respond to the reader, which prose cannot: `seq` steps through its messages one at a time, `walkthrough` steps through code and its flowchart together, `diff` switches between the agent's notes and the raw patch, `trajectory` filters the agent's run by kind and lets the reader mark flagged steps, `details` folds away, and every diagram and chart opens in a pan-and-zoom view. `state`, `layers`, and `erd` are static diagrams.
 
-Take each fact from your list and find the block built for its shape in the table below. An argument with no other shape stays in paragraphs. Prose is the glue between blocks: a sentence that says what a block shows and why it matters.
+Text is the weakest way to explain. Take each fact from your list and find the block built for its shape in the table below; use a paragraph only when no block fits, such as an argument with no other shape. A table, a `seq`, a flowchart, a state diagram, a `walkthrough`, an `erd`, a `ba`, or a `math` block with a worked-example table each beat a paragraph for the shape they are built for. Prose is the glue between blocks: a sentence that says what a block shows and why it matters.
 
 A block is forced when it holds less than a sentence would, or when the reader needs a paragraph to learn how to read it. The usual cases are a table of one row, a diagram of two boxes, a stat tile whose label or hint is a sentence, a `compare` whose two sides answer different points, a `coverage` list of the commands you ran, a table whose cells are paragraphs, and a growth chart whose curves all have the same shape. Write those as a sentence or two. A block is missing when the reader has to build the picture in their head: a flow told in prose, a set of numbers inside a paragraph, a database design with no `erd`, or options that grow at different rates compared only in prose.
 
@@ -243,12 +249,20 @@ Write the payload to a file and POST it with `-d @file`. Inlining a large JSON d
 | 400 | `{ "error": "path: message; path: message" }` | Fix the named paths and re-POST. |
 | 413 | `{ "error": "Payload exceeds 1900000 bytes." }` | Cut content. Long code and raw command output are the usual cause; move them into a `details` block or drop them. |
 | 429 | `{ "error": "Rate limit exceeded. Try again in a minute." }` | Ten creations per minute per IP. Wait; do not retry in a loop. |
+| 403 | `error code: 1010` (plain text from Cloudflare) | The request had a user agent Cloudflare blocks, such as Python's default `Python-urllib`. Set an explicit `User-Agent` header; curl's default works. |
 
 If the document has an `image` block, read `reference/images.md` first: it says how to upload each file and get its `imageId`.
 
 ### Reading a document back
 
 `GET https://brief-api.algoryth.me/api/session/<id>/raw` returns the document as markdown. It contains only the payload you sent, never the reader's annotations or answers. It returns 404 `{ "error": "Session not found or expired." }` for a wrong or expired id, and 403 `{ "error": "This session is protected..." }` once the reader password-protects the session; the content is then not readable by you. Keep your own copy of any payload you may need later rather than relying on this endpoint.
+
+### Expiry and saving
+
+- A session expires 7 days after its last open.
+- `GET https://brief-api.algoryth.me/api/session/<id>` returns `saved`, `createdAt`, `lastOpenedAt` and `expiresAt`. That GET counts as an open, so it extends the session.
+- The web page `/s/<id>` returns HTTP 200 even when the session is gone, so a 200 there proves nothing.
+- To keep a session, `PUT https://brief-api.algoryth.me/api/session/<id>/save` with body `{"mode":"plain"}`. It sets `saved: true` and moves `expiresAt` to about 90 days ahead. An expired id cannot be saved (404): republish it, then save the new id.
 
 ## What comes back
 
@@ -264,7 +278,7 @@ When the document has decisions, design them so this loop closes in one pass. A 
 | An id the reader has never seen: a ticket, a card, a lane, an earlier document | Explain it in words or cut it. Each document stands alone. |
 | Telling the story of how you worked | The reader wants the result. Give the method one sentence, or a `details` block when it affects how far to trust the result. |
 | A performance or capacity document with no setup, no before and after, no complexity, or no money cost | See "What the reader needs". Those are the facts the reader came for. |
-| Handing the human a question you could settle | Decide it, say what you chose, and keep decisions for calls that turn on their priorities, money, risk, or taste. A status or a question that the human's standing rules already settle, such as reporting work as "partial" for a reason they ruled out, is unfinished work, not a finding. Have the verifier check the document's framing against those rules, not only its facts. |
+| Handing the human a question you could settle | Run the sort in step 6 first. Decide it, say what you chose, and keep decisions for calls that turn on their priorities, money, risk, or taste. A status or a question that the human's standing rules already settle, such as reporting work as "partial" for a reason they ruled out, is unfinished work, not a finding. Have the verifier check the document's framing against those rules, not only its facts. |
 | Writing in English and translating into Thai | The translation keeps English grammar, full stops, and calques. Write in Thai from the first draft. |
 | A sentence that carries two ideas, or a passive copied from English | Split it, and name who does the action. ASD-STE100 keeps a description to 25 words and an instruction to 20. |
 | Backticks or `**` in a table cell, a label, or a decision | Only a `p`, the title and text of a `note`, `warn`, or `good`, and the items of a `list` render inline code, bold, and italic. Everywhere else they show as literal characters. Links render nowhere. |
