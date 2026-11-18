@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { THEME_INIT_SCRIPT } from '@/features/theme'
+import { API_URL } from '@/shared/api'
 import './fonts.css'
 import './globals.css'
 
@@ -21,6 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* functions/s/[[path]].ts reads this to fetch /raw for agents that do not run JS. */}
+        <meta name="brief-api" content={API_URL} />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {PRELOADED_FONTS.map((url) => (
           <link
