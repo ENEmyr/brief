@@ -158,6 +158,13 @@ function SessionReady({
     setTocCollapsed(readStoredTocCollapsed())
   }, [])
 
+  useEffect(() => {
+    document.title = `${payload.meta.title} | Brief`
+    return () => {
+      document.title = 'Brief'
+    }
+  }, [payload.meta.title])
+
   const sections = payload.sections
   const hasDecisions = payload.decisions.length > 0
   const shownSections = useMemo(() => {

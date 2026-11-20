@@ -7,6 +7,20 @@ class MockIO {
 }
 globalThis.IntersectionObserver = globalThis.IntersectionObserver ?? MockIO
 
+// jsdom's Blob has no arrayBuffer(), and newer Node builds Response.blob() from the
+// global (jsdom) Blob, so a fetched image blob could not be read in tests.
+Blob.prototype.arrayBuffer ??= function (this: Blob) {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as ArrayBuffer)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsArrayBuffer(this)
+  })
+}
+// jsdom has no object URLs either; a test that checks them stubs its own.
+URL.createObjectURL ??= () => 'blob:test'
+URL.revokeObjectURL ??= () => {}
+
 // jsdom has no matchMedia. The reader shell reads its 880px breakpoint and
 // reduced motion through it; with no media engine, nothing matches (a wide
 // screen with motion), and a test that needs a match stubs it itself.

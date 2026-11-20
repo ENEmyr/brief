@@ -67,6 +67,17 @@ describe('SessionPage / SessionView', () => {
     expect(screen.getByText('Hello world')).toBeInTheDocument()
   })
 
+  it('names the browser tab after the brief, and restores it on leave', async () => {
+    window.history.replaceState(null, '', '/s/abc12345678901/')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(validEnvelope))))
+
+    const { unmount } = render(<SessionPage />)
+
+    await waitFor(() => expect(document.title).toBe('Test Doc | Brief'))
+    unmount()
+    expect(document.title).toBe('Brief')
+  })
+
   it('shows not-found message on 404', async () => {
     window.history.replaceState(null, '', '/s/missing12345678/')
     vi.stubGlobal(
